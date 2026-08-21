@@ -1,0 +1,31 @@
+{
+    "name": "numerics-js",
+    "version": "0.1.0",
+    "description": "A JavaScript numerical methods library",
+    "type": "module",
+    "main": "./src/index.js",
+    "exports": {
+        ".": "./src/index.js",
+        "./array": "./src/array.js",
+        "./bessel": "./src/bessel.js",
+        "./roots": "./src/roots.js",
+        "./ode": "./src/ode/rk4.js",
+        "./ode/rk4": "./src/ode/rk4.js",
+        "./ode/verlet": "./src/ode/verlet.js"
+    },
+    "scripts": {
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "keywords": [
+        "numerical-methods",
+        "mathematics",
+        "algorithms",
+        "javascript",
+        "library"
+    ],
+    "license": "MIT",
+    "devDependencies": {
+        "vitest": "^2.1.8"
+    }
+}
