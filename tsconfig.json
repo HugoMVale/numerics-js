@@ -2,10 +2,11 @@
     "compilerOptions": {
         "target": "ES2022",
         "module": "ESNext",
-        "moduleResolution": "Node",
-        "ignoreDeprecations": "6.0",
-        "allowJs": true,
-        "checkJs": true,
+        "moduleResolution": "Bundler",
+        "lib": [
+            "ESNext"
+        ],
+        "skipLibCheck": true,
         "strict": true,
         "noEmit": true
     },

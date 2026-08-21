@@ -1,15 +1,23 @@
+export type MathFunction = (x: number) => number;
+
 /**
  * Finds a root of fn in the interval [a, b] using the bisection method.
  *
- * @param {(x: number) => number} fn - Continuous function to find a root of.
- * @param {number} a - Left endpoint of the bracketing interval.
- * @param {number} b - Right endpoint of the bracketing interval.
- * @param {number} [tolerance=1e-8] - Stop when the interval half-width is below this.
- * @param {number} [maxIterations=100] - Maximum number of iterations.
- * @returns {number} Approximate root.
+ * @param fn - Continuous function to find a root of.
+ * @param a - Left endpoint of the bracketing interval.
+ * @param b - Right endpoint of the bracketing interval.
+ * @param tolerance - Stop when the interval half-width is below this.
+ * @param maxIterations - Maximum number of iterations.
+ * @returns Approximate root.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
  */
-export function bisection(fn, a, b, tolerance = 1e-8, maxIterations = 100) {
+export function bisection(
+    fn: MathFunction,
+    a: number,
+    b: number,
+    tolerance: number = 1e-8,
+    maxIterations: number = 100
+): number {
     if (a === b) {
         throw new Error('bisection: a and b must be different');
     }
@@ -61,15 +69,21 @@ export function bisection(fn, a, b, tolerance = 1e-8, maxIterations = 100) {
  * faster (superlinear, order ~1.618) when it converges. It is not guaranteed
  * to converge for all inputs.
  *
- * @param {(x: number) => number} fn - Function to find a root of.
- * @param {number} x0 - First initial guess.
- * @param {number} x1 - Second initial guess (should differ from x0).
- * @param {number} [tolerance=1e-8] - Stop when |x1 - x0| (the step size) is below this.
- * @param {number} [maxIterations=100] - Maximum number of iterations.
- * @returns {number} Approximate root.
+ * @param fn - Function to find a root of.
+ * @param x0 - First initial guess.
+ * @param x1 - Second initial guess (should differ from x0).
+ * @param tolerance - Stop when |x1 - x0| (the step size) is below this.
+ * @param maxIterations - Maximum number of iterations.
+ * @returns Approximate root.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
  */
-export function secant(fn, x0, x1, tolerance = 1e-8, maxIterations = 100) {
+export function secant(
+    fn: MathFunction,
+    x0: number,
+    x1: number,
+    tolerance: number = 1e-8,
+    maxIterations: number = 100
+): number {
     if (x0 === x1) {
         throw new Error('secant: x0 and x1 must be different');
     }

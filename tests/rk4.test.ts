@@ -1,12 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
-import { rk4Step, rk4Integrate, wrapAllocatingDerivative } from '../src/index.js';
-import { Array1D, Array2D } from '../src/index.js';
+import { describe, it, expect } from 'vitest';
+import { rk4Step, rk4Integrate } from '../src/ode/rk4';
+import { wrapAllocatingDerivative } from '../src/ode/adapters';
+import { Array1D } from '../src/array/array1d';
 
 describe('RK4 Integration Module', () => {
 
     // Helper to create a derivative function dy/dt = y (Exponential growth)
     // Analytical solution: y(t) = y(0) * e^t
-    const expDerivative = (t, y, dydt) => {
+    const expDerivative = (t: number, y: Array1D, dydt: Array1D): Array1D => {
         dydt.set(y.data);
         return dydt;
     };
@@ -92,7 +93,7 @@ describe('RK4 Integration Module', () => {
 describe('wrapAllocatingDerivative', () => {
     it('should adapt an allocating derivative function to a non-allocating signature', () => {
         // Allocating version: returns a newly constructed Array1D
-        const allocatingF = (t, y) => {
+        const allocatingF = (t: number, y: Array1D): Array1D => {
             const res = new Array1D(1);
             res.data[0] = y.data[0] * 2;
             return res;

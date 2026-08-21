@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { bisection, secant } from '../src/index.js';
+import { bisection, secant } from '../src/roots';
 
 // A simple test function: f(x) = x^2 - 4, which has roots at x = 2 and x = -2
-const f = (/** @type {number} */ x) => x * x - 4;
+const f = (x: number): number => x * x - 4;
 
 describe('bisection', () => {
     afterEach(() => {

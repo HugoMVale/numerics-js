@@ -1,4 +1,4 @@
-import { Array1D } from '../index.js';
+import { Array1D } from './array1d';
 
 /**
  * A rows x cols matrix backed by a flat, row-major Float64Array.
@@ -9,14 +9,18 @@ import { Array1D } from '../index.js';
  * mathematical / textbook convention rather than JS's usual 0-based indexing.
  */
 export class Array2D {
+    public rows: number;
+    public cols: number;
+    public data: Float64Array;
+
     /**
-     * @param {number} rows - Number of rows (must be >= 1).
-     * @param {number} cols - Number of columns (must be >= 1).
-     * @param {number[]|Float64Array} [input] - Optional initial data in
+     * @param rows - Number of rows (must be >= 1).
+     * @param cols - Number of columns (must be >= 1).
+     * @param input - Optional initial data in
      *   row-major order (i.e. row 1 followed by row 2, etc.), length `rows * cols`.
      *   If omitted, the matrix is initialized to all zeros.
      */
-    constructor(rows, cols, input) {
+    constructor(rows: number, cols: number, input?: ArrayLike<number>) {
         this.rows = rows;
         this.cols = cols;
         this.data = new Float64Array(rows * cols);
@@ -26,11 +30,10 @@ export class Array2D {
     /**
      * Throws if `m` is not an Array2D with the same shape as this one. Used
      * internally to guard binary operations against silent shape mismatches.
-     * @param {Array2D} m - The other matrix.
+     * @param m - The other matrix.
      * @throws {RangeError} If `m.rows !== this.rows || m.cols !== this.cols`.
-     * @private
      */
-    _checkShape(m) {
+    private _checkShape(m: Array2D): void {
         if (m.rows !== this.rows || m.cols !== this.cols) {
             throw new RangeError(`Array2D shape mismatch: ${this.rows}x${this.cols} vs ${m.rows}x${m.cols}`);
         }
@@ -38,12 +41,11 @@ export class Array2D {
 
     /**
      * Throws if `(i, j)` is not a valid 1-based index into this matrix.
-     * @param {number} i - Row index (1-based).
-     * @param {number} j - Column index (1-based).
+     * @param i - Row index (1-based).
+     * @param j - Column index (1-based).
      * @throws {RangeError} If `i` or `j` is out of range.
-     * @private
      */
-    _checkBounds(i, j) {
+    private _checkBounds(i: number, j: number): void {
         if (i < 1 || i > this.rows || j < 1 || j > this.cols) {
             throw new RangeError(`Array2D index (${i}, ${j}) out of bounds for ${this.rows}x${this.cols} matrix`);
         }
@@ -51,12 +53,13 @@ export class Array2D {
 
     /**
      * Converts a 1-based `(i, j)` index into a flat index into `data`.
-     * @param {number} i - Row index (1-based).
-     * @param {number} j - Column index (1-based).
-     * @returns {number} The flat, 0-based index.
-     * @private
+     * @param i - Row index (1-based).
+     * @param j - Column index (1-based).
+     * @returns The flat, 0-based index.
      */
-    _idx(i, j) { return (i - 1) * this.cols + (j - 1); }
+    private _idx(i: number, j: number): number {
+        return (i - 1) * this.cols + (j - 1);
+    }
 
     // -----------------------------------------------------------------
     // Element / row / column access
@@ -64,23 +67,23 @@ export class Array2D {
 
     /**
      * Gets the element at row `i`, column `j`.
-     * @param {number} i - Row index (1-based).
-     * @param {number} j - Column index (1-based).
-     * @returns {number} The value at `(i, j)`.
+     * @param i - Row index (1-based).
+     * @param j - Column index (1-based).
+     * @returns The value at `(i, j)`.
      */
-    get(i, j) {
+    get(i: number, j: number): number {
         this._checkBounds(i, j);
         return this.data[this._idx(i, j)];
     }
 
     /**
      * Sets the element at row `i`, column `j`, mutating this matrix in place.
-     * @param {number} i - Row index (1-based).
-     * @param {number} j - Column index (1-based).
-     * @param {number} value - The value to store.
-     * @returns {Array2D} `this`, for chaining.
+     * @param i - Row index (1-based).
+     * @param j - Column index (1-based).
+     * @param value - The value to store.
+     * @returns `this`, for chaining.
      */
-    set(i, j, value) {
+    set(i: number, j: number, value: number): this {
         this._checkBounds(i, j);
         this.data[this._idx(i, j)] = value;
         return this;
@@ -88,20 +91,20 @@ export class Array2D {
 
     /**
      * Extracts row `i` as a vector.
-     * @param {number} i - Row index (1-based).
-     * @returns {Array1D} A new vector with `this.cols` components.
+     * @param i - Row index (1-based).
+     * @returns A new vector with `this.cols` components.
      */
-    row(i) {
+    row(i: number): Array1D {
         if (i < 1 || i > this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
         return new Array1D(this.data.subarray(this._idx(i, 1), this._idx(i, 1) + this.cols));
     }
 
     /**
      * Extracts column `j` as a vector.
-     * @param {number} j - Column index (1-based).
-     * @returns {Array1D} A new vector with `this.rows` components.
+     * @param j - Column index (1-based).
+     * @returns A new vector with `this.rows` components.
      */
-    col(j) {
+    col(j: number): Array1D {
         if (j < 1 || j > this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
         const res = new Array1D(this.rows);
         for (let i = 1; i <= this.rows; i++) res.data[i - 1] = this.get(i, j);
@@ -110,11 +113,11 @@ export class Array2D {
 
     /**
      * Overwrites row `i` in place with the given values.
-     * @param {number} i - Row index (1-based).
-     * @param {Array1D|number[]|Float64Array} values - Values to copy in; must have length `cols`.
-     * @returns {Array2D} `this`, for chaining.
+     * @param i - Row index (1-based).
+     * @param values - Values to copy in; must have length `cols`.
+     * @returns `this`, for chaining.
      */
-    setRow(i, values) {
+    setRow(i: number, values: Array1D | ArrayLike<number>): this {
         if (i < 1 || i > this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
         const src = values instanceof Array1D ? values.data : values;
         this.data.set(src, this._idx(i, 1));
@@ -123,11 +126,11 @@ export class Array2D {
 
     /**
      * Overwrites column `j` in place with the given values.
-     * @param {number} j - Column index (1-based).
-     * @param {Array1D|number[]|Float64Array} values - Values to copy in; must have length `rows`.
-     * @returns {Array2D} `this`, for chaining.
+     * @param j - Column index (1-based).
+     * @param values - Values to copy in; must have length `rows`.
+     * @returns `this`, for chaining.
      */
-    setCol(j, values) {
+    setCol(j: number, values: Array1D | ArrayLike<number>): this {
         if (j < 1 || j > this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
         const src = values instanceof Array1D ? values.data : values;
         for (let i = 1; i <= this.rows; i++) this.set(i, j, src[i - 1]);
@@ -140,10 +143,10 @@ export class Array2D {
 
     /**
      * Adds another matrix to this one, elementwise.
-     * @param {Array2D} m - The matrix to add. Must have the same shape as this one.
-     * @returns {Array2D} A new matrix equal to `this + m`.
+     * @param m - The matrix to add. Must have the same shape as this one.
+     * @returns A new matrix equal to `this + m`.
      */
-    add(m) {
+    add(m: Array2D): Array2D {
         this._checkShape(m);
         const res = new Array2D(this.rows, this.cols);
         for (let k = 0; k < this.data.length; k++) res.data[k] = this.data[k] + m.data[k];
@@ -152,10 +155,10 @@ export class Array2D {
 
     /**
      * Subtracts another matrix from this one, elementwise.
-     * @param {Array2D} m - The matrix to subtract. Must have the same shape as this one.
-     * @returns {Array2D} A new matrix equal to `this - m`.
+     * @param m - The matrix to subtract. Must have the same shape as this one.
+     * @returns A new matrix equal to `this - m`.
      */
-    sub(m) {
+    sub(m: Array2D): Array2D {
         this._checkShape(m);
         const res = new Array2D(this.rows, this.cols);
         for (let k = 0; k < this.data.length; k++) res.data[k] = this.data[k] - m.data[k];
@@ -164,10 +167,10 @@ export class Array2D {
 
     /**
      * Scales every element of this matrix by a scalar.
-     * @param {number} s - The scale factor.
-     * @returns {Array2D} A new matrix equal to `this * s`.
+     * @param s - The scale factor.
+     * @returns A new matrix equal to `this * s`.
      */
-    mult(s) {
+    mult(s: number): Array2D {
         const res = new Array2D(this.rows, this.cols);
         for (let k = 0; k < this.data.length; k++) res.data[k] = this.data[k] * s;
         return res;
@@ -175,10 +178,10 @@ export class Array2D {
 
     /**
      * Multiplies this matrix by another: `this * m` (matrix product).
-     * @param {Array2D} m - The right-hand matrix. Must have `m.rows === this.cols`.
-     * @returns {Array2D} A new `this.rows x m.cols` matrix.
+     * @param m - The right-hand matrix. Must have `m.rows === this.cols`.
+     * @returns A new `this.rows x m.cols` matrix.
      */
-    matmul(m) {
+    matmul(m: Array2D): Array2D {
         if (this.cols !== m.rows) {
             throw new RangeError(`Array2D matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}`);
         }
@@ -197,10 +200,10 @@ export class Array2D {
 
     /**
      * Multiplies this matrix by a column vector: `this * v`.
-     * @param {Array1D} v - The vector. Must have `v.dim === this.cols`.
-     * @returns {Array1D} A new vector with `this.rows` components.
+     * @param v - The vector. Must have `v.dim === this.cols`.
+     * @returns A new vector with `this.rows` components.
      */
-    mulVec(v) {
+    mulVec(v: Array1D): Array1D {
         if (v.dim !== this.cols) {
             throw new RangeError(`Array2D mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.dim})`);
         }
@@ -215,9 +218,9 @@ export class Array2D {
 
     /**
      * Computes the transpose of this matrix.
-     * @returns {Array2D} A new `this.cols x this.rows` matrix equal to `this^T`.
+     * @returns A new `this.cols x this.rows` matrix equal to `this^T`.
      */
-    transpose() {
+    transpose(): Array2D {
         const res = new Array2D(this.cols, this.rows);
         for (let i = 1; i <= this.rows; i++) {
             for (let j = 1; j <= this.cols; j++) res.set(j, i, this.get(i, j));
@@ -227,10 +230,10 @@ export class Array2D {
 
     /**
      * Computes the trace (sum of diagonal elements) of this matrix.
-     * @returns {number} The trace.
+     * @returns The trace.
      * @throws {RangeError} If this matrix is not square.
      */
-    trace() {
+    trace(): number {
         if (this.rows !== this.cols) throw new RangeError(`Array2D trace requires a square matrix, got ${this.rows}x${this.cols}`);
         let sum = 0;
         for (let i = 1; i <= this.rows; i++) sum += this.get(i, i);
@@ -241,14 +244,13 @@ export class Array2D {
      * Finds the best pivot row for column `col`, searching rows `startRow..m.rows`.
      * Used internally by `_forwardEliminate`, `inverse`, and `solve` to share
      * the same partial-pivoting (largest-magnitude-entry) selection logic.
-     * @param {Array2D} m - The matrix to search (may be a working copy or an augmented matrix).
-     * @param {number} col - Column to search (1-based).
-     * @param {number} startRow - First row to consider (1-based).
-     * @param {number} tol - Entries with absolute value at or below this are never chosen as a pivot.
-     * @returns {number} The 1-based row index of the best pivot, or `-1` if none exceeds `tol`.
-     * @private
+     * @param m - The matrix to search (may be a working copy or an augmented matrix).
+     * @param col - Column to search (1-based).
+     * @param startRow - First row to consider (1-based).
+     * @param tol - Entries with absolute value at or below this are never chosen as a pivot.
+     * @returns The 1-based row index of the best pivot, or `-1` if none exceeds `tol`.
      */
-    static _findPivotRow(m, col, startRow, tol) {
+    private static _findPivotRow(m: Array2D, col: number, startRow: number, tol: number): number {
         let pivotRow = -1;
         let pivotVal = tol;
         for (let i = startRow; i <= m.rows; i++) {
@@ -264,19 +266,15 @@ export class Array2D {
      * back-substitution or row scaling). Shared building block for `rank()`
      * and `determinant()`, which both need the same elimination but reduce
      * the result differently.
-     * @param {number} [tol=0] - Absolute tolerance below which a candidate pivot is treated as zero.
-     * @returns {{rank: number, sign: number, pivots: number[]}} `rank` is the
-     *   number of pivots found; `sign` is `+1`/`-1` tracking the row-swap
-     *   parity (meaningful only for square matrices, for determinant sign);
-     *   `pivots` are the pivot values in the order they were chosen (their
-     *   product, times `sign`, is the determinant for a square matrix).
-     * @private
+     * @param tol - Absolute tolerance below which a candidate pivot is treated as zero.
+     * @returns `rank` is the number of pivots found; `sign` is `+1`/`-1` tracking the row-swap
+     *   parity; `pivots` are the pivot values in the order they were chosen.
      */
-    _forwardEliminate(tol = 0) {
+    private _forwardEliminate(tol = 0): { rank: number; sign: number; pivots: number[] } {
         const m = this.copy();
         let rank = 0;
         let sign = 1;
-        const pivots = [];
+        const pivots: number[] = [];
         for (let col = 1; col <= m.cols && rank < m.rows; col++) {
             const pivotRow = Array2D._findPivotRow(m, col, rank + 1, tol);
             if (pivotRow === -1) continue;
@@ -295,20 +293,20 @@ export class Array2D {
     /**
      * Computes the rank of this matrix (the number of linearly independent
      * rows/columns), via Gaussian elimination with partial pivoting.
-     * @param {number} [tol=1e-10] - Absolute tolerance below which a pivot is treated as zero.
-     * @returns {number} The rank, between `0` and `min(rows, cols)`.
+     * @param tol - Absolute tolerance below which a pivot is treated as zero.
+     * @returns The rank, between `0` and `min(rows, cols)`.
      */
-    rank(tol = 1e-10) {
+    rank(tol = 1e-10): number {
         return this._forwardEliminate(tol).rank;
     }
 
     /**
      * Computes the determinant of this matrix, via Gaussian elimination with
      * partial pivoting.
-     * @returns {number} The determinant.
+     * @returns The determinant.
      * @throws {RangeError} If this matrix is not square.
      */
-    determinant() {
+    determinant(): number {
         if (this.rows !== this.cols) throw new RangeError(`Array2D determinant requires a square matrix, got ${this.rows}x${this.cols}`);
         const { rank, sign, pivots } = this._forwardEliminate(0);
         if (rank < this.rows) return 0;
@@ -320,12 +318,12 @@ export class Array2D {
     /**
      * Computes the inverse of this matrix, via Gauss-Jordan elimination with
      * partial pivoting.
-     * @returns {Array2D} A new matrix `M` such that `this.matmul(M)` is (up to
+     * @returns A new matrix `M` such that `this.matmul(M)` is (up to
      *   floating-point error) the identity matrix.
      * @throws {RangeError} If this matrix is not square.
      * @throws {Error} If this matrix is singular (not invertible).
      */
-    inverse() {
+    inverse(): Array2D {
         if (this.rows !== this.cols) throw new RangeError(`Array2D inverse requires a square matrix, got ${this.rows}x${this.cols}`);
         const n = this.rows;
         // Augment [this | I] and row-reduce the left half to I; the right
@@ -356,18 +354,13 @@ export class Array2D {
     /**
      * Solves the linear system `this * x = b` for `x`, via Gaussian
      * elimination with partial pivoting followed by back-substitution.
-     *
-     * This is the preferred way to solve a single system: it's roughly 3x
-     * fewer floating-point operations than `this.inverse().mulVec(b)|matmul(B)`,
-     * since it never forms the full inverse, and it shares the same
-     * partial-pivoting numerical stability.
-     * @param {Array1D} b - The right-hand side vector. Must have `b.dim === this.rows`.
-     * @returns {Array1D} The solution vector `x` such that `this.mulVec(x)` is (up to
+     * @param b - The right-hand side vector. Must have `b.dim === this.rows`.
+     * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
      *   floating-point error) equal to `b`.
      * @throws {RangeError} If this matrix is not square, or `b.dim !== this.rows`.
      * @throws {Error} If this matrix is singular (no unique solution).
      */
-    solve(b) {
+    solve(b: Array1D): Array1D {
         if (this.rows !== this.cols) throw new RangeError(`Array2D solve requires a square matrix, got ${this.rows}x${this.cols}`);
         if (b.dim !== this.rows) throw new RangeError(`Array2D solve shape mismatch: ${this.rows}x${this.cols} vs vec(${b.dim})`);
         const n = this.rows;
@@ -399,9 +392,9 @@ export class Array2D {
 
     /**
      * Computes the sum of all elements of this matrix.
-     * @returns {number} The sum, or `0` if the matrix is empty.
+     * @returns The sum, or `0` if the matrix is empty.
      */
-    sum() {
+    sum(): number {
         let s = 0;
         for (let k = 0; k < this.data.length; k++) s += this.data[k];
         return s;
@@ -409,10 +402,10 @@ export class Array2D {
 
     /**
      * Finds the smallest element of this matrix.
-     * @returns {number} The minimum value.
+     * @returns The minimum value.
      * @throws {RangeError} If the matrix is empty.
      */
-    min() {
+    min(): number {
         if (this.data.length === 0) throw new RangeError('Array2D min() called on an empty matrix');
         let m = this.data[0];
         for (let k = 1; k < this.data.length; k++) if (this.data[k] < m) m = this.data[k];
@@ -421,10 +414,10 @@ export class Array2D {
 
     /**
      * Finds the largest element of this matrix.
-     * @returns {number} The maximum value.
+     * @returns The maximum value.
      * @throws {RangeError} If the matrix is empty.
      */
-    max() {
+    max(): number {
         if (this.data.length === 0) throw new RangeError('Array2D max() called on an empty matrix');
         let m = this.data[0];
         for (let k = 1; k < this.data.length; k++) if (this.data[k] > m) m = this.data[k];
@@ -433,20 +426,22 @@ export class Array2D {
 
     /**
      * Creates an independent copy of this matrix.
-     * @returns {Array2D} A new Array2D with the same shape and values.
+     * @returns A new Array2D with the same shape and values.
      */
-    copy() { return new Array2D(this.rows, this.cols, this.data); }
+    copy(): Array2D {
+        return new Array2D(this.rows, this.cols, this.data);
+    }
 
     /**
      * Checks whether this matrix is elementwise close to another, modeled on
      * `numpy.isclose`: an element `a` is close to `b` if
      * `|a - b| <= atol + rtol * |b|`.
-     * @param {Array2D} m - The other matrix.
-     * @param {number} [rtol=1e-5] - Relative tolerance.
-     * @param {number} [atol=1e-8] - Absolute tolerance.
-     * @returns {boolean} `true` if `m` has the same shape and all elements of `this` are close to `m`'s.
+     * @param m - The other matrix.
+     * @param rtol - Relative tolerance.
+     * @param atol - Absolute tolerance.
+     * @returns `true` if `m` has the same shape and all elements of `this` are close to `m`'s.
      */
-    isClose(m, rtol = 1e-5, atol = 1e-8) {
+    isClose(m: Array2D, rtol = 1e-5, atol = 1e-8): boolean {
         if (m.rows !== this.rows || m.cols !== this.cols) return false;
         for (let k = 0; k < this.data.length; k++) {
             if (Math.abs(this.data[k] - m.data[k]) > atol + rtol * Math.abs(m.data[k])) return false;
@@ -456,19 +451,19 @@ export class Array2D {
 
     /**
      * Returns this matrix's elements as an array of row arrays.
-     * @returns {number[][]} An array of `rows` arrays, each with `cols` numbers.
+     * @returns An array of `rows` arrays, each with `cols` numbers.
      */
-    toArray() {
-        const out = [];
+    toArray(): number[][] {
+        const out: number[][] = [];
         for (let i = 1; i <= this.rows; i++) out.push(Array.from(this.row(i).data));
         return out;
     }
 
     /**
      * Returns a human-readable string representation of this matrix, one row per line.
-     * @returns {string} e.g. `"Array2D[[1, 2], [3, 4]]"`.
+     * @returns e.g. `"Array2D[[1, 2], [3, 4]]"`.
      */
-    toString() {
+    toString(): string {
         const rows = this.toArray().map(r => `[${r.join(', ')}]`);
         return `Array2D[${rows.join(', ')}]`;
     }
@@ -476,9 +471,8 @@ export class Array2D {
     /**
      * Makes Array2D iterable over its rows, e.g. `for (const r of someMatrix)`.
      * Each yielded value is an Array1D.
-     * @returns {Iterator<Array1D>}
      */
-    *[Symbol.iterator]() {
+    *[Symbol.iterator](): Generator<Array1D, void, unknown> {
         for (let i = 1; i <= this.rows; i++) yield this.row(i);
     }
 
@@ -488,19 +482,19 @@ export class Array2D {
 
     /**
      * Resets this matrix to all zeros in place.
-     * @returns {Array2D} `this`, for chaining.
+     * @returns `this`, for chaining.
      */
-    reset() {
+    reset(): this {
         this.data.fill(0);
         return this;
     }
 
     /**
      * Adds another matrix to this one in place, elementwise: `this += m`.
-     * @param {Array2D} m - The matrix to add. Must have the same shape as this one.
-     * @returns {Array2D} `this`, for chaining.
+     * @param m - The matrix to add. Must have the same shape as this one.
+     * @returns `this`, for chaining.
      */
-    addSelf(m) {
+    addSelf(m: Array2D): this {
         this._checkShape(m);
         for (let k = 0; k < this.data.length; k++) this.data[k] += m.data[k];
         return this;
@@ -508,10 +502,10 @@ export class Array2D {
 
     /**
      * Subtracts another matrix from this one in place, elementwise: `this -= m`.
-     * @param {Array2D} m - The matrix to subtract. Must have the same shape as this one.
-     * @returns {Array2D} `this`, for chaining.
+     * @param m - The matrix to subtract. Must have the same shape as this one.
+     * @returns `this`, for chaining.
      */
-    subSelf(m) {
+    subSelf(m: Array2D): this {
         this._checkShape(m);
         for (let k = 0; k < this.data.length; k++) this.data[k] -= m.data[k];
         return this;
@@ -519,21 +513,20 @@ export class Array2D {
 
     /**
      * Scales every element of this matrix in place: `this *= s`.
-     * @param {number} s - The scale factor.
-     * @returns {Array2D} `this`, for chaining.
+     * @param s - The scale factor.
+     * @returns `this`, for chaining.
      */
-    multSelf(s) {
+    multSelf(s: number): this {
         for (let k = 0; k < this.data.length; k++) this.data[k] *= s;
         return this;
     }
 
     /**
      * Transposes a square matrix in place.
-     * @returns {Array2D} `this`, for chaining.
-     * @throws {RangeError} If this matrix is not square (transposing a
-     *   non-square matrix would change its shape; use `transpose()` instead).
+     * @returns `this`, for chaining.
+     * @throws {RangeError} If this matrix is not square.
      */
-    transposeSelf() {
+    transposeSelf(): this {
         if (this.rows !== this.cols) throw new RangeError(`Array2D transposeSelf requires a square matrix, got ${this.rows}x${this.cols}`);
         for (let i = 1; i <= this.rows; i++) {
             for (let j = i + 1; j <= this.cols; j++) {
@@ -547,11 +540,11 @@ export class Array2D {
 
     /**
      * Swaps two rows in place. Useful when implementing pivoting algorithms.
-     * @param {number} i - First row index (1-based).
-     * @param {number} j - Second row index (1-based).
-     * @returns {Array2D} `this`, for chaining.
+     * @param i - First row index (1-based).
+     * @param j - Second row index (1-based).
+     * @returns `this`, for chaining.
      */
-    swapRows(i, j) {
+    swapRows(i: number, j: number): this {
         if (i === j) return this;
         const a = this.row(i).toArray();
         this.setRow(i, this.row(j).data);
@@ -561,11 +554,11 @@ export class Array2D {
 
     /**
      * Scales row `i` in place by a scalar: `row[i] *= s`.
-     * @param {number} i - Row index (1-based).
-     * @param {number} s - The scale factor.
-     * @returns {Array2D} `this`, for chaining.
+     * @param i - Row index (1-based).
+     * @param s - The scale factor.
+     * @returns `this`, for chaining.
      */
-    scaleRow(i, s) {
+    scaleRow(i: number, s: number): this {
         for (let j = 1; j <= this.cols; j++) this.set(i, j, this.get(i, j) * s);
         return this;
     }
@@ -573,30 +566,32 @@ export class Array2D {
     /**
      * Adds a scaled row to another row in place, in a single pass:
      * `row[i] += row[j] * s`. Useful when implementing Gaussian elimination.
-     * @param {number} i - Row index to modify (1-based).
-     * @param {number} j - Row index to read from and scale (1-based).
-     * @param {number} s - The scale factor applied to row `j`.
-     * @returns {Array2D} `this`, for chaining.
+     * @param i - Row index to modify (1-based).
+     * @param j - Row index to read from and scale (1-based).
+     * @param s - The scale factor applied to row `j`.
+     * @returns `this`, for chaining.
      */
-    addScaledRow(i, j, s) {
+    addScaledRow(i: number, j: number, s: number): this {
         for (let k = 1; k <= this.cols; k++) this.set(i, k, this.get(i, k) + this.get(j, k) * s);
         return this;
     }
 
     /**
      * Creates a `rows x cols` zero matrix.
-     * @param {number} rows - Number of rows.
-     * @param {number} cols - Number of columns.
-     * @returns {Array2D} A new zero matrix.
+     * @param rows - Number of rows.
+     * @param cols - Number of columns.
+     * @returns A new zero matrix.
      */
-    static zero(rows, cols) { return new Array2D(rows, cols); }
+    static zero(rows: number, cols: number): Array2D {
+        return new Array2D(rows, cols);
+    }
 
     /**
      * Creates an `n x n` identity matrix.
-     * @param {number} n - The matrix dimension.
-     * @returns {Array2D} A new identity matrix.
+     * @param n - The matrix dimension.
+     * @returns A new identity matrix.
      */
-    static identity(n) {
+    static identity(n: number): Array2D {
         const res = new Array2D(n, n);
         for (let i = 1; i <= n; i++) res.set(i, i, 1);
         return res;
@@ -604,10 +599,10 @@ export class Array2D {
 
     /**
      * Creates an Array2D from an array of row arrays.
-     * @param {number[][]} rows - Source data; each inner array must have the same length.
-     * @returns {Array2D} A new matrix with shape `rows.length x rows[0].length`.
+     * @param rows - Source data; each inner array must have the same length.
+     * @returns A new matrix with shape `rows.length x rows[0].length`.
      */
-    static from(rows) {
+    static from(rows: number[][]): Array2D {
         const nRows = rows.length;
         const nCols = nRows > 0 ? rows[0].length : 0;
         const res = new Array2D(nRows, nCols);

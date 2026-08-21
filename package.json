@@ -1,21 +1,45 @@
 {
     "name": "numerics-js",
     "version": "0.1.0",
-    "description": "A JavaScript numerical methods library",
+    "description": "A TypeScript numerical methods library",
     "type": "module",
-    "main": "./src/index.js",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "exports": {
-        ".": "./src/index.js",
-        "./array": "./src/array.js",
-        "./bessel": "./src/bessel.js",
-        "./roots": "./src/roots.js",
-        "./ode": "./src/ode/rk4.js",
-        "./ode/rk4": "./src/ode/rk4.js",
-        "./ode/verlet": "./src/ode/verlet.js"
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./array": {
+            "types": "./dist/array.d.ts",
+            "default": "./dist/array.js"
+        },
+        "./bessel": {
+            "types": "./dist/bessel.d.ts",
+            "default": "./dist/bessel.js"
+        },
+        "./roots": {
+            "types": "./dist/roots.d.ts",
+            "default": "./dist/roots.js"
+        },
+        "./ode": {
+            "types": "./dist/ode.d.ts",
+            "default": "./dist/ode.js"
+        },
+        "./ode/rk4": {
+            "types": "./dist/ode/rk4.d.ts",
+            "default": "./dist/ode/rk4.js"
+        },
+        "./ode/verlet": {
+            "types": "./dist/ode/verlet.d.ts",
+            "default": "./dist/ode/verlet.js"
+        }
     },
     "scripts": {
         "test": "vitest run",
-        "test:watch": "vitest"
+        "test:watch": "vitest",
+        "typecheck": "tsc --noEmit",
+        "build": "tsc -p tsconfig.build.json && node scripts/fix-esm-imports.mjs"
     },
     "keywords": [
         "numerical-methods",
@@ -26,6 +50,8 @@
     ],
     "license": "MIT",
     "devDependencies": {
+        "@types/node": "^26.2.0",
+        "typescript": "^5.6.3",
         "vitest": "^2.1.8"
     }
 }

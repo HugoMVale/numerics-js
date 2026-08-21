@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { bessel } from '../src/index.js';
-import * as roots from '../src/roots.js';
+import { bessel } from '../src/index';
+import * as roots from '../src/roots';
 
 describe('Bessel Function Module', () => {
 
@@ -22,7 +22,7 @@ describe('Bessel Function Module', () => {
         });
 
         it('should handle negative x using parity identity', () => {
-            const x = 2.5;
+            const x: number = 2.5;
             expect(bessel.J(0, -x)).toBeCloseTo(bessel.J(0, x), 10);
             expect(bessel.J(1, -x)).toBeCloseTo(-bessel.J(1, x), 10);
         });
@@ -62,7 +62,7 @@ describe('Bessel Function Module', () => {
 
             spy.mockClear(); // Reset the call tracker on the spy
 
-            const cachedRoot = bessel.getZero(0, 1); // Retrieves from cache
+            const cachedRoot: number = bessel.getZero(0, 1); // Retrieves from cache
             expect(spy).not.toHaveBeenCalled(); // Proves bisection was skipped
             expect(cachedRoot).toBeCloseTo(2.4048, 4);
         });
@@ -75,7 +75,7 @@ describe('Bessel Function Module', () => {
 
             expect(spy).toHaveBeenCalledTimes(1);
             const callArgs = spy.mock.calls[0];
-            const lowerBracket = callArgs[1];
+            const lowerBracket: number = callArgs[1];
 
             // The step size is 0.5. It should resume from cache[1] + 0.5 (~2.9)
             expect(lowerBracket).toBeGreaterThan(2.8);

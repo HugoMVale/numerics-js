@@ -19,16 +19,16 @@ npm test
 
 ## Import
 
-```js
+```ts
 import {
-	Array1D,
-	Array2D,
-	Vec3,
-	bessel,
-	bisection,
-	secant,
-	rk4Integrate,
-	createVelocityVerlet,
+    Array1D,
+    Array2D,
+    Vec3,
+    bessel,
+    bisection,
+    secant,
+    rk4Integrate,
+    createVelocityVerlet,
 } from 'numerics-js';
 ```
 
@@ -42,7 +42,7 @@ import {
 
 `Array2D` row and column indices are 1-based. `Array1D` and `Vec3` operations that do not end in `Self` return new values; methods ending in `Self` mutate the instance.
 
-```js
+```ts
 const a = new Array1D([1, 2, 3]);
 const b = new Array1D([4, 5, 6]);
 const sum = a.add(b);
@@ -56,7 +56,7 @@ const direction = new Vec3(3, 4, 0).normalize();
 
 `bisection` requires a bracketing interval whose endpoint values have opposite signs. `secant` starts from two guesses and does not require a bracket; it can fail to converge for some functions.
 
-```js
+```ts
 const root = bisection((x) => x * x - 2, 1, 2);
 const otherRoot = secant((x) => Math.cos(x) - x, 0, 1);
 ```
@@ -67,7 +67,7 @@ Both functions accept optional `tolerance` and `maxIterations` arguments.
 
 `bessel.J(n, x)` evaluates the Bessel function of the first kind for a non-negative integer order. `bessel.getZero(n, m)` returns the m-th positive zero, with `m` counted from 1.
 
-```js
+```ts
 const value = bessel.J(0, 1.5);
 const firstZero = bessel.getZero(0, 1);
 ```
@@ -76,14 +76,14 @@ const firstZero = bessel.getZero(0, 1);
 
 `rk4Step` advances one state, while `rk4Integrate` records every state from `t0` through `tEnd`. Derivative functions write into the supplied output vector and return it.
 
-```js
+```ts
 const initial = new Array1D([1]);
 const solution = rk4Integrate(
-	(t, y, dydt) => dydt.set([-y.data[0]]),
-	0,
-	1,
-	initial,
-	0.1,
+    (t, y, dydt) => dydt.set([-y.data[0]]),
+    0,
+    1,
+    initial,
+    0.1,
 );
 
 console.log(solution.t.data[solution.t.dim - 1]); // 1
@@ -92,9 +92,9 @@ console.log(solution.y.row(solution.y.rows));    // state at t = 1
 
 `createVelocityVerlet` creates a mutable `step(state, dt)` function for position and velocity updates. A state contains `u`, `v`, `a`, and a reusable `aNext` array.
 
-```js
+```ts
 const step = createVelocityVerlet((u, v, aNext) => {
-	for (let i = 0; i < aNext.length; i++) aNext[i] = -9.81;
+    for (let i = 0; i < aNext.length; i++) aNext[i] = -9.81;
 });
 
 const state = { u: [0], v: [0], a: [-9.81], aNext: [0] };
@@ -108,4 +108,4 @@ npm test          # run the test suite once
 npm run test:watch
 ```
 
-The source is plain JavaScript with JSDoc annotations; no build step is required for the current package.
+The source is written in TypeScript. Run `npm run build` to emit the package files into `dist/`.
