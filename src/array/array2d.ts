@@ -145,10 +145,14 @@ export class Array2D {
      * @param i - Row index (0-based).
      * @param values - Values to copy in; must have length `cols`.
      * @returns `this`, for chaining.
+     * @throws {RangeError} If `i` is out of bounds, or `values.length !== cols`.
      */
     setRow(i: number, values: Array1D | ArrayLike<number>): this {
         if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
         const src = values instanceof Array1D ? values.data : values;
+        if (src.length !== this.cols) {
+            throw new RangeError(`Array2D setRow: expected ${this.cols} values for row ${i}, got ${src.length}`);
+        }
         this.data.set(src, this._idx(i, 0));
         return this;
     }
@@ -158,10 +162,14 @@ export class Array2D {
      * @param j - Column index (0-based).
      * @param values - Values to copy in; must have length `rows`.
      * @returns `this`, for chaining.
+     * @throws {RangeError} If `j` is out of bounds, or `values.length !== rows`.
      */
     setCol(j: number, values: Array1D | ArrayLike<number>): this {
         if (j < 0 || j >= this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
         const src = values instanceof Array1D ? values.data : values;
+        if (src.length !== this.rows) {
+            throw new RangeError(`Array2D setCol: expected ${this.rows} values for column ${j}, got ${src.length}`);
+        }
         for (let i = 0; i < this.rows; i++) this.set(i, j, src[i]);
         return this;
     }
@@ -359,7 +367,7 @@ export class Array2D {
         // half then becomes this^-1.
         const aug = new Array2D(n, 2 * n);
         for (let i = 0; i < n; i++) {
-            aug.setRow(i, this.row(i).toArray());
+            aug.data.set(this.data.subarray(this._idx(i, 0), this._idx(i, 0) + n), aug._idx(i, 0));
             aug.set(i, n + i, 1);
         }
         for (let col = 0; col < n; col++) {
@@ -397,7 +405,7 @@ export class Array2D {
         // then back-substitute for x - this avoids ever computing this^-1.
         const aug = new Array2D(n, n + 1);
         for (let i = 0; i < n; i++) {
-            aug.setRow(i, this.row(i).toArray());
+            aug.data.set(this.data.subarray(this._idx(i, 0), this._idx(i, 0) + n), aug._idx(i, 0));
             aug.set(i, n, b.data[i]);
         }
         for (let col = 0; col < n; col++) {
@@ -588,8 +596,11 @@ export class Array2D {
      * @param i - First row index (0-based).
      * @param j - Second row index (0-based).
      * @returns `this`, for chaining.
+     * @throws {RangeError} If `i` or `j` is out of bounds.
      */
     swapRows(i: number, j: number): this {
+        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        if (j < 0 || j >= this.rows) throw new RangeError(`Array2D row ${j} out of bounds for ${this.rows} rows`);
         if (i === j) return this;
         const a = this.row(i).toArray();
         this.setRow(i, this.row(j).data);
@@ -602,9 +613,12 @@ export class Array2D {
      * @param i - Row index (0-based).
      * @param s - The scale factor.
      * @returns `this`, for chaining.
+     * @throws {RangeError} If `i` is out of bounds.
      */
     scaleRow(i: number, s: number): this {
-        for (let j = 0; j < this.cols; j++) this.set(i, j, this.get(i, j) * s);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        const offset = this._idx(i, 0);
+        for (let k = 0; k < this.cols; k++) this.data[offset + k] *= s;
         return this;
     }
 
@@ -615,9 +629,14 @@ export class Array2D {
      * @param j - Row index to read from and scale (0-based).
      * @param s - The scale factor applied to row `j`.
      * @returns `this`, for chaining.
+     * @throws {RangeError} If `i` or `j` is out of bounds.
      */
     addScaledRow(i: number, j: number, s: number): this {
-        for (let k = 0; k < this.cols; k++) this.set(i, k, this.get(i, k) + this.get(j, k) * s);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        if (j < 0 || j >= this.rows) throw new RangeError(`Array2D row ${j} out of bounds for ${this.rows} rows`);
+        const offsetI = this._idx(i, 0);
+        const offsetJ = this._idx(j, 0);
+        for (let k = 0; k < this.cols; k++) this.data[offsetI + k] += this.data[offsetJ + k] * s;
         return this;
     }
 
@@ -648,8 +667,14 @@ export class Array2D {
      * @returns A new matrix with shape `rows.length x rows[0].length`.
      */
     static from(rows: number[][]): Array2D {
+        if (rows.length === 0) {
+            throw new RangeError('Array2D.from: cannot construct a matrix from an empty array (need at least one row)');
+        }
         const nRows = rows.length;
-        const nCols = nRows > 0 ? rows[0].length : 0;
+        const nCols = rows[0].length;
+        if (nCols === 0) {
+            throw new RangeError('Array2D.from: cannot construct a matrix with empty rows (need at least one column)');
+        }
         const res = new Array2D(nRows, nCols);
         for (let i = 0; i < nRows; i++) res.setRow(i, rows[i]);
         return res;
