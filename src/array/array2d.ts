@@ -125,7 +125,7 @@ export class Array2D {
      */
     row(i: number): Array1D {
         if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
-        return new Array1D(this.data.subarray(this._idx(i, 0), this._idx(i, 0) + this.cols));
+        return new Array1D(this.data.slice(this._idx(i, 0), this._idx(i, 0) + this.cols));
     }
 
     /**
