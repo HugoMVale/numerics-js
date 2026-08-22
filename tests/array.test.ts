@@ -78,6 +78,14 @@ describe('Array1D', () => {
         expect(v.min()).toBe(-1);
         expect(v.max()).toBe(10);
     });
+
+    it('uses a symmetric tolerance for isClose', () => {
+        const smaller: Array1D = new Array1D([0.5]);
+        const larger: Array1D = new Array1D([1]);
+
+        expect(smaller.isClose(larger, 0.5, 0)).toBe(true);
+        expect(larger.isClose(smaller, 0.5, 0)).toBe(true);
+    });
 });
 
 describe('Array2D', () => {

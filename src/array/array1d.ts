@@ -211,9 +211,9 @@ export class Array1D {
     }
 
     /**
-     * Checks whether this vector is elementwise close to another, modeled on
-     * `numpy.isclose`: a component `a` is close to `b` if
-     * `|a - b| <= atol + rtol * |b|`.
+     * Checks whether this vector is elementwise close to another. A component
+     * `a` is close to `b` if `|a - b| <= atol + rtol * max(|a|, |b|)`, so
+     * `a.isClose(b) === b.isClose(a)`.
      * @param v - The other vector.
      * @param rtol - Relative tolerance.
      * @param atol - Absolute tolerance.
@@ -222,7 +222,9 @@ export class Array1D {
     isClose(v: Array1D, rtol: number = 1e-5, atol: number = 1e-8): boolean {
         if (v.dim !== this.dim) return false;
         for (let i = 0; i < this.dim; i++) {
-            if (Math.abs(this.data[i] - v.data[i]) > atol + rtol * Math.abs(v.data[i])) return false;
+            const a = this.data[i];
+            const b = v.data[i];
+            if (Math.abs(a - b) > atol + rtol * Math.max(Math.abs(a), Math.abs(b))) return false;
         }
         return true;
     }
