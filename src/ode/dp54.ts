@@ -349,7 +349,7 @@ export function dp54Integrate(
         const tVec = new Array1D(1);
         tVec.data[0] = t0;
         const yMat = new Array2D(1, dim);
-        yMat.setRow(1, y0.data);
+        yMat.setRow(0, y0.data);
         return { t: tVec, y: yMat };
     }
 
@@ -421,7 +421,7 @@ export function dp54Integrate(
     tVec.set(tBuf);
     const yMat = new Array2D(nTimes, dim);
     for (let i = 0; i < nTimes; i++) {
-        yMat.setRow(i + 1, yBuf[i]);
+        yMat.setRow(i, yBuf[i]);
     }
 
     return { t: tVec, y: yMat };

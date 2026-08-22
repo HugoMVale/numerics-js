@@ -124,14 +124,14 @@ describe('dp54Integrate: accuracy', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
         const { t, y } = dp54Integrate(f, 0, 5, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim);
+        const last = y.row(t.dim - 1);
         closeTo(last.data[0], Math.exp(-5), 1e-8);
     });
 
     it('conserves amplitude for the harmonic oscillator over several periods', () => {
         const y0 = new Array1D([1, 0]);
         const { t, y } = dp54Integrate(oscillator, 0, 6 * Math.PI, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim);
+        const last = y.row(t.dim - 1);
         const amplitude = Math.hypot(last.data[0], last.data[1]);
         closeTo(amplitude, 1, 1e-6);
         closeTo(last.data[0], 1, 1e-6);
@@ -143,7 +143,7 @@ describe('dp54Integrate: accuracy', () => {
         const yAtFive = new Array1D([Math.exp(-5)]);
         const { t, y } = dp54Integrate(f, 5, 0, yAtFive, { atol: 1e-10, rtol: 1e-10 });
         expect(t.data[t.dim - 1]).toBe(0);
-        closeTo(y.row(t.dim).data[0], 1, 1e-7);
+        closeTo(y.row(t.dim - 1).data[0], 1, 1e-7);
     });
 });
 
@@ -170,13 +170,13 @@ describe('dp54Integrate: output shape and contracts', () => {
         expect(t.data[t.dim - 1]).toBe(1 / 3);
     });
 
-    it('stores the initial condition in row 1', () => {
+    it('stores the initial condition in row 0', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([2, -3]);
         const { y } = dp54Integrate(oscillator, 0, 1, new Array1D([2, -3]));
-        const row1 = y.row(1);
-        closeTo(row1.data[0], y0.data[0], 1e-15);
-        closeTo(row1.data[1], y0.data[1], 1e-15);
+        const row0 = y.row(0);
+        closeTo(row0.data[0], y0.data[0], 1e-15);
+        closeTo(row0.data[1], y0.data[1], 1e-15);
     });
 
     it('does not mutate the caller-supplied y0', () => {
@@ -193,7 +193,7 @@ describe('dp54Integrate: output shape and contracts', () => {
         expect(t.dim).toBe(1);
         expect(t.data[0]).toBe(2);
         expect(y.rows).toBe(1);
-        expect(y.row(1).data[0]).toBe(3.14);
+        expect(y.row(0).data[0]).toBe(3.14);
     });
 });
 
@@ -208,8 +208,8 @@ describe('dp54Integrate: adaptive step-size control', () => {
 
         expect(tight.t.dim).toBeGreaterThan(loose.t.dim);
 
-        const looseErr = Math.abs(loose.y.row(loose.t.dim).data[0] - exact);
-        const tightErr = Math.abs(tight.y.row(tight.t.dim).data[0] - exact);
+        const looseErr = Math.abs(loose.y.row(loose.t.dim - 1).data[0] - exact);
+        const tightErr = Math.abs(tight.y.row(tight.t.dim - 1).data[0] - exact);
         expect(tightErr).toBeLessThan(looseErr);
     });
 
@@ -267,7 +267,7 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
 
         const y0 = new Array1D([1, 0]);
         const { t, y } = dp54Integrate(f, 0, 2 * Math.PI, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim);
+        const last = y.row(t.dim - 1);
 
         closeTo(last.data[0], 1, 1e-6);
         closeTo(last.data[1], 0, 1e-6);
@@ -286,8 +286,8 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
         const a = dp54Integrate(fAllocating, 0, 5, y0a, { atol: 1e-9, rtol: 1e-9 });
         const b = dp54Integrate(fDirect, 0, 5, y0b, { atol: 1e-9, rtol: 1e-9 });
 
-        const rowA = a.y.row(a.t.dim);
-        const rowB = b.y.row(b.t.dim);
+        const rowA = a.y.row(a.t.dim - 1);
+        const rowB = b.y.row(b.t.dim - 1);
         closeTo(rowA.data[0], rowB.data[0], 1e-6);
         closeTo(rowA.data[1], rowB.data[1], 1e-6);
     });
@@ -300,7 +300,7 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
         };
         const y0 = new Array1D([1, 1, 1, 1]);
         const { t, y } = dp54Integrate(f, 0, 2, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim);
+        const last = y.row(t.dim - 1);
         for (let i = 0; i < rates.length; i++) {
             closeTo(last.data[i], Math.exp(-rates[i] * 2), 1e-7);
         }

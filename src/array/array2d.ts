@@ -4,27 +4,56 @@ import { Array1D } from './array1d';
  * A rows x cols matrix backed by a flat, row-major Float64Array.
  *
  * All element access (`get`, `set`, `row`, `col`, `setRow`, `setCol`,
- * `swapRows`, `scaleRow`, `addScaledRow`) is **1-based**: valid row indices
- * are `1..rows` and valid column indices are `1..cols`, matching common
- * mathematical / textbook convention rather than JS's usual 0-based indexing.
+ * `swapRows`, `scaleRow`, `addScaledRow`) is **0-based**: valid row indices
+ * are `0..rows-1` and valid column indices are `0..cols-1`, matching JS's
+ * usual 0-based indexing convention.
  */
 export class Array2D {
-    public rows: number;
-    public cols: number;
+    private _rows: number;
+    private _cols: number;
     public data: Float64Array;
 
     /**
-     * @param rows - Number of rows (must be >= 1).
-     * @param cols - Number of columns (must be >= 1).
+     * @param rows - Number of rows (must be a positive integer).
+     * @param cols - Number of columns (must be a positive integer).
      * @param input - Optional initial data in
-     *   row-major order (i.e. row 1 followed by row 2, etc.), length `rows * cols`.
+     *   row-major order (i.e. row 0 followed by row 1, etc.), length `rows * cols`.
      *   If omitted, the matrix is initialized to all zeros.
+     * @throws {RangeError} If `rows` or `cols` is not a positive integer, or
+     *   if `input` is provided and its length is not exactly `rows * cols`.
      */
     constructor(rows: number, cols: number, input?: ArrayLike<number>) {
-        this.rows = rows;
-        this.cols = cols;
+        if (!Number.isInteger(rows) || rows < 1) {
+            throw new RangeError(`Array2D: rows must be a positive integer, got ${rows}`);
+        }
+        if (!Number.isInteger(cols) || cols < 1) {
+            throw new RangeError(`Array2D: cols must be a positive integer, got ${cols}`);
+        }
+        if (input !== undefined && input.length !== rows * cols) {
+            throw new RangeError(
+                `Array2D: expected ${rows * cols} values for a ${rows}x${cols} matrix, got ${input.length}`
+            );
+        }
+        this._rows = rows;
+        this._cols = cols;
         this.data = new Float64Array(rows * cols);
         if (input !== undefined) this.data.set(input);
+    }
+
+    /**
+     * The number of rows in this matrix. Read-only (like `Array1D.dim`) so
+     * it can never desync from `data`.
+     */
+    get rows(): number {
+        return this._rows;
+    }
+
+    /**
+     * The number of columns in this matrix. Read-only (like `Array1D.dim`)
+     * so it can never desync from `data`.
+     */
+    get cols(): number {
+        return this._cols;
     }
 
     /**
@@ -40,25 +69,25 @@ export class Array2D {
     }
 
     /**
-     * Throws if `(i, j)` is not a valid 1-based index into this matrix.
-     * @param i - Row index (1-based).
-     * @param j - Column index (1-based).
+     * Throws if `(i, j)` is not a valid 0-based index into this matrix.
+     * @param i - Row index (0-based).
+     * @param j - Column index (0-based).
      * @throws {RangeError} If `i` or `j` is out of range.
      */
     private _checkBounds(i: number, j: number): void {
-        if (i < 1 || i > this.rows || j < 1 || j > this.cols) {
+        if (i < 0 || i >= this.rows || j < 0 || j >= this.cols) {
             throw new RangeError(`Array2D index (${i}, ${j}) out of bounds for ${this.rows}x${this.cols} matrix`);
         }
     }
 
     /**
-     * Converts a 1-based `(i, j)` index into a flat index into `data`.
-     * @param i - Row index (1-based).
-     * @param j - Column index (1-based).
+     * Converts a 0-based `(i, j)` index into a flat index into `data`.
+     * @param i - Row index (0-based).
+     * @param j - Column index (0-based).
      * @returns The flat, 0-based index.
      */
     private _idx(i: number, j: number): number {
-        return (i - 1) * this.cols + (j - 1);
+        return i * this.cols + j;
     }
 
     // -----------------------------------------------------------------
@@ -67,8 +96,8 @@ export class Array2D {
 
     /**
      * Gets the element at row `i`, column `j`.
-     * @param i - Row index (1-based).
-     * @param j - Column index (1-based).
+     * @param i - Row index (0-based).
+     * @param j - Column index (0-based).
      * @returns The value at `(i, j)`.
      */
     get(i: number, j: number): number {
@@ -78,8 +107,8 @@ export class Array2D {
 
     /**
      * Sets the element at row `i`, column `j`, mutating this matrix in place.
-     * @param i - Row index (1-based).
-     * @param j - Column index (1-based).
+     * @param i - Row index (0-based).
+     * @param j - Column index (0-based).
      * @param value - The value to store.
      * @returns `this`, for chaining.
      */
@@ -91,49 +120,49 @@ export class Array2D {
 
     /**
      * Extracts row `i` as a vector.
-     * @param i - Row index (1-based).
+     * @param i - Row index (0-based).
      * @returns A new vector with `this.cols` components.
      */
     row(i: number): Array1D {
-        if (i < 1 || i > this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
-        return new Array1D(this.data.subarray(this._idx(i, 1), this._idx(i, 1) + this.cols));
+        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        return new Array1D(this.data.subarray(this._idx(i, 0), this._idx(i, 0) + this.cols));
     }
 
     /**
      * Extracts column `j` as a vector.
-     * @param j - Column index (1-based).
+     * @param j - Column index (0-based).
      * @returns A new vector with `this.rows` components.
      */
     col(j: number): Array1D {
-        if (j < 1 || j > this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
+        if (j < 0 || j >= this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
         const res = new Array1D(this.rows);
-        for (let i = 1; i <= this.rows; i++) res.data[i - 1] = this.get(i, j);
+        for (let i = 0; i < this.rows; i++) res.data[i] = this.get(i, j);
         return res;
     }
 
     /**
      * Overwrites row `i` in place with the given values.
-     * @param i - Row index (1-based).
+     * @param i - Row index (0-based).
      * @param values - Values to copy in; must have length `cols`.
      * @returns `this`, for chaining.
      */
     setRow(i: number, values: Array1D | ArrayLike<number>): this {
-        if (i < 1 || i > this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
         const src = values instanceof Array1D ? values.data : values;
-        this.data.set(src, this._idx(i, 1));
+        this.data.set(src, this._idx(i, 0));
         return this;
     }
 
     /**
      * Overwrites column `j` in place with the given values.
-     * @param j - Column index (1-based).
+     * @param j - Column index (0-based).
      * @param values - Values to copy in; must have length `rows`.
      * @returns `this`, for chaining.
      */
     setCol(j: number, values: Array1D | ArrayLike<number>): this {
-        if (j < 1 || j > this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
+        if (j < 0 || j >= this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
         const src = values instanceof Array1D ? values.data : values;
-        for (let i = 1; i <= this.rows; i++) this.set(i, j, src[i - 1]);
+        for (let i = 0; i < this.rows; i++) this.set(i, j, src[i]);
         return this;
     }
 
@@ -186,11 +215,11 @@ export class Array2D {
             throw new RangeError(`Array2D matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}`);
         }
         const res = new Array2D(this.rows, m.cols);
-        for (let i = 1; i <= this.rows; i++) {
-            for (let k = 1; k <= this.cols; k++) {
+        for (let i = 0; i < this.rows; i++) {
+            for (let k = 0; k < this.cols; k++) {
                 const a = this.get(i, k);
                 if (a === 0) continue;
-                for (let j = 1; j <= m.cols; j++) {
+                for (let j = 0; j < m.cols; j++) {
                     res.set(i, j, res.get(i, j) + a * m.get(k, j));
                 }
             }
@@ -208,10 +237,10 @@ export class Array2D {
             throw new RangeError(`Array2D mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.dim})`);
         }
         const res = new Array1D(this.rows);
-        for (let i = 1; i <= this.rows; i++) {
+        for (let i = 0; i < this.rows; i++) {
             let sum = 0;
-            for (let j = 1; j <= this.cols; j++) sum += this.get(i, j) * v.data[j - 1];
-            res.data[i - 1] = sum;
+            for (let j = 0; j < this.cols; j++) sum += this.get(i, j) * v.data[j];
+            res.data[i] = sum;
         }
         return res;
     }
@@ -222,8 +251,8 @@ export class Array2D {
      */
     transpose(): Array2D {
         const res = new Array2D(this.cols, this.rows);
-        for (let i = 1; i <= this.rows; i++) {
-            for (let j = 1; j <= this.cols; j++) res.set(j, i, this.get(i, j));
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = 0; j < this.cols; j++) res.set(j, i, this.get(i, j));
         }
         return res;
     }
@@ -236,24 +265,24 @@ export class Array2D {
     trace(): number {
         if (this.rows !== this.cols) throw new RangeError(`Array2D trace requires a square matrix, got ${this.rows}x${this.cols}`);
         let sum = 0;
-        for (let i = 1; i <= this.rows; i++) sum += this.get(i, i);
+        for (let i = 0; i < this.rows; i++) sum += this.get(i, i);
         return sum;
     }
 
     /**
-     * Finds the best pivot row for column `col`, searching rows `startRow..m.rows`.
+     * Finds the best pivot row for column `col`, searching rows `startRow..m.rows-1`.
      * Used internally by `_forwardEliminate`, `inverse`, and `solve` to share
      * the same partial-pivoting (largest-magnitude-entry) selection logic.
      * @param m - The matrix to search (may be a working copy or an augmented matrix).
-     * @param col - Column to search (1-based).
-     * @param startRow - First row to consider (1-based).
+     * @param col - Column to search (0-based).
+     * @param startRow - First row to consider (0-based).
      * @param tol - Entries with absolute value at or below this are never chosen as a pivot.
-     * @returns The 1-based row index of the best pivot, or `-1` if none exceeds `tol`.
+     * @returns The 0-based row index of the best pivot, or `-1` if none exceeds `tol`.
      */
     private static _findPivotRow(m: Array2D, col: number, startRow: number, tol: number): number {
         let pivotRow = -1;
         let pivotVal = tol;
-        for (let i = startRow; i <= m.rows; i++) {
+        for (let i = startRow; i < m.rows; i++) {
             const v = Math.abs(m.get(i, col));
             if (v > pivotVal) { pivotVal = v; pivotRow = i; }
         }
@@ -275,17 +304,17 @@ export class Array2D {
         let rank = 0;
         let sign = 1;
         const pivots: number[] = [];
-        for (let col = 1; col <= m.cols && rank < m.rows; col++) {
-            const pivotRow = Array2D._findPivotRow(m, col, rank + 1, tol);
+        for (let col = 0; col < m.cols && rank < m.rows; col++) {
+            const pivotRow = Array2D._findPivotRow(m, col, rank, tol);
             if (pivotRow === -1) continue;
-            rank++;
             if (pivotRow !== rank) { m.swapRows(rank, pivotRow); sign = -sign; }
             const pivot = m.get(rank, col);
             pivots.push(pivot);
-            for (let i = rank + 1; i <= m.rows; i++) {
+            for (let i = rank + 1; i < m.rows; i++) {
                 const factor = m.get(i, col) / pivot;
                 if (factor !== 0) m.addScaledRow(i, rank, -factor);
             }
+            rank++;
         }
         return { rank, sign, pivots };
     }
@@ -329,24 +358,24 @@ export class Array2D {
         // Augment [this | I] and row-reduce the left half to I; the right
         // half then becomes this^-1.
         const aug = new Array2D(n, 2 * n);
-        for (let i = 1; i <= n; i++) {
+        for (let i = 0; i < n; i++) {
             aug.setRow(i, this.row(i).toArray());
             aug.set(i, n + i, 1);
         }
-        for (let col = 1; col <= n; col++) {
+        for (let col = 0; col < n; col++) {
             const pivotRow = Array2D._findPivotRow(aug, col, col, 0);
             if (pivotRow === -1) throw new Error('Array2D inverse: matrix is singular');
             if (pivotRow !== col) aug.swapRows(col, pivotRow);
             aug.scaleRow(col, 1 / aug.get(col, col));
-            for (let i = 1; i <= n; i++) {
+            for (let i = 0; i < n; i++) {
                 if (i === col) continue;
                 const factor = aug.get(i, col);
                 if (factor !== 0) aug.addScaledRow(i, col, -factor);
             }
         }
         const res = new Array2D(n, n);
-        for (let i = 1; i <= n; i++) {
-            for (let j = 1; j <= n; j++) res.set(i, j, aug.get(i, n + j));
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) res.set(i, j, aug.get(i, n + j));
         }
         return res;
     }
@@ -367,25 +396,25 @@ export class Array2D {
         // Augment [this | b] and forward-eliminate to row echelon form,
         // then back-substitute for x - this avoids ever computing this^-1.
         const aug = new Array2D(n, n + 1);
-        for (let i = 1; i <= n; i++) {
+        for (let i = 0; i < n; i++) {
             aug.setRow(i, this.row(i).toArray());
-            aug.set(i, n + 1, b.data[i - 1]);
+            aug.set(i, n, b.data[i]);
         }
-        for (let col = 1; col <= n; col++) {
+        for (let col = 0; col < n; col++) {
             const pivotRow = Array2D._findPivotRow(aug, col, col, 0);
             if (pivotRow === -1) throw new Error('Array2D solve: matrix is singular, no unique solution');
             if (pivotRow !== col) aug.swapRows(col, pivotRow);
             const pivot = aug.get(col, col);
-            for (let i = col + 1; i <= n; i++) {
+            for (let i = col + 1; i < n; i++) {
                 const factor = aug.get(i, col) / pivot;
                 if (factor !== 0) aug.addScaledRow(i, col, -factor);
             }
         }
         const x = new Array1D(n);
-        for (let i = n; i >= 1; i--) {
-            let s = aug.get(i, n + 1);
-            for (let j = i + 1; j <= n; j++) s -= aug.get(i, j) * x.data[j - 1];
-            x.data[i - 1] = s / aug.get(i, i);
+        for (let i = n - 1; i >= 0; i--) {
+            let s = aug.get(i, n);
+            for (let j = i + 1; j < n; j++) s -= aug.get(i, j) * x.data[j];
+            x.data[i] = s / aug.get(i, i);
         }
         return x;
     }
@@ -433,9 +462,9 @@ export class Array2D {
     }
 
     /**
-     * Checks whether this matrix is elementwise close to another, modeled on
-     * `numpy.isclose`: an element `a` is close to `b` if
-     * `|a - b| <= atol + rtol * |b|`.
+     * Checks whether this matrix is elementwise close to another. Symmetric
+     * in `this` and `m`: an element `a` is close to `b` if
+     * `|a - b| <= atol + rtol * max(|a|, |b|)`, so `a.isClose(b) === b.isClose(a)`.
      * @param m - The other matrix.
      * @param rtol - Relative tolerance.
      * @param atol - Absolute tolerance.
@@ -444,7 +473,23 @@ export class Array2D {
     isClose(m: Array2D, rtol = 1e-5, atol = 1e-8): boolean {
         if (m.rows !== this.rows || m.cols !== this.cols) return false;
         for (let k = 0; k < this.data.length; k++) {
-            if (Math.abs(this.data[k] - m.data[k]) > atol + rtol * Math.abs(m.data[k])) return false;
+            const a = this.data[k];
+            const b = m.data[k];
+            if (Math.abs(a - b) > atol + rtol * Math.max(Math.abs(a), Math.abs(b))) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether this matrix is exactly elementwise equal to another.
+     * For tolerance-based comparison, use `isClose` instead.
+     * @param m - The other matrix.
+     * @returns `true` if `m` has the same shape and all elements are exactly equal.
+     */
+    equals(m: Array2D): boolean {
+        if (m.rows !== this.rows || m.cols !== this.cols) return false;
+        for (let k = 0; k < this.data.length; k++) {
+            if (this.data[k] !== m.data[k]) return false;
         }
         return true;
     }
@@ -455,7 +500,7 @@ export class Array2D {
      */
     toArray(): number[][] {
         const out: number[][] = [];
-        for (let i = 1; i <= this.rows; i++) out.push(Array.from(this.row(i).data));
+        for (let i = 0; i < this.rows; i++) out.push(Array.from(this.row(i).data));
         return out;
     }
 
@@ -473,7 +518,7 @@ export class Array2D {
      * Each yielded value is an Array1D.
      */
     *[Symbol.iterator](): Generator<Array1D, void, unknown> {
-        for (let i = 1; i <= this.rows; i++) yield this.row(i);
+        for (let i = 0; i < this.rows; i++) yield this.row(i);
     }
 
     // -----------------------------------------------------------------
@@ -528,8 +573,8 @@ export class Array2D {
      */
     transposeSelf(): this {
         if (this.rows !== this.cols) throw new RangeError(`Array2D transposeSelf requires a square matrix, got ${this.rows}x${this.cols}`);
-        for (let i = 1; i <= this.rows; i++) {
-            for (let j = i + 1; j <= this.cols; j++) {
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = i + 1; j < this.cols; j++) {
                 const tmp = this.get(i, j);
                 this.set(i, j, this.get(j, i));
                 this.set(j, i, tmp);
@@ -540,8 +585,8 @@ export class Array2D {
 
     /**
      * Swaps two rows in place. Useful when implementing pivoting algorithms.
-     * @param i - First row index (1-based).
-     * @param j - Second row index (1-based).
+     * @param i - First row index (0-based).
+     * @param j - Second row index (0-based).
      * @returns `this`, for chaining.
      */
     swapRows(i: number, j: number): this {
@@ -554,25 +599,25 @@ export class Array2D {
 
     /**
      * Scales row `i` in place by a scalar: `row[i] *= s`.
-     * @param i - Row index (1-based).
+     * @param i - Row index (0-based).
      * @param s - The scale factor.
      * @returns `this`, for chaining.
      */
     scaleRow(i: number, s: number): this {
-        for (let j = 1; j <= this.cols; j++) this.set(i, j, this.get(i, j) * s);
+        for (let j = 0; j < this.cols; j++) this.set(i, j, this.get(i, j) * s);
         return this;
     }
 
     /**
      * Adds a scaled row to another row in place, in a single pass:
      * `row[i] += row[j] * s`. Useful when implementing Gaussian elimination.
-     * @param i - Row index to modify (1-based).
-     * @param j - Row index to read from and scale (1-based).
+     * @param i - Row index to modify (0-based).
+     * @param j - Row index to read from and scale (0-based).
      * @param s - The scale factor applied to row `j`.
      * @returns `this`, for chaining.
      */
     addScaledRow(i: number, j: number, s: number): this {
-        for (let k = 1; k <= this.cols; k++) this.set(i, k, this.get(i, k) + this.get(j, k) * s);
+        for (let k = 0; k < this.cols; k++) this.set(i, k, this.get(i, k) + this.get(j, k) * s);
         return this;
     }
 
@@ -593,7 +638,7 @@ export class Array2D {
      */
     static identity(n: number): Array2D {
         const res = new Array2D(n, n);
-        for (let i = 1; i <= n; i++) res.set(i, i, 1);
+        for (let i = 0; i < n; i++) res.set(i, i, 1);
         return res;
     }
 
@@ -606,7 +651,7 @@ export class Array2D {
         const nRows = rows.length;
         const nCols = nRows > 0 ? rows[0].length : 0;
         const res = new Array2D(nRows, nCols);
-        for (let i = 1; i <= nRows; i++) res.setRow(i, rows[i - 1]);
+        for (let i = 0; i < nRows; i++) res.setRow(i, rows[i]);
         return res;
     }
 }

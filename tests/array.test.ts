@@ -50,15 +50,15 @@ describe('Array1D', () => {
         expect(v.sum()).toBe(7.5);
     });
 
-    it('enforces 1-based indexing for component access', () => {
+    it('enforces 0-based indexing for component access', () => {
         const v: Array1D = new Array1D([1, 2, 3]);
-        expect(v.get(1)).toBe(1);
-        expect(v.get(3)).toBe(3);
+        expect(v.get(0)).toBe(1);
+        expect(v.get(2)).toBe(3);
 
-        v.set(2, 20);
+        v.set(1, 20);
         expect(v.toArray()).toEqual([1, 20, 3]);
-        expect(() => v.get(0)).toThrowError(RangeError);
-        expect(() => v.set(4, 0)).toThrowError(RangeError);
+        expect(() => v.get(-1)).toThrowError(RangeError);
+        expect(() => v.set(3, 0)).toThrowError(RangeError);
     });
 
     it('retains bulk replacement through set', () => {
@@ -81,21 +81,21 @@ describe('Array1D', () => {
 });
 
 describe('Array2D', () => {
-    it('enforces 1-based indexing for get and set', () => {
+    it('enforces 0-based indexing for get and set', () => {
         const m: Array2D = new Array2D(2, 2, [1, 2, 3, 4]);
-        expect(m.get(1, 1)).toBe(1);
-        expect(m.get(1, 2)).toBe(2);
-        expect(m.get(2, 1)).toBe(3);
-        expect(m.get(2, 2)).toBe(4);
+        expect(m.get(0, 0)).toBe(1);
+        expect(m.get(0, 1)).toBe(2);
+        expect(m.get(1, 0)).toBe(3);
+        expect(m.get(1, 1)).toBe(4);
 
-        expect(() => m.get(0, 1)).toThrowError(RangeError);
-        expect(() => m.get(3, 1)).toThrowError(RangeError);
+        expect(() => m.get(-1, 0)).toThrowError(RangeError);
+        expect(() => m.get(2, 0)).toThrowError(RangeError);
     });
 
     it('extracts rows and columns accurately', () => {
         const m: Array2D = new Array2D(2, 3, [1, 2, 3, 4, 5, 6]);
-        expect(m.row(2).toArray()).toEqual([4, 5, 6]);
-        expect(m.col(2).toArray()).toEqual([2, 5]);
+        expect(m.row(1).toArray()).toEqual([4, 5, 6]);
+        expect(m.col(1).toArray()).toEqual([2, 5]);
     });
 
     it('performs matrix multiplication (matmul)', () => {

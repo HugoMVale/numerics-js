@@ -3,18 +3,27 @@
  */
 export class Array1D {
     public data: Float64Array;
-    public dim: number;
 
     /**
      * @param input - The dimension length (initialized to 0s) or initial data.
      */
     constructor(input: number | number[] | Float64Array) {
         if (typeof input === 'number') {
+            if (!Number.isInteger(input)) {
+                throw new RangeError(`Array1D: dimension must be an integer, got ${input}`);
+            }
             this.data = new Float64Array(input);
         } else {
             this.data = new Float64Array(input);
         }
-        this.dim = this.data.length;
+    }
+
+    /**
+     * The number of components in this vector. Derived directly from
+     * `data.length` so it can never desync, even if `data` is reassigned.
+     */
+    get dim(): number {
+        return this.data.length;
     }
 
     /**
@@ -30,24 +39,24 @@ export class Array1D {
     }
 
     /**
-     * Throws if `i` is not a valid 1-based component index.
-     * @param i - Component index (1-based).
-     * @throws {RangeError} If `i` is not an integer in `1..dim`.
+     * Throws if `i` is not a valid 0-based component index.
+     * @param i - Component index (0-based).
+     * @throws {RangeError} If `i` is not an integer in `0..dim-1`.
      */
     private _checkIndex(i: number): void {
-        if (!Number.isInteger(i) || i < 1 || i > this.dim) {
+        if (!Number.isInteger(i) || i < 0 || i >= this.dim) {
             throw new RangeError(`Array1D index ${i} out of bounds for dimension ${this.dim}`);
         }
     }
 
     /**
-     * Gets a component by its 1-based index.
-     * @param i - Component index (1-based).
+     * Gets a component by its 0-based index.
+     * @param i - Component index (0-based).
      * @returns The component value.
      */
     get(i: number): number {
         this._checkIndex(i);
-        return this.data[i - 1];
+        return this.data[i];
     }
 
     // -----------------------------------------------------------------
@@ -137,7 +146,13 @@ export class Array1D {
      * @returns The distance between `this` and `v`.
      */
     dist(v: Array1D): number {
-        return this.sub(v).norm();
+        this._checkDim(v);
+        let sum = 0;
+        for (let i = 0; i < this.dim; i++) {
+            const d = this.data[i] - v.data[i];
+            sum += d * d;
+        }
+        return Math.sqrt(sum);
     }
 
     /**
@@ -182,6 +197,7 @@ export class Array1D {
      * @returns A new vector with magnitude at most `max`.
      */
     limit(max: number): Array1D {
+        if (max < 0) throw new RangeError(`Array1D.limit: max must be >= 0, got ${max}`);
         const m = this.norm();
         return m > max ? this.mult(max / m) : this.copy();
     }
@@ -207,6 +223,20 @@ export class Array1D {
         if (v.dim !== this.dim) return false;
         for (let i = 0; i < this.dim; i++) {
             if (Math.abs(this.data[i] - v.data[i]) > atol + rtol * Math.abs(v.data[i])) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether this vector is exactly elementwise equal to another.
+     * For tolerance-based comparison, use `isClose` instead.
+     * @param v - The other vector.
+     * @returns `true` if `v` has the same `dim` and all components are exactly equal.
+     */
+    equals(v: Array1D): boolean {
+        if (v.dim !== this.dim) return false;
+        for (let i = 0; i < this.dim; i++) {
+            if (this.data[i] !== v.data[i]) return false;
         }
         return true;
     }
@@ -246,8 +276,8 @@ export class Array1D {
     set(values: number[] | Float64Array): this;
 
     /**
-     * Sets one component by its 1-based index, mutating this vector in place.
-     * @param i - Component index (1-based).
+     * Sets one component by its 0-based index, mutating this vector in place.
+     * @param i - Component index (0-based).
      * @param value - Value to store.
      * @returns `this`, for chaining.
      */
@@ -256,8 +286,13 @@ export class Array1D {
     set(valuesOrIndex: number[] | Float64Array | number, value?: number): this {
         if (typeof valuesOrIndex === 'number') {
             this._checkIndex(valuesOrIndex);
-            this.data[valuesOrIndex - 1] = value as number;
+            this.data[valuesOrIndex] = value as number;
         } else {
+            if (valuesOrIndex.length !== this.dim) {
+                throw new RangeError(
+                    `Array1D.set: expected ${this.dim} values, got ${valuesOrIndex.length}`
+                );
+            }
             this.data.set(valuesOrIndex);
         }
         return this;

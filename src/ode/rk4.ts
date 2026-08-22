@@ -100,20 +100,20 @@ export function rk4Integrate(
     let y = y0.copy();
     let next = new Array1D(dim);
     tVec.data[0] = t0;
-    yMat.setRow(1, y.data);
+    yMat.setRow(0, y.data);
 
     for (let i = 1; i <= nFull; i++) {
         rk4Step(f, t, y, h, next, scratch);
         t = t0 + i * h;
         tVec.data[i] = t;
-        yMat.setRow(i + 1, next.data);
+        yMat.setRow(i, next.data);
         [y, next] = [next, y];
     }
 
     if (hasPartialStep) {
         rk4Step(f, t, y, remainder, next, scratch);
         tVec.data[nRecorded] = tEnd;
-        yMat.setRow(nRecorded + 1, next.data);
+        yMat.setRow(nRecorded, next.data);
     }
 
     return { t: tVec, y: yMat };
