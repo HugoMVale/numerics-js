@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { Array1D } from '../src/array/array1d';
-import { Array2D } from '../src/array/array2d';
-import { dp54Step, dp54Integrate } from '../src/ode/dp54';
-import { wrapAllocatingDerivative } from '../src/ode/adapters';
+import { Array1D } from '../../src/array/array1d.js';
+import { Array2D } from '../../src/array/array2d.js';
+import { dp54Step, dp54Integrate } from '../../src/ode/dp54.js';
+import { wrapAllocatingDerivative } from '../../src/ode/adapters.js';
 
 // NOTE on paths: this assumes dp54.test.js sits next to dp54.js and rk4.js,
 // with an index.js exporting Array1D/Array2D one directory up — mirroring

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { rk4Step, rk4Integrate } from '../src/ode/rk4';
-import { wrapAllocatingDerivative } from '../src/ode/adapters';
-import { Array1D } from '../src/array/array1d';
+import { rk4Step, rk4Integrate } from '../../src/ode/rk4';
+import { wrapAllocatingDerivative } from '../../src/ode/adapters';
+import { Array1D } from '../../src/array/array1d';
 
 describe('RK4 Integration Module', () => {
 
