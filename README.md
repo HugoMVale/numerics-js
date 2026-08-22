@@ -1,5 +1,7 @@
 # numerics-js
 
+[![CI](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml/badge.svg)](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml)
+
 Small, dependency-free numerical building blocks for modern JavaScript.
 
 The library uses ES modules and stores numeric array data in `Float64Array` where appropriate. The public API is exported from the package root.
