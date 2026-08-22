@@ -21,6 +21,8 @@ npm test
 
 ## Import
 
+The package publishes a single ESM build for both browser and Node environments via package export conditions. Browser bundlers resolve the `browser` condition, while Node ESM resolves the `import` condition. The same package entry stays usable from both runtimes without excluding either one.
+
 ```ts
 import {
     Array1D,
@@ -33,6 +35,11 @@ import {
     createVelocityVerlet,
 } from 'numerics-js';
 ```
+
+## Package layout
+
+- ESM only: the package is published as native ES modules.
+- Dual-runtime support: browser tooling and Node ESM both resolve to the same compiled output.
 
 ## API
 

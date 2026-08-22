@@ -3,35 +3,49 @@
     "version": "0.1.0",
     "description": "A TypeScript numerical methods library",
     "type": "module",
-    "main": "./dist/index.js",
+    "browser": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
+            "browser": "./dist/index.js",
+            "import": "./dist/index.js",
             "default": "./dist/index.js"
         },
         "./array": {
             "types": "./dist/array.d.ts",
+            "browser": "./dist/array.js",
+            "import": "./dist/array.js",
             "default": "./dist/array.js"
         },
         "./bessel": {
             "types": "./dist/bessel.d.ts",
+            "browser": "./dist/bessel.js",
+            "import": "./dist/bessel.js",
             "default": "./dist/bessel.js"
         },
         "./roots": {
             "types": "./dist/roots.d.ts",
+            "browser": "./dist/roots.js",
+            "import": "./dist/roots.js",
             "default": "./dist/roots.js"
         },
         "./ode": {
             "types": "./dist/ode.d.ts",
+            "browser": "./dist/ode.js",
+            "import": "./dist/ode.js",
             "default": "./dist/ode.js"
         },
         "./ode/rk4": {
             "types": "./dist/ode/rk4.d.ts",
+            "browser": "./dist/ode/rk4.js",
+            "import": "./dist/ode/rk4.js",
             "default": "./dist/ode/rk4.js"
         },
         "./ode/verlet": {
             "types": "./dist/ode/verlet.d.ts",
+            "browser": "./dist/ode/verlet.js",
+            "import": "./dist/ode/verlet.js",
             "default": "./dist/ode/verlet.js"
         }
     },
