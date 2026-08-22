@@ -10,7 +10,10 @@ export class Array1D {
     constructor(input: number | number[] | Float64Array) {
         if (typeof input === 'number') {
             if (!Number.isInteger(input)) {
-                throw new RangeError(`Array1D: dimension must be an integer, got ${input}`);
+                throw new RangeError(`Array1D.constructor: dimension must be an integer, got ${input}`);
+            }
+            if (input < 0) {
+                throw new RangeError(`Array1D.constructor: dimension must be >= 0, got ${input}`);
             }
             this.data = new Float64Array(input);
         } else {
@@ -30,22 +33,26 @@ export class Array1D {
      * Throws if `v` is not a Array1D of the same dimension as this one. Used
      * internally to guard binary operations against silent shape mismatches.
      * @param v - The other vector.
+     * @param caller - Name of the public method invoking this check, used to
+     * produce a precise error message (e.g. `"add"`).
      * @throws {RangeError} If `v.dim !== this.dim`.
      */
-    private _checkDim(v: Array1D): void {
+    private _checkDim(v: Array1D, caller: string): void {
         if (v.dim !== this.dim) {
-            throw new RangeError(`Array1D dimension mismatch: ${this.dim} vs ${v.dim}`);
+            throw new RangeError(`Array1D.${caller}: dimension mismatch: ${this.dim} vs ${v.dim}`);
         }
     }
 
     /**
      * Throws if `i` is not a valid 0-based component index.
      * @param i - Component index (0-based).
+     * @param caller - Name of the public method invoking this check, used to
+     * produce a precise error message (e.g. `"get"`).
      * @throws {RangeError} If `i` is not an integer in `0..dim-1`.
      */
-    private _checkIndex(i: number): void {
+    private _checkIndex(i: number, caller: string): void {
         if (!Number.isInteger(i) || i < 0 || i >= this.dim) {
-            throw new RangeError(`Array1D index ${i} out of bounds for dimension ${this.dim}`);
+            throw new RangeError(`Array1D.${caller}: index ${i} out of bounds for dimension ${this.dim}`);
         }
     }
 
@@ -55,7 +62,7 @@ export class Array1D {
      * @returns The component value.
      */
     get(i: number): number {
-        this._checkIndex(i);
+        this._checkIndex(i, 'get');
         return this.data[i];
     }
 
@@ -69,7 +76,7 @@ export class Array1D {
      * @returns A new vector equal to `this + v`.
      */
     add(v: Array1D): Array1D {
-        this._checkDim(v);
+        this._checkDim(v, 'add');
         const res = new Array1D(this.dim);
         for (let i = 0; i < this.dim; i++) res.data[i] = this.data[i] + v.data[i];
         return res;
@@ -81,7 +88,7 @@ export class Array1D {
      * @returns A new vector equal to `this - v`.
      */
     sub(v: Array1D): Array1D {
-        this._checkDim(v);
+        this._checkDim(v, 'sub');
         const res = new Array1D(this.dim);
         for (let i = 0; i < this.dim; i++) res.data[i] = this.data[i] - v.data[i];
         return res;
@@ -134,7 +141,7 @@ export class Array1D {
      * @returns The scalar dot product `this · v`.
      */
     dot(v: Array1D): number {
-        this._checkDim(v);
+        this._checkDim(v, 'dot');
         let sum = 0;
         for (let i = 0; i < this.dim; i++) sum += this.data[i] * v.data[i];
         return sum;
@@ -146,7 +153,7 @@ export class Array1D {
      * @returns The distance between `this` and `v`.
      */
     dist(v: Array1D): number {
-        this._checkDim(v);
+        this._checkDim(v, 'dist');
         let sum = 0;
         for (let i = 0; i < this.dim; i++) {
             const d = this.data[i] - v.data[i];
@@ -171,9 +178,14 @@ export class Array1D {
      * @throws {RangeError} If `dim === 0`.
      */
     min(): number {
-        if (this.dim === 0) throw new RangeError('Array1D min() called on an empty vector');
+        if (this.dim === 0) throw new RangeError('Array1D.min: cannot compute the min of an empty vector');
         let m = this.data[0];
-        for (let i = 1; i < this.dim; i++) if (this.data[i] < m) m = this.data[i];
+        for (let i = 1; i < this.dim; i++) {
+            const x = this.data[i];
+            // NaN must win the comparison so it propagates instead of being
+            // silently skipped, matching Math.min's semantics.
+            if (Number.isNaN(x) || x < m) m = x;
+        }
         return m;
     }
 
@@ -183,9 +195,14 @@ export class Array1D {
      * @throws {RangeError} If `dim === 0`.
      */
     max(): number {
-        if (this.dim === 0) throw new RangeError('Array1D max() called on an empty vector');
+        if (this.dim === 0) throw new RangeError('Array1D.max: cannot compute the max of an empty vector');
         let m = this.data[0];
-        for (let i = 1; i < this.dim; i++) if (this.data[i] > m) m = this.data[i];
+        for (let i = 1; i < this.dim; i++) {
+            const x = this.data[i];
+            // NaN must win the comparison so it propagates instead of being
+            // silently skipped, matching Math.max's semantics.
+            if (Number.isNaN(x) || x > m) m = x;
+        }
         return m;
     }
 
@@ -287,7 +304,7 @@ export class Array1D {
 
     set(valuesOrIndex: number[] | Float64Array | number, value?: number): this {
         if (typeof valuesOrIndex === 'number') {
-            this._checkIndex(valuesOrIndex);
+            this._checkIndex(valuesOrIndex, 'set');
             this.data[valuesOrIndex] = value as number;
         } else {
             if (valuesOrIndex.length !== this.dim) {
@@ -315,7 +332,7 @@ export class Array1D {
      * @returns `this`, for chaining.
      */
     addSelf(v: Array1D): this {
-        this._checkDim(v);
+        this._checkDim(v, 'addSelf');
         for (let i = 0; i < this.dim; i++) this.data[i] += v.data[i];
         return this;
     }
@@ -326,7 +343,7 @@ export class Array1D {
      * @returns `this`, for chaining.
      */
     subSelf(v: Array1D): this {
-        this._checkDim(v);
+        this._checkDim(v, 'subSelf');
         for (let i = 0; i < this.dim; i++) this.data[i] -= v.data[i];
         return this;
     }
@@ -349,7 +366,7 @@ export class Array1D {
      * @returns `this`, for chaining.
      */
     addScaled(v: Array1D, s: number): this {
-        this._checkDim(v);
+        this._checkDim(v, 'addScaled');
         for (let i = 0; i < this.dim; i++) this.data[i] += v.data[i] * s;
         return this;
     }
@@ -362,8 +379,8 @@ export class Array1D {
      * @returns `this`, set to `a - b`.
      */
     subVectors(a: Array1D, b: Array1D): this {
-        this._checkDim(a);
-        this._checkDim(b);
+        this._checkDim(a, 'subVectors');
+        this._checkDim(b, 'subVectors');
         for (let i = 0; i < this.dim; i++) this.data[i] = a.data[i] - b.data[i];
         return this;
     }
