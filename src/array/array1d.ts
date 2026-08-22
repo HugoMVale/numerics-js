@@ -29,6 +29,27 @@ export class Array1D {
         }
     }
 
+    /**
+     * Throws if `i` is not a valid 1-based component index.
+     * @param i - Component index (1-based).
+     * @throws {RangeError} If `i` is not an integer in `1..dim`.
+     */
+    private _checkIndex(i: number): void {
+        if (!Number.isInteger(i) || i < 1 || i > this.dim) {
+            throw new RangeError(`Array1D index ${i} out of bounds for dimension ${this.dim}`);
+        }
+    }
+
+    /**
+     * Gets a component by its 1-based index.
+     * @param i - Component index (1-based).
+     * @returns The component value.
+     */
+    get(i: number): number {
+        this._checkIndex(i);
+        return this.data[i - 1];
+    }
+
     // -----------------------------------------------------------------
     // Immutable Operations (return new instances)
     // -----------------------------------------------------------------
@@ -222,8 +243,23 @@ export class Array1D {
      * @param values - Values to copy in; must have length `dim`.
      * @returns `this`, for chaining.
      */
-    set(values: number[] | Float64Array): this {
-        this.data.set(values);
+    set(values: number[] | Float64Array): this;
+
+    /**
+     * Sets one component by its 1-based index, mutating this vector in place.
+     * @param i - Component index (1-based).
+     * @param value - Value to store.
+     * @returns `this`, for chaining.
+     */
+    set(i: number, value: number): this;
+
+    set(valuesOrIndex: number[] | Float64Array | number, value?: number): this {
+        if (typeof valuesOrIndex === 'number') {
+            this._checkIndex(valuesOrIndex);
+            this.data[valuesOrIndex - 1] = value as number;
+        } else {
+            this.data.set(valuesOrIndex);
+        }
         return this;
     }
 

@@ -50,6 +50,23 @@ describe('Array1D', () => {
         expect(v.sum()).toBe(7.5);
     });
 
+    it('enforces 1-based indexing for component access', () => {
+        const v: Array1D = new Array1D([1, 2, 3]);
+        expect(v.get(1)).toBe(1);
+        expect(v.get(3)).toBe(3);
+
+        v.set(2, 20);
+        expect(v.toArray()).toEqual([1, 20, 3]);
+        expect(() => v.get(0)).toThrowError(RangeError);
+        expect(() => v.set(4, 0)).toThrowError(RangeError);
+    });
+
+    it('retains bulk replacement through set', () => {
+        const v: Array1D = new Array1D(2);
+        v.set([4, 5]);
+        expect(v.toArray()).toEqual([4, 5]);
+    });
+
     it('throws on dimension mismatch', () => {
         const v1: Array1D = new Array1D(3);
         const v2: Array1D = new Array1D(4);
