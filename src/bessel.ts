@@ -1,4 +1,4 @@
-import { bisection } from './roots';
+import { bisection } from './roots.js';
 
 export interface BesselUtility {
     _integralJ(n: number, x: number): number;
