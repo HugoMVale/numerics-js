@@ -59,6 +59,12 @@
             "browser": "./dist/ode/verlet.js",
             "import": "./dist/ode/verlet.js",
             "default": "./dist/ode/verlet.js"
+        },
+        "./optimization": {
+            "types": "./dist/optimization.d.ts",
+            "browser": "./dist/optimization.js",
+            "import": "./dist/optimization.js",
+            "default": "./dist/optimization.js"
         }
     },
     "scripts": {

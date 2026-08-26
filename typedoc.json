@@ -4,6 +4,7 @@
         "src/array.ts",
         "src/roots.ts",
         "src/ode.ts",
+        "src/optimization.ts",
         "src/special.ts",
         "src/misc.ts"
     ],
