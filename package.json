@@ -18,11 +18,23 @@
             "import": "./dist/array.js",
             "default": "./dist/array.js"
         },
-        "./bessel": {
-            "types": "./dist/bessel.d.ts",
-            "browser": "./dist/bessel.js",
-            "import": "./dist/bessel.js",
-            "default": "./dist/bessel.js"
+        "./special": {
+            "types": "./dist/special.d.ts",
+            "browser": "./dist/special.js",
+            "import": "./dist/special.js",
+            "default": "./dist/special.js"
+        },
+        "./special/bessel": {
+            "types": "./dist/special/bessel.d.ts",
+            "browser": "./dist/special/bessel.js",
+            "import": "./dist/special/bessel.js",
+            "default": "./dist/special/bessel.js"
+        },
+        "./misc": {
+            "types": "./dist/misc.d.ts",
+            "browser": "./dist/misc.js",
+            "import": "./dist/misc.js",
+            "default": "./dist/misc.js"
         },
         "./roots": {
             "types": "./dist/roots.d.ts",
@@ -67,6 +79,7 @@
     "devDependencies": {
         "@types/node": "^26.2.0",
         "typedoc": "^0.28.20",
+        "typedoc-material-theme": "^1.4.1",
         "typescript": "^5.6.3",
         "vitest": "^2.1.8"
     }

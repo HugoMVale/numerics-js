@@ -1,23 +1,28 @@
 {
     "$schema": "https://typedoc.org/schema.json",
     "entryPoints": [
-        "src/index.ts"
+        "src/array.ts",
+        "src/roots.ts",
+        "src/ode.ts",
+        "src/special.ts",
+        "src/misc.ts"
     ],
     "tsconfig": "tsconfig.build.json",
     "out": "docs",
     "readme": "README.md",
     "name": "numerics-js API",
+    "plugin": [
+        "typedoc-material-theme"
+    ],
     "includeVersion": true,
     "excludeExternals": true,
     "excludeInternal": true,
     "excludePrivate": true,
     "excludeProtected": true,
     "intentionallyNotExported": [
-        "BesselUtility",
         "ComputeAccelerationFn",
         "DP54Options",
         "DP54Scratch",
-        "MathFunction",
         "RK4Scratch",
         "StepFn"
     ]
