@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { bessel } from '../src/special/bessel';
-import * as roots from '../src/roots/bisection';
+import { bessel } from '../../src/special/bessel';
+import * as roots from '../../src/roots/bisection';
 
 describe('Bessel Function Module', () => {
 
