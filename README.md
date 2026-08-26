@@ -160,6 +160,17 @@ reusable array of the same length. The implementation evaluates acceleration
 with the old velocity, which is exact for velocity-independent forces but is
 only first-order for velocity-dependent forces such as drag.
 
+## Documentation
+
+The API reference is available at [hugomvale.github.io/numerics-js](https://hugomvale.github.io/numerics-js/).
+Generate the documentation locally with:
+
+```bash
+npm run docs
+```
+
+The generated site is written to `docs/`.
+
 ## Development
 
 ```bash

@@ -27,5 +27,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Generate documentation
+        run: npm run docs
+
       - name: Test
         run: npm test

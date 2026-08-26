@@ -1,0 +1,24 @@
+{
+    "$schema": "https://typedoc.org/schema.json",
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "tsconfig": "tsconfig.build.json",
+    "out": "docs",
+    "readme": "README.md",
+    "name": "numerics-js API",
+    "includeVersion": true,
+    "excludeExternals": true,
+    "excludeInternal": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "intentionallyNotExported": [
+        "BesselUtility",
+        "ComputeAccelerationFn",
+        "DP54Options",
+        "DP54Scratch",
+        "MathFunction",
+        "RK4Scratch",
+        "StepFn"
+    ]
+}
