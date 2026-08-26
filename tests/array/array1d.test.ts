@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Array1D } from '../../src/index';
+import { Array1D } from '../../src/array/array1d';
 
 describe('Array1D', () => {
     it('initializes and handles Float64Array data', () => {

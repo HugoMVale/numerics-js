@@ -1,12 +1,7 @@
-export { Vec3 } from './array/vec3';
-export { Array1D } from './array/array1d';
-export { Array2D } from './array/array2d';
-export { bessel } from './special/bessel';
-export { bisection, secant } from './roots.js';
-export { rk4Step, rk4Integrate } from './ode/rk4';
-export { dp54Step, dp54Integrate } from './ode/dp54';
-export { createVelocityVerlet } from './ode/verlet';
-export { wrapAllocatingDerivative } from './ode/adapters';
-export type { DerivativeFn, AllocatingDerivativeFn, ODEIntegrateResult } from './ode/types';
+export * as array from './array.js';
+export * as ode from './ode.js';
+export * as roots from './roots.js';
+export * as special from './special.js';
+export * as misc from './misc.js';
 
 export const version = '0.1.0';
