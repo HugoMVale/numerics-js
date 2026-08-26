@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { bisection, secant } from '../src/roots';
+import { bisection } from '../src/roots/bisection';
+import { secant } from '../src/roots/secant';
 
 // A simple test function: f(x) = x^2 - 4, which has roots at x = 2 and x = -2
 const f = (x: number): number => x * x - 4;
