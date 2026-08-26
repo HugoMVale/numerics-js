@@ -1,0 +1,1 @@
+export { fminBrent } from './optimization/brent.js';
