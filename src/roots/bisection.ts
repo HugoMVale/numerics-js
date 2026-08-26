@@ -1,4 +1,4 @@
-import type { MathFunction } from './types';
+import type { MathFunction } from '../types.js';
 
 /**
  * Finds a root of fn in the interval [a, b] using the bisection method.
@@ -6,7 +6,7 @@ import type { MathFunction } from './types';
  * @param fn - Continuous function to find a root of.
  * @param a - Left endpoint of the bracketing interval.
  * @param b - Right endpoint of the bracketing interval.
- * @param tolerance - Stop when the interval half-width is below this.
+ * @param tolX - Stop when the interval half-width is below this.
  * @param maxIterations - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
@@ -15,7 +15,7 @@ export function bisection(
     fn: MathFunction,
     a: number,
     b: number,
-    tolerance: number = 1e-8,
+    tolX: number = 1e-8,
     maxIterations: number = 100
 ): number {
     if (a === b) {
@@ -43,7 +43,7 @@ export function bisection(
         mid = (a + b) / 2;
         const fmid = fn(mid);
 
-        if (fmid === 0 || (b - a) / 2 < tolerance) {
+        if (fmid === 0 || (b - a) / 2 < tolX) {
             return mid;
         }
 
@@ -56,7 +56,7 @@ export function bisection(
     }
 
     console.warn(
-        `bisection: reached maxIterations (${maxIterations}) without converging to tolerance ${tolerance}`
+        `bisection: reached maxIterations (${maxIterations}) without converging to tolerance ${tolX}`
     );
     return mid;
 }

@@ -1,4 +1,4 @@
-import type { MathFunction } from './types';
+import type { MathFunction } from '../types.js';
 
 /**
  * Finds a root of fn using the secant method, starting from two initial guesses.
@@ -11,7 +11,7 @@ import type { MathFunction } from './types';
  * @param fn - Function to find a root of.
  * @param x0 - First initial guess.
  * @param x1 - Second initial guess (should differ from x0).
- * @param tolerance - Stop when |x1 - x0| (the step size) is below this.
+ * @param tolX - Stop when |x1 - x0| (the step size) is below this.
  * @param maxIterations - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
@@ -20,7 +20,7 @@ export function secant(
     fn: MathFunction,
     x0: number,
     x1: number,
-    tolerance: number = 1e-8,
+    tolX: number = 1e-8,
     maxIterations: number = 100
 ): number {
     if (x0 === x1) {
@@ -44,7 +44,7 @@ export function secant(
 
         const x2 = x1 - (f1 * (x1 - x0)) / denom;
 
-        if (Math.abs(x2 - x1) < tolerance) {
+        if (Math.abs(x2 - x1) < tolX) {
             return x2;
         }
 
@@ -59,7 +59,7 @@ export function secant(
     }
 
     console.warn(
-        `secant: reached maxIterations (${maxIterations}) without converging to tolerance ${tolerance}`
+        `secant: reached maxIterations (${maxIterations}) without converging to tolerance ${tolX}`
     );
     return x1;
 }
