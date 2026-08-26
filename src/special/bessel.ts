@@ -1,4 +1,4 @@
-import { bisection } from '../roots/bisection.js';
+import { brent } from '../roots/brent.js';
 
 export interface BesselUtility {
     _integralJ(n: number, x: number): number;
@@ -149,7 +149,7 @@ export const bessel: BesselUtility = {
             if (sign !== 0) {
                 if (sign !== lastSign) {
                     rootsFound++;
-                    cache[rootsFound] = bisection(fn, x - step, x);
+                    cache[rootsFound] = brent(fn, x - step, x);
                 }
                 lastSign = sign;
             }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { bessel } from '../../src/special/bessel';
-import * as roots from '../../src/roots/bisection';
+import * as roots from '../../src/roots/brent.js';
 
 describe('Bessel Function Module', () => {
 
@@ -55,7 +55,7 @@ describe('Bessel Function Module', () => {
         });
 
         it('should utilize the cache for previously computed zeros', () => {
-            const spy = vi.spyOn(roots, 'bisection');
+            const spy = vi.spyOn(roots, 'brent');
 
             bessel.getZero(0, 1); // Computes and caches
             expect(spy).toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe('Bessel Function Module', () => {
         it('should resume scanning from the highest cached zero', () => {
             bessel.getZero(0, 1); // First root cached ~ 2.4048
 
-            const spy = vi.spyOn(roots, 'bisection');
+            const spy = vi.spyOn(roots, 'brent');
             bessel.getZero(0, 2);
 
             expect(spy).toHaveBeenCalledTimes(1);
