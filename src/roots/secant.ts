@@ -15,6 +15,21 @@ import type { MathFunction } from '../types.js';
  * @param maxIterations - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
+ *
+ * @example
+ * ```ts
+ * // Test for scalar root-finding methods.
+ * function f1(x: number): number {
+ *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
+ * }
+ * const root = secant(f1, 0, 1);
+ * console.log(`x = ${root.toFixed(3)}`);
+ * ```
+ *
+ * Output:
+ * ```text
+ * x = 0.557
+ * ```
  */
 export function secant(
     fn: MathFunction,

@@ -20,6 +20,21 @@ import { copysign } from '../misc';
  * @param maxIterations - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If fn(xa) and fn(xb) do not have opposite signs.
+ *
+ * @example
+ * ```ts
+ * // Test for scalar root-finding methods.
+ * function f1(x: number): number {
+ *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
+ * }
+ * const root = brent(f1, 0, 1);
+ * console.log(`x = ${root.toFixed(3)}`);
+ * ```
+ *
+ * Output:
+ * ```text
+ * x = 0.557
+ * ```
  */
 export function brent(
     fn: MathFunction,

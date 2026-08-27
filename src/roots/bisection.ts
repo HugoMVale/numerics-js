@@ -10,6 +10,21 @@ import type { MathFunction } from '../types.js';
  * @param maxIterations - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
+ *
+ * @example
+ * ```ts
+ * // Test for scalar root-finding methods.
+ * function f1(x: number): number {
+ *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
+ * }
+ * const root = bisection(f1, 0, 1);
+ * console.log(`x = ${root.toFixed(3)}`);
+ * ```
+ *
+ * Output:
+ * ```text
+ * x = 0.557
+ * ```
  */
 export function bisection(
     fn: MathFunction,
