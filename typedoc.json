@@ -6,7 +6,8 @@
         "src/ode.ts",
         "src/optimization.ts",
         "src/special.ts",
-        "src/misc.ts"
+        "src/misc.ts",
+        "src/types.ts"
     ],
     "tsconfig": "tsconfig.build.json",
     "out": "docs",
