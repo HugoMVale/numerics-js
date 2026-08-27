@@ -2,12 +2,12 @@
  * Restricts a number to the inclusive range between `lo` and `hi`.
  *
  * @param x The number to clip.
- * @param lo The lower bound.
- * @param hi The upper bound.
+ * @param low The lower bound.
+ * @param high The upper bound.
  * @returns The clipped number.
  */
-export function clip(x: number, lo: number, hi: number): number {
-    return x < lo ? lo : x > hi ? hi : x;
+export function clip(x: number, low: number, high: number): number {
+    return x < low ? low : x > high ? high : x;
 }
 
 
