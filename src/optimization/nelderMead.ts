@@ -2,7 +2,7 @@ import { Array1D } from '../array/array1d.js';
 import { Array2D } from '../array/array2d.js';
 
 /**
- * Result of a `fminNelderMead` optimization.
+ * Result of a `minimizeNelderMead` optimization.
  */
 export interface NelderMeadResult {
     /** Name of the optimization method used. */
@@ -12,64 +12,13 @@ export interface NelderMeadResult {
     /** Human-readable description of the termination reason. */
     message: string;
     /** Number of function evaluations performed. */
-    nfeval: number;
+    nFev: number;
     /** Number of iterations performed. */
-    niter: number;
+    nIter: number;
     /** Best point found. */
     x: Array1D;
     /** Function value at `x`. */
     f: number;
-}
-
-/**
- * Optional settings for `fminNelderMead`.
- */
-export interface NelderMeadOptions {
-    /**
-     * Absolute tolerance for `x`. The algorithm terminates when the maximum
-     * scaled distance between the simplex vertices is less than `tolx`.
-     * @default 1e-8
-     */
-    tolx?: number;
-    /**
-     * Absolute tolerance for `f`. The algorithm terminates when the maximum
-     * difference between the function values at the simplex vertices is less
-     * than `tolf`.
-     * @default 1e-8
-     */
-    tolf?: number;
-    /**
-     * Positive scaling factors for the components of `x`. Ideally, these
-     * should be chosen so that `sclx*x` is of order 1 near the solution for
-     * all components. By default, scaling is inferred from `x0` as
-     * `1 / max(|x0_i|, 1)`.
-     */
-    sclx?: number[] | Float64Array;
-    /**
-     * Maximum number of iterations.
-     * @default 200*N
-     */
-    maxiter?: number;
-    /**
-     * Maximum number of function evaluations.
-     * @default 200*N
-     */
-    maxfeval?: number;
-    /**
-     * Whether to use the adaptive parameter scheme proposed by Gao (2012).
-     * If `false`, the standard Nelder-Mead parameters are used.
-     * @default true
-     */
-    adaptive?: boolean;
-    /**
-     * Optional callback invoked at each iteration as
-     * `callback(niter, x, fx) -> {stop, success}`, where `x` is the
-     * `(N+1) x N` matrix of simplex vertices (one per row) and `fx` the
-     * corresponding `N+1` function values. Neither should be mutated by the
-     * callback. If `stop` is `true`, the iteration is terminated; `success`
-     * then decides whether the result is reported as successful.
-     */
-    callback?: (niter: number, x: Array2D, fx: Array1D) => { stop: boolean; success: boolean };
 }
 
 /**
@@ -132,11 +81,11 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * The initial simplex is aligned with the coordinate axes. For each
  * coordinate, the corresponding simplex vertex offset is:
  *
- * `dx_i = 0.05 * max(|x0_i|, 1/sclx_i)`
+ * `dx_i = 0.05 * max(|x0_i|, 1/scale_i)`
  *
- * where `x0` is the initial guess and `sclx_i` is the scaling factor
+ * where `x0` is the initial guess and `scale_i` is the scaling factor
  * associated with variable `x_i`. Therefore, it is important that `x0`
- * and/or `sclx` reflect the expected scale of the variables. If `sclx` is
+ * and/or `scale` reflect the expected scale of the variables. If `scale` is
  * not provided, the variable scaling is inferred from `x0`.
  *
  * References:
@@ -146,38 +95,76 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  *   Adaptive Parameters. Comput. Optim. Appl. 2012, 51, 259-277.
  *
  * @param f - Objective function to minimize.
- * @param x0 - Initial guess for the optimum. If no user-defined scale
- * `sclx` is provided, the scaling factors will be determined from this
- * value.
- * @param options - Optional algorithm settings, see `NelderMeadOptions`.
+ * @param x0 - Initial guess for the optimum. If no user-defined `scale` is
+ * provided, the scaling factors will be determined from this value.
+ * @param tolX - Absolute tolerance for `x`. The algorithm terminates when
+ * the maximum scaled distance between the simplex vertices is less than
+ * `tolX`.
+ * @param tolF - Absolute tolerance for `f`. The algorithm terminates when
+ * the maximum difference between the function values at the simplex
+ * vertices is less than `tolF`.
+ * @param scale - Positive scaling factors for the components of `x`, as a
+ * plain array or an `Array1D`. Ideally, these should be chosen so that
+ * `scale*x` is of order 1 near the solution for all components. If omitted,
+ * scaling is inferred from `x0` as `1 / max(|x0_i|, 1)`.
+ * @param maxIter - Maximum number of iterations. Defaults to `200*N`.
+ * @param maxFunEvals - Maximum number of function evaluations. Defaults to
+ * `200*N`.
+ * @param adaptive - Whether to use the adaptive parameter scheme proposed
+ * by Gao (2012). If `false`, the standard Nelder-Mead parameters are used.
+ * @param callback - Optional callback invoked at each iteration as
+ * `callback(nIter, x, fx) -> {stop, success}`, where `x` is the `(N+1) x N`
+ * matrix of simplex vertices (one per row) and `fx` the corresponding `N+1`
+ * function values. Neither should be mutated by the callback. If `stop` is
+ * `true`, the iteration is terminated; `success` then decides whether the
+ * result is reported as successful.
  * @returns The optimization result.
  *
  * @example
  * ```ts
  * // Find the minimum of f(x) = (x0-100)^2 + (x1-1e10)^2
- * const result = fminNelderMead(
- *     (x) => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2,
- *     [1, 1e8]
- * );
+ * const f = (x: Array1D): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
+ * const result = minimizeNelderMead(f, [1, 1e8]);
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   method: 'Nelder-Mead',
+ *   success: true,
+ *   message: 'Function value spread is less than `tolF`.',
+ *   nFev: 225,
+ *   nIter: 122,
+ *   x: Array1D [ 99.99998642148125, 9999999999.999956 ],
+ *   f: 2.1088669603067145e-9
+ * }
  * ```
  */
-export function fminNelderMead(
+export function minimizeNelderMead(
     f: (x: Array1D) => number,
-    x0: number[] | Float64Array | Array1D,
-    options: NelderMeadOptions = {}
+    x0: number[] | Array1D,
+    tolX: number = 1e-8,
+    tolF: number = 1e-8,
+    scale?: number[] | Array1D,
+    maxIter?: number,
+    maxFunEvals?: number,
+    adaptive: boolean = true,
+    callback?: (nIter: number, x: Array2D, fx: Array1D) => { stop: boolean; success: boolean }
 ): NelderMeadResult {
-    const { tolx = 1e-8, tolf = 1e-8, sclx, maxiter, maxfeval, adaptive = true, callback } = options;
-
     const x0v = x0 instanceof Array1D ? x0.copy() : Array1D.from(x0);
     const n = x0v.dim;
     if (n === 0) {
-        throw new RangeError('fminNelderMead: x0 must have at least one component');
+        throw new RangeError('minimizeNelderMead: x0 must have at least one component');
     }
 
-    const scale = sclx !== undefined ? Array1D.from(Array.from(sclx, Math.abs)) : defaultScale(x0v);
+    const xScale =
+        scale !== undefined
+            ? Array1D.from(Array.from(scale instanceof Array1D ? scale.data : scale, Math.abs))
+            : defaultScale(x0v);
 
-    const maxIter = maxiter ?? 200 * n;
-    const maxFeval = maxfeval ?? 200 * n;
+    const iterLimit = maxIter ?? 200 * n;
+    const fevalLimit = maxFunEvals ?? 200 * n;
 
     // Algorithm parameters
     let a: number, b: number, c: number, d: number;
@@ -199,7 +186,7 @@ export function fminNelderMead(
     x.setRow(0, x0v);
     for (let k = 0; k < n; k++) {
         const v = x0v.copy();
-        const step = 0.05 * Math.max(Math.abs(x0v.get(k)), 1 / scale.get(k));
+        const step = 0.05 * Math.max(Math.abs(x0v.get(k)), 1 / xScale.get(k));
         v.set(k, v.get(k) + step);
         x.setRow(k + 1, v);
     }
@@ -209,17 +196,17 @@ export function fminNelderMead(
     for (let k = 0; k <= n; k++) {
         fx.data[k] = f(x.row(k));
     }
-    let nfeval = n + 1;
+    let nFev = n + 1;
 
     // Main optimization loop
-    let niter = 0;
+    let nIter = 0;
     let success = false;
     let message = '';
     let xmin = x.row(0);
     let fmin = fx.data[0];
 
     while (true) {
-        niter++;
+        nIter++;
 
         const { imin, imax, imax2 } = simplexExtremes(fx);
         xmin = x.row(imin);
@@ -228,7 +215,7 @@ export function fminNelderMead(
         const fmax = fx.data[imax];
 
         if (callback !== undefined) {
-            const { stop, success: cbSuccess } = callback(niter, x, fx);
+            const { stop, success: cbSuccess } = callback(nIter, x, fx);
             if (stop) {
                 success = cbSuccess;
                 message = 'Terminated by user callback.';
@@ -239,29 +226,29 @@ export function fminNelderMead(
         let maxDist = 0;
         for (let k = 0; k <= n; k++) {
             for (let j = 0; j < n; j++) {
-                const dj = Math.abs(scale.get(j) * (x.get(k, j) - xmin.get(j)));
+                const dj = Math.abs(xScale.get(j) * (x.get(k, j) - xmin.get(j)));
                 if (dj > maxDist) maxDist = dj;
             }
         }
-        if (maxDist < tolx) {
+        if (maxDist < tolX) {
             success = true;
-            message = 'Maximum distance between simplex vertices is less than `tolx`.';
+            message = 'Maximum distance between simplex vertices is less than `tolX`.';
             break;
         }
 
-        if (fmax - fmin < tolf) {
+        if (fmax - fmin < tolF) {
             success = true;
-            message = 'Function value spread is less than `tolf`.';
+            message = 'Function value spread is less than `tolF`.';
             break;
         }
 
-        if (niter === maxIter) {
-            message = `Maximum number of iterations (${maxIter}) reached.`;
+        if (nIter === iterLimit) {
+            message = `Maximum number of iterations (${iterLimit}) reached.`;
             break;
         }
 
-        if (nfeval >= maxFeval) {
-            message = `Maximum number of function evaluations (${maxFeval}) reached.`;
+        if (nFev >= fevalLimit) {
+            message = `Maximum number of function evaluations (${fevalLimit}) reached.`;
             break;
         }
 
@@ -278,16 +265,16 @@ export function fminNelderMead(
         // Reflection
         const xr = xc.copy().multSelf(1 + a).addScaled(xWorst, -a);
         const fr = f(xr);
-        nfeval++;
+        nFev++;
 
-        let shrink = false;
+        let doShrink = false;
         if (fmin <= fr && fr < fmax2) {
             x.setRow(imax, xr);
             fx.data[imax] = fr;
         } else if (fr < fmin) {
             const xe = xc.copy().multSelf(1 + a * b).addScaled(xWorst, -a * b);
             const fe = f(xe);
-            nfeval++;
+            nFev++;
             if (fe < fr) {
                 x.setRow(imax, xe);
                 fx.data[imax] = fe;
@@ -298,32 +285,32 @@ export function fminNelderMead(
         } else if (fmax2 <= fr && fr < fmax) {
             const xoc = xc.copy().multSelf(1 + a * c).addScaled(xWorst, -a * c);
             const foc = f(xoc);
-            nfeval++;
+            nFev++;
             if (foc <= fr) {
                 x.setRow(imax, xoc);
                 fx.data[imax] = foc;
             } else {
-                shrink = true;
+                doShrink = true;
             }
         } else {
             const xic = xc.copy().multSelf(1 - a * c).addScaled(xWorst, a * c);
             const fic = f(xic);
-            nfeval++;
+            nFev++;
             if (fic < fmax) {
                 x.setRow(imax, xic);
                 fx.data[imax] = fic;
             } else {
-                shrink = true;
+                doShrink = true;
             }
         }
 
-        if (shrink) {
+        if (doShrink) {
             for (let k = 0; k <= n; k++) {
                 if (k === imin) continue;
                 const xs = x.row(k).multSelf(d).addScaled(xmin, 1 - d);
                 x.setRow(k, xs);
                 fx.data[k] = f(xs);
-                nfeval++;
+                nFev++;
             }
         }
     }
@@ -332,8 +319,8 @@ export function fminNelderMead(
         method: 'Nelder-Mead',
         success,
         message,
-        nfeval,
-        niter,
+        nFev,
+        nIter,
         x: xmin,
         f: fmin,
     };
