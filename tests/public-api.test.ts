@@ -13,8 +13,8 @@ describe('public API', () => {
         expect(typeof ode.rk4Step).toBe('function');
         expect(typeof ode.rk4Integrate).toBe('function');
         expect(typeof ode.createVelocityVerlet).toBe('function');
-        expect(typeof optimization.fminBrent).toBe('function');
-        expect(typeof optimization.fminNelderMead).toBe('function');
+        expect(typeof optimization.minimizeBrent).toBe('function');
+        expect(typeof optimization.minimizeNelderMead).toBe('function');
     });
 
     it('publishes a browser + node compatible export map', () => {
