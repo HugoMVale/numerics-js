@@ -6,36 +6,43 @@ import type { ScalarFunction } from '../../src/types.js';
 describe('fminBrent', () => {
     it('finds the minimum of a simple parabola', () => {
         const fn = (x: number) => (x - 2) ** 2 + 1;
-        const x = fminBrent(fn, -5, 5);
-        expect(x).toBeCloseTo(2, 6);
+        const result = fminBrent(fn, -5, 5);
+        expect(result.x).toBeCloseTo(2, 6);
     });
 
     it('finds the minimum of x^4 - x + 1', () => {
         // Matches the docstring example from the Python reference implementation.
         const fn = (x: number) => x ** 4 - x + 1;
-        const x = fminBrent(fn, -3, 3);
-        expect(x).toBeCloseTo(0.6299605249, 6);
-        expect(fn(x)).toBeCloseTo(0.5275296058, 6);
+        const result = fminBrent(fn, -3, 3);
+        expect(result).toMatchObject({
+            method: 'Brent',
+            success: true,
+            message: '|dx| <= tolX',
+            nfeval: 19,
+            niter: 18,
+        });
+        expect(result.x).toBeCloseTo(0.6299605249, 6);
+        expect(result.f).toBeCloseTo(0.5275296058, 6);
     });
 
     it('works when the minimum sits near the left edge of the bracket', () => {
         const fn = (x: number) => (x + 4.9) ** 2;
-        const x = fminBrent(fn, -5, 5);
-        expect(x).toBeCloseTo(-4.9, 5);
+        const result = fminBrent(fn, -5, 5);
+        expect(result.x).toBeCloseTo(-4.9, 5);
     });
 
     it('works when the minimum sits near the right edge of the bracket', () => {
         const fn = (x: number) => (x - 4.9) ** 2;
-        const x = fminBrent(fn, -5, 5);
-        expect(x).toBeCloseTo(4.9, 5);
+        const result = fminBrent(fn, -5, 5);
+        expect(result.x).toBeCloseTo(4.9, 5);
     });
 
     it('is insensitive to the order of the bracket endpoints', () => {
         const fn = (x: number) => (x - 1.234) ** 2;
         const forward = fminBrent(fn, -10, 10);
         const reversed = fminBrent(fn, 10, -10);
-        expect(forward).toBeCloseTo(1.234, 6);
-        expect(reversed).toBeCloseTo(1.234, 6);
+        expect(forward.x).toBeCloseTo(1.234, 6);
+        expect(reversed.x).toBeCloseTo(1.234, 6);
     });
 
     it('converges at least as tightly when tolX is smaller', () => {
@@ -45,39 +52,40 @@ describe('fminBrent', () => {
         const fn = (x: number) => (x - Math.PI) ** 4;
         const loose = fminBrent(fn, 0, 10, 1e-1);
         const tight = fminBrent(fn, 0, 10, 1e-12);
-        expect(Math.abs(tight - Math.PI)).toBeLessThanOrEqual(Math.abs(loose - Math.PI));
-        expect(tight).toBeCloseTo(Math.PI, 8);
+        expect(Math.abs(tight.x - Math.PI)).toBeLessThanOrEqual(Math.abs(loose.x - Math.PI));
+        expect(tight.x).toBeCloseTo(Math.PI, 8);
     });
 
     it('handles a minimum at x = 0', () => {
         const fn = (x: number) => x ** 2;
-        const x = fminBrent(fn, -1, 1);
-        expect(x).toBeCloseTo(0, 6);
+        const result = fminBrent(fn, -1, 1);
+        expect(result.x).toBeCloseTo(0, 6);
     });
 
     it('handles asymmetric brackets', () => {
         const fn = (x: number) => (x - 0.1) ** 2;
-        const x = fminBrent(fn, -100, 1);
-        expect(x).toBeCloseTo(0.1, 5);
+        const result = fminBrent(fn, -100, 1);
+        expect(result.x).toBeCloseTo(0.1, 5);
     });
 
     it('finds a local minimum of a non-convex function within the bracket', () => {
         // Has a local min near x ≈ -1.42 and another near x ≈ 1.42 within [-3, 3];
         // starting near the left half of the bracket should land on the left one.
         const fn = (x: number) => x ** 4 - 4 * x ** 2;
-        const x = fminBrent(fn, -3, 0);
-        expect(x).toBeCloseTo(-Math.sqrt(2), 4);
+        const result = fminBrent(fn, -3, 0);
+        expect(result.x).toBeCloseTo(-Math.sqrt(2), 4);
     });
 
     it('warns and still returns a value when maxIterations is exhausted', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         const fn = (x: number) => (x - 2) ** 2;
 
-        const x = fminBrent(fn, -5, 5, 1e-14, 1);
+        const result = fminBrent(fn, -5, 5, 1e-14, 1);
 
         expect(warnSpy).toHaveBeenCalledOnce();
         expect(warnSpy.mock.calls[0][0]).toContain('maxIterations');
-        expect(typeof x).toBe('number');
+        expect(result.success).toBe(false);
+        expect(result.x).toBeDefined();
 
         warnSpy.mockRestore();
     });
@@ -175,10 +183,10 @@ describe('fminBrent (test problems ported from polykin test_brent.py)', () => {
 
     for (const [name, { f, xa, xb, xmin }] of Object.entries(TEST_FUNCTIONS)) {
         it(`finds the minimum for "${name}"`, () => {
-            const x = fminBrent(f, xa, xb, tolX);
+            const result = fminBrent(f, xa, xb, tolX);
             expect(
-                isClose(x, xmin, 2 * tolX),
-                `Incorrect minimum for ${name}: x=${x}, expected ${xmin}`
+                isClose(result.x, xmin, 2 * tolX),
+                `Incorrect minimum for ${name}: x=${result.x}, expected ${xmin}`
             ).toBe(true);
         });
     }
