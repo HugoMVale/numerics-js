@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fminBrent } from '../../src/optimization/brent.js';
 import { isClose } from '../../src/misc.js'
-import type { MathFunction } from '../../src/types.js';
+import type { ScalarFunction } from '../../src/types.js';
 
 describe('fminBrent', () => {
     it('finds the minimum of a simple parabola', () => {
@@ -112,7 +112,7 @@ describe('fminBrent', () => {
  * minimum and checks that fminBrent converges to it within tolerance.
  */
 interface BrentTestCase {
-    f: MathFunction;
+    f: ScalarFunction;
     xa: number;
     xb: number;
     xmin: number;

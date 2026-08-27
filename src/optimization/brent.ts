@@ -1,4 +1,4 @@
-import type { MathFunction } from '../types.js';
+import type { ScalarFunction } from '../types.js';
 import { copysign } from '../misc';
 
 /**
@@ -19,7 +19,7 @@ import { copysign } from '../misc';
  * @returns Approximate location of the minimum.
  */
 export function fminBrent(
-    fn: MathFunction,
+    fn: ScalarFunction,
     xa: number,
     xb: number,
     tolX: number = 1e-8,

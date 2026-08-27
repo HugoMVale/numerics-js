@@ -1,1 +1,1 @@
-export type MathFunction = (x: number) => number;
+export type ScalarFunction = (x: number) => number;
