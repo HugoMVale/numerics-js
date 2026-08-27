@@ -2,7 +2,7 @@ import type { ScalarFunction } from '../types.js';
 import { copysign } from '../misc';
 
 /**
- * Result of a `fminBrent` optimization.
+ * Result of a `minimizeBrent` optimization.
  */
 export interface BrentResult {
     /** Name of the optimization method used. */
@@ -12,9 +12,9 @@ export interface BrentResult {
     /** Human-readable description of the termination reason. */
     message: string;
     /** Number of function evaluations performed. */
-    nfeval: number;
+    nFev: number;
     /** Number of iterations performed. */
-    niter: number;
+    nIter: number;
     /** Location of the minimum. */
     x: number;
     /** Function value at `x`. */
@@ -35,13 +35,13 @@ export interface BrentResult {
  * @param xa - One end of the bracketing interval.
  * @param xb - Other end of the bracketing interval.
  * @param tolX - Stop when the search interval shrinks to approximately this width.
- * @param maxIterations - Maximum number of iterations.
+ * @param maxIter - Maximum number of iterations.
  * @returns Optimization result containing the minimum, function value, and convergence information.
  *
  * @example
  * ```ts
  * const f = (x: number): number => x ** 4 - x + 1;
- * const result = fminBrent(f, -3.0, 3.0);
+ * const result = minimizeBrent(f, -3.0, 3.0);
  * console.log(result);
  * ```
  *
@@ -51,19 +51,19 @@ export interface BrentResult {
  *   method: 'Brent',
  *   success: true,
  *   message: '|dx| <= tolX',
- *   nfeval: 19,
- *   niter: 18,
+ *   nFev: 19,
+ *   nIter: 18,
  *   x: 0.62996052,
  *   f: 0.52752961
  * }
  * ```
  */
-export function fminBrent(
+export function minimizeBrent(
     fn: ScalarFunction,
     xa: number,
     xb: number,
     tolX: number = 1e-8,
-    maxIterations: number = 100
+    maxIter: number = 100
 ): BrentResult {
     // Golden ratio constant: (3 - sqrt(5)) / 2
     const GOLDEN = 0.38196601125010515179;
@@ -79,12 +79,12 @@ export function fminBrent(
     let fx = fn(x);
     let fv = fx;
     let fw = fx;
-    let nfeval = 1;
+    let nFev = 1;
 
     let d = 0;
     let e = 0;
 
-    for (let k = 0; k < maxIterations; k++) {
+    for (let k = 0; k < maxIter; k++) {
         const xm = 0.5 * (a + b);
         const tol1 = EPS * Math.abs(x) + tolX / 3.0;
         const tol2 = 2.0 * tol1;
@@ -94,8 +94,8 @@ export function fminBrent(
                 method: 'Brent',
                 success: true,
                 message: '|dx| <= tolX',
-                nfeval,
-                niter: k,
+                nFev,
+                nIter: k,
                 x,
                 f: fx,
             };
@@ -140,7 +140,7 @@ export function fminBrent(
         // Numerical safety: ensure step is at least tol1
         const u = Math.abs(d) >= tol1 ? x + d : x + copysign(tol1, d);
         const fu = fn(u);
-        nfeval++;
+        nFev++;
 
         // Update points
         if (fu <= fx) {
@@ -168,14 +168,14 @@ export function fminBrent(
     }
 
     console.warn(
-        `fminBrent: reached maxIterations (${maxIterations}) without converging to tolerance ${tolX}`
+        `minimizeBrent: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
     );
     return {
         method: 'Brent',
         success: false,
-        message: `Maximum number of iterations (${maxIterations}) reached.`,
-        nfeval,
-        niter: maxIterations,
+        message: `Maximum number of iterations (${maxIter}) reached.`,
+        nFev,
+        nIter: maxIter,
         x,
         f: fx,
     };
