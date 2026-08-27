@@ -1,4 +1,4 @@
-import type { MathFunction } from '../types.js';
+import type { ScalarFunction } from '../types.js';
 
 /**
  * Finds a root of fn in the interval [a, b] using the bisection method.
@@ -27,7 +27,7 @@ import type { MathFunction } from '../types.js';
  * ```
  */
 export function bisection(
-    fn: MathFunction,
+    fn: ScalarFunction,
     a: number,
     b: number,
     tolX: number = 1e-8,

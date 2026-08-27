@@ -1,4 +1,4 @@
-import type { MathFunction } from '../types';
+import type { ScalarFunction } from '../types';
 import { copysign } from '../misc';
 
 /**
@@ -37,7 +37,7 @@ import { copysign } from '../misc';
  * ```
  */
 export function brent(
-    fn: MathFunction,
+    fn: ScalarFunction,
     xa: number,
     xb: number,
     tolX: number = 1e-8,

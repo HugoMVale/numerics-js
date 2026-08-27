@@ -1,4 +1,4 @@
-import type { MathFunction } from '../types.js';
+import type { ScalarFunction } from '../types.js';
 
 /**
  * Finds a root of fn using the secant method, starting from two initial guesses.
@@ -32,7 +32,7 @@ import type { MathFunction } from '../types.js';
  * ```
  */
 export function secant(
-    fn: MathFunction,
+    fn: ScalarFunction,
     x0: number,
     x1: number,
     tolX: number = 1e-8,
