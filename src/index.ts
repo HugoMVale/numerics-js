@@ -1,4 +1,5 @@
 export * as array from './array.js';
+export * as integrate from './integrate.js'
 export * as ode from './ode.js';
 export * as optimization from './optimization.js'
 export * as roots from './roots.js';
