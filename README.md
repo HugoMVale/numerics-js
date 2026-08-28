@@ -77,7 +77,7 @@ const root = bisection((x) => x * x - 2, 1, 2);
 const otherRoot = secant((x) => Math.cos(x) - x, 0, 1);
 ```
 
-Both functions accept optional `tolerance` and `maxIterations` arguments. If
+Both functions accept optional `tolerance` and `maxIter` arguments. If
 the iteration limit is reached, they warn and return the latest approximation.
 `bisection` throws when the interval does not bracket a root; `secant` throws
 when its guesses are equal or its denominator becomes zero.

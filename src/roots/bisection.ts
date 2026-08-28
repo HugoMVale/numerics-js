@@ -7,7 +7,7 @@ import type { ScalarFunction } from '../types.js';
  * @param a - Left endpoint of the bracketing interval.
  * @param b - Right endpoint of the bracketing interval.
  * @param tolX - Stop when the interval half-width is below this.
- * @param maxIterations - Maximum number of iterations.
+ * @param maxIter - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
  *
@@ -31,7 +31,7 @@ export function bisection(
     a: number,
     b: number,
     tolX: number = 1e-8,
-    maxIterations: number = 100
+    maxIter: number = 100
 ): number {
     if (a === b) {
         throw new Error('bisection: a and b must be different');
@@ -54,7 +54,7 @@ export function bisection(
 
     let mid = (a + b) / 2;
 
-    for (let k = 0; k < maxIterations; k++) {
+    for (let k = 0; k < maxIter; k++) {
         mid = (a + b) / 2;
         const fmid = fn(mid);
 
@@ -71,7 +71,7 @@ export function bisection(
     }
 
     console.warn(
-        `bisection: reached maxIterations (${maxIterations}) without converging to tolerance ${tolX}`
+        `bisection: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
     );
     return mid;
 }

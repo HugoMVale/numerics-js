@@ -37,13 +37,13 @@ describe('bisection', () => {
         expect(() => bisection(f, 3, 5)).toThrow('bisection: fn(a) and fn(b) must have opposite signs');
     });
 
-    it('should warn and return mid if maxIterations is reached without convergence', () => {
+    it('should warn and return mid if maxIter is reached without convergence', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         // Only allow 2 iterations, which won't be enough to reach the default 1e-8 tolerance
         const root = bisection(f, 0, 5, 1e-8, 2);
 
         expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('bisection: reached maxIterations (2) without converging')
+            expect.stringContaining('bisection: reached maxIter (2) without converging')
         );
         expect(root).toBeGreaterThan(0);
         expect(root).toBeLessThan(5);
@@ -77,13 +77,13 @@ describe('secant', () => {
         expect(() => secant(f, -1, 1)).toThrow('secant: zero denominator encountered');
     });
 
-    it('should warn and return the last estimate if maxIterations is reached', () => {
+    it('should warn and return the last estimate if maxIter is reached', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         // Only allow 1 iteration
         const root = secant(f, 0, 5, 1e-8, 1);
 
         expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('secant: reached maxIterations (1) without converging')
+            expect.stringContaining('secant: reached maxIter (1) without converging')
         );
         expect(root).toBeDefined();
     });
@@ -118,13 +118,13 @@ describe('brent', () => {
         );
     });
 
-    it('should warn and return the last estimate if maxIterations is reached', () => {
+    it('should warn and return the last estimate if maxIter is reached', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         // Only allow 1 iteration, which won't be enough to reach the default tolerances
         const root = brent(f, 0, 5, 1e-8, 1e-8, 1);
 
         expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('brent: reached maxIterations (1) without converging')
+            expect.stringContaining('brent: reached maxIter (1) without converging')
         );
         expect(root).toBeGreaterThan(0);
         expect(root).toBeLessThan(5);

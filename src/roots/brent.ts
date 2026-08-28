@@ -17,7 +17,7 @@ import { copysign } from '../misc';
  * @param xb - Other end of the bracketing interval.
  * @param tolX - Stop when the bracket half-width is below this (absolute x tolerance).
  * @param tolF - Stop when |fn(x)| is below this (absolute function-value tolerance).
- * @param maxIterations - Maximum number of iterations.
+ * @param maxIter - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If fn(xa) and fn(xb) do not have opposite signs.
  *
@@ -42,7 +42,7 @@ export function brent(
     xb: number,
     tolX: number = 1e-8,
     tolF: number = 1e-8,
-    maxIterations: number = 100
+    maxIter: number = 100
 ): number {
     const eps = Number.EPSILON;
 
@@ -63,7 +63,7 @@ export function brent(
     let d = xb - xa;
     let e = d;
 
-    for (let k = 0; k < maxIterations; k++) {
+    for (let k = 0; k < maxIter; k++) {
         if (fb * fc > 0) {
             xc = xa;
             fc = fa;
@@ -136,7 +136,7 @@ export function brent(
     }
 
     console.warn(
-        `brent: reached maxIterations (${maxIterations}) without converging to tolX=${tolX}, tolF=${tolF}`
+        `brent: reached maxIter (${maxIter}) without converging to tolX=${tolX}, tolF=${tolF}`
     );
     return xb;
 }

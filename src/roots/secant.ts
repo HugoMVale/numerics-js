@@ -12,7 +12,7 @@ import type { ScalarFunction } from '../types.js';
  * @param x0 - First initial guess.
  * @param x1 - Second initial guess (should differ from x0).
  * @param tolX - Stop when |x1 - x0| (the step size) is below this.
- * @param maxIterations - Maximum number of iterations.
+ * @param maxIter - Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
  *
@@ -36,7 +36,7 @@ export function secant(
     x0: number,
     x1: number,
     tolX: number = 1e-8,
-    maxIterations: number = 100
+    maxIter: number = 100
 ): number {
     if (x0 === x1) {
         throw new Error('secant: x0 and x1 must be different');
@@ -48,7 +48,7 @@ export function secant(
     if (f0 === 0) return x0;
     if (f1 === 0) return x1;
 
-    for (let k = 0; k < maxIterations; k++) {
+    for (let k = 0; k < maxIter; k++) {
         const denom = f1 - f0;
 
         if (denom === 0) {
@@ -74,7 +74,7 @@ export function secant(
     }
 
     console.warn(
-        `secant: reached maxIterations (${maxIterations}) without converging to tolerance ${tolX}`
+        `secant: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
     );
     return x1;
 }

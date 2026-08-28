@@ -76,7 +76,7 @@ describe('fminBrent', () => {
         expect(result.x).toBeCloseTo(-Math.sqrt(2), 4);
     });
 
-    it('warns and still returns a value when maxIterations is exhausted', () => {
+    it('warns and still returns a value when maxIter is exhausted', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         const fn = (x: number) => (x - 2) ** 2;
 
@@ -90,7 +90,7 @@ describe('fminBrent', () => {
         warnSpy.mockRestore();
     });
 
-    it('respects a custom maxIterations without throwing', () => {
+    it('respects a custom maxIter without throwing', () => {
         const fn = (x: number) => (x - 2) ** 2;
         expect(() => minimizeBrent(fn, -5, 5, 1e-8, 5)).not.toThrow();
     });
