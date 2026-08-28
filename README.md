@@ -109,7 +109,7 @@ const solution = rk4Integrate(
     0.1,
 );
 
-console.log(solution.t.data[solution.t.dim - 1]); // 1
+console.log(solution.t.data[solution.t.size - 1]); // 1
 console.log(solution.y.row(solution.y.rows));    // state at t = 1
 ```
 
