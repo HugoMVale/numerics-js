@@ -161,7 +161,7 @@ export function dp54Step(
     y: Array1D,
     h: number,
     out: Array1D,
-    scratch: DP54Scratch = makeScratch(y.dim),
+    scratch: DP54Scratch = makeScratch(y.size),
     k1Ready: boolean = false
 ): Array1D {
     const { k1, k2, k3, k4, k5, k6, k7, yTemp } = scratch;
@@ -225,7 +225,7 @@ function dp54ErrorNorm(
     rtol: number
 ): number {
     const { k1, k3, k4, k5, k6, k7 } = scratch;
-    const dim = y.dim;
+    const dim = y.size;
     const yd = y.data;
     const od = out.data;
     const k1d = k1.data;
@@ -264,7 +264,7 @@ function estimateInitialStep(
     rtol: number,
     scratch: DP54Scratch
 ): number {
-    const dim = y0.dim;
+    const dim = y0.size;
     const f0 = scratch.k1;
     f(t0, y0, f0);
 
@@ -343,7 +343,7 @@ export function dp54Integrate(
         maxScale = 10,
     } = options;
 
-    const dim = y0.dim;
+    const dim = y0.size;
 
     if (tEnd === t0) {
         const tVec = new Array1D(1);

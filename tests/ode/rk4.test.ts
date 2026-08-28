@@ -48,9 +48,9 @@ describe('RK4 Integration Module', () => {
         expect(t.data[1]).toBe(1.0);
         expect(t.data[2]).toBe(2.0);
 
-        // t is an Array1D, which we know has the .dim property.
+        // t is an Array1D, which we know has the .size property.
         // Both t and y have the same number of records.
-        expect(t.dim).toBe(3);
+        expect(t.size).toBe(3);
     });
 
     it('should handle a shorter final partial step to land on tEnd exactly', () => {
@@ -60,9 +60,9 @@ describe('RK4 Integration Module', () => {
         // Integrating from 0 to 2.5 with h=1 -> two full steps, one partial step of 0.5
         const { t, y } = rk4Integrate(expDerivative, 0, 2.5, y0, 1.0);
 
-        const lastIdx = t.dim - 1;
+        const lastIdx = t.size - 1;
         expect(t.data[lastIdx]).toBe(2.5);
-        expect(t.dim).toBe(4); // 0.0, 1.0, 2.0, 2.5 (4 records)
+        expect(t.size).toBe(4); // 0.0, 1.0, 2.0, 2.5 (4 records)
     });
 
     it('should integrate backward if tEnd < t0 and h is negative', () => {

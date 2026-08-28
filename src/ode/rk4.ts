@@ -39,7 +39,7 @@ export function rk4Step(
     y: Array1D,
     h: number,
     out: Array1D,
-    scratch: RK4Scratch = makeScratch(y.dim)
+    scratch: RK4Scratch = makeScratch(y.size)
 ): Array1D {
     const { k1, k2, k3, k4, yTemp } = scratch;
     const half = h / 2;
@@ -83,7 +83,7 @@ export function rk4Integrate(
         );
     }
 
-    const dim = y0.dim;
+    const dim = y0.size;
     const scratch = makeScratch(dim);
 
     const EPS = 1e-9;

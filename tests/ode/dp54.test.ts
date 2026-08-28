@@ -124,14 +124,14 @@ describe('dp54Integrate: accuracy', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
         const { t, y } = dp54Integrate(f, 0, 5, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim - 1);
+        const last = y.row(t.size - 1);
         closeTo(last.data[0], Math.exp(-5), 1e-8);
     });
 
     it('conserves amplitude for the harmonic oscillator over several periods', () => {
         const y0 = new Array1D([1, 0]);
         const { t, y } = dp54Integrate(oscillator, 0, 6 * Math.PI, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim - 1);
+        const last = y.row(t.size - 1);
         const amplitude = Math.hypot(last.data[0], last.data[1]);
         closeTo(amplitude, 1, 1e-6);
         closeTo(last.data[0], 1, 1e-6);
@@ -142,8 +142,8 @@ describe('dp54Integrate: accuracy', () => {
         const f = makeDecay(1);
         const yAtFive = new Array1D([Math.exp(-5)]);
         const { t, y } = dp54Integrate(f, 5, 0, yAtFive, { atol: 1e-10, rtol: 1e-10 });
-        expect(t.data[t.dim - 1]).toBe(0);
-        closeTo(y.row(t.dim - 1).data[0], 1, 1e-7);
+        expect(t.data[t.size - 1]).toBe(0);
+        closeTo(y.row(t.size - 1).data[0], 1, 1e-7);
     });
 });
 
@@ -152,8 +152,8 @@ describe('dp54Integrate: output shape and contracts', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
         const { t, y } = dp54Integrate(f, 0, 3, y0);
-        expect(y.rows).toBe(t.dim);
-        expect(y.cols).toBe(y0.dim);
+        expect(y.rows).toBe(t.size);
+        expect(y.cols).toBe(y0.size);
     });
 
     it('records t0 exactly at the first recorded time', () => {
@@ -167,7 +167,7 @@ describe('dp54Integrate: output shape and contracts', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
         const { t } = dp54Integrate(f, 0, 1 / 3, y0);
-        expect(t.data[t.dim - 1]).toBe(1 / 3);
+        expect(t.data[t.size - 1]).toBe(1 / 3);
     });
 
     it('stores the initial condition in row 0', () => {
@@ -190,7 +190,7 @@ describe('dp54Integrate: output shape and contracts', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([3.14]);
         const { t, y } = dp54Integrate(f, 2, 2, y0);
-        expect(t.dim).toBe(1);
+        expect(t.size).toBe(1);
         expect(t.data[0]).toBe(2);
         expect(y.rows).toBe(1);
         expect(y.row(0).data[0]).toBe(3.14);
@@ -206,10 +206,10 @@ describe('dp54Integrate: adaptive step-size control', () => {
         const loose = dp54Integrate(f, 0, 5, y0, { atol: 1e-3, rtol: 1e-3 });
         const tight = dp54Integrate(f, 0, 5, y0, { atol: 1e-11, rtol: 1e-11 });
 
-        expect(tight.t.dim).toBeGreaterThan(loose.t.dim);
+        expect(tight.t.size).toBeGreaterThan(loose.t.size);
 
-        const looseErr = Math.abs(loose.y.row(loose.t.dim - 1).data[0] - exact);
-        const tightErr = Math.abs(tight.y.row(tight.t.dim - 1).data[0] - exact);
+        const looseErr = Math.abs(loose.y.row(loose.t.size - 1).data[0] - exact);
+        const tightErr = Math.abs(tight.y.row(tight.t.size - 1).data[0] - exact);
         expect(tightErr).toBeLessThan(looseErr);
     });
 
@@ -224,7 +224,7 @@ describe('dp54Integrate: adaptive step-size control', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
         const { t } = dp54Integrate(f, 0, 100, y0, { atol: 1, rtol: 1, hMax: 0.5 });
-        for (let i = 1; i < t.dim; i++) {
+        for (let i = 1; i < t.size; i++) {
             expect(t.data[i] - t.data[i - 1]).toBeLessThanOrEqual(0.5 + 1e-9);
         }
     });
@@ -267,7 +267,7 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
 
         const y0 = new Array1D([1, 0]);
         const { t, y } = dp54Integrate(f, 0, 2 * Math.PI, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim - 1);
+        const last = y.row(t.size - 1);
 
         closeTo(last.data[0], 1, 1e-6);
         closeTo(last.data[1], 0, 1e-6);
@@ -286,8 +286,8 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
         const a = dp54Integrate(fAllocating, 0, 5, y0a, { atol: 1e-9, rtol: 1e-9 });
         const b = dp54Integrate(fDirect, 0, 5, y0b, { atol: 1e-9, rtol: 1e-9 });
 
-        const rowA = a.y.row(a.t.dim - 1);
-        const rowB = b.y.row(b.t.dim - 1);
+        const rowA = a.y.row(a.t.size - 1);
+        const rowB = b.y.row(b.t.size - 1);
         closeTo(rowA.data[0], rowB.data[0], 1e-6);
         closeTo(rowA.data[1], rowB.data[1], 1e-6);
     });
@@ -295,12 +295,12 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
     it('handles a higher-dimensional decoupled system (independent exponential decays)', () => {
         const rates = [1, 2, 0.5, 3];
         const f: DerivativeFn = (t: number, y: Array1D, dydt: Array1D): Array1D => {
-            for (let i = 0; i < y.dim; i++) dydt.data[i] = -rates[i] * y.data[i];
+            for (let i = 0; i < y.size; i++) dydt.data[i] = -rates[i] * y.data[i];
             return dydt;
         };
         const y0 = new Array1D([1, 1, 1, 1]);
         const { t, y } = dp54Integrate(f, 0, 2, y0, { atol: 1e-10, rtol: 1e-10 });
-        const last = y.row(t.dim - 1);
+        const last = y.row(t.size - 1);
         for (let i = 0; i < rates.length; i++) {
             closeTo(last.data[i], Math.exp(-rates[i] * 2), 1e-7);
         }
