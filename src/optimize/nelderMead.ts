@@ -2,12 +2,12 @@ import { Array1D } from '../array/array1d.js';
 import { Array2D } from '../array/array2d.js';
 
 /**
- * Result of a `minimizeNelderMead` optimization.
+ * Result of a `minimizeNelderMead` optimize.
  */
 export interface NelderMeadResult {
-    /** Name of the optimization method used. */
+    /** Name of the optimize method used. */
     method: string;
-    /** Whether the optimization terminated successfully. */
+    /** Whether the optimize terminated successfully. */
     success: boolean;
     /** Human-readable description of the termination reason. */
     message: string;
@@ -73,7 +73,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * Finds the minimum of a multivariate function using the Nelder-Mead simplex
  * algorithm.
  *
- * The Nelder-Mead simplex algorithm is a derivative-free optimization method
+ * The Nelder-Mead simplex algorithm is a derivative-free optimize method
  * for unconstrained minimization of multivariate functions. It maintains a
  * simplex of `N+1` vertices in `N`-dimensional space and iteratively updates
  * this simplex based on the function values at the vertices.
@@ -118,7 +118,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * function values. Neither should be mutated by the callback. If `stop` is
  * `true`, the iteration is terminated; `success` then decides whether the
  * result is reported as successful.
- * @returns The optimization result.
+ * @returns The optimize result.
  *
  * @example
  * ```ts
@@ -198,7 +198,7 @@ export function minimizeNelderMead(
     }
     let nFev = n + 1;
 
-    // Main optimization loop
+    // Main optimize loop
     let nIter = 0;
     let success = false;
     let message = '';

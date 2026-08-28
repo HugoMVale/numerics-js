@@ -5,7 +5,7 @@
         "src/integrate.ts",
         "src/roots.ts",
         "src/ode.ts",
-        "src/optimization.ts",
+        "src/optimize.ts",
         "src/special.ts",
         "src/misc.ts",
         "src/types.ts"

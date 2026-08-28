@@ -1,7 +1,7 @@
 import { Array1D } from '../../src/array/array1d.js';
 
 /**
- * Multivariate test functions commonly used in optimization benchmarks.
+ * Multivariate test functions commonly used in optimize benchmarks.
  * Ported from PolyKin's `_tester.py` (`TEST_FUNCTIONS_MULTIVAR`).
  *
  * Only `fn` (the objective), `initialPoint`, and `globalMinimum` are

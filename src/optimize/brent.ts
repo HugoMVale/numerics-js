@@ -1,13 +1,13 @@
 import type { ScalarFunction } from '../types.js';
-import { copysign } from '../misc';
+import { copysign } from '../misc.js';
 
 /**
- * Result of a `minimizeBrent` optimization.
+ * Result of a `minimizeBrent` optimize.
  */
 export interface BrentResult {
-    /** Name of the optimization method used. */
+    /** Name of the optimize method used. */
     method: string;
-    /** Whether the optimization terminated successfully. */
+    /** Whether the optimize terminated successfully. */
     success: boolean;
     /** Human-readable description of the termination reason. */
     message: string;
@@ -24,7 +24,7 @@ export interface BrentResult {
 /**
  * Finds a local minimum of fn using Brent's method, given a bracketing interval.
  *
- * Brent's method is a derivative-free optimization algorithm that combines
+ * Brent's method is a derivative-free optimize algorithm that combines
  * golden-section search with inverse parabolic interpolation. It maintains a
  * bracketing interval known to contain a local minimum and iteratively
  * narrows it: when the function behaves smoothly it attempts a fast

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { minimizeBrent } from '../../src/optimization/brent.js';
+import { minimizeBrent } from '../../src/optimize/brent.js';
 import { isClose } from '../../src/misc.js'
 import type { ScalarFunction } from '../../src/types.js';
 

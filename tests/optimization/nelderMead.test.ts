@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Array1D } from '../../src/array/array1d.js';
 import { Array2D } from '../../src/array/array2d.js';
-import { minimizeNelderMead } from '../../src/optimization/nelderMead.js';
+import { minimizeNelderMead } from '../../src/optimize/nelderMead.js';
 import { TEST_FUNCTIONS_MULTIVAR } from './testFunctions';
 
 describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('fminNelderMead — %s', (_name, data) => {

@@ -60,11 +60,17 @@
             "import": "./dist/ode/verlet.js",
             "default": "./dist/ode/verlet.js"
         },
-        "./optimization": {
-            "types": "./dist/optimization.d.ts",
-            "browser": "./dist/optimization.js",
-            "import": "./dist/optimization.js",
-            "default": "./dist/optimization.js"
+        "./optimize": {
+            "types": "./dist/optimize.d.ts",
+            "browser": "./dist/optimize.js",
+            "import": "./dist/optimize.js",
+            "default": "./dist/optimize.js"
+        },
+        "./integrate": {
+            "types": "./dist/integrate.d.ts",
+            "browser": "./dist/integrate.js",
+            "import": "./dist/integrate.js",
+            "default": "./dist/integrate.js"
         }
     },
     "scripts": {

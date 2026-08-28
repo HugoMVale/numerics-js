@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { array, ode, optimization, roots, special } from '../src/index.js';
+import { array, ode, optimize, roots, special } from '../src/index.js';
 
 describe('public API', () => {
     it('exports the main numerical library modules', () => {
@@ -13,8 +13,8 @@ describe('public API', () => {
         expect(typeof ode.rk4Step).toBe('function');
         expect(typeof ode.rk4Integrate).toBe('function');
         expect(typeof ode.createVelocityVerlet).toBe('function');
-        expect(typeof optimization.minimizeBrent).toBe('function');
-        expect(typeof optimization.minimizeNelderMead).toBe('function');
+        expect(typeof optimize.minimizeBrent).toBe('function');
+        expect(typeof optimize.minimizeNelderMead).toBe('function');
     });
 
     it('publishes a browser + node compatible export map', () => {
