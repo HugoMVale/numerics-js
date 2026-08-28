@@ -4,7 +4,7 @@ import { Array1D } from '../../src/array/array1d';
 describe('Array1D', () => {
     it('initializes and handles Float64Array data', () => {
         const v: Array1D = new Array1D([1.5, 2.5, 3.5]);
-        expect(v.dim).toBe(3);
+        expect(v.size).toBe(3);
         expect(v.sum()).toBe(7.5);
     });
 
@@ -48,7 +48,7 @@ describe('Array1D', () => {
     it('rejects invalid dimensions in the constructor', () => {
         expect(() => new Array1D(-1)).toThrowError(RangeError);
         expect(() => new Array1D(1.5)).toThrowError(RangeError);
-        expect(new Array1D(0).dim).toBe(0);
+        expect(new Array1D(0).size).toBe(0);
     });
 
     it('validates length when bulk-replacing via set()', () => {

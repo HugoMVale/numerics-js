@@ -25,7 +25,7 @@ export class Array1D {
      * The number of components in this vector. Derived directly from
      * `data.length` so it can never desync, even if `data` is reassigned.
      */
-    get dim(): number {
+    get size(): number {
         return this.data.length;
     }
 
@@ -35,11 +35,11 @@ export class Array1D {
      * @param v - The other vector.
      * @param caller - Name of the public method invoking this check, used to
      * produce a precise error message (e.g. `"add"`).
-     * @throws {RangeError} If `v.dim !== this.dim`.
+     * @throws {RangeError} If `v.size !== this.size`.
      */
     private _checkDim(v: Array1D, caller: string): void {
-        if (v.dim !== this.dim) {
-            throw new RangeError(`Array1D.${caller}: dimension mismatch: ${this.dim} vs ${v.dim}`);
+        if (v.size !== this.size) {
+            throw new RangeError(`Array1D.${caller}: dimension mismatch: ${this.size} vs ${v.size}`);
         }
     }
 
@@ -48,11 +48,11 @@ export class Array1D {
      * @param i - Component index (0-based).
      * @param caller - Name of the public method invoking this check, used to
      * produce a precise error message (e.g. `"get"`).
-     * @throws {RangeError} If `i` is not an integer in `0..dim-1`.
+     * @throws {RangeError} If `i` is not an integer in `0..size-1`.
      */
     private _checkIndex(i: number, caller: string): void {
-        if (!Number.isInteger(i) || i < 0 || i >= this.dim) {
-            throw new RangeError(`Array1D.${caller}: index ${i} out of bounds for dimension ${this.dim}`);
+        if (!Number.isInteger(i) || i < 0 || i >= this.size) {
+            throw new RangeError(`Array1D.${caller}: index ${i} out of bounds for dimension ${this.size}`);
         }
     }
 
@@ -72,25 +72,25 @@ export class Array1D {
 
     /**
      * Adds another vector to this one.
-     * @param v - The vector to add. Must have the same `dim` as this one.
+     * @param v - The vector to add. Must have the same `size` as this one.
      * @returns A new vector equal to `this + v`.
      */
     add(v: Array1D): Array1D {
         this._checkDim(v, 'add');
-        const res = new Array1D(this.dim);
-        for (let i = 0; i < this.dim; i++) res.data[i] = this.data[i] + v.data[i];
+        const res = new Array1D(this.size);
+        for (let i = 0; i < this.size; i++) res.data[i] = this.data[i] + v.data[i];
         return res;
     }
 
     /**
      * Subtracts another vector from this one.
-     * @param v - The vector to subtract. Must have the same `dim` as this one.
+     * @param v - The vector to subtract. Must have the same `size` as this one.
      * @returns A new vector equal to `this - v`.
      */
     sub(v: Array1D): Array1D {
         this._checkDim(v, 'sub');
-        const res = new Array1D(this.dim);
-        for (let i = 0; i < this.dim; i++) res.data[i] = this.data[i] - v.data[i];
+        const res = new Array1D(this.size);
+        for (let i = 0; i < this.size; i++) res.data[i] = this.data[i] - v.data[i];
         return res;
     }
 
@@ -100,8 +100,8 @@ export class Array1D {
      * @returns A new vector equal to `this * s`.
      */
     mult(s: number): Array1D {
-        const res = new Array1D(this.dim);
-        for (let i = 0; i < this.dim; i++) res.data[i] = this.data[i] * s;
+        const res = new Array1D(this.size);
+        for (let i = 0; i < this.size; i++) res.data[i] = this.data[i] * s;
         return res;
     }
 
@@ -112,7 +112,7 @@ export class Array1D {
      */
     normSq(): number {
         let sum = 0;
-        for (let i = 0; i < this.dim; i++) sum += this.data[i] * this.data[i];
+        for (let i = 0; i < this.size; i++) sum += this.data[i] * this.data[i];
         return sum;
     }
 
@@ -132,30 +132,30 @@ export class Array1D {
      */
     normalize(): Array1D {
         const m = this.norm();
-        return m === 0 ? new Array1D(this.dim) : this.mult(1 / m);
+        return m === 0 ? new Array1D(this.size) : this.mult(1 / m);
     }
 
     /**
      * Computes the dot product of this vector with another.
-     * @param v - The other vector. Must have the same `dim` as this one.
+     * @param v - The other vector. Must have the same `size` as this one.
      * @returns The scalar dot product `this · v`.
      */
     dot(v: Array1D): number {
         this._checkDim(v, 'dot');
         let sum = 0;
-        for (let i = 0; i < this.dim; i++) sum += this.data[i] * v.data[i];
+        for (let i = 0; i < this.size; i++) sum += this.data[i] * v.data[i];
         return sum;
     }
 
     /**
      * Computes the Euclidean distance between this vector and another.
-     * @param v - The other vector. Must have the same `dim` as this one.
+     * @param v - The other vector. Must have the same `size` as this one.
      * @returns The distance between `this` and `v`.
      */
     dist(v: Array1D): number {
         this._checkDim(v, 'dist');
         let sum = 0;
-        for (let i = 0; i < this.dim; i++) {
+        for (let i = 0; i < this.size; i++) {
             const d = this.data[i] - v.data[i];
             sum += d * d;
         }
@@ -164,23 +164,23 @@ export class Array1D {
 
     /**
      * Computes the sum of this vector's components.
-     * @returns The sum, or `0` if `dim === 0`.
+     * @returns The sum, or `0` if `size === 0`.
      */
     sum(): number {
         let s = 0;
-        for (let i = 0; i < this.dim; i++) s += this.data[i];
+        for (let i = 0; i < this.size; i++) s += this.data[i];
         return s;
     }
 
     /**
      * Finds the smallest component of this vector.
      * @returns The minimum value.
-     * @throws {RangeError} If `dim === 0`.
+     * @throws {RangeError} If `size === 0`.
      */
     min(): number {
-        if (this.dim === 0) throw new RangeError('Array1D.min: cannot compute the min of an empty vector');
+        if (this.size === 0) throw new RangeError('Array1D.min: cannot compute the min of an empty vector');
         let m = this.data[0];
-        for (let i = 1; i < this.dim; i++) {
+        for (let i = 1; i < this.size; i++) {
             const x = this.data[i];
             // NaN must win the comparison so it propagates instead of being
             // silently skipped, matching Math.min's semantics.
@@ -192,12 +192,12 @@ export class Array1D {
     /**
      * Finds the largest component of this vector.
      * @returns The maximum value.
-     * @throws {RangeError} If `dim === 0`.
+     * @throws {RangeError} If `size === 0`.
      */
     max(): number {
-        if (this.dim === 0) throw new RangeError('Array1D.max: cannot compute the max of an empty vector');
+        if (this.size === 0) throw new RangeError('Array1D.max: cannot compute the max of an empty vector');
         let m = this.data[0];
-        for (let i = 1; i < this.dim; i++) {
+        for (let i = 1; i < this.size; i++) {
             const x = this.data[i];
             // NaN must win the comparison so it propagates instead of being
             // silently skipped, matching Math.max's semantics.
@@ -234,11 +234,11 @@ export class Array1D {
      * @param v - The other vector.
      * @param rtol - Relative tolerance.
      * @param atol - Absolute tolerance.
-     * @returns `true` if `v` has the same `dim` and all components of `this` are close to `v`'s.
+     * @returns `true` if `v` has the same `size` and all components of `this` are close to `v`'s.
      */
     isClose(v: Array1D, rtol: number = 1e-5, atol: number = 1e-8): boolean {
-        if (v.dim !== this.dim) return false;
-        for (let i = 0; i < this.dim; i++) {
+        if (v.size !== this.size) return false;
+        for (let i = 0; i < this.size; i++) {
             const a = this.data[i];
             const b = v.data[i];
             if (Math.abs(a - b) > atol + rtol * Math.max(Math.abs(a), Math.abs(b))) return false;
@@ -250,11 +250,11 @@ export class Array1D {
      * Checks whether this vector is exactly elementwise equal to another.
      * For tolerance-based comparison, use `isClose` instead.
      * @param v - The other vector.
-     * @returns `true` if `v` has the same `dim` and all components are exactly equal.
+     * @returns `true` if `v` has the same `size` and all components are exactly equal.
      */
     equals(v: Array1D): boolean {
-        if (v.dim !== this.dim) return false;
-        for (let i = 0; i < this.dim; i++) {
+        if (v.size !== this.size) return false;
+        for (let i = 0; i < this.size; i++) {
             if (this.data[i] !== v.data[i]) return false;
         }
         return true;
@@ -289,7 +289,7 @@ export class Array1D {
 
     /**
      * Sets this vector's components directly, mutating it in place.
-     * @param values - Values to copy in; must have length `dim`.
+     * @param values - Values to copy in; must have length `size`.
      * @returns `this`, for chaining.
      */
     set(values: number[] | Float64Array): this;
@@ -307,9 +307,9 @@ export class Array1D {
             this._checkIndex(valuesOrIndex, 'set');
             this.data[valuesOrIndex] = value as number;
         } else {
-            if (valuesOrIndex.length !== this.dim) {
+            if (valuesOrIndex.length !== this.size) {
                 throw new RangeError(
-                    `Array1D.set: expected ${this.dim} values, got ${valuesOrIndex.length}`
+                    `Array1D.set: expected ${this.size} values, got ${valuesOrIndex.length}`
                 );
             }
             this.data.set(valuesOrIndex);
@@ -328,23 +328,23 @@ export class Array1D {
 
     /**
      * Adds another vector to this one in place: `this += v`.
-     * @param v - The vector to add. Must have the same `dim` as this one.
+     * @param v - The vector to add. Must have the same `size` as this one.
      * @returns `this`, for chaining.
      */
     addSelf(v: Array1D): this {
         this._checkDim(v, 'addSelf');
-        for (let i = 0; i < this.dim; i++) this.data[i] += v.data[i];
+        for (let i = 0; i < this.size; i++) this.data[i] += v.data[i];
         return this;
     }
 
     /**
      * Subtracts another vector from this one in place: `this -= v`.
-     * @param v - The vector to subtract. Must have the same `dim` as this one.
+     * @param v - The vector to subtract. Must have the same `size` as this one.
      * @returns `this`, for chaining.
      */
     subSelf(v: Array1D): this {
         this._checkDim(v, 'subSelf');
-        for (let i = 0; i < this.dim; i++) this.data[i] -= v.data[i];
+        for (let i = 0; i < this.size; i++) this.data[i] -= v.data[i];
         return this;
     }
 
@@ -354,20 +354,20 @@ export class Array1D {
      * @returns `this`, for chaining.
      */
     multSelf(s: number): this {
-        for (let i = 0; i < this.dim; i++) this.data[i] *= s;
+        for (let i = 0; i < this.size; i++) this.data[i] *= s;
         return this;
     }
 
     /**
      * Adds a scaled vector to this one in place, in a single pass and
      * without an intermediate vector: `this += v * s`.
-     * @param v - The vector to scale and add. Must have the same `dim` as this one.
+     * @param v - The vector to scale and add. Must have the same `size` as this one.
      * @param s - The scale factor applied to `v`.
      * @returns `this`, for chaining.
      */
     addScaled(v: Array1D, s: number): this {
         this._checkDim(v, 'addScaled');
-        for (let i = 0; i < this.dim; i++) this.data[i] += v.data[i] * s;
+        for (let i = 0; i < this.size; i++) this.data[i] += v.data[i] * s;
         return this;
     }
 
@@ -375,13 +375,13 @@ export class Array1D {
      * Sets this vector to `a - b` in place, without allocating. Useful as a
      * reusable scratch vector inside a loop.
      * @param a
-     * @param b - Must have the same `dim` as `a` and as this vector.
+     * @param b - Must have the same `size` as `a` and as this vector.
      * @returns `this`, set to `a - b`.
      */
     subVectors(a: Array1D, b: Array1D): this {
         this._checkDim(a, 'subVectors');
         this._checkDim(b, 'subVectors');
-        for (let i = 0; i < this.dim; i++) this.data[i] = a.data[i] - b.data[i];
+        for (let i = 0; i < this.size; i++) this.data[i] = a.data[i] - b.data[i];
         return this;
     }
 

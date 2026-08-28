@@ -41,7 +41,7 @@ export class Array2D {
     }
 
     /**
-     * The number of rows in this matrix. Read-only (like `Array1D.dim`) so
+     * The number of rows in this matrix. Read-only (like `Array1D.size`) so
      * it can never desync from `data`.
      */
     get rows(): number {
@@ -49,11 +49,19 @@ export class Array2D {
     }
 
     /**
-     * The number of columns in this matrix. Read-only (like `Array1D.dim`)
+     * The number of columns in this matrix. Read-only (like `Array1D.size`)
      * so it can never desync from `data`.
      */
     get cols(): number {
         return this._cols;
+    }
+
+    /**
+     * The total number of elements in this matrix, i.e. `rows * cols`.
+     * Derived directly from `data.length` so it can never desync.
+     */
+    get size(): number {
+        return this.data.length;
     }
 
     /**
@@ -237,12 +245,12 @@ export class Array2D {
 
     /**
      * Multiplies this matrix by a column vector: `this * v`.
-     * @param v - The vector. Must have `v.dim === this.cols`.
+     * @param v - The vector. Must have `v.size === this.cols`.
      * @returns A new vector with `this.rows` components.
      */
     mulVec(v: Array1D): Array1D {
-        if (v.dim !== this.cols) {
-            throw new RangeError(`Array2D mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.dim})`);
+        if (v.size !== this.cols) {
+            throw new RangeError(`Array2D mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.size})`);
         }
         const res = new Array1D(this.rows);
         for (let i = 0; i < this.rows; i++) {
@@ -391,15 +399,15 @@ export class Array2D {
     /**
      * Solves the linear system `this * x = b` for `x`, via Gaussian
      * elimination with partial pivoting followed by back-substitution.
-     * @param b - The right-hand side vector. Must have `b.dim === this.rows`.
+     * @param b - The right-hand side vector. Must have `b.size === this.rows`.
      * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
      *   floating-point error) equal to `b`.
-     * @throws {RangeError} If this matrix is not square, or `b.dim !== this.rows`.
+     * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
      * @throws {Error} If this matrix is singular (no unique solution).
      */
     solve(b: Array1D): Array1D {
         if (this.rows !== this.cols) throw new RangeError(`Array2D solve requires a square matrix, got ${this.rows}x${this.cols}`);
-        if (b.dim !== this.rows) throw new RangeError(`Array2D solve shape mismatch: ${this.rows}x${this.cols} vs vec(${b.dim})`);
+        if (b.size !== this.rows) throw new RangeError(`Array2D solve shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
         const n = this.rows;
         // Augment [this | b] and forward-eliminate to row echelon form,
         // then back-substitute for x - this avoids ever computing this^-1.

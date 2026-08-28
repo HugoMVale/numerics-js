@@ -102,7 +102,7 @@ describe('fminNelderMead — options and edge cases', () => {
                 if (nIter === 1) {
                     seenRows = x.rows;
                     seenCols = x.cols;
-                    seenFxDim = fx.dim;
+                    seenFxDim = fx.size;
                 }
                 return { stop: nIter >= 1, success: true };
             }

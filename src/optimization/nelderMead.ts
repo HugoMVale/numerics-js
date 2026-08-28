@@ -27,8 +27,8 @@ export interface NelderMeadResult {
  * @returns Default scaling factors.
  */
 function defaultScale(x0: Array1D): Array1D {
-    const s = new Array1D(x0.dim);
-    for (let i = 0; i < x0.dim; i++) {
+    const s = new Array1D(x0.size);
+    for (let i = 0; i < x0.size; i++) {
         s.set(i, 1 / Math.max(Math.abs(x0.get(i)), 1));
     }
     return s;
@@ -36,7 +36,7 @@ function defaultScale(x0: Array1D): Array1D {
 
 /**
  * Finds the index of the smallest value, and the indices of the two largest
- * values, in a single pass over `fx`. Requires `fx.dim >= 2`.
+ * values, in a single pass over `fx`. Requires `fx.size >= 2`.
  * @param fx - Function values at the simplex vertices.
  * @returns `{imin, imax, imax2}`, where `imax` is the largest and `imax2`
  * the second largest.
@@ -153,7 +153,7 @@ export function minimizeNelderMead(
     callback?: (nIter: number, x: Array2D, fx: Array1D) => { stop: boolean; success: boolean }
 ): NelderMeadResult {
     const x0v = x0 instanceof Array1D ? x0.copy() : Array1D.from(x0);
-    const n = x0v.dim;
+    const n = x0v.size;
     if (n === 0) {
         throw new RangeError('minimizeNelderMead: x0 must have at least one component');
     }

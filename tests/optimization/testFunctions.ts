@@ -35,7 +35,7 @@ function ellipsoidCoeffs(n: number): number[] {
 /** `u(x) = 0.5 * sum((i+1) * x_i)`, shared by the `zakharov` function. */
 function zakharovU(x: Array1D): number {
     let u = 0;
-    for (let i = 0; i < x.dim; i++) u += 0.5 * (i + 1) * x.get(i);
+    for (let i = 0; i < x.size; i++) u += 0.5 * (i + 1) * x.get(i);
     return u;
 }
 
@@ -43,7 +43,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
     sphere: {
         fn: (x) => {
             let s = 0;
-            for (let i = 0; i < x.dim; i++) s += x.get(i) ** 2;
+            for (let i = 0; i < x.size; i++) s += x.get(i) ** 2;
             return s;
         },
         // Simple start to verify basic algorithm correctness
@@ -52,9 +52,9 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
     },
     ellipsoid: {
         fn: (x) => {
-            const coeffs = ellipsoidCoeffs(x.dim);
+            const coeffs = ellipsoidCoeffs(x.size);
             let s = 0;
-            for (let i = 0; i < x.dim; i++) s += coeffs[i] * x.get(i) ** 2;
+            for (let i = 0; i < x.size; i++) s += coeffs[i] * x.get(i) ** 2;
             return s;
         },
         // Asymmetric start -> exposes conditioning issues
@@ -64,7 +64,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
     rosenbrock: {
         fn: (x) => {
             let s = 0;
-            for (let i = 0; i < x.dim - 1; i++) {
+            for (let i = 0; i < x.size - 1; i++) {
                 s += 100 * (x.get(i + 1) - x.get(i) ** 2) ** 2 + (1 - x.get(i)) ** 2;
             }
             return s;
@@ -76,7 +76,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
     zakharov: {
         fn: (x) => {
             let s = 0;
-            for (let i = 0; i < x.dim; i++) s += x.get(i) ** 2;
+            for (let i = 0; i < x.size; i++) s += x.get(i) ** 2;
             const u = zakharovU(x);
             return s + u ** 2 + u ** 4;
         },
