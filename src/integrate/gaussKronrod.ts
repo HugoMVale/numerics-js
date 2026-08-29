@@ -1,10 +1,16 @@
 import { ScalarFunction } from '../types.js';
 
+/** Result of adaptive Gauss-Kronrod quadrature. */
 export interface GaussKronrodResult {
+    /** Estimated value of the definite integral. */
     value: number;
+    /** Estimated absolute integration error. */
     error: number;
+    /** Number of integrand evaluations performed. */
     evaluations: number;
+    /** Whether the requested error tolerance was reached. */
     converged: boolean;
+    /** Number of final subintervals used by the adaptive algorithm. */
     subintervals: number;
 }
 
