@@ -2,7 +2,7 @@ import type { ScalarFunction } from '../types.js';
 import { copysign } from '../misc.js';
 
 /**
- * Result of a `minimizeBrent` optimize.
+ * Result of a `brent` optimize.
  */
 export interface BrentResult {
     /** Name of the optimize method used. */
@@ -41,7 +41,7 @@ export interface BrentResult {
  * @example
  * ```ts
  * const f = (x: number): number => x ** 4 - x + 1;
- * const result = minimizeBrent(f, -3.0, 3.0);
+ * const result = brent(f, -3.0, 3.0);
  * console.log(result);
  * ```
  *
@@ -58,7 +58,7 @@ export interface BrentResult {
  * }
  * ```
  */
-export function minimizeBrent(
+export function brent(
     fn: ScalarFunction,
     xa: number,
     xb: number,
@@ -168,7 +168,7 @@ export function minimizeBrent(
     }
 
     console.warn(
-        `minimizeBrent: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
+        `brent: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
     );
     return {
         method: 'Brent',
