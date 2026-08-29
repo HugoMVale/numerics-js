@@ -40,18 +40,9 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
 /**
  * Integrates `y` using the composite Simpson's rule.
  *
- * Works pairwise over consecutive intervals, fitting a parabola through
- * each group of 3 points and integrating it over its full 2-interval
- * span. This is exact for any cubic (not just quadratic), and supports
- * irregular spacing when `x` is given, reducing to the familiar
- * `(h/3)(y0 + 4y1 + y2)` rule when spacing is uniform.
- *
- * Simpson's rule needs pairs of intervals, so it only applies directly
- * when the number of intervals (`size - 1`) is even. When it's odd,
- * there's one interval left over after pairing the rest up; that
- * interval is handled with the trailing correction described in
- * `trailingCorrection` above, which supports arbitrary spacing but is
- * only exact for quadratics rather than cubics.
+ * If `x` is provided, the spacing between samples is taken from `x`
+ * (which need not be uniform). Otherwise, samples are assumed to be
+ * spaced `dx` apart. 
  *
  * @param y Sample values to integrate. Must have `size >= 0`.
  * @param x Optional sample locations, same `size` as `y`. If omitted,
