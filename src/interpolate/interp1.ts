@@ -59,6 +59,40 @@ function interpMany(x: number[] | Array1D, xp: Array1D, fp: Array1D, leftVal: nu
 }
 
 /**
+ * Evaluates the derivative of the piecewise-linear interpolant at one point.
+ */
+function linearDerivativeOne(xi: number, xp: Array1D, fp: Array1D): number {
+    const n = xp.size;
+    const xpd = xp.data;
+    const fpd = fp.data;
+
+    if (Number.isNaN(xi)) return NaN;
+    if (xi < xpd[0] || xi > xpd[n - 1]) return 0;
+
+    let lo = 0;
+    let hi = n - 1;
+    while (hi - lo > 1) {
+        const mid = (lo + hi) >>> 1;
+        if (xpd[mid] <= xi) lo = mid;
+        else hi = mid;
+    }
+
+    const h = xpd[hi] - xpd[lo];
+    return h === 0 ? 0 : (fpd[hi] - fpd[lo]) / h;
+}
+
+function linearDerivativeMany(x: number[] | Array1D, xp: Array1D, fp: Array1D): Array1D {
+    const xv = x instanceof Array1D ? x : Array1D.from(x);
+    const res = new Array1D(xv.size);
+    const xdata = xv.data;
+    const rdata = res.data;
+    for (let i = 0; i < xv.size; i++) {
+        rdata[i] = linearDerivativeOne(xdata[i], xp, fp);
+    }
+    return res;
+}
+
+/**
  * A reusable one-dimensional linear interpolant.
  *
  * Given the discrete data points `(xp[i], fp[i])`, with `xp` increasing,
@@ -67,7 +101,7 @@ function interpMany(x: number[] | Array1D, xp: Array1D, fp: Array1D, leftVal: nu
  * `fp` unless `left`/`right` are given.
  *
  * Validation (matching lengths, non-empty, sorted) happens once, in the
- * constructor, rather than on every evaluation. This makes `LinearInterpolator `
+ * constructor, rather than on every evaluation. This makes `LinearInterpolator`
  * the better choice over the standalone `interp` function whenever the same
  * `(xp, fp)` pair is evaluated repeatedly, e.g. inside an optimize loop or
  * when resampling many points against one curve.
@@ -122,6 +156,25 @@ export class LinearInterpolator {
      */
     get size(): number {
         return this.xp.size;
+    }
+
+    /**
+     * Evaluates the first derivative of the interpolant at `x`.
+     * Values outside the data range return `0`, the derivative of the
+     * constant clamping regions. At a knot, this returns the slope of the
+     * segment to its right (or the final segment at the right endpoint).
+     * @param x - The x-coordinate(s) at which to evaluate. A single
+     * `number` returns a `number`; a plain array or `Array1D` returns an
+     * `Array1D`.
+     * @returns The derivative value(s), matching the shape of `x`.
+     */
+    derivative(x: number): number;
+    derivative(x: number[] | Array1D): Array1D;
+    derivative(x: number | number[] | Array1D): number | Array1D {
+        if (typeof x === 'number') {
+            return linearDerivativeOne(x, this.xp, this.fp);
+        }
+        return linearDerivativeMany(x, this.xp, this.fp);
     }
 
     /**
@@ -199,7 +252,7 @@ export class LinearInterpolator {
  * unless `left`/`right` are given.
  *
  * A one-shot convenience function. If you need to evaluate the same
- * `(xp, fp)` pair more than once, construct an `LinearInterpolator ` directly to
+ * `(xp, fp)` pair more than once, construct a `LinearInterpolator` directly to
  * avoid re-validating `xp`/`fp` on every call.
  *
  * @param x - The x-coordinate(s) at which to evaluate the interpolated

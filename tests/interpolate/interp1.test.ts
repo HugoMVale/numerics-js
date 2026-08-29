@@ -171,6 +171,22 @@ describe('Interpolator1D', () => {
         expect(f.eval(2.5)).toBeCloseTo(1);
     });
 
+    describe('derivative', () => {
+        it('returns the segment slope and zero outside clamped bounds', () => {
+            const f = new LinearInterpolator(xp, fp);
+            expect(f.derivative(1.5)).toBeCloseTo(-1);
+            expect(f.derivative(2.5)).toBeCloseTo(-2);
+            expect(f.derivative(0)).toBe(0);
+            expect(f.derivative(4)).toBe(0);
+        });
+
+        it('preserves the input shape and propagates NaN', () => {
+            const f = new LinearInterpolator(xp, fp);
+            expect(f.derivative([1.5, 2.5]).toArray()).toEqual([-1, -2]);
+            expect(f.derivative(NaN)).toBeNaN();
+        });
+    });
+
     describe('integrate', () => {
         it('returns 0 for equal bounds', () => {
             const f = new LinearInterpolator(xp, fp);
