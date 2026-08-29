@@ -85,8 +85,6 @@ export function simpson(y: Array1D, x?: Array1D, dx: number = 1): number {
         throw new RangeError(`simpson: x and y must have the same size: ${x.size} vs ${n}`);
     }
 
-    // Simpson's rule needs at least 3 points to fit a parabola; with only
-    // 2, trapz is the best we can do.
     if (n === 2) return trapezoid(y, x, dx);
 
     const nIntervals = n - 1;
