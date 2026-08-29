@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { array, ode, optimize, roots, special } from '../src/index.js';
+import { array, integrate, interpolate, misc, ode, optimize, roots, special } from '../src/index.js';
 
 describe('public API', () => {
     it('exports the main numerical library modules', () => {
         expect(array.Vec3).toBeTypeOf('function');
         expect(array.Array1D).toBeTypeOf('function');
         expect(array.Array2D).toBeTypeOf('function');
+        expect(typeof integrate.trapezoid).toBe('function');
+        expect(typeof interpolate.interp).toBe('function');
+        expect(typeof misc.clip).toBe('function');
         expect(typeof special.bessel.J).toBe('function');
         expect(typeof roots.bisection).toBe('function');
         expect(typeof roots.secant).toBe('function');
@@ -27,5 +30,14 @@ describe('public API', () => {
             import: './dist/index.js',
             default: './dist/index.js',
         });
+
+        for (const moduleName of ['array', 'integrate', 'interpolate', 'misc', 'ode', 'optimize', 'roots', 'special']) {
+            expect(pkg.exports[`./${moduleName}`]).toMatchObject({
+                types: `./dist/${moduleName}.d.ts`,
+                browser: `./dist/${moduleName}.js`,
+                import: `./dist/${moduleName}.js`,
+                default: `./dist/${moduleName}.js`,
+            });
+        }
     });
 });

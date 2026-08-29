@@ -71,6 +71,12 @@
             "browser": "./dist/integrate.js",
             "import": "./dist/integrate.js",
             "default": "./dist/integrate.js"
+        },
+        "./interpolate": {
+            "types": "./dist/interpolate.d.ts",
+            "browser": "./dist/interpolate.js",
+            "import": "./dist/interpolate.js",
+            "default": "./dist/interpolate.js"
         }
     },
     "scripts": {
