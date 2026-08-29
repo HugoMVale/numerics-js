@@ -22,7 +22,7 @@ npm test
 The package publishes native ESM with export conditions for browser bundlers and Node ESM. The package root mirrors the source-module layout, and focused subpaths are available for each module.
 
 ```ts
-import { array, ode, roots, special } from 'numerics-js';
+import { array, integrate, interpolate, misc, ode, optimize, roots, special } from 'numerics-js';
 
 const vector = new array.Array1D([1, 2, 3]);
 const root = roots.bisection((x) => x * x - 2, 1, 2);
@@ -31,9 +31,10 @@ const value = special.bessel.J(0, 1.5);
 ```
 
 The same modules can be imported through `numerics-js/array`,
+`numerics-js/integrate`, `numerics-js/interpolate`, `numerics-js/misc`,
 `numerics-js/roots`, `numerics-js/ode`, `numerics-js/ode/rk4`,
-`numerics-js/ode/verlet`, `numerics-js/special`, and
-`numerics-js/special/bessel`.
+`numerics-js/ode/verlet`, `numerics-js/optimize`, `numerics-js/special`,
+and `numerics-js/special/bessel`.
 
 ## Package layout
 
