@@ -71,28 +71,33 @@ describe('simpson', () => {
         });
     });
 
-    describe('uniform spacing, odd number of intervals (trailing trapz correction)', () => {
-        it('applies a trapezoidal correction on the last interval', () => {
-            // y = x^3 over [0, 3], dx = 1, points at x = 0,1,2,3.
-            // Pair covers [0,2] via Simpson; [2,3] via trapz.
-            // Simpson pair: (2/6)*(0 + 4*1 + 8) = 4
-            // Trapz tail:   (8 + 27)/2 = 17.5
-            // Total: 21.5
-            const y = Array1D.from([0, 1, 8, 27]);
-            expect(simpson(y)).toBeCloseTo(21.5);
+    describe('uniform spacing, odd number of intervals (trailing correction)', () => {
+        it('integrates a quadratic exactly even with an odd interval count', () => {
+            // y = x^2 over [0, 3], dx = 1 (3 intervals, odd). The trailing
+            // correction is exact for quadratics, so the whole result is
+            // exact too: true integral = 9.
+            const y = Array1D.from([0, 1, 4, 9]);
+            expect(simpson(y)).toBeCloseTo(9);
         });
 
-        it('is close to, but not required to exactly match, the true integral for a cubic', () => {
-            // Simpson's rule is exact for cubics too, but only when applied
-            // "purely" (even interval count, no trailing correction). Here
-            // the interval count is odd, so the true integral of x^3 over
-            // [0, 3] (81/4 = 20.25) is NOT reproduced exactly, since the
-            // last interval only gets trapz accuracy. Compare against the
-            // even-interval-count cubic test above, which IS exact.
+        it('is only approximate for a cubic, unlike the even-interval case', () => {
+            // y = x^3 over [0, 3], dx = 1 (3 intervals, odd). The trailing
+            // correction fits a quadratic (not a cubic) through the last 3
+            // points, integrated over just the asymmetric final interval,
+            // so it's not exact here the way the even-interval case above is.
+            // True integral = 81/4 = 20.25; the correction gives 20.5.
             const y = Array1D.from([0, 1, 8, 27]);
             const result = simpson(y);
+            expect(result).toBeCloseTo(20.5);
             expect(result).not.toBeCloseTo(20.25, 1);
-            expect(Math.abs(result - 20.25)).toBeLessThan(2);
+        });
+
+        it('combines a 1/3-rule pair with a trailing correction (5 intervals)', () => {
+            // y = x^3 over [0, 5], dx = 1 (5 intervals, odd): one exact
+            // 1/3-rule pair over [0,2], then the trailing correction over
+            // [2,5]. True integral = 5^4/4 = 156.25; approximate here.
+            const y = Array1D.from([0, 1, 8, 27, 64, 125]);
+            expect(simpson(y)).toBeCloseTo(156.5);
         });
     });
 
@@ -112,13 +117,23 @@ describe('simpson', () => {
             expect(simpson(y, x)).toBeCloseTo(simpson(y, undefined, 1));
         });
 
-        it('handles an odd number of intervals with a trailing trapz step', () => {
-            // 4 points -> 3 intervals (odd): one Simpson pair + one trapz tail.
+        it('integrates a quadratic exactly with an odd interval count under irregular spacing', () => {
+            // y = x^2 at x = [0, 1, 3, 6] (3 intervals, odd, irregular
+            // widths 1, 2, 3). The trailing correction is exact for
+            // quadratics regardless of spacing, so this whole result is
+            // exact: true integral over [0,6] = 6^3/3 = 72.
+            const y = Array1D.from([0, 1, 9, 36]);
+            const x = Array1D.from([0, 1, 3, 6]);
+            expect(simpson(y, x)).toBeCloseTo(72);
+        });
+
+        it('handles an odd number of intervals with irregular spacing', () => {
+            // 4 points -> 3 intervals (odd), last interval wider than the
+            // rest. Not a quadratic, so just checked against a hand-worked
+            // value rather than a known closed-form integral.
             const y = Array1D.from([0, 1, 4, 9]);
             const x = Array1D.from([0, 1, 2, 4]); // last interval has width 2
-            // Pair [0,1,2] uniform h=1: (2/6)*(0 + 4*1 + 4) = 8/3
-            // Tail [2,4] width 2: 2*(4+9)/2 = 13
-            expect(simpson(y, x)).toBeCloseTo(8 / 3 + 13);
+            expect(simpson(y, x)).toBeCloseTo(143 / 9);
         });
 
         it('throws a RangeError when x and y sizes differ', () => {
