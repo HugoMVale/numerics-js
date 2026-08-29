@@ -135,8 +135,7 @@ export function rungeKuttaStep(
  * and the specified numerical method, recording the state at every step.
  *
  * If `h` does not evenly divide `tEnd - t0`, a final shortened step is taken so the
- * last recorded time is always exactly `tEnd` (never an accumulated approximation
- * of it). `y0` is never mutated.
+ * last recorded time is always exactly `tEnd`.
  *
  * @param method Which Runge-Kutta scheme to use: `'euler'` (order 1), `'midpoint'`
  * or `'trapezoid'` (order 2), or `'rk4'` (order 4, the classic 4-stage method).
