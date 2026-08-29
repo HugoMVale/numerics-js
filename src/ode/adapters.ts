@@ -1,5 +1,5 @@
 import type { Array1D } from '../array/array1d';
-import type { AllocatingDerivativeFn, DerivativeFn } from './types';
+import type { AllocatingDerivativeFn, DerivativeFunction } from './types';
 
 /**
  * Adapts a convenience-style derivative function that allocates and returns
@@ -8,7 +8,7 @@ import type { AllocatingDerivativeFn, DerivativeFn } from './types';
  */
 export function wrapAllocatingDerivative(
     f: AllocatingDerivativeFn
-): DerivativeFn {
+): DerivativeFunction {
     return (t: number, y: Array1D, dydt: Array1D): Array1D =>
         dydt.set(f(t, y).data);
 }
