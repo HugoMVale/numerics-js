@@ -112,21 +112,21 @@ export class PchipInterpolator {
 
     /**
      * @param xp The x-coordinates of the data points. Must be
-    * strictly increasing and non-empty. A single point defines a constant
-    * interpolant.
+     * strictly increasing and non-empty. A single point defines a constant
+     * interpolant.
      * @param fp The y-coordinates of the data points. Must have the same
      * length as `xp`.
      * @param left Value to return for `x < xp[0]`. Defaults to `fp[0]`.
      * @param right Value to return for `x > xp[xp.length - 1]`. Defaults
      * to `fp[fp.length - 1]`.
      * @param checkSorted Whether to verify that `xp` is monotonically
-    * strictly increasing. Defaults to `true`. This check is `O(xp.size)` and runs
+     * strictly increasing. Defaults to `true`. This check is `O(xp.size)` and runs
      * once, here in the constructor; pass `false` to skip it if `xp` is
      * already known to be sorted. If `false` and `xp` is not actually
-    * sorted, `eval`, `derivative`, and `integrate` results are unspecified.
+     * sorted, `eval`, `derivative`, and `integrate` results are unspecified.
      * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
      * lengths, or (when `checkSorted` is `true`) if `xp` is not
-    * strictly increasing.
+     * strictly increasing.
      */
     constructor(
         xp: number[] | Array1D,
@@ -214,8 +214,8 @@ export class PchipInterpolator {
 
     /**
      * Evaluates the shape-preserving cubic interpolant at `x`.
-     * @param x The x-coordinate(s) at which to evaluate. A single
-     * `number` returns a `number`; a plain array or `Array1D` returns an `Array1D`.
+     * @param x The x-coordinate(s) at which to evaluate. A single `number` returns a `number`;
+     * a plain array or `Array1D` returns an `Array1D`.
      * @returns The interpolated or clamped value(s), matching the shape of `x`.
      */
     eval(x: number): number;
@@ -229,11 +229,11 @@ export class PchipInterpolator {
 
     /**
      * Evaluates the first derivative of the interpolant at `x`.
-      * Values outside the data range return `0`, the derivative of the
-      * constant clamping regions.
-      * @param x The x-coordinate(s) at which to evaluate. A single
-      * `number` returns a `number`; a plain array or `Array1D` returns an `Array1D`.
-      * @returns The derivative value(s), matching the shape of `x`.
+     * Values outside the data range return `0`, the derivative of the
+     * constant clamping regions.
+     * @param x The x-coordinate(s) at which to evaluate. A single
+     * `number` returns a `number`; a plain array or `Array1D` returns an `Array1D`.
+     * @returns The derivative value(s), matching the shape of `x`.
      */
     derivative(x: number): number;
     derivative(x: number[] | Array1D): Array1D;
@@ -248,7 +248,7 @@ export class PchipInterpolator {
      * Integrates the interpolant from `a` to `b` analytically.
      *
      * Evaluates the exact piecewise cubic polynomial within the data bounds,
-    * with `left`/`right` clamp values forming constant rectangular areas
+     * with `left`/`right` clamp values forming constant rectangular areas
      * outside the `xp` range.
      *
      * @param a Lower integration bound.
