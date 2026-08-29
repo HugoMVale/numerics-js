@@ -5,8 +5,6 @@ import { Array2D } from '../array/array2d.js';
  * Result of a `nelderMead` optimize.
  */
 export interface NelderMeadResult {
-    /** Name of the optimize method used. */
-    method: string;
     /** Whether the optimize terminated successfully. */
     success: boolean;
     /** Human-readable description of the termination reason. */
@@ -94,7 +92,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * - Gao, F.; Han, L. Implementing the Nelder-Mead Simplex Algorithm with
  *   Adaptive Parameters. Comput. Optim. Appl. 2012, 51, 259-277.
  *
- * @param f - Objective function to minimize.
+ * @param fn - Objective function to minimize.
  * @param x0 - Initial guess for the optimum. If no user-defined `scale` is
  * provided, the scaling factors will be determined from this value.
  * @param tolX - Absolute tolerance for `x`. The algorithm terminates when
@@ -123,15 +121,14 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * @example
  * ```ts
  * // Find the minimum of f(x) = (x0-100)^2 + (x1-1e10)^2
- * const f = (x: Array1D): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
- * const result = nelderMead(f, [1, 1e8]);
+ * const fn = (x: Array1D): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
+ * const result = nelderMead(fn, [1, 1e8]);
  * console.log(result);
  * ```
  *
  * Output:
  * ```text
  * {
- *   method: 'Nelder-Mead',
  *   success: true,
  *   message: 'Function value spread is less than `tolF`.',
  *   nFev: 225,
@@ -142,7 +139,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * ```
  */
 export function nelderMead(
-    f: (x: Array1D) => number,
+    fn: (x: Array1D) => number,
     x0: number[] | Array1D,
     tolX: number = 1e-8,
     tolF: number = 1e-8,
@@ -194,7 +191,7 @@ export function nelderMead(
     // Evaluate the function at the simplex vertices
     const fx = new Array1D(n + 1);
     for (let k = 0; k <= n; k++) {
-        fx.data[k] = f(x.row(k));
+        fx.data[k] = fn(x.row(k));
     }
     let nFev = n + 1;
 
@@ -264,7 +261,7 @@ export function nelderMead(
 
         // Reflection
         const xr = xc.copy().multSelf(1 + a).addScaled(xWorst, -a);
-        const fr = f(xr);
+        const fr = fn(xr);
         nFev++;
 
         let doShrink = false;
@@ -273,7 +270,7 @@ export function nelderMead(
             fx.data[imax] = fr;
         } else if (fr < fmin) {
             const xe = xc.copy().multSelf(1 + a * b).addScaled(xWorst, -a * b);
-            const fe = f(xe);
+            const fe = fn(xe);
             nFev++;
             if (fe < fr) {
                 x.setRow(imax, xe);
@@ -284,7 +281,7 @@ export function nelderMead(
             }
         } else if (fmax2 <= fr && fr < fmax) {
             const xoc = xc.copy().multSelf(1 + a * c).addScaled(xWorst, -a * c);
-            const foc = f(xoc);
+            const foc = fn(xoc);
             nFev++;
             if (foc <= fr) {
                 x.setRow(imax, xoc);
@@ -294,7 +291,7 @@ export function nelderMead(
             }
         } else {
             const xic = xc.copy().multSelf(1 - a * c).addScaled(xWorst, a * c);
-            const fic = f(xic);
+            const fic = fn(xic);
             nFev++;
             if (fic < fmax) {
                 x.setRow(imax, xic);
@@ -309,14 +306,13 @@ export function nelderMead(
                 if (k === imin) continue;
                 const xs = x.row(k).multSelf(d).addScaled(xmin, 1 - d);
                 x.setRow(k, xs);
-                fx.data[k] = f(xs);
+                fx.data[k] = fn(xs);
                 nFev++;
             }
         }
     }
 
     return {
-        method: 'Nelder-Mead',
         success,
         message,
         nFev,
