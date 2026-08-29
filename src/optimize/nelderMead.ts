@@ -1,5 +1,6 @@
 import { Array1D } from '../array/array1d.js';
 import { Array2D } from '../array/array2d.js';
+import type { VectorFunction } from '../types.js';
 
 /**
  * Result of a `nelderMead` optimize.
@@ -139,7 +140,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * ```
  */
 export function nelderMead(
-    fn: (x: Array1D) => number,
+    fn: VectorFunction,
     x0: number[] | Array1D,
     tolX: number = 1e-8,
     tolF: number = 1e-8,
