@@ -5,7 +5,7 @@ import type { Array2D } from '../array/array2d';
 export type DerivativeFunction = (t: number, y: Array1D, dydt: Array1D) => Array1D;
 
 /** Derivative function that returns a newly allocated result. */
-export type AllocatingDerivativeFn = (t: number, y: Array1D) => Array1D;
+export type AllocatingDerivativeFunction = (t: number, y: Array1D) => Array1D;
 
 /** Result of integrating an ODE over a span of time. */
 export interface OdeResult {
