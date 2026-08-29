@@ -1,7 +1,7 @@
 import { Array1D } from '../array/array1d';
 import { Array2D } from '../array/array2d';
 import { clip } from '../misc';
-import type { DerivativeFn, ODEIntegrateResult } from './types';
+import type { DerivativeFunction, OdeResult } from './types';
 
 export interface DP54Scratch {
     k1: Array1D;
@@ -35,7 +35,7 @@ export interface DP54Options {
     maxScale?: number;
 }
 
-export type DP54Result = ODEIntegrateResult;
+export type DP54Result = OdeResult;
 
 /**
  * Classic Dormand-Prince 5(4) Butcher tableau (Dormand & Prince, 1980).
@@ -144,19 +144,19 @@ function makeScratch(dim: number): DP54Scratch {
  * holds `f(t + h, out)` — copy it into `scratch.k1` before the next call to
  * carry the FSAL saving forward.
  *
- * @param f - Derivative function dy/dt = f(t, y). Must write into and return `dydt`; must not mutate `y`.
- * @param t - Current time.
- * @param y - Current state. Read-only; not mutated by this function.
- * @param h - Attempted step size (may be negative to step backward).
- * @param out - Array1D to overwrite with the proposed 5th-order state
+ * @param f Derivative function dy/dt = f(t, y). Must write into and return `dydt`; must not mutate `y`.
+ * @param t Current time.
+ * @param y Current state. Read-only; not mutated by this function.
+ * @param h Attempted step size (may be negative to step backward).
+ * @param out Array1D to overwrite with the proposed 5th-order state
  *   at `t + h`. May not alias `y` or any scratch buffer.
- * @param scratch - Reusable stage buffers, same `dim` as `y`. If omitted, a fresh workspace is allocated
+ * @param scratch Reusable stage buffers, same `dim` as `y`. If omitted, a fresh workspace is allocated
  *   for this call only (see `makeScratch`, used internally by `dp54Integrate`).
- * @param k1Ready - If true, assumes `scratch.k1` already holds `f(t, y)` (e.g. carried over via FSAL) and skips recomputing it.
+ * @param k1Ready If true, assumes `scratch.k1` already holds `f(t, y)` (e.g. carried over via FSAL) and skips recomputing it.
  * @returns `out`, set to the proposed state at `t + h`.
  */
 export function dp54Step(
-    f: DerivativeFn,
+    f: DerivativeFunction,
     t: number,
     y: Array1D,
     h: number,
@@ -256,7 +256,7 @@ function dp54ErrorNorm(
  * before the main integration loop.
  */
 function estimateInitialStep(
-    f: DerivativeFn,
+    f: DerivativeFunction,
     t0: number,
     y0: Array1D,
     dir: 1 | -1,
@@ -315,17 +315,17 @@ function estimateInitialStep(
  * Dormand-Prince 5(4) method (a.k.a. DOPRI5 / RK45 / the method behind
  * MATLAB's `ode45`), recording the state at every *accepted* step.
  *
- * @param f - Derivative function, writing into and returning `dydt`.
- * @param t0 - Initial time.
- * @param tEnd - Final time. May be less than `t0` for backward integration; direction is inferred automatically.
- * @param y0 - Initial state. Not mutated.
- * @param options - Configuration options for tolerances and step sizes.
+ * @param f Derivative function, writing into and returning `dydt`.
+ * @param t0 Initial time.
+ * @param tEnd Final time. May be less than `t0` for backward integration; direction is inferred automatically.
+ * @param y0 Initial state. Not mutated.
+ * @param options Configuration options for tolerances and step sizes.
  * @returns Object containing `t` (recorded times) and `y` (state matrix).
  * @throws {RangeError} If `h` underflows below `hMin`.
  * @throws {Error} If `maxSteps` attempted steps elapse without reaching `tEnd`.
  */
 export function dp54Integrate(
-    f: DerivativeFn,
+    f: DerivativeFunction,
     t0: number,
     tEnd: number,
     y0: Array1D,
