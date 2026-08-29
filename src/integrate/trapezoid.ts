@@ -34,7 +34,7 @@ export function trapezoid(y: Array1D, x?: Array1D, dx: number = 1): number {
 
     if (x !== undefined) {
         if (x.size !== n) {
-            throw new RangeError(`trapz: x and y must have the same size: ${x.size} vs ${n}`);
+            throw new RangeError(`trapezoid: x and y must have the same size: ${x.size} vs ${n}`);
         }
         let sum = 0;
         for (let i = 0; i < n - 1; i++) {
