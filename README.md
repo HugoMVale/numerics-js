@@ -26,15 +26,14 @@ import { array, integrate, interpolate, misc, ode, optimize, roots, special } fr
 
 const vector = new array.Array1D([1, 2, 3]);
 const root = roots.bisection((x) => x * x - 2, 1, 2);
-const solution = ode.rk4Integrate(/* ... */);
+const solution = ode.rungeKuttaFixed('rk4', /* ... */);
 const value = special.bessel.J(0, 1.5);
 ```
 
 The same modules can be imported through `numerics-js/array`,
 `numerics-js/integrate`, `numerics-js/interpolate`, `numerics-js/misc`,
-`numerics-js/roots`, `numerics-js/ode`, `numerics-js/ode/rk4`,
-`numerics-js/ode/verlet`, `numerics-js/optimize`, `numerics-js/special`,
-and `numerics-js/special/bessel`.
+`numerics-js/roots`, `numerics-js/ode`, `numerics-js/optimize`, and
+`numerics-js/special`.
 
 ## Package layout
 
@@ -49,9 +48,9 @@ and `numerics-js/special/bessel`.
 - `Array2D` is a row-major matrix backed by `Float64Array`. It provides element/row/column access, arithmetic, matrix and vector multiplication, transpose, trace, rank, determinant, inverse, linear-system solving, reductions, conversion, iteration, and in-place row operations.
 - `Vec3` is a three-component vector for positions, directions, and velocities. It provides the same core vector operations as `Array1D`, plus tuple conversion and static constructors.
 
-`Array1D` component indices and `Array2D` row and column indices are 1-based
-through their `get` and `set` accessors. The public `data` properties expose
-the underlying zero-based `Float64Array` storage. `Array1D` and `Vec3`
+`Array1D` component indices and `Array2D` row and column indices are zero-based,
+including through their `get`, `set`, `row`, and `col` accessors. Their public
+`data` properties expose the underlying zero-based `Float64Array` storage. `Array1D` and `Vec3`
 operations that do not end in `Self` return new values; methods ending in
 `Self` mutate the instance.
 
@@ -69,19 +68,69 @@ const solved = matrix.solve(new Array1D([5, 11]));
 `Array1D` and `Array2D` also provide `zero` and `from` constructors. `Vec3`
 components are accessed through its `x`, `y`, and `z` properties.
 
+### Integration
+
+`trapezoid` and `simpson` integrate sampled `Array1D` values. They accept
+optional `Array1D` sample locations for non-uniform spacing, or a uniform `dx`
+spacing that defaults to `1`. `gaussKronrod` integrates a scalar function over
+an interval with adaptive 7-15 Gauss-Kronrod quadrature and returns
+`{ value, error, evaluations, converged, subintervals }`.
+
+```ts
+const x = new array.Array1D([0, 1, 3]);
+const y = new array.Array1D([0, 1, 9]);
+const area = integrate.simpson(y, x);
+const adaptiveArea = integrate.gaussKronrod((x) => Math.exp(-x * x), 0, 1);
+```
+
+### Interpolation
+
+`interp` performs one-dimensional linear interpolation of a scalar or vector of
+query points. `LinearInterpolator` and `PchipInterpolator` prevalidate and
+reuse data for repeated evaluation; both expose `eval` and `derivative`.
+`PchipInterpolator` is shape-preserving and avoids overshoots between monotonic
+data points. Values outside the input range are clamped by default or can use
+caller-supplied left and right values.
+
+```ts
+const linear = new interpolate.LinearInterpolator([0, 1, 2], [0, 1, 4]);
+const smooth = new interpolate.PchipInterpolator([0, 1, 2], [0, 1, 4]);
+const value = smooth.eval(1.5);
+```
+
 ### Root finding
 
-`bisection` requires a bracketing interval whose endpoint values have opposite signs. `secant` starts from two guesses and does not require a bracket; it can fail to converge for some functions.
+`bisection` and root-finding `brent` require a bracketing interval whose
+endpoint values have opposite signs. Brent's method combines bisection,
+secant, and inverse quadratic interpolation. `secant` starts from two guesses
+and does not require a bracket; it can fail to converge for some functions.
 
 ```ts
 const root = bisection((x) => x * x - 2, 1, 2);
+const robustRoot = brent((x) => Math.cos(x) - x, 0, 1);
 const otherRoot = secant((x) => Math.cos(x) - x, 0, 1);
 ```
 
-Both functions accept optional `tolerance` and `maxIter` arguments. If
-the iteration limit is reached, they warn and return the latest approximation.
-`bisection` throws when the interval does not bracket a root; `secant` throws
-when its guesses are equal or its denominator becomes zero.
+All root finders accept optional tolerances and an iteration limit. `bisection`
+and `secant` warn and return their latest approximation when the iteration limit
+is reached; `brent` returns its latest approximation. The bracketing methods
+throw for an invalid interval, while `secant` throws when its guesses are equal
+or its denominator becomes zero.
+
+### Optimization
+
+`optimize.brent` finds a local minimum of a scalar function within an interval,
+returning its location, value, evaluation count, iteration count, and convergence
+status. `optimize.nelderMead` minimizes an unconstrained multivariate function
+from an `Array1D` or array initial guess and returns the same convergence data.
+
+```ts
+const scalarMinimum = optimize.brent((x) => (x - 2) ** 2, -1, 5);
+const vectorMinimum = optimize.nelderMead(
+    (x) => (x.get(0) - 1) ** 2 + (x.get(1) + 1) ** 2,
+    [0, 0],
+);
+```
 
 ### Bessel functions
 
@@ -94,15 +143,22 @@ const firstZero = bessel.getZero(0, 1);
 
 ### Ordinary differential equations
 
-`rk4Step` advances one state by the classic fourth-order Runge-Kutta method.
-`rk4Integrate` uses a constant step size, records the initial state and every
-step through `tEnd`, and uses a final partial step when needed. Both accept a
-derivative callback with the signature `(t, y, dydt) => dydt`; the callback
-must write into `dydt`, return it, and must not mutate `y`.
+`rungeKuttaFixed` integrates using one of `'euler'`, `'midpoint'`,
+`'trapezoid'`, or classic fourth-order `'rk4'` with a constant step size. It
+records the initial state and every step through `tEnd`, using a final partial
+step when needed. `dormandPrince45` is an adaptive Dormand-Prince 5(4) solver;
+it supports forward and backward integration and accepts positional controls
+for absolute tolerance, relative tolerance, initial and maximum step size,
+minimum step size, iteration limit, and controller scaling.
+
+Both solvers accept a derivative callback with the signature
+`(t, y, dydt) => dydt`; it must write into `dydt`, return it, and must not
+mutate `y`.
 
 ```ts
 const initial = new Array1D([1]);
-const solution = rk4Integrate(
+const solution = rungeKuttaFixed(
+    'rk4',
     (t, y, dydt) => dydt.set([-y.data[0]]),
     0,
     1,
@@ -111,23 +167,21 @@ const solution = rk4Integrate(
 );
 
 console.log(solution.t.data[solution.t.size - 1]); // 1
-console.log(solution.y.row(solution.y.rows));    // state at t = 1
+console.log(solution.y.row(solution.y.rows - 1)); // state at t = 1
 ```
 
-`dp54Step` and `dp54Integrate` implement adaptive Dormand-Prince 5(4)
-(RK45). `dp54Step` computes one proposed fifth-order step. `dp54Integrate`
-records the initial state and every accepted adaptive step, supports backward
-integration, and accepts `{ atol, rtol, h0, hMax, hMin, maxSteps, safety,
-minScale, maxScale }` options. `atol` defaults to `1e-6`, `rtol` to `1e-3`,
-and `h0` is estimated when omitted.
+`dormandPrince45` records the initial state and every accepted adaptive step.
+Its `atol` and `rtol` defaults are `1e-6` and `1e-3`, and it estimates `h0`
+when it is omitted.
 
 ```ts
-const adaptive = dp54Integrate(
+const adaptive = dormandPrince45(
     (t, y, dydt) => dydt.set([-y.data[0]]),
     0,
     1,
     new Array1D([1]),
-    { atol: 1e-10, rtol: 1e-10 },
+    1e-10,
+    1e-10,
 );
 ```
 
