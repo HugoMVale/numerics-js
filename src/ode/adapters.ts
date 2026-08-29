@@ -19,14 +19,16 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types';
  * ```ts
  * // Exponential decay: dy/dt = -y
  * const f = wrapAllocatingDerivative((t, y) => y.copy().multSelf(-1));
- * const out = new Array1D(1);
- * rungeKuttaStep('rk4', f, 0, new Array1D([1]), 0.25, out);
- * console.log(out);
+ * const result = dormandPrince45(f, 0, 1, new Array1D([1]));
+ * console.log(result);
  * ```
  *
  * Output:
  * ```text
- * Array1D [ 0.7788085937500001 ]
+ * {
+ *   t: Array1D [ 0, 0.14680437989650819, 1 ],
+ *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]]
+ * }
  * ```
  */
 export function wrapAllocatingDerivative(
