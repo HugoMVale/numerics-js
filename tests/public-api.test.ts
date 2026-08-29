@@ -13,8 +13,7 @@ describe('public API', () => {
         expect(typeof special.bessel.J).toBe('function');
         expect(typeof roots.bisection).toBe('function');
         expect(typeof roots.secant).toBe('function');
-        expect(typeof ode.rk4Step).toBe('function');
-        expect(typeof ode.rk4Integrate).toBe('function');
+        expect(typeof ode.rungeKuttaFixed).toBe('function');
         expect(typeof ode.createVelocityVerlet).toBe('function');
         expect(typeof optimize.brent).toBe('function');
         expect(typeof optimize.nelderMead).toBe('function');
