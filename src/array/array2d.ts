@@ -14,9 +14,9 @@ export class Array2D {
     public data: Float64Array;
 
     /**
-     * @param rows - Number of rows (must be a positive integer).
-     * @param cols - Number of columns (must be a positive integer).
-     * @param input - Optional initial data in
+     * @param rows Number of rows (must be a positive integer).
+     * @param cols Number of columns (must be a positive integer).
+     * @param input Optional initial data in
      *   row-major order (i.e. row 0 followed by row 1, etc.), length `rows * cols`.
      *   If omitted, the matrix is initialized to all zeros.
      * @throws {RangeError} If `rows` or `cols` is not a positive integer, or
@@ -67,7 +67,7 @@ export class Array2D {
     /**
      * Throws if `m` is not an Array2D with the same shape as this one. Used
      * internally to guard binary operations against silent shape mismatches.
-     * @param m - The other matrix.
+     * @param m The other matrix.
      * @throws {RangeError} If `m.rows !== this.rows || m.cols !== this.cols`.
      */
     private _checkShape(m: Array2D): void {
@@ -78,8 +78,8 @@ export class Array2D {
 
     /**
      * Throws if `(i, j)` is not a valid 0-based index into this matrix.
-     * @param i - Row index (0-based).
-     * @param j - Column index (0-based).
+     * @param i Row index (0-based).
+     * @param j Column index (0-based).
      * @throws {RangeError} If `i` or `j` is out of range.
      */
     private _checkBounds(i: number, j: number): void {
@@ -90,8 +90,8 @@ export class Array2D {
 
     /**
      * Converts a 0-based `(i, j)` index into a flat index into `data`.
-     * @param i - Row index (0-based).
-     * @param j - Column index (0-based).
+     * @param i Row index (0-based).
+     * @param j Column index (0-based).
      * @returns The flat, 0-based index.
      */
     private _idx(i: number, j: number): number {
@@ -104,8 +104,8 @@ export class Array2D {
 
     /**
      * Gets the element at row `i`, column `j`.
-     * @param i - Row index (0-based).
-     * @param j - Column index (0-based).
+     * @param i Row index (0-based).
+     * @param j Column index (0-based).
      * @returns The value at `(i, j)`.
      */
     get(i: number, j: number): number {
@@ -115,9 +115,9 @@ export class Array2D {
 
     /**
      * Sets the element at row `i`, column `j`, mutating this matrix in place.
-     * @param i - Row index (0-based).
-     * @param j - Column index (0-based).
-     * @param value - The value to store.
+     * @param i Row index (0-based).
+     * @param j Column index (0-based).
+     * @param value The value to store.
      * @returns `this`, for chaining.
      */
     set(i: number, j: number, value: number): this {
@@ -128,7 +128,7 @@ export class Array2D {
 
     /**
      * Extracts row `i` as a vector.
-     * @param i - Row index (0-based).
+     * @param i Row index (0-based).
      * @returns A new vector with `this.cols` components.
      */
     row(i: number): Array1D {
@@ -138,7 +138,7 @@ export class Array2D {
 
     /**
      * Extracts column `j` as a vector.
-     * @param j - Column index (0-based).
+     * @param j Column index (0-based).
      * @returns A new vector with `this.rows` components.
      */
     col(j: number): Array1D {
@@ -150,8 +150,8 @@ export class Array2D {
 
     /**
      * Overwrites row `i` in place with the given values.
-     * @param i - Row index (0-based).
-     * @param values - Values to copy in; must have length `cols`.
+     * @param i Row index (0-based).
+     * @param values Values to copy in; must have length `cols`.
      * @returns `this`, for chaining.
      * @throws {RangeError} If `i` is out of bounds, or `values.length !== cols`.
      */
@@ -167,8 +167,8 @@ export class Array2D {
 
     /**
      * Overwrites column `j` in place with the given values.
-     * @param j - Column index (0-based).
-     * @param values - Values to copy in; must have length `rows`.
+     * @param j Column index (0-based).
+     * @param values Values to copy in; must have length `rows`.
      * @returns `this`, for chaining.
      * @throws {RangeError} If `j` is out of bounds, or `values.length !== rows`.
      */
@@ -188,7 +188,7 @@ export class Array2D {
 
     /**
      * Adds another matrix to this one, elementwise.
-     * @param m - The matrix to add. Must have the same shape as this one.
+     * @param m The matrix to add. Must have the same shape as this one.
      * @returns A new matrix equal to `this + m`.
      */
     add(m: Array2D): Array2D {
@@ -200,7 +200,7 @@ export class Array2D {
 
     /**
      * Subtracts another matrix from this one, elementwise.
-     * @param m - The matrix to subtract. Must have the same shape as this one.
+     * @param m The matrix to subtract. Must have the same shape as this one.
      * @returns A new matrix equal to `this - m`.
      */
     sub(m: Array2D): Array2D {
@@ -212,7 +212,7 @@ export class Array2D {
 
     /**
      * Scales every element of this matrix by a scalar.
-     * @param s - The scale factor.
+     * @param s The scale factor.
      * @returns A new matrix equal to `this * s`.
      */
     mult(s: number): Array2D {
@@ -223,7 +223,7 @@ export class Array2D {
 
     /**
      * Multiplies this matrix by another: `this * m` (matrix product).
-     * @param m - The right-hand matrix. Must have `m.rows === this.cols`.
+     * @param m The right-hand matrix. Must have `m.rows === this.cols`.
      * @returns A new `this.rows x m.cols` matrix.
      */
     matmul(m: Array2D): Array2D {
@@ -245,7 +245,7 @@ export class Array2D {
 
     /**
      * Multiplies this matrix by a column vector: `this * v`.
-     * @param v - The vector. Must have `v.size === this.cols`.
+     * @param v The vector. Must have `v.size === this.cols`.
      * @returns A new vector with `this.rows` components.
      */
     mulVec(v: Array1D): Array1D {
@@ -289,10 +289,10 @@ export class Array2D {
      * Finds the best pivot row for column `col`, searching rows `startRow..m.rows-1`.
      * Used internally by `_forwardEliminate`, `inverse`, and `solve` to share
      * the same partial-pivoting (largest-magnitude-entry) selection logic.
-     * @param m - The matrix to search (may be a working copy or an augmented matrix).
-     * @param col - Column to search (0-based).
-     * @param startRow - First row to consider (0-based).
-     * @param tol - Entries with absolute value at or below this are never chosen as a pivot.
+     * @param m The matrix to search (may be a working copy or an augmented matrix).
+     * @param col Column to search (0-based).
+     * @param startRow First row to consider (0-based).
+     * @param tol Entries with absolute value at or below this are never chosen as a pivot.
      * @returns The 0-based row index of the best pivot, or `-1` if none exceeds `tol`.
      */
     private static _findPivotRow(m: Array2D, col: number, startRow: number, tol: number): number {
@@ -311,7 +311,7 @@ export class Array2D {
      * back-substitution or row scaling). Shared building block for `rank()`
      * and `determinant()`, which both need the same elimination but reduce
      * the result differently.
-     * @param tol - Absolute tolerance below which a candidate pivot is treated as zero.
+     * @param tol Absolute tolerance below which a candidate pivot is treated as zero.
      * @returns `rank` is the number of pivots found; `sign` is `+1`/`-1` tracking the row-swap
      *   parity; `pivots` are the pivot values in the order they were chosen.
      */
@@ -338,7 +338,7 @@ export class Array2D {
     /**
      * Computes the rank of this matrix (the number of linearly independent
      * rows/columns), via Gaussian elimination with partial pivoting.
-     * @param tol - Absolute tolerance below which a pivot is treated as zero.
+     * @param tol Absolute tolerance below which a pivot is treated as zero.
      * @returns The rank, between `0` and `min(rows, cols)`.
      */
     rank(tol = 1e-10): number {
@@ -399,7 +399,7 @@ export class Array2D {
     /**
      * Solves the linear system `this * x = b` for `x`, via Gaussian
      * elimination with partial pivoting followed by back-substitution.
-     * @param b - The right-hand side vector. Must have `b.size === this.rows`.
+     * @param b The right-hand side vector. Must have `b.size === this.rows`.
      * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
      *   floating-point error) equal to `b`.
      * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
@@ -481,9 +481,9 @@ export class Array2D {
      * Checks whether this matrix is elementwise close to another. Symmetric
      * in `this` and `m`: an element `a` is close to `b` if
      * `|a - b| <= atol + rtol * max(|a|, |b|)`, so `a.isClose(b) === b.isClose(a)`.
-     * @param m - The other matrix.
-     * @param rtol - Relative tolerance.
-     * @param atol - Absolute tolerance.
+     * @param m The other matrix.
+     * @param rtol Relative tolerance.
+     * @param atol Absolute tolerance.
      * @returns `true` if `m` has the same shape and all elements of `this` are close to `m`'s.
      */
     isClose(m: Array2D, rtol = 1e-5, atol = 1e-8): boolean {
@@ -499,7 +499,7 @@ export class Array2D {
     /**
      * Checks whether this matrix is exactly elementwise equal to another.
      * For tolerance-based comparison, use `isClose` instead.
-     * @param m - The other matrix.
+     * @param m The other matrix.
      * @returns `true` if `m` has the same shape and all elements are exactly equal.
      */
     equals(m: Array2D): boolean {
@@ -552,7 +552,7 @@ export class Array2D {
 
     /**
      * Adds another matrix to this one in place, elementwise: `this += m`.
-     * @param m - The matrix to add. Must have the same shape as this one.
+     * @param m The matrix to add. Must have the same shape as this one.
      * @returns `this`, for chaining.
      */
     addSelf(m: Array2D): this {
@@ -563,7 +563,7 @@ export class Array2D {
 
     /**
      * Subtracts another matrix from this one in place, elementwise: `this -= m`.
-     * @param m - The matrix to subtract. Must have the same shape as this one.
+     * @param m The matrix to subtract. Must have the same shape as this one.
      * @returns `this`, for chaining.
      */
     subSelf(m: Array2D): this {
@@ -574,7 +574,7 @@ export class Array2D {
 
     /**
      * Scales every element of this matrix in place: `this *= s`.
-     * @param s - The scale factor.
+     * @param s The scale factor.
      * @returns `this`, for chaining.
      */
     multSelf(s: number): this {
@@ -601,8 +601,8 @@ export class Array2D {
 
     /**
      * Swaps two rows in place. Useful when implementing pivoting algorithms.
-     * @param i - First row index (0-based).
-     * @param j - Second row index (0-based).
+     * @param i First row index (0-based).
+     * @param j Second row index (0-based).
      * @returns `this`, for chaining.
      * @throws {RangeError} If `i` or `j` is out of bounds.
      */
@@ -618,8 +618,8 @@ export class Array2D {
 
     /**
      * Scales row `i` in place by a scalar: `row[i] *= s`.
-     * @param i - Row index (0-based).
-     * @param s - The scale factor.
+     * @param i Row index (0-based).
+     * @param s The scale factor.
      * @returns `this`, for chaining.
      * @throws {RangeError} If `i` is out of bounds.
      */
@@ -633,9 +633,9 @@ export class Array2D {
     /**
      * Adds a scaled row to another row in place, in a single pass:
      * `row[i] += row[j] * s`. Useful when implementing Gaussian elimination.
-     * @param i - Row index to modify (0-based).
-     * @param j - Row index to read from and scale (0-based).
-     * @param s - The scale factor applied to row `j`.
+     * @param i Row index to modify (0-based).
+     * @param j Row index to read from and scale (0-based).
+     * @param s The scale factor applied to row `j`.
      * @returns `this`, for chaining.
      * @throws {RangeError} If `i` or `j` is out of bounds.
      */
@@ -650,8 +650,8 @@ export class Array2D {
 
     /**
      * Creates a `rows x cols` zero matrix.
-     * @param rows - Number of rows.
-     * @param cols - Number of columns.
+     * @param rows Number of rows.
+     * @param cols Number of columns.
      * @returns A new zero matrix.
      */
     static zero(rows: number, cols: number): Array2D {
@@ -660,7 +660,7 @@ export class Array2D {
 
     /**
      * Creates an `n x n` identity matrix.
-     * @param n - The matrix dimension.
+     * @param n The matrix dimension.
      * @returns A new identity matrix.
      */
     static identity(n: number): Array2D {
@@ -671,7 +671,7 @@ export class Array2D {
 
     /**
      * Creates an Array2D from an array of row arrays.
-     * @param rows - Source data; each inner array must have the same length.
+     * @param rows Source data; each inner array must have the same length.
      * @returns A new matrix with shape `rows.length x rows[0].length`.
      */
     static from(rows: number[][]): Array2D {

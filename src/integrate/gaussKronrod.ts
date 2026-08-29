@@ -65,9 +65,9 @@ interface Panel {
  * embedded Gauss and Kronrod estimates.
  * @internal
  *
- * @param evalF - Instrumented function evaluator.
- * @param a - Lower limit of integration.
- * @param b - Upper limit of integration.
+ * @param evalF Instrumented function evaluator.
+ * @param a Lower limit of integration.
+ * @param b Upper limit of integration.
  * @returns Local quadrature estimates and estimated local error.
  */
 export function gaussKronrod15(
@@ -108,11 +108,11 @@ export function gaussKronrod15(
  * Numerically integrate `f` over [`a`, `b`] using adaptive Gauss-Kronrod
  * (G7-K15) quadrature.
  *
- * @param fn - Scalar function to integrate.
- * @param a - Lower bound of integration.
- * @param b - Upper bound of integration.
- * @param tol - Absolute error tolerance for the whole interval. Defaults to `1e-8`.
- * @param maxSubintervals - Safety limit on panel count. Defaults to `200`.
+ * @param fn Scalar function to integrate.
+ * @param a Lower bound of integration.
+ * @param b Upper bound of integration.
+ * @param tol Absolute error tolerance for the whole interval. Defaults to `1e-8`.
+ * @param maxSubintervals Safety limit on panel count. Defaults to `200`.
  * @returns Quadrature output including final value, estimated error, and diagnostics.
  * @throws {RangeError} If `a` or `b` are non-finite numbers.
  * @throws {Error} If `f` evaluates to a non-finite value.

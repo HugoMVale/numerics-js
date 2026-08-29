@@ -7,10 +7,10 @@ import { Array1D } from '../array/array1d.js';
  * (which need not be uniform). Otherwise, samples are assumed to be
  * spaced `dx` apart.
  *
- * @param y - Sample values to integrate. Must have `size >= 0`.
- * @param x - Optional sample locations, same `size` as `y`. If omitted,
+ * @param y Sample values to integrate. Must have `size >= 0`.
+ * @param x Optional sample locations, same `size` as `y`. If omitted,
  * uniform spacing of `dx` is assumed.
- * @param dx - Spacing between samples, used only when `x` is omitted.
+ * @param dx Spacing between samples, used only when `x` is omitted.
  * Defaults to `1`.
  * @returns The approximate definite integral of `y`. Returns `0` if
  * `y.size` is `0` or `1` (a single point, or no points, has no area).

@@ -12,12 +12,12 @@ import { copysign } from '../misc';
  * Unlike the secant method, Brent's method requires fn(xa) and fn(xb) to
  * have opposite signs (i.e. the root must be bracketed by [xa, xb]).
  *
- * @param fn - Function to find a root of.
- * @param xa - One end of the bracketing interval.
- * @param xb - Other end of the bracketing interval.
- * @param tolX - Stop when the bracket half-width is below this (absolute x tolerance).
- * @param tolF - Stop when |fn(x)| is below this (absolute function-value tolerance).
- * @param maxIter - Maximum number of iterations.
+ * @param fn Function to find a root of.
+ * @param xa One end of the bracketing interval.
+ * @param xb Other end of the bracketing interval.
+ * @param tolX Stop when the bracket half-width is below this (absolute x tolerance).
+ * @param tolF Stop when |fn(x)| is below this (absolute function-value tolerance).
+ * @param maxIter Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If fn(xa) and fn(xb) do not have opposite signs.
  *

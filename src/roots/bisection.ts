@@ -3,11 +3,11 @@ import type { ScalarFunction } from '../types.js';
 /**
  * Finds a root of fn in the interval [a, b] using the bisection method.
  *
- * @param fn - Continuous function to find a root of.
- * @param a - Left endpoint of the bracketing interval.
- * @param b - Right endpoint of the bracketing interval.
- * @param tolX - Stop when the interval half-width is below this.
- * @param maxIter - Maximum number of iterations.
+ * @param fn Continuous function to find a root of.
+ * @param a Left endpoint of the bracketing interval.
+ * @param b Right endpoint of the bracketing interval.
+ * @param tolX Stop when the interval half-width is below this.
+ * @param maxIter Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
  *

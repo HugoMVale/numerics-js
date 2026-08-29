@@ -31,8 +31,8 @@ export function clip(x: number, low: number, high: number): number {
  * `math.copysign`, NumPy's `np.copysign`): a `sign` of zero is treated as
  * positive.
  *
- * @param magnitude - Value whose absolute value is used.
- * @param sign - Value whose sign is used.
+ * @param magnitude Value whose absolute value is used.
+ * @param sign Value whose sign is used.
  * @returns `|magnitude|` with the sign of `sign`.
  *
  * @example
@@ -57,10 +57,10 @@ export function copysign(magnitude: number, sign: number): number {
  * Checks whether two numbers are approximately equal, mirroring numpy.isclose:
  * |a - b| <= atol + rtol * |b|.
  *
- * @param a - First value.
- * @param b - Second value (reference value for the relative tolerance term).
- * @param atol - Absolute tolerance.
- * @param rtol - Relative tolerance.
+ * @param a First value.
+ * @param b Second value (reference value for the relative tolerance term).
+ * @param atol Absolute tolerance.
+ * @param rtol Relative tolerance.
  * @returns True if a and b are within tolerance of each other.
  *
  * @example

@@ -8,11 +8,11 @@ import type { ScalarFunction } from '../types.js';
  * faster (superlinear, order ~1.618) when it converges. It is not guaranteed
  * to converge for all inputs.
  *
- * @param fn - Function to find a root of.
- * @param x0 - First initial guess.
- * @param x1 - Second initial guess (should differ from x0).
- * @param tolX - Stop when |x1 - x0| (the step size) is below this.
- * @param maxIter - Maximum number of iterations.
+ * @param fn Function to find a root of.
+ * @param x0 First initial guess.
+ * @param x1 Second initial guess (should differ from x0).
+ * @param tolX Stop when |x1 - x0| (the step size) is below this.
+ * @param maxIter Maximum number of iterations.
  * @returns Approximate root.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
  *

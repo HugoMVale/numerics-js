@@ -16,12 +16,12 @@ interface PreparedInterp {
  * Shared by both `interp` and `LinearInterpolator ` so validation and defaulting
  * logic exists in exactly one place, without either public API depending on
  * the other.
- * @param xp - The x-coordinates of the data points.
- * @param fp - The y-coordinates of the data points.
- * @param left - Value to return for `x < xp[0]`, or `undefined` to default to `fp[0]`.
- * @param right - Value to return for `x > xp[last]`, or `undefined` to default to `fp[last]`.
- * @param checkSorted - Whether to verify that `xp` is monotonically increasing.
- * @param caller - Name of the public entry point invoking this check, used
+ * @param xp The x-coordinates of the data points.
+ * @param fp The y-coordinates of the data points.
+ * @param left Value to return for `x < xp[0]`, or `undefined` to default to `fp[0]`.
+ * @param right Value to return for `x > xp[last]`, or `undefined` to default to `fp[last]`.
+ * @param checkSorted Whether to verify that `xp` is monotonically increasing.
+ * @param caller Name of the public entry point invoking this check, used
  * to produce a precise error message (e.g. `"interp"` or `"LinearInterpolator "`).
  * @returns The validated `xp`/`fp` as `Array1D`, plus resolved clamp values.
  * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different

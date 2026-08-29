@@ -228,7 +228,7 @@ export class LinearInterpolator {
 
     /**
      * Evaluates the interpolant at `x`.
-     * @param x - The x-coordinate(s) at which to evaluate. A single
+     * @param x The x-coordinate(s) at which to evaluate. A single
      * `number` returns a `number`; a plain array or `Array1D` returns an
      * `Array1D`.
      * @returns The interpolated value(s), matching the shape of `x`.
@@ -255,17 +255,17 @@ export class LinearInterpolator {
  * `(xp, fp)` pair more than once, construct a `LinearInterpolator` directly to
  * avoid re-validating `xp`/`fp` on every call.
  *
- * @param x - The x-coordinate(s) at which to evaluate the interpolated
+ * @param x The x-coordinate(s) at which to evaluate the interpolated
  * value(s). A single `number` returns a `number`; a plain array or
  * `Array1D` returns an `Array1D`.
- * @param xp - The x-coordinates of the data points. Must be monotonically
+ * @param xp The x-coordinates of the data points. Must be monotonically
  * increasing (duplicates allowed) and non-empty.
- * @param fp - The y-coordinates of the data points. Must have the same
+ * @param fp The y-coordinates of the data points. Must have the same
  * length as `xp`.
- * @param left - Value to return for `x < xp[0]`. Defaults to `fp[0]`.
- * @param right - Value to return for `x > xp[xp.length - 1]`. Defaults to
+ * @param left Value to return for `x < xp[0]`. Defaults to `fp[0]`.
+ * @param right Value to return for `x > xp[xp.length - 1]`. Defaults to
  * `fp[fp.length - 1]`.
- * @param checkSorted - Whether to verify that `xp` is monotonically
+ * @param checkSorted Whether to verify that `xp` is monotonically
  * increasing before interpolating. Defaults to `true`. This check is
  * `O(xp.size)`; pass `false` to skip it (e.g. in a hot loop where `xp` is
  * reused and already known to be sorted). If `false` and `xp` is not

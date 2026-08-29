@@ -22,7 +22,7 @@ export interface NelderMeadResult {
 
 /**
  * Infers default scaling factors from the initial guess: `1 / max(|x0_i|, 1)`.
- * @param x0 - Initial guess.
+ * @param x0 Initial guess.
  * @returns Default scaling factors.
  */
 function defaultScale(x0: Array1D): Array1D {
@@ -36,7 +36,7 @@ function defaultScale(x0: Array1D): Array1D {
 /**
  * Finds the index of the smallest value, and the indices of the two largest
  * values, in a single pass over `fx`. Requires `fx.size >= 2`.
- * @param fx - Function values at the simplex vertices.
+ * @param fx Function values at the simplex vertices.
  * @returns `{imin, imax, imax2}`, where `imax` is the largest and `imax2`
  * the second largest.
  */
@@ -93,25 +93,25 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * - Gao, F.; Han, L. Implementing the Nelder-Mead Simplex Algorithm with
  *   Adaptive Parameters. Comput. Optim. Appl. 2012, 51, 259-277.
  *
- * @param fn - Objective function to minimize.
- * @param x0 - Initial guess for the optimum. If no user-defined `scale` is
+ * @param fn Objective function to minimize.
+ * @param x0 Initial guess for the optimum. If no user-defined `scale` is
  * provided, the scaling factors will be determined from this value.
- * @param tolX - Absolute tolerance for `x`. The algorithm terminates when
+ * @param tolX Absolute tolerance for `x`. The algorithm terminates when
  * the maximum scaled distance between the simplex vertices is less than
  * `tolX`.
- * @param tolF - Absolute tolerance for `f`. The algorithm terminates when
+ * @param tolF Absolute tolerance for `f`. The algorithm terminates when
  * the maximum difference between the function values at the simplex
  * vertices is less than `tolF`.
- * @param scale - Positive scaling factors for the components of `x`, as a
+ * @param scale Positive scaling factors for the components of `x`, as a
  * plain array or an `Array1D`. Ideally, these should be chosen so that
  * `scale*x` is of order 1 near the solution for all components. If omitted,
  * scaling is inferred from `x0` as `1 / max(|x0_i|, 1)`.
- * @param maxIter - Maximum number of iterations. Defaults to `200*N`.
- * @param maxFunEvals - Maximum number of function evaluations. Defaults to
+ * @param maxIter Maximum number of iterations. Defaults to `200*N`.
+ * @param maxFunEvals Maximum number of function evaluations. Defaults to
  * `200*N`.
- * @param adaptive - Whether to use the adaptive parameter scheme proposed
+ * @param adaptive Whether to use the adaptive parameter scheme proposed
  * by Gao (2012). If `false`, the standard Nelder-Mead parameters are used.
- * @param callback - Optional callback invoked at each iteration as
+ * @param callback Optional callback invoked at each iteration as
  * `callback(nIter, x, fx) -> {stop, success}`, where `x` is the `(N+1) x N`
  * matrix of simplex vertices (one per row) and `fx` the corresponding `N+1`
  * function values. Neither should be mutated by the callback. If `stop` is

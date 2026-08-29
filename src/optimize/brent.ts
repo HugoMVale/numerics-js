@@ -31,11 +31,11 @@ export interface BrentResult {
  * parabolic step, and otherwise falls back to the more robust golden-section
  * step.
  *
- * @param fn - Function to minimize.
- * @param xa - One end of the bracketing interval.
- * @param xb - Other end of the bracketing interval.
- * @param tolX - Stop when the search interval shrinks to approximately this width.
- * @param maxIter - Maximum number of iterations.
+ * @param fn Function to minimize.
+ * @param xa One end of the bracketing interval.
+ * @param xb Other end of the bracketing interval.
+ * @param tolX Stop when the search interval shrinks to approximately this width.
+ * @param maxIter Maximum number of iterations.
  * @returns Optimization result containing the minimum, function value, and convergence information.
  *
  * @example

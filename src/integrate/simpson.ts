@@ -24,11 +24,11 @@ function simpsonPair(y0: number, y1: number, y2: number, h0: number, h1: number)
  * asymmetric, this correction is exact for quadratics but, unlike
  * `simpsonPair`, not for cubics.
  *
- * @param fN2 - Value 2 points before the end (`f_{N-2}`).
- * @param fN1 - Value 1 point before the end (`f_{N-1}`).
- * @param fN - The final value (`f_N`).
- * @param hPrev - Width of the second-to-last interval (`h_{N-2}`).
- * @param hLast - Width of the last interval (`h_{N-1}`).
+ * @param fN2 Value 2 points before the end (`f_{N-2}`).
+ * @param fN1 Value 1 point before the end (`f_{N-1}`).
+ * @param fN The final value (`f_N`).
+ * @param hPrev Width of the second-to-last interval (`h_{N-2}`).
+ * @param hLast Width of the last interval (`h_{N-1}`).
  */
 function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number, hLast: number): number {
     const alpha = (2 * hLast * hLast + 3 * hLast * hPrev) / (6 * (hPrev + hLast));
@@ -53,10 +53,10 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
  * `trailingCorrection` above, which supports arbitrary spacing but is
  * only exact for quadratics rather than cubics.
  *
- * @param y - Sample values to integrate. Must have `size >= 0`.
- * @param x - Optional sample locations, same `size` as `y`. If omitted,
+ * @param y Sample values to integrate. Must have `size >= 0`.
+ * @param x Optional sample locations, same `size` as `y`. If omitted,
  * uniform spacing of `dx` is assumed.
- * @param dx - Spacing between samples, used only when `x` is omitted.
+ * @param dx Spacing between samples, used only when `x` is omitted.
  * Defaults to `1`.
  * @returns The approximate definite integral of `y`. Returns `0` if
  * `y.size` is `0` or `1`. Falls back to the trapezoidal rule if

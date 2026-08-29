@@ -16,21 +16,21 @@ export class Vec3 {
 
     /**
      * Adds another vector to this one.
-     * @param v - The vector to add.
+     * @param v The vector to add.
      * @returns A new vector equal to `this + v`.
      */
     add(v: Vec3): Vec3 { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
 
     /**
      * Subtracts another vector from this one.
-     * @param v - The vector to subtract.
+     * @param v The vector to subtract.
      * @returns A new vector equal to `this - v`.
      */
     sub(v: Vec3): Vec3 { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
 
     /**
      * Scales this vector by a scalar.
-     * @param s - The scale factor.
+     * @param s The scale factor.
      * @returns A new vector equal to `this * s`.
      */
     mult(s: number): Vec3 { return new Vec3(this.x * s, this.y * s, this.z * s); }
@@ -62,14 +62,14 @@ export class Vec3 {
 
     /**
      * Computes the dot product of this vector with another.
-     * @param v - The other vector.
+     * @param v The other vector.
      * @returns The scalar dot product `this · v`.
      */
     dot(v: Vec3): number { return this.x * v.x + this.y * v.y + this.z * v.z; }
 
     /**
      * Computes the Euclidean distance between this vector and another.
-     * @param v - The other vector.
+     * @param v The other vector.
      * @returns The distance between `this` and `v`.
      */
     dist(v: Vec3): number { return this.sub(v).norm(); }
@@ -78,7 +78,7 @@ export class Vec3 {
      * Returns a copy of this vector clamped to a maximum magnitude, preserving
      * direction. If the vector's magnitude is already at or below `max`,
      * returns an unchanged copy.
-     * @param max - The maximum allowed magnitude (must be >= 0).
+     * @param max The maximum allowed magnitude (must be >= 0).
      * @returns A new vector with magnitude at most `max`.
      */
     limit(max: number): Vec3 {
@@ -96,9 +96,9 @@ export class Vec3 {
      * Checks whether this vector is elementwise close to another, modeled on
      * `numpy.isclose`: a component `a` is close to `b` if
      * `|a - b| <= atol + rtol * |b|`.
-     * @param v - The other vector.
-     * @param rtol - Relative tolerance.
-     * @param atol - Absolute tolerance.
+     * @param v The other vector.
+     * @param rtol Relative tolerance.
+     * @param atol Absolute tolerance.
      * @returns `true` if all components of `this` are close to `v`'s.
      */
     isClose(v: Vec3, rtol: number = 1e-5, atol: number = 1e-8): boolean {
@@ -149,21 +149,21 @@ export class Vec3 {
 
     /**
      * Adds another vector to this one in place: `this += v`.
-     * @param v - The vector to add.
+     * @param v The vector to add.
      * @returns `this`, for chaining.
      */
     addSelf(v: Vec3): Vec3 { this.x += v.x; this.y += v.y; this.z += v.z; return this; }
 
     /**
      * Subtracts another vector from this one in place: `this -= v`.
-     * @param v - The vector to subtract.
+     * @param v The vector to subtract.
      * @returns `this`, for chaining.
      */
     subSelf(v: Vec3): Vec3 { this.x -= v.x; this.y -= v.y; this.z -= v.z; return this; }
 
     /**
      * Scales this vector in place: `this *= s`.
-     * @param s - The scale factor.
+     * @param s The scale factor.
      * @returns `this`, for chaining.
      */
     multSelf(s: number): Vec3 { this.x *= s; this.y *= s; this.z *= s; return this; }
@@ -171,8 +171,8 @@ export class Vec3 {
     /**
      * Adds a scaled vector to this one in place, in a single pass and
      * without an intermediate vector: `this += v * s`.
-     * @param v - The vector to scale and add.
-     * @param s - The scale factor applied to `v`.
+     * @param v The vector to scale and add.
+     * @param s The scale factor applied to `v`.
      * @returns `this`, for chaining.
      */
     addScaled(v: Vec3, s: number): Vec3 { this.x += v.x * s; this.y += v.y * s; this.z += v.z * s; return this; }
@@ -192,7 +192,7 @@ export class Vec3 {
 
     /**
      * Creates a Vec3 from an array or array-like of `[x, y, z]`.
-     * @param arr - Source values; missing entries default to 0.
+     * @param arr Source values; missing entries default to 0.
      * @returns A new vector.
      */
     static from(arr: ArrayLike<number>): Vec3 {

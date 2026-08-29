@@ -34,20 +34,20 @@ function makeScratch(dim: number): RungeKuttaScratch {
 /**
  * Advances the state by one step using the requested explicit Runge-Kutta method.
  *
- * @param method - Which Runge-Kutta scheme to use: `'euler'` (order 1), `'midpoint'`
+ * @param method Which Runge-Kutta scheme to use: `'euler'` (order 1), `'midpoint'`
  * or `'trapezoid'` (order 2), or `'rk4'` (order 4, the classic 4-stage method).
- * @param f - Derivative function `dy/dt = f(t, y)`. Must write its result into the
+ * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into the
  * `dydt` buffer it's given (the third argument) rather than allocating; each stage
  * call reuses one of `scratch`'s vectors as that buffer.
- * @param t - The current time, i.e. the time at which `y` is the state.
- * @param y - The current state vector. Read-only: never mutated by this function,
+ * @param t The current time, i.e. the time at which `y` is the state.
+ * @param y The current state vector. Read-only: never mutated by this function,
  * so it's safe to reuse across repeated calls.
- * @param h - The step size (may be negative to step backwards in time).
- * @param out - Vector that receives the state at `t + h`, mutated in place.
+ * @param h The step size (may be negative to step backwards in time).
+ * @param out Vector that receives the state at `t + h`, mutated in place.
  * Must have the same dimension as `y`. May safely alias `y` (e.g. `out === y`),
  * since every branch fully overwrites `out` from `y`'s original values before
  * returning.
- * @param scratch - Reusable workspace for the intermediate `k1..k4` and `yTemp`
+ * @param scratch Reusable workspace for the intermediate `k1..k4` and `yTemp`
  * vectors, so repeated calls (e.g. from `rungeKuttaFixed`) don't allocate on every
  * step. Defaults to a freshly allocated workspace sized to `y.size` when omitted;
  * pass one explicitly when calling this in a loop.
@@ -138,16 +138,16 @@ export function rungeKuttaStep(
  * last recorded time is always exactly `tEnd` (never an accumulated approximation
  * of it). `y0` is never mutated.
  *
- * @param method - Which Runge-Kutta scheme to use: `'euler'` (order 1), `'midpoint'`
+ * @param method Which Runge-Kutta scheme to use: `'euler'` (order 1), `'midpoint'`
  * or `'trapezoid'` (order 2), or `'rk4'` (order 4, the classic 4-stage method).
- * @param f - Derivative function `dy/dt = f(t, y)`. Must write its result into the
+ * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into the
  * `dydt` buffer it's given (the third argument) rather than allocating.
- * @param t0 - The starting time.
- * @param tEnd - The time to integrate to. May be less than `t0` to integrate
+ * @param t0 The starting time.
+ * @param tEnd The time to integrate to. May be less than `t0` to integrate
  * backwards, as long as the sign of `h` matches the direction of travel.
- * @param y0 - The initial state at `t0`. Must have at least one component; copied
+ * @param y0 The initial state at `t0`. Must have at least one component; copied
  * internally, so the caller's vector is left unchanged.
- * @param h - The fixed step size. Must be nonzero, and (when `t0 !== tEnd`) its sign
+ * @param h The fixed step size. Must be nonzero, and (when `t0 !== tEnd`) its sign
  * must match the direction from `t0` to `tEnd` (positive to integrate forward,
  * negative to integrate backward).
  * @returns An {@link OdeResult}: `t`, the recorded time points (length `n`), and

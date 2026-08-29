@@ -5,7 +5,7 @@ export class Array1D {
     public data: Float64Array;
 
     /**
-     * @param input - The dimension length (initialized to 0s) or initial data.
+     * @param input The dimension length (initialized to 0s) or initial data.
      */
     constructor(input: number | number[] | Float64Array) {
         if (typeof input === 'number') {
@@ -32,8 +32,8 @@ export class Array1D {
     /**
      * Throws if `v` is not a Array1D of the same dimension as this one. Used
      * internally to guard binary operations against silent shape mismatches.
-     * @param v - The other vector.
-     * @param caller - Name of the public method invoking this check, used to
+     * @param v The other vector.
+     * @param caller Name of the public method invoking this check, used to
      * produce a precise error message (e.g. `"add"`).
      * @throws {RangeError} If `v.size !== this.size`.
      */
@@ -45,8 +45,8 @@ export class Array1D {
 
     /**
      * Throws if `i` is not a valid 0-based component index.
-     * @param i - Component index (0-based).
-     * @param caller - Name of the public method invoking this check, used to
+     * @param i Component index (0-based).
+     * @param caller Name of the public method invoking this check, used to
      * produce a precise error message (e.g. `"get"`).
      * @throws {RangeError} If `i` is not an integer in `0..size-1`.
      */
@@ -58,7 +58,7 @@ export class Array1D {
 
     /**
      * Gets a component by its 0-based index.
-     * @param i - Component index (0-based).
+     * @param i Component index (0-based).
      * @returns The component value.
      */
     get(i: number): number {
@@ -72,7 +72,7 @@ export class Array1D {
 
     /**
      * Adds another vector to this one.
-     * @param v - The vector to add. Must have the same `size` as this one.
+     * @param v The vector to add. Must have the same `size` as this one.
      * @returns A new vector equal to `this + v`.
      */
     add(v: Array1D): Array1D {
@@ -84,7 +84,7 @@ export class Array1D {
 
     /**
      * Subtracts another vector from this one.
-     * @param v - The vector to subtract. Must have the same `size` as this one.
+     * @param v The vector to subtract. Must have the same `size` as this one.
      * @returns A new vector equal to `this - v`.
      */
     sub(v: Array1D): Array1D {
@@ -96,7 +96,7 @@ export class Array1D {
 
     /**
      * Scales this vector by a scalar.
-     * @param s - The scale factor.
+     * @param s The scale factor.
      * @returns A new vector equal to `this * s`.
      */
     mult(s: number): Array1D {
@@ -137,7 +137,7 @@ export class Array1D {
 
     /**
      * Computes the dot product of this vector with another.
-     * @param v - The other vector. Must have the same `size` as this one.
+     * @param v The other vector. Must have the same `size` as this one.
      * @returns The scalar dot product `this · v`.
      */
     dot(v: Array1D): number {
@@ -149,7 +149,7 @@ export class Array1D {
 
     /**
      * Computes the Euclidean distance between this vector and another.
-     * @param v - The other vector. Must have the same `size` as this one.
+     * @param v The other vector. Must have the same `size` as this one.
      * @returns The distance between `this` and `v`.
      */
     dist(v: Array1D): number {
@@ -210,7 +210,7 @@ export class Array1D {
      * Returns a copy of this vector clamped to a maximum magnitude, preserving
      * direction. If the vector's magnitude is already at or below `max`,
      * returns an unchanged copy.
-     * @param max - The maximum allowed magnitude (must be >= 0).
+     * @param max The maximum allowed magnitude (must be >= 0).
      * @returns A new vector with magnitude at most `max`.
      */
     limit(max: number): Array1D {
@@ -231,9 +231,9 @@ export class Array1D {
      * Checks whether this vector is elementwise close to another. A component
      * `a` is close to `b` if `|a - b| <= atol + rtol * max(|a|, |b|)`, so
      * `a.isClose(b) === b.isClose(a)`.
-     * @param v - The other vector.
-     * @param rtol - Relative tolerance.
-     * @param atol - Absolute tolerance.
+     * @param v The other vector.
+     * @param rtol Relative tolerance.
+     * @param atol Absolute tolerance.
      * @returns `true` if `v` has the same `size` and all components of `this` are close to `v`'s.
      */
     isClose(v: Array1D, rtol: number = 1e-5, atol: number = 1e-8): boolean {
@@ -249,7 +249,7 @@ export class Array1D {
     /**
      * Checks whether this vector is exactly elementwise equal to another.
      * For tolerance-based comparison, use `isClose` instead.
-     * @param v - The other vector.
+     * @param v The other vector.
      * @returns `true` if `v` has the same `size` and all components are exactly equal.
      */
     equals(v: Array1D): boolean {
@@ -289,15 +289,15 @@ export class Array1D {
 
     /**
      * Sets this vector's components directly, mutating it in place.
-     * @param values - Values to copy in; must have length `size`.
+     * @param values Values to copy in; must have length `size`.
      * @returns `this`, for chaining.
      */
     set(values: number[] | Float64Array): this;
 
     /**
      * Sets one component by its 0-based index, mutating this vector in place.
-     * @param i - Component index (0-based).
-     * @param value - Value to store.
+     * @param i Component index (0-based).
+     * @param value Value to store.
      * @returns `this`, for chaining.
      */
     set(i: number, value: number): this;
@@ -328,7 +328,7 @@ export class Array1D {
 
     /**
      * Adds another vector to this one in place: `this += v`.
-     * @param v - The vector to add. Must have the same `size` as this one.
+     * @param v The vector to add. Must have the same `size` as this one.
      * @returns `this`, for chaining.
      */
     addSelf(v: Array1D): this {
@@ -339,7 +339,7 @@ export class Array1D {
 
     /**
      * Subtracts another vector from this one in place: `this -= v`.
-     * @param v - The vector to subtract. Must have the same `size` as this one.
+     * @param v The vector to subtract. Must have the same `size` as this one.
      * @returns `this`, for chaining.
      */
     subSelf(v: Array1D): this {
@@ -350,7 +350,7 @@ export class Array1D {
 
     /**
      * Scales this vector in place: `this *= s`.
-     * @param s - The scale factor.
+     * @param s The scale factor.
      * @returns `this`, for chaining.
      */
     multSelf(s: number): this {
@@ -361,8 +361,8 @@ export class Array1D {
     /**
      * Adds a scaled vector to this one in place, in a single pass and
      * without an intermediate vector: `this += v * s`.
-     * @param v - The vector to scale and add. Must have the same `size` as this one.
-     * @param s - The scale factor applied to `v`.
+     * @param v The vector to scale and add. Must have the same `size` as this one.
+     * @param s The scale factor applied to `v`.
      * @returns `this`, for chaining.
      */
     addScaled(v: Array1D, s: number): this {
@@ -375,7 +375,7 @@ export class Array1D {
      * Sets this vector to `a - b` in place, without allocating. Useful as a
      * reusable scratch vector inside a loop.
      * @param a
-     * @param b - Must have the same `size` as `a` and as this vector.
+     * @param b Must have the same `size` as `a` and as this vector.
      * @returns `this`, set to `a - b`.
      */
     subVectors(a: Array1D, b: Array1D): this {
@@ -387,7 +387,7 @@ export class Array1D {
 
     /**
      * Creates a zero vector of the given dimension.
-     * @param dim - The number of components.
+     * @param dim The number of components.
      * @returns A new zero vector.
      */
     static zero(dim: number): Array1D {
@@ -396,7 +396,7 @@ export class Array1D {
 
     /**
      * Creates a Array1D from an array or typed array.
-     * @param arr - Source values.
+     * @param arr Source values.
      * @returns A new vector with dimension equal to `arr.length`.
      */
     static from(arr: number[] | Float64Array): Array1D {
