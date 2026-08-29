@@ -3,6 +3,11 @@ import { Array2D } from '../array/array2d';
 import { clip } from '../misc';
 import type { DerivativeFunction, OdeResult } from './types';
 
+/**
+ * Reusable intermediate vectors for a Dormand-Prince 5(4) integration step.
+ *
+ * @internal
+ */
 export interface DP54Scratch {
     k1: Array1D;
     k2: Array1D;
@@ -13,29 +18,6 @@ export interface DP54Scratch {
     k7: Array1D;
     yTemp: Array1D;
 }
-
-export interface DP54Options {
-    /** Absolute error tolerance. Default: 1e-6 */
-    atol?: number;
-    /** Relative error tolerance. Default: 1e-3 */
-    rtol?: number;
-    /** Initial step size magnitude. Estimated automatically if omitted. */
-    h0?: number;
-    /** Maximum step size magnitude. Default: Infinity */
-    hMax?: number;
-    /** Minimum step size magnitude before giving up. Default: 1e-12 */
-    hMin?: number;
-    /** Maximum number of attempted steps before throwing. Default: 1e5 */
-    maxSteps?: number;
-    /** Safety factor applied to optimal step-size prediction. Default: 0.9 */
-    safety?: number;
-    /** Smallest allowed per-step shrink factor. Default: 0.2 */
-    minScale?: number;
-    /** Largest allowed per-step growth factor. Default: 10 */
-    maxScale?: number;
-}
-
-export type DP54Result = OdeResult;
 
 /**
  * Classic Dormand-Prince 5(4) Butcher tableau (Dormand & Prince, 1980).
@@ -154,6 +136,23 @@ function makeScratch(dim: number): DP54Scratch {
  *   for this call only (see `makeScratch`, used internally by `dp54Integrate`).
  * @param k1Ready If true, assumes `scratch.k1` already holds `f(t, y)` (e.g. carried over via FSAL) and skips recomputing it.
  * @returns `out`, set to the proposed state at `t + h`.
+ *
+ * @example
+ * ```ts
+ * // Exponential decay: dy/dt = -y
+ * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
+ * const out = new Array1D(1);
+ * dp54Step(f, 0, new Array1D([1]), 0.25, out);
+ * console.log(out);
+ * ```
+ *
+ * Output:
+ * ```text
+ * Array1D [ 0.7788008626302083 ]
+ * ```
+ * (The classic fixed-step `rk4` example under `rungeKuttaStep` gives
+ * `0.7788085937500001` for the same problem; DP54's 5th-order accuracy
+ * resolves several more digits of the exact value `e^-0.25 ≈ 0.77880078`.)
  */
 export function dp54Step(
     f: DerivativeFunction,
@@ -315,35 +314,105 @@ function estimateInitialStep(
  * Dormand-Prince 5(4) method (a.k.a. DOPRI5 / RK45 / the method behind
  * MATLAB's `ode45`), recording the state at every *accepted* step.
  *
+ * Step size is chosen automatically: each attempted step is checked against
+ * `atol`/`rtol` via the embedded 4th-order error estimate, rejected steps
+ * are retried with a smaller `h`, and accepted steps grow `h` for the next
+ * attempt (bounded by `minScale`/`maxScale`/`hMax`). Unlike `rungeKuttaFixed`,
+ * the recorded times are therefore not evenly spaced and their count isn't
+ * known ahead of time; only `y0`'s dimension and the direction implied by
+ * `t0`/`tEnd` are fixed inputs.
+ *
  * @param f Derivative function, writing into and returning `dydt`.
  * @param t0 Initial time.
  * @param tEnd Final time. May be less than `t0` for backward integration; direction is inferred automatically.
- * @param y0 Initial state. Not mutated.
- * @param options Configuration options for tolerances and step sizes.
- * @returns Object containing `t` (recorded times) and `y` (state matrix).
- * @throws {RangeError} If `h` underflows below `hMin`.
+ * @param y0 Initial state. Must have at least one component. Not mutated.
+ * @param atol Absolute error tolerance. Default: `1e-6`.
+ * @param rtol Relative error tolerance. Default: `1e-3`.
+ * @param h0 Initial step size magnitude. Estimated automatically if omitted.
+ * @param hMax Maximum step size magnitude. Default: `Infinity`.
+ * @param hMin Minimum step size magnitude before giving up. Default: `1e-12`.
+ * @param maxSteps Maximum number of attempted steps before throwing. Default: `1e5`.
+ * @param safety Safety factor applied to the optimal step-size prediction. Default: `0.9`.
+ * @param minScale Smallest allowed per-step shrink factor. Default: `0.2`.
+ * @param maxScale Largest allowed per-step growth factor. Default: `10`.
+ * @returns An {@link OdeResult}: `t`, the recorded (accepted-step) time points, and
+ * `y`, a matrix whose row `i` is the state at `t.get(i)`. Row 0 is always `y0` and
+ * the last row is always the state at `tEnd`.
+ * @throws {RangeError} If `y0` has dimension `0`, or if any option is out of its
+ * valid range (e.g. negative tolerances, `hMin > hMax`, `minScale > maxScale`,
+ * non-positive `maxSteps`, or a `safety` factor outside `(0, 1]`).
+ * @throws {RangeError} If `h` underflows below `hMin` during integration (e.g.
+ * because the problem is stiff, or `atol`/`rtol` are too tight for DP54).
  * @throws {Error} If `maxSteps` attempted steps elapse without reaching `tEnd`.
+ *
+ * @example
+ * ```ts
+ * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t
+ * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
+ * const result = dormandPrince45(f, 0, 1, new Array1D([1]));
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   t: Array1D [ 0, 0.14680437989650819, 1 ],
+ *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]]
+ * }
+ * ```
+ * (Default tolerances accept the whole interval in a single adaptive step
+ * after one rejection, unlike `rungeKuttaFixed`'s evenly spaced points at a
+ * caller-chosen `h`; the final value is within `rtol` of the exact `e^-1 ≈
+ * 0.36787944`.)
  */
-export function dp54Integrate(
+export function dormandPrince45(
     f: DerivativeFunction,
     t0: number,
     tEnd: number,
     y0: Array1D,
-    options: DP54Options = {}
-): DP54Result {
-    const {
-        atol = 1e-6,
-        rtol = 1e-3,
-        h0,
-        hMax = Infinity,
-        hMin = 1e-12,
-        maxSteps = 1e5,
-        safety = 0.9,
-        minScale = 0.2,
-        maxScale = 10,
-    } = options;
-
+    atol: number = 1e-6,
+    rtol: number = 1e-3,
+    h0?: number,
+    hMax: number = Infinity,
+    hMin: number = 1e-12,
+    maxSteps: number = 1e5,
+    safety: number = 0.9,
+    minScale: number = 0.2,
+    maxScale: number = 10
+): OdeResult {
     const dim = y0.size;
+    if (dim <= 0) {
+        throw new RangeError(`dormandPrince45: y0 must have at least one component, got dimension ${dim}.`);
+    }
+    if (atol < 0 || rtol < 0) {
+        throw new RangeError(`dormandPrince45: atol (${atol}) and rtol (${rtol}) must be non-negative.`);
+    }
+    if (atol === 0 && rtol === 0) {
+        throw new RangeError('dormandPrince45: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.');
+    }
+    if (h0 !== undefined && h0 === 0) {
+        throw new RangeError('dormandPrince45: h0 must be nonzero.');
+    }
+    if (!(hMin > 0)) {
+        throw new RangeError(`dormandPrince45: hMin (${hMin}) must be positive.`);
+    }
+    if (!(hMax > 0)) {
+        throw new RangeError(`dormandPrince45: hMax (${hMax}) must be positive.`);
+    }
+    if (hMin > hMax) {
+        throw new RangeError(`dormandPrince45: hMin (${hMin}) must not exceed hMax (${hMax}).`);
+    }
+    if (!(maxSteps > 0)) {
+        throw new RangeError(`dormandPrince45: maxSteps (${maxSteps}) must be positive.`);
+    }
+    if (!(safety > 0 && safety <= 1)) {
+        throw new RangeError(`dormandPrince45: safety (${safety}) must be in (0, 1].`);
+    }
+    if (!(minScale > 0) || minScale > maxScale) {
+        throw new RangeError(
+            `dormandPrince45: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`
+        );
+    }
 
     if (tEnd === t0) {
         const tVec = new Array1D(1);

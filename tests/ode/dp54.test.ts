@@ -1,19 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { Array1D } from '../../src/array/array1d.js';
 import { Array2D } from '../../src/array/array2d.js';
-import { dp54Step, dp54Integrate } from '../../src/ode/dp54.js';
+import { dp54Step, dormandPrince45 } from '../../src/ode/dormandPrince.js';
 import { wrapAllocatingDerivative } from '../../src/ode/adapters.js';
-
-// NOTE on paths: this assumes dp54.test.js sits next to dp54.js and rk4.js,
-// with an index.js exporting Array1D/Array2D one directory up — mirroring
-// rk4.js's own `import { Array1D, Array2D } from '../index.js'`. Adjust the
-// three import paths above if your project lays files out differently.
-
-/** Derivative function type for ODE solvers */
-type DerivativeFn = (t: number, y: Array1D, dydt: Array1D) => Array1D;
+import type { DerivativeFunction } from '../../src/ode/types.js';
 
 /** dy/dt = -k*y, exact solution y(t) = y0 * exp(-k*t). */
-function makeDecay(k: number = 1): DerivativeFn {
+function makeDecay(k: number = 1): DerivativeFunction {
     return (t: number, y: Array1D, dydt: Array1D): Array1D => {
         dydt.data[0] = -k * y.data[0];
         return dydt;
@@ -123,14 +116,14 @@ describe('dp54Integrate: accuracy', () => {
     it('matches exponential decay closely under tight tolerances', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
-        const { t, y } = dp54Integrate(f, 0, 5, y0, { atol: 1e-10, rtol: 1e-10 });
+        const { t, y } = dormandPrince45(f, 0, 5, y0, 1e-10, 1e-10);
         const last = y.row(t.size - 1);
         closeTo(last.data[0], Math.exp(-5), 1e-8);
     });
 
     it('conserves amplitude for the harmonic oscillator over several periods', () => {
         const y0 = new Array1D([1, 0]);
-        const { t, y } = dp54Integrate(oscillator, 0, 6 * Math.PI, y0, { atol: 1e-10, rtol: 1e-10 });
+        const { t, y } = dormandPrince45(oscillator, 0, 6 * Math.PI, y0, 1e-10, 1e-10);
         const last = y.row(t.size - 1);
         const amplitude = Math.hypot(last.data[0], last.data[1]);
         closeTo(amplitude, 1, 1e-6);
@@ -141,7 +134,7 @@ describe('dp54Integrate: accuracy', () => {
     it('recovers the initial condition when integrating backward in time', () => {
         const f = makeDecay(1);
         const yAtFive = new Array1D([Math.exp(-5)]);
-        const { t, y } = dp54Integrate(f, 5, 0, yAtFive, { atol: 1e-10, rtol: 1e-10 });
+        const { t, y } = dormandPrince45(f, 5, 0, yAtFive, 1e-10, 1e-10);
         expect(t.data[t.size - 1]).toBe(0);
         closeTo(y.row(t.size - 1).data[0], 1, 1e-7);
     });
@@ -151,7 +144,7 @@ describe('dp54Integrate: output shape and contracts', () => {
     it('returns t and y with matching, consistent dimensions', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
-        const { t, y } = dp54Integrate(f, 0, 3, y0);
+        const { t, y } = dormandPrince45(f, 0, 3, y0);
         expect(y.rows).toBe(t.size);
         expect(y.cols).toBe(y0.size);
     });
@@ -159,21 +152,21 @@ describe('dp54Integrate: output shape and contracts', () => {
     it('records t0 exactly at the first recorded time', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
-        const { t } = dp54Integrate(f, 0, 3, y0);
+        const { t } = dormandPrince45(f, 0, 3, y0);
         expect(t.data[0]).toBe(0);
     });
 
     it('records tEnd exactly (bit-for-bit) as the final recorded time', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
-        const { t } = dp54Integrate(f, 0, 1 / 3, y0);
+        const { t } = dormandPrince45(f, 0, 1 / 3, y0);
         expect(t.data[t.size - 1]).toBe(1 / 3);
     });
 
     it('stores the initial condition in row 0', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([2, -3]);
-        const { y } = dp54Integrate(oscillator, 0, 1, new Array1D([2, -3]));
+        const { y } = dormandPrince45(oscillator, 0, 1, new Array1D([2, -3]));
         const row0 = y.row(0);
         closeTo(row0.data[0], y0.data[0], 1e-15);
         closeTo(row0.data[1], y0.data[1], 1e-15);
@@ -182,14 +175,14 @@ describe('dp54Integrate: output shape and contracts', () => {
     it('does not mutate the caller-supplied y0', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
-        dp54Integrate(f, 0, 5, y0);
+        dormandPrince45(f, 0, 5, y0);
         expect(y0.data[0]).toBe(1);
     });
 
     it('handles t0 === tEnd by returning a single row equal to y0', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([3.14]);
-        const { t, y } = dp54Integrate(f, 2, 2, y0);
+        const { t, y } = dormandPrince45(f, 2, 2, y0);
         expect(t.size).toBe(1);
         expect(t.data[0]).toBe(2);
         expect(y.rows).toBe(1);
@@ -203,8 +196,8 @@ describe('dp54Integrate: adaptive step-size control', () => {
         const y0 = new Array1D([1]);
         const exact = Math.exp(-5);
 
-        const loose = dp54Integrate(f, 0, 5, y0, { atol: 1e-3, rtol: 1e-3 });
-        const tight = dp54Integrate(f, 0, 5, y0, { atol: 1e-11, rtol: 1e-11 });
+        const loose = dormandPrince45(f, 0, 5, y0, 1e-3, 1e-3);
+        const tight = dormandPrince45(f, 0, 5, y0, 1e-11, 1e-11);
 
         expect(tight.t.size).toBeGreaterThan(loose.t.size);
 
@@ -216,14 +209,15 @@ describe('dp54Integrate: adaptive step-size control', () => {
     it('honors an explicit h0 as the first attempted step size when it is readily accepted', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
-        const { t } = dp54Integrate(f, 0, 10, y0, { h0: 0.05, atol: 1, rtol: 1 });
+        const { t } = dormandPrince45(f, 0, 10, y0, 1, 1, 0.05);
         closeTo(t.data[1] - t.data[0], 0.05, 1e-12);
     });
 
     it('respects hMax as a ceiling on step size', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
-        const { t } = dp54Integrate(f, 0, 100, y0, { atol: 1, rtol: 1, hMax: 0.5 });
+        // h0 is left as `undefined` (its default) so it's estimated automatically; only hMax is overridden.
+        const { t } = dormandPrince45(f, 0, 100, y0, 1, 1, undefined, 0.5);
         for (let i = 1; i < t.size; i++) {
             expect(t.data[i] - t.data[i - 1]).toBeLessThanOrEqual(0.5 + 1e-9);
         }
@@ -234,8 +228,11 @@ describe('dp54Integrate: error handling', () => {
     it('throws a RangeError when the required step size underflows below hMin', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
+        // atol/rtol vanishingly small but nonzero (rather than exactly 0) so this
+        // exercises the genuine mid-integration underflow path, not the separate
+        // upfront "atol and rtol cannot both be 0" argument-validation guard.
         expect(() =>
-            dp54Integrate(f, 0, 1, y0, { atol: 0, rtol: 0, h0: 0.5, hMin: 1e-6 })
+            dormandPrince45(f, 0, 1, y0, 1e-300, 0, 0.5, undefined, 1e-6)
         ).toThrow(RangeError);
     });
 
@@ -243,17 +240,17 @@ describe('dp54Integrate: error handling', () => {
         const f = makeDecay(1);
         const y0 = new Array1D([1]);
         expect(() =>
-            dp54Integrate(f, 0, 100, y0, { hMax: 1e-3, maxSteps: 3 })
+            dormandPrince45(f, 0, 100, y0, undefined, undefined, undefined, 1e-3, undefined, 3)
         ).toThrow(/maxSteps/);
     });
 
     it('rejects a mismatched initial-condition dimension via the underlying Array1D guards', () => {
-        const badF: DerivativeFn = (t: number, y: Array1D, dydt: Array1D): Array1D => {
+        const badF: DerivativeFunction = (t: number, y: Array1D, dydt: Array1D): Array1D => {
             dydt.set([1, 2]);
             return dydt;
         };
         const y0 = new Array1D([1]);
-        expect(() => dp54Integrate(badF, 0, 1, y0)).toThrow();
+        expect(() => dormandPrince45(badF, 0, 1, y0)).toThrow();
     });
 });
 
@@ -266,7 +263,7 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
         const f = wrapAllocatingDerivative((t: number, y: Array1D) => A.mulVec(y));
 
         const y0 = new Array1D([1, 0]);
-        const { t, y } = dp54Integrate(f, 0, 2 * Math.PI, y0, { atol: 1e-10, rtol: 1e-10 });
+        const { t, y } = dormandPrince45(f, 0, 2 * Math.PI, y0, 1e-10, 1e-10);
         const last = y.row(t.size - 1);
 
         closeTo(last.data[0], 1, 1e-6);
@@ -283,8 +280,8 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
 
         const y0a = new Array1D([1, 0]);
         const y0b = new Array1D([1, 0]);
-        const a = dp54Integrate(fAllocating, 0, 5, y0a, { atol: 1e-9, rtol: 1e-9 });
-        const b = dp54Integrate(fDirect, 0, 5, y0b, { atol: 1e-9, rtol: 1e-9 });
+        const a = dormandPrince45(fAllocating, 0, 5, y0a, 1e-9, 1e-9);
+        const b = dormandPrince45(fDirect, 0, 5, y0b, 1e-9, 1e-9);
 
         const rowA = a.y.row(a.t.size - 1);
         const rowB = b.y.row(b.t.size - 1);
@@ -294,12 +291,12 @@ describe('dp54Integrate: multi-dimensional systems and composability', () => {
 
     it('handles a higher-dimensional decoupled system (independent exponential decays)', () => {
         const rates = [1, 2, 0.5, 3];
-        const f: DerivativeFn = (t: number, y: Array1D, dydt: Array1D): Array1D => {
+        const f: DerivativeFunction = (t: number, y: Array1D, dydt: Array1D): Array1D => {
             for (let i = 0; i < y.size; i++) dydt.data[i] = -rates[i] * y.data[i];
             return dydt;
         };
         const y0 = new Array1D([1, 1, 1, 1]);
-        const { t, y } = dp54Integrate(f, 0, 2, y0, { atol: 1e-10, rtol: 1e-10 });
+        const { t, y } = dormandPrince45(f, 0, 2, y0, 1e-10, 1e-10);
         const last = y.row(t.size - 1);
         for (let i = 0; i < rates.length; i++) {
             closeTo(last.data[i], Math.exp(-rates[i] * 2), 1e-7);
