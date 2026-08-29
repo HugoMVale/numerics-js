@@ -14,7 +14,7 @@ describe('public API', () => {
         expect(typeof ode.rk4Integrate).toBe('function');
         expect(typeof ode.createVelocityVerlet).toBe('function');
         expect(typeof optimize.minimizeBrent).toBe('function');
-        expect(typeof optimize.minimizeNelderMead).toBe('function');
+        expect(typeof optimize.nelderMead).toBe('function');
     });
 
     it('publishes a browser + node compatible export map', () => {

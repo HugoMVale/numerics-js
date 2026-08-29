@@ -2,7 +2,7 @@ import { Array1D } from '../array/array1d.js';
 import { Array2D } from '../array/array2d.js';
 
 /**
- * Result of a `minimizeNelderMead` optimize.
+ * Result of a `nelderMead` optimize.
  */
 export interface NelderMeadResult {
     /** Name of the optimize method used. */
@@ -124,7 +124,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * ```ts
  * // Find the minimum of f(x) = (x0-100)^2 + (x1-1e10)^2
  * const f = (x: Array1D): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
- * const result = minimizeNelderMead(f, [1, 1e8]);
+ * const result = nelderMead(f, [1, 1e8]);
  * console.log(result);
  * ```
  *
@@ -141,7 +141,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * }
  * ```
  */
-export function minimizeNelderMead(
+export function nelderMead(
     f: (x: Array1D) => number,
     x0: number[] | Array1D,
     tolX: number = 1e-8,
@@ -155,7 +155,7 @@ export function minimizeNelderMead(
     const x0v = x0 instanceof Array1D ? x0.copy() : Array1D.from(x0);
     const n = x0v.size;
     if (n === 0) {
-        throw new RangeError('minimizeNelderMead: x0 must have at least one component');
+        throw new RangeError('nelderMead: x0 must have at least one component');
     }
 
     const xScale =
