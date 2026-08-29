@@ -5,11 +5,11 @@ import { prepareInterp } from './common.js';
 /**
  * Interpolates a single scalar value, locating the bracketing interval in
  * `xp` via binary search.
- * @param xi - The x-coordinate to evaluate.
- * @param xp - The (increasing) x-coordinates of the data points.
- * @param fp - The y-coordinates of the data points, same size as `xp`.
- * @param leftVal - Value to return for `xi < xp[0]`.
- * @param rightVal - Value to return for `xi > xp[xp.size - 1]`.
+ * @param xi The x-coordinate to evaluate.
+ * @param xp The (increasing) x-coordinates of the data points.
+ * @param fp The y-coordinates of the data points, same size as `xp`.
+ * @param leftVal Value to return for `xi < xp[0]`.
+ * @param rightVal Value to return for `xi > xp[xp.size - 1]`.
  * @returns The interpolated (or clamped) value at `xi`.
  */
 function interpOne(xi: number, xp: Array1D, fp: Array1D, leftVal: number, rightVal: number): number {
@@ -40,11 +40,11 @@ function interpOne(xi: number, xp: Array1D, fp: Array1D, leftVal: number, rightV
 
 /**
  * Interpolates each component of `x`, delegating to `interpOne` per element.
- * @param x - The x-coordinates to evaluate.
- * @param xp - The (increasing) x-coordinates of the data points.
- * @param fp - The y-coordinates of the data points, same size as `xp`.
- * @param leftVal - Value to return for components below `xp[0]`.
- * @param rightVal - Value to return for components above `xp[xp.size - 1]`.
+ * @param x The x-coordinates to evaluate.
+ * @param xp The (increasing) x-coordinates of the data points.
+ * @param fp The y-coordinates of the data points, same size as `xp`.
+ * @param leftVal Value to return for components below `xp[0]`.
+ * @param rightVal Value to return for components above `xp[xp.size - 1]`.
  * @returns The interpolated (or clamped) values, one per component of `x`.
  */
 function interpMany(x: number[] | Array1D, xp: Array1D, fp: Array1D, leftVal: number, rightVal: number): Array1D {
@@ -120,14 +120,14 @@ export class LinearInterpolator {
     private readonly rightVal: number;
 
     /**
-     * @param xp - The x-coordinates of the data points. Must be
+     * @param xp The x-coordinates of the data points. Must be
      * monotonically increasing (duplicates allowed) and non-empty.
-     * @param fp - The y-coordinates of the data points. Must have the same
+     * @param fp The y-coordinates of the data points. Must have the same
      * length as `xp`.
-     * @param left - Value to return for `x < xp[0]`. Defaults to `fp[0]`.
-     * @param right - Value to return for `x > xp[xp.length - 1]`. Defaults
+     * @param left Value to return for `x < xp[0]`. Defaults to `fp[0]`.
+     * @param right Value to return for `x > xp[xp.length - 1]`. Defaults
      * to `fp[fp.length - 1]`.
-     * @param checkSorted - Whether to verify that `xp` is monotonically
+     * @param checkSorted Whether to verify that `xp` is monotonically
      * increasing. Defaults to `true`. This check is `O(xp.size)` and runs
      * once, here in the constructor; pass `false` to skip it if `xp` is
      * already known to be sorted. If `false` and `xp` is not actually
@@ -163,7 +163,7 @@ export class LinearInterpolator {
      * Values outside the data range return `0`, the derivative of the
      * constant clamping regions. At a knot, this returns the slope of the
      * segment to its right (or the final segment at the right endpoint).
-     * @param x - The x-coordinate(s) at which to evaluate. A single
+     * @param x The x-coordinate(s) at which to evaluate. A single
      * `number` returns a `number`; a plain array or `Array1D` returns an
      * `Array1D`.
      * @returns The derivative value(s), matching the shape of `x`.
@@ -186,8 +186,8 @@ export class LinearInterpolator {
      * interpolation knots is exact (up to floating-point rounding). Reversed
      * bounds return the negative of the integral with the bounds swapped.
      *
-     * @param a - Lower integration bound.
-     * @param b - Upper integration bound.
+     * @param a Lower integration bound.
+     * @param b Upper integration bound.
      * @returns The integral of the interpolant over `[a, b]`.
      * @throws {RangeError} If either bound is `NaN`.
      */
