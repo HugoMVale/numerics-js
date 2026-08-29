@@ -27,7 +27,6 @@
         "ComputeAccelerationFn",
         "DP54Options",
         "DP54Scratch",
-        "RK4Scratch",
         "StepFn"
     ]
 }
