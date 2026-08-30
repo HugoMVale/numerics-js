@@ -11,13 +11,11 @@ export interface NelderMeadResult {
     /** Human-readable description of the termination reason. */
     message: string;
     /** Number of function evaluations performed. */
-    nFev: number;
-    /** Number of iterations performed. */
-    nIter: number;
+    functionEvaluations: number;
     /** Best point found. */
     x: Array1D;
     /** Function value at `x`. */
-    f: number;
+    fx: number;
 }
 
 /**
@@ -132,8 +130,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * {
  *   success: true,
  *   message: 'Function value spread is less than `tolF`.',
- *   nFev: 225,
- *   nIter: 122,
+ *   functionEvaluations: 225,
  *   x: Array1D [ 99.99998642148125, 9999999999.999956 ],
  *   f: 2.1088669603067145e-9
  * }
@@ -316,9 +313,8 @@ export function nelderMead(
     return {
         success,
         message,
-        nFev,
-        nIter,
+        functionEvaluations: nFev,
         x: xmin,
-        f: fmin,
+        fx: fmin,
     };
 }

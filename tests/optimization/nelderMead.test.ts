@@ -13,7 +13,7 @@ describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('fminNelderMead — %s', 
         const res = nelderMead(data.fn, x0, tolx);
 
         expect(res.success, res.message).toBe(true);
-        expect(Math.abs(res.f - data.globalMinimum)).toBeLessThanOrEqual(2 * tolx);
+        expect(Math.abs(res.fx - data.globalMinimum)).toBeLessThanOrEqual(2 * tolx);
     });
 
     it('stops early and reports success when the callback requests it', () => {
@@ -32,7 +32,6 @@ describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('fminNelderMead — %s', 
 
         expect(res.success).toBe(true);
         expect(res.message).toMatch(/callback/i);
-        expect(res.nIter).toBe(3);
     });
 });
 
@@ -47,13 +46,12 @@ describe('fminNelderMead — options and edge cases', () => {
             Array1D.from([3, -4])
         );
         expect(res.success).toBe(true);
-        expect(res.f).toBeCloseTo(0, 5);
+        expect(res.fx).toBeCloseTo(0, 5);
     });
 
     it('respects a custom maxiter and reports failure without throwing', () => {
         const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], 1e-8, 1e-8, undefined, 2);
         expect(res.success).toBe(false);
-        expect(res.nIter).toBe(2);
         expect(res.message).toMatch(/maximum number of iterations/i);
     });
 
@@ -68,20 +66,20 @@ describe('fminNelderMead — options and edge cases', () => {
             5
         );
         expect(res.success).toBe(false);
-        expect(res.nFev).toBeGreaterThanOrEqual(5);
+        expect(res.functionEvaluations).toBeGreaterThanOrEqual(5);
         expect(res.message).toMatch(/maximum number of function evaluations/i);
     });
 
     it('honors a user-supplied sclx', () => {
         const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [1, 1], 1e-8, 1e-8, [1, 1]);
         expect(res.success).toBe(true);
-        expect(res.f).toBeCloseTo(0, 5);
+        expect(res.fx).toBeCloseTo(0, 5);
     });
 
     it('supports the non-adaptive parameter scheme', () => {
         const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [5, -3], 1e-8, 1e-8, undefined, undefined, undefined, false);
         expect(res.success).toBe(true);
-        expect(res.f).toBeCloseTo(0, 5);
+        expect(res.fx).toBeCloseTo(0, 5);
     });
 
     it('passes the callback an (N+1) x N Array2D and an (N+1) Array1D', () => {
