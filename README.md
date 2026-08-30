@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml/badge.svg)](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml)
 
-Small, dependency-free numerical building blocks for modern JavaScript.
+A small, high-quality, mathematically literate numerical toolbox for modern JavaScript/TypeScript.
 
 ## Install
 
