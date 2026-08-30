@@ -29,12 +29,17 @@ import type { RootResult } from './types';
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
  * }
  * const result = brent(f1, 0, 1);
- * console.log(`x = ${result.x.toFixed(3)}`);
+ * console.log(result);
  * ```
  *
  * Output:
  * ```text
- * x = 0.557
+ * {
+ *   method: 'brent',
+ *   evaluations: 9,
+ *   x: 0.5369737681040232,
+ *   fx: 5.475264686083392e-11
+ * }
  * ```
  */
 export function brent(

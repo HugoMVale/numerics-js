@@ -19,12 +19,17 @@ import type { RootResult } from './types.js';
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
  * }
  * const result = bisection(f1, 0, 1);
- * console.log(`x = ${result.x.toFixed(3)}`);
+ * console.log(result);
  * ```
  *
  * Output:
  * ```text
- * x = 0.557
+ * {
+ *   method: 'bisection',
+ *   evaluations: 29,
+ *   x: 0.5369737669825554,
+ *   fx: -7.824495273922594e-9
+ * }
  * ```
  */
 export function bisection(

@@ -24,12 +24,17 @@ import type { RootResult } from './types.js';
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
  * }
  * const result = secant(f1, 0, 1);
- * console.log(`x = ${result.x.toFixed(3)}`);
+ * console.log(result);
  * ```
  *
  * Output:
  * ```text
- * x = 0.557
+ * {
+ *   method: 'secant',
+ *   evaluations: 10,
+ *   x: 0.5369737680962301,
+ *   fx: -2.220446049250313e-16
+ * }
  * ```
  */
 export function secant(
