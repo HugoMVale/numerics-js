@@ -11,7 +11,7 @@ export type AllocatingDerivativeFunction = (t: number, y: Array1D) => Array1D;
 export type RungeKuttaFixedMethod = 'euler' | 'midpoint' | 'trapezoid' | 'rk4';
 
 /** Fixed-step Runge-Kutta scheme used by `rungeKuttaAdaptive`. */
-export type RungeKuttaAdaptiveMethod = 'rk45' | 'rk23';
+export type RungeKuttaAdaptiveMethod = 'rk23' | 'rk45';
 
 /** Identifies which ODE solver produced an {@link OdeResult}. */
 export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod;
