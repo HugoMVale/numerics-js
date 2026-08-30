@@ -8,8 +8,9 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [20, 22]
+        node-version: [lts/*, node]
 
     steps:
       - name: Checkout repository
@@ -24,11 +25,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check
+        run: npm run typecheck
+
       - name: Build
         run: npm run build
 
-      - name: Generate documentation
-        run: npm run docs
-
       - name: Test
         run: npm test
+
+      - name: Pack package
+        id: pack
+        run: |
+          npm pack --json > pack.json
+          echo "tarball=$(node -p \"require('./pack.json')[0].filename\")" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test packed package as a consumer
+        run: |
+          consumer_dir="$(mktemp -d)"
+          cd "$consumer_dir"
+          npm init --yes --silent
+          npm install --ignore-scripts "$GITHUB_WORKSPACE/${{ steps.pack.outputs.tarball }}"
+          node --input-type=module -e "import { array, roots } from 'numerics-js'; const root = roots.bisection((x) => x * x - 2, 1, 2); if (Math.abs(root.x - Math.SQRT2) > 1e-12 || new array.Array1D([1, 2]).sum() !== 3) throw new Error('Packed package smoke test failed');"
+          printf "import { roots } from 'numerics-js';\nconst root: number = roots.bisection((x) => x * x - 2, 1, 2).x;\nvoid root;\n" > consumer.ts
+          "$GITHUB_WORKSPACE/node_modules/.bin/tsc" --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 consumer.ts
