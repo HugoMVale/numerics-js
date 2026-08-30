@@ -92,7 +92,7 @@
         "@types/node": "^26.2.0",
         "typedoc": "^0.28.20",
         "typedoc-material-theme": "^1.4.1",
-        "typescript": "^5.6.3",
+        "typescript": "^5.9.3",
         "vitest": "^2.1.8"
     }
 }
