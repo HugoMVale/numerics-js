@@ -18,6 +18,16 @@ export interface BrentResult {
 }
 
 /**
+ * Options for {@link brent}.
+ */
+export interface BrentOptions {
+    /** Stop when the search interval shrinks to approximately this width. Defaults to `1e-8`. */
+    tolX?: number;
+    /** Maximum number of iterations. Defaults to `100`. */
+    maxIter?: number;
+}
+
+/**
  * Finds a local minimum of fn using Brent's method, given a bracketing interval.
  *
  * Brent's method is a derivative-free optimize algorithm that combines
@@ -30,8 +40,9 @@ export interface BrentResult {
  * @param fn Function to minimize.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
- * @param tolX Stop when the search interval shrinks to approximately this width.
- * @param maxIter Maximum number of iterations.
+ * @param options Optional settings.
+ * @param options.tolX Stop when the search interval shrinks to approximately this width. Defaults to `1e-8`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `100`.
  * @returns Optimization result containing the minimum, function value, and convergence information.
  *
  * @example
@@ -56,9 +67,10 @@ export function brent(
     fn: ScalarFunction,
     xa: number,
     xb: number,
-    tolX: number = 1e-8,
-    maxIter: number = 100
+    options: BrentOptions = {}
 ): BrentResult {
+    const { tolX = 1e-8, maxIter = 100 } = options;
+
     // Golden ratio constant: (3 - sqrt(5)) / 2
     const GOLDEN = 0.38196601125010515179;
     const EPS = Number.EPSILON;

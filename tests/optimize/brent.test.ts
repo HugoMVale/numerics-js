@@ -3,7 +3,7 @@ import { brent } from '../../src/optimize/brent.js';
 import { isClose } from '../../src/misc.js'
 import type { ScalarFunction } from '../../src/types.js';
 
-describe('fminBrent', () => {
+describe('brent', () => {
     it('finds the minimum of a simple parabola', () => {
         const fn = (x: number) => (x - 2) ** 2 + 1;
         const result = brent(fn, -5, 5);
@@ -48,8 +48,8 @@ describe('fminBrent', () => {
         // (as in the x^4 - x + 1 case) where the tolerance genuinely gates how many
         // refinement steps are taken.
         const fn = (x: number) => (x - Math.PI) ** 4;
-        const loose = brent(fn, 0, 10, 1e-1);
-        const tight = brent(fn, 0, 10, 1e-12);
+        const loose = brent(fn, 0, 10, { tolX: 1e-1 });
+        const tight = brent(fn, 0, 10, { tolX: 1e-12 });
         expect(Math.abs(tight.x - Math.PI)).toBeLessThanOrEqual(Math.abs(loose.x - Math.PI));
         expect(tight.x).toBeCloseTo(Math.PI, 8);
     });
@@ -78,7 +78,7 @@ describe('fminBrent', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         const fn = (x: number) => (x - 2) ** 2;
 
-        const result = brent(fn, -5, 5, 1e-14, 1);
+        const result = brent(fn, -5, 5, { tolX: 1e-14, maxIter: 1 });
 
         expect(warnSpy).toHaveBeenCalledOnce();
         expect(warnSpy.mock.calls[0][0]).toContain('maxIter');
@@ -90,7 +90,7 @@ describe('fminBrent', () => {
 
     it('respects a custom maxIter without throwing', () => {
         const fn = (x: number) => (x - 2) ** 2;
-        expect(() => brent(fn, -5, 5, 1e-8, 5)).not.toThrow();
+        expect(() => brent(fn, -5, 5, { tolX: 1e-8, maxIter: 5 })).not.toThrow();
     });
 
     it('handles a flat (constant) function without infinite looping', () => {
@@ -115,7 +115,7 @@ describe('fminBrent', () => {
 /**
  * Test problems ported from polykin's test_brent.py (Python reference
  * implementation this module was translated from). Each case brackets a
- * minimum and checks that fminBrent converges to it within tolerance.
+ * minimum and checks that brent converges to it within tolerance.
  */
 interface BrentTestCase {
     f: ScalarFunction;
@@ -176,12 +176,12 @@ const TEST_FUNCTIONS: Record<string, BrentTestCase> = {
     },
 };
 
-describe('fminBrent (test problems ported from polykin test_brent.py)', () => {
+describe('brent (test problems ported from polykin test_brent.py)', () => {
     const tolX = 1e-6;
 
     for (const [name, { f, xa, xb, xmin }] of Object.entries(TEST_FUNCTIONS)) {
         it(`finds the minimum for "${name}"`, () => {
-            const result = brent(f, xa, xb, tolX);
+            const result = brent(f, xa, xb, { tolX });
             expect(
                 isClose(result.x, xmin, 2 * tolX),
                 `Incorrect minimum for ${name}: x=${result.x}, expected ${xmin}`
