@@ -244,8 +244,10 @@ export class LinearInterpolator {
 }
 
 /**
- * One-dimensional linear interpolation, inspired by `numpy.interp`.
+ * One-dimensional linear interpolation.
  *
+ * The algorithm is similar to, and inspired by, `numpy.interp`.
+ * 
  * Given the discrete data points `(xp[i], fp[i])`, with `xp` increasing,
  * returns the linearly interpolated value(s) at `x`. For `x` outside the
  * range of `xp`, the result is clamped to the boundary value of `fp`
