@@ -12,13 +12,13 @@ export interface BrentResult {
     /** Human-readable description of the termination reason. */
     message: string;
     /** Number of function evaluations performed. */
-    nFev: number;
+    functionEvaluations: number;
     /** Number of iterations performed. */
-    nIter: number;
+    iterations: number;
     /** Location of the minimum. */
     x: number;
     /** Function value at `x`. */
-    f: number;
+    fx: number;
 }
 
 /**
@@ -51,10 +51,10 @@ export interface BrentResult {
  *   method: 'Brent',
  *   success: true,
  *   message: '|dx| <= tolX',
- *   nFev: 19,
- *   nIter: 18,
+ *   functionEvaluations: 19,
+ *   iterations: 18,
  *   x: 0.62996052,
- *   f: 0.52752961
+ *   fx: 0.52752961
  * }
  * ```
  */
@@ -94,10 +94,10 @@ export function brent(
                 method: 'Brent',
                 success: true,
                 message: '|dx| <= tolX',
-                nFev,
-                nIter: k,
+                functionEvaluations: nFev,
+                iterations: k,
                 x,
-                f: fx,
+                fx: fx,
             };
         }
 
@@ -174,9 +174,9 @@ export function brent(
         method: 'Brent',
         success: false,
         message: `Maximum number of iterations (${maxIter}) reached.`,
-        nFev,
-        nIter: maxIter,
+        functionEvaluations: nFev,
+        iterations: maxIter,
         x,
-        f: fx,
+        fx: fx,
     };
 }

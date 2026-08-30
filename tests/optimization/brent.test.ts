@@ -18,11 +18,11 @@ describe('fminBrent', () => {
             method: 'Brent',
             success: true,
             message: '|dx| <= tolX',
-            nFev: 19,
-            nIter: 18,
+            functionEvaluations: 19,
+            iterations: 18,
         });
         expect(result.x).toBeCloseTo(0.6299605249, 6);
-        expect(result.f).toBeCloseTo(0.5275296058, 6);
+        expect(result.fx).toBeCloseTo(0.5275296058, 6);
     });
 
     it('works when the minimum sits near the left edge of the bracket', () => {
