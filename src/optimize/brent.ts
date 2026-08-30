@@ -5,14 +5,12 @@ import { copysign } from '../misc.js';
  * Result of a `brent` optimize.
  */
 export interface BrentResult {
-    /** Name of the optimize method used. */
-    method: string;
     /** Whether the optimize terminated successfully. */
     success: boolean;
     /** Human-readable description of the termination reason. */
     message: string;
     /** Number of function evaluations performed. */
-    functionEvaluations: number;
+    evaluations: number;
     /** Best point found. */
     x: number;
     /** Function value at `x`. */
@@ -49,7 +47,7 @@ export interface BrentResult {
  *   method: 'Brent',
  *   success: true,
  *   message: '|dx| <= tolX',
- *   functionEvaluations: 19,
+ *   evaluations: 19,
  *   x: 0.62996052,
  *   fx: 0.52752961
  * }
@@ -88,10 +86,9 @@ export function brent(
 
         if (Math.abs(x - xm) <= tol2 - 0.5 * (b - a)) {
             return {
-                method: 'Brent',
                 success: true,
                 message: '|dx| <= tolX',
-                functionEvaluations: nFev,
+                evaluations: nFev,
                 x,
                 fx: fx,
             };
@@ -167,10 +164,9 @@ export function brent(
         `brent: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
     );
     return {
-        method: 'Brent',
         success: false,
         message: `Maximum number of iterations (${maxIter}) reached.`,
-        functionEvaluations: nFev,
+        evaluations: nFev,
         x,
         fx: fx,
     };

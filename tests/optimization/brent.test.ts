@@ -15,10 +15,9 @@ describe('fminBrent', () => {
         const fn = (x: number) => x ** 4 - x + 1;
         const result = brent(fn, -3, 3);
         expect(result).toMatchObject({
-            method: 'Brent',
             success: true,
             message: '|dx| <= tolX',
-            functionEvaluations: 19,
+            evaluations: 19,
         });
         expect(result.x).toBeCloseTo(0.6299605249, 6);
         expect(result.fx).toBeCloseTo(0.5275296058, 6);
