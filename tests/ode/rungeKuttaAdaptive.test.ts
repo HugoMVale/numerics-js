@@ -16,6 +16,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
         expect(result.y.rows).toBe(1);
         expect(result.y.cols).toBe(2);
         expect(Array.from(result.y.row(0).data)).toEqual([3, 4]);
+        expect(result.evaluations).toBe(0);
     });
 
     it.each(methods)('(%s) accepts an explicit initial step size h0', (method) => {
@@ -25,6 +26,19 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
         const finalY = result.y.row(result.y.rows - 1).data[0];
         expect(finalY).toBeCloseTo(Math.exp(-1), 6);
+    });
+
+    it.each(methods)('(%s) reports every derivative evaluation', (method) => {
+        let calls = 0;
+        const f: DerivativeFunction = (_t, y, out) => {
+            calls++;
+            out.data[0] = -y.data[0];
+            return out;
+        };
+        const result = rungeKuttaAdaptive(method, f, 0, 1, new Array1D([1]), 1e-8, 1e-8, 0.01);
+
+        expect(result.evaluations).toBe(calls);
+        expect(result.evaluations).toBeGreaterThan(0);
     });
 
     it.each(methods)('(%s) rejects an overly large first step and shrinks h to succeed', (method) => {

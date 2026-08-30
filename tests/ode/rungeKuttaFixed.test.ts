@@ -111,6 +111,40 @@ describe('rungeKuttaFixed', () => {
         expect(Array.from(result.t.data)).toEqual([0, 0.25, 0.5, 0.75, 1]);
     });
 
+    it.each([
+        ['euler', 1],
+        ['midpoint', 2],
+        ['trapezoid', 2],
+        ['rk4', 4],
+    ] as const)('%s: reports every derivative evaluation', (method, stagesPerStep) => {
+        let calls = 0;
+        const f: DerivativeFunction = (_t, _y, out) => {
+            calls++;
+            return out.reset();
+        };
+        const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 0.5);
+
+        expect(result.evaluations).toBe(calls);
+        expect(result.evaluations).toBe(2 * stagesPerStep);
+    });
+
+    it.each([
+        ['euler', 1],
+        ['midpoint', 2],
+        ['trapezoid', 2],
+        ['rk4', 4],
+    ] as const)('%s: counts a shortened final step', (method, stagesPerStep) => {
+        let calls = 0;
+        const f: DerivativeFunction = (_t, _y, out) => {
+            calls++;
+            return out.reset();
+        };
+        const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 0.6);
+
+        expect(result.evaluations).toBe(calls);
+        expect(result.evaluations).toBe(2 * stagesPerStep);
+    });
+
     it.each(methods)('%s: adds one partial final step when h does not evenly divide the span', (method) => {
         const f: DerivativeFunction = (_t, y, out) => out.reset();
         const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 0.3);

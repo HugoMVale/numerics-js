@@ -31,6 +31,20 @@ function makeScratch(dim: number): RungeKuttaScratch {
     };
 }
 
+function stagesPerStep(method: RungeKuttaFixedMethod): number {
+    switch (method) {
+        case 'euler':
+            return 1;
+        case 'midpoint':
+        case 'trapezoid':
+            return 2;
+        case 'rk4':
+            return 4;
+        default:
+            throw new RangeError(`rungeKuttaFixed: unknown method "${method satisfies never}"`);
+    }
+}
+
 /**
  * Advances the state by one step using the requested explicit Runge-Kutta method.
  *
@@ -152,7 +166,7 @@ export function rungeKuttaStep(
  * @returns An {@link OdeResult}: `t`, the recorded time points (length `n`), and
  * `y`, an `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
  * always `y0` and the last row is always the state at `tEnd`. `method` echoes the
- * `method` argument.
+ * `method` argument, and `evaluations` is the number of calls to `f`.
  * @throws {RangeError} If `h` is `0`, if the sign of `h` doesn't match the direction
  * from `t0` to `tEnd`, if `y0` has dimension `0`, or if `method` is not one of the
  * recognized `RungeKuttaMethod` values.
@@ -170,6 +184,7 @@ export function rungeKuttaStep(
  * {
  *   t: Array1D [ 0, 0.25, 0.5, 0.75, 1 ],
  *   y: Array2D [[1], [0.7788085937500001], [0.6065428256988528], [0.472380765131675], [0.36789419940674883]],
+ *   evaluations: 16,
  *   method: 'rk4'
  * }
  * ```
@@ -203,8 +218,10 @@ export function rungeKuttaFixed(
 
     const nRecorded = nFull + (hasPartialStep ? 1 : 0);
     const nTimes = nRecorded + 1;
+    const evaluationsPerStep = stagesPerStep(method);
     const tVec = new Array1D(nTimes);
     const yMat = new Array2D(nTimes, dim);
+    let evaluations = 0;
 
     let t = t0;
     let y = y0.copy();
@@ -214,6 +231,7 @@ export function rungeKuttaFixed(
 
     for (let i = 1; i <= nFull; i++) {
         rungeKuttaStep(method, f, t, y, h, next, scratch);
+        evaluations += evaluationsPerStep;
         t = t0 + i * h;
         tVec.data[i] = t;
         yMat.setRow(i, next.data);
@@ -222,9 +240,10 @@ export function rungeKuttaFixed(
 
     if (hasPartialStep) {
         rungeKuttaStep(method, f, t, y, remainder, next, scratch);
+        evaluations += evaluationsPerStep;
         tVec.data[nRecorded] = tEnd;
         yMat.setRow(nRecorded, next.data);
     }
 
-    return { t: tVec, y: yMat, method };
+    return { t: tVec, y: yMat, evaluations, method };
 }

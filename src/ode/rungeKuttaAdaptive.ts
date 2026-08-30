@@ -277,7 +277,8 @@ function estimateInitialStep(
  * to `10`.
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
- * `y0`, the last row is at `tEnd`, and `method` echoes `method`.
+ * `y0`, the last row is at `tEnd`, `evaluations` is the number of calls to `f`,
+ * and `method` echoes `method`.
  * @throws {RangeError} If the state has no components, tolerances are invalid,
  * a step-size or controller limit is invalid, the step size would fall below
  * `hMin`, or `method` is not recognized.
@@ -300,6 +301,7 @@ function estimateInitialStep(
  *     _cols: 1,
  *     data: Float64Array(3) [ 1, 0.863462874659396, 0.3680228572282582 ]
  *   },
+ *   evaluations: 14,
  *   method: 'rk45'
  * }
  * ```
@@ -339,7 +341,7 @@ export function rungeKuttaAdaptive(
         tVec.data[0] = t0;
         const yMat = new Array2D(1, dim);
         yMat.setRow(0, y0.data);
-        return { t: tVec, y: yMat, method };
+        return { t: tVec, y: yMat, evaluations: 0, method };
     }
 
     const dir = Math.sign(tEnd - t0) as 1 | -1;
@@ -348,17 +350,20 @@ export function rungeKuttaAdaptive(
     let methodOrder: number;
     let errExp: number;
     let fsalSource: Array1D;
+    let stagesPerAttempt: number;
     switch (method) {
         case 'rk23':
             methodOrder = 3;
             errExp = -1 / 3;
             fsalSource = scratch.k4;
+            stagesPerAttempt = 4;
             break;
 
         case 'rk45':
             methodOrder = 5;
             errExp = -1 / 5;
             fsalSource = scratch.k7;
+            stagesPerAttempt = 7;
             break;
 
         default:
@@ -368,6 +373,7 @@ export function rungeKuttaAdaptive(
     let t = t0;
     let y = y0.copy();
     let next = new Array1D(dim);
+    let evaluations = h0 === undefined ? 2 : 0;
 
     let k1Ready = false;
     let h: number;
@@ -392,6 +398,7 @@ export function rungeKuttaAdaptive(
         }
 
         rungeKuttaAdaptiveStep(method, f, t, y, h, next, scratch, k1Ready);
+        evaluations += stagesPerAttempt - (k1Ready ? 1 : 0);
         k1Ready = true;
 
         const err = adaptiveErrorNorm(method, y, next, h, scratch, atol, rtol);
@@ -433,5 +440,5 @@ export function rungeKuttaAdaptive(
         yMat.setRow(i, yBuf[i]);
     }
 
-    return { t: tVec, y: yMat, method };
+    return { t: tVec, y: yMat, evaluations, method };
 }

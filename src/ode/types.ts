@@ -22,6 +22,8 @@ export interface OdeResult {
     t: Array1D;
     /** Solution values, one row per time point and one column per state variable. */
     y: Array2D;
+    /** Number of times the solver evaluated the derivative function. */
+    evaluations: number;
     /** Which solver method produced this result. */
     method: OdeMethod;
 }
