@@ -48,12 +48,6 @@
             "import": "./dist/ode.js",
             "default": "./dist/ode.js"
         },
-        "./ode/rk4": {
-            "types": "./dist/ode/rk4.d.ts",
-            "browser": "./dist/ode/rk4.js",
-            "import": "./dist/ode/rk4.js",
-            "default": "./dist/ode/rk4.js"
-        },
         "./ode/verlet": {
             "types": "./dist/ode/verlet.d.ts",
             "browser": "./dist/ode/verlet.js",
