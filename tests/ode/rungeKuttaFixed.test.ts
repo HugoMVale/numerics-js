@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Array1D } from '../../src/array/array1d.js';
-import { rungeKuttaFixed, rungeKuttaStep, type RungeKuttaMethod } from '../../src/ode/rungeKutta.js';
+import { rungeKuttaFixed, rungeKuttaStep, type RungeKuttaMethod } from '../../src/ode/rungeKuttaFixed.js';
 import type { DerivativeFunction } from '../../src/ode/types.js';
 
 /** dy/dt = y -> y(t) = y0 * e^t */

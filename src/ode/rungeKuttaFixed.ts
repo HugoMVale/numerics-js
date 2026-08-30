@@ -1,8 +1,8 @@
 import { Array1D } from '../array/array1d';
 import { Array2D } from '../array/array2d';
-import type { DerivativeFunction, OdeResult, RungeKuttaMethod } from './types';
+import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types';
 
-export type { RungeKuttaMethod } from './types';
+export type { RungeKuttaFixedMethod as RungeKuttaMethod } from './types';
 
 /**
  * Reusable intermediate vectors for a Runge-Kutta integration step.
@@ -69,7 +69,7 @@ function makeScratch(dim: number): RungeKuttaScratch {
  * ```
  */
 export function rungeKuttaStep(
-    method: RungeKuttaMethod,
+    method: RungeKuttaFixedMethod,
     f: DerivativeFunction,
     t: number,
     y: Array1D,
@@ -175,7 +175,7 @@ export function rungeKuttaStep(
  * ```
  */
 export function rungeKuttaFixed(
-    method: RungeKuttaMethod,
+    method: RungeKuttaFixedMethod,
     f: DerivativeFunction,
     t0: number,
     tEnd: number,
