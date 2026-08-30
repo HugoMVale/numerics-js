@@ -1,6 +1,5 @@
 import { Array1D } from '../array/array1d.js';
-import { prepareInterp } from './common.js';
-
+import { prepareInterp, InterpOptions } from './common.js';
 
 /**
  * Interpolates a single scalar value, locating the bracketing interval in
@@ -241,25 +240,6 @@ export class LinearInterpolator {
         }
         return interpMany(x, this.xp, this.fp, this.leftVal, this.rightVal);
     }
-}
-
-/**
- * Options controlling out-of-range clamping and input validation for `interp`.
- */
-export interface InterpOptions {
-    /** Value to return for `x < xp[0]`. Defaults to `fp[0]`. */
-    left?: number;
-    /** Value to return for `x > xp[xp.length - 1]`. Defaults to `fp[fp.length - 1]`. */
-    right?: number;
-    /**
-     * Whether to verify that `xp` is monotonically increasing before
-     * interpolating. Defaults to `true`. This check is `O(xp.size)`; pass
-     * `false` to skip it (e.g. in a hot loop where `xp` is reused and
-     * already known to be sorted). If `false` and `xp` is not actually
-     * sorted, results are unspecified, matching `numpy.interp`, which
-     * performs no such check at all.
-     */
-    checkSorted?: boolean;
 }
 
 /**

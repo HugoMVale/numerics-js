@@ -1,6 +1,25 @@
 import { Array1D } from '../array/array1d.js';
 
 /**
+ * Options controlling out-of-range clamping and input validation for `interp`.
+ */
+export interface InterpOptions {
+    /** Value to return for `x < xp[0]`. Defaults to `fp[0]`. */
+    left?: number;
+    /** Value to return for `x > xp[xp.length - 1]`. Defaults to `fp[fp.length - 1]`. */
+    right?: number;
+    /**
+     * Whether to verify that `xp` is monotonically increasing before
+     * interpolating. Defaults to `true`. This check is `O(xp.size)`; pass
+     * `false` to skip it (e.g. in a hot loop where `xp` is reused and
+     * already known to be sorted). If `false` and `xp` is not actually
+     * sorted, results are unspecified, matching `numpy.interp`, which
+     * performs no such check at all.
+     */
+    checkSorted?: boolean;
+}
+
+/**
  * Validated, ready-to-evaluate interpolation data: `xp`/`fp` as `Array1D`,
  * with the `left`/`right` clamp values resolved to concrete numbers.
  */
