@@ -152,10 +152,13 @@ const firstZero = bessel.getZero(0, 1);
 `rungeKuttaFixed` integrates using one of `'euler'`, `'midpoint'`,
 `'trapezoid'`, or classic fourth-order `'rk4'` with a constant step size. It
 records the initial state and every step through `tEnd`, using a final partial
-step when needed. `dormandPrince45` is an adaptive Dormand-Prince 5(4) solver;
-it supports forward and backward integration and accepts positional controls
-for absolute tolerance, relative tolerance, initial and maximum step size,
-minimum step size, iteration limit, and controller scaling.
+step when needed.
+
+`rungeKuttaAdaptive` integrates with the adaptive
+Bogacki-Shampine 3(2) (`'rk23'`) or Dormand-Prince 5(4) (`'rk45'`) method. It
+supports forward and backward integration and accepts positional controls for
+absolute tolerance, relative tolerance, initial and maximum step size, minimum
+step size, iteration limit, and controller scaling.
 
 Both solvers accept a derivative callback with the signature
 `(t, y, dydt) => dydt`; it must write into `dydt`, return it, and must not
@@ -176,12 +179,13 @@ console.log(solution.t.data[solution.t.size - 1]); // 1
 console.log(solution.y.row(solution.y.rows - 1)); // state at t = 1
 ```
 
-`dormandPrince45` records the initial state and every accepted adaptive step.
-Its `atol` and `rtol` defaults are `1e-6` and `1e-3`, and it estimates `h0`
-when it is omitted.
+`rungeKuttaAdaptive` records the initial state and every accepted adaptive
+step. Its `atol` and `rtol` defaults are `1e-6` and `1e-3`, and it estimates
+`h0` when it is omitted.
 
 ```ts
-const adaptive = dormandPrince45(
+const adaptive = rungeKuttaAdaptive(
+    'rk45',
     (t, y, dydt) => dydt.set([-y.data[0]]),
     0,
     1,
