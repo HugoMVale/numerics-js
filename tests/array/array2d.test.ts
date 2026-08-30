@@ -51,6 +51,167 @@ describe('Array2D', () => {
         expect(x.isClose(new Array1D([1, 3]))).toBe(true);
     });
 
+    describe('lu()', () => {
+        it('factors a matrix such that P*A = L*U', () => {
+            const a: Array2D = Array2D.from([
+                [4, 3, 0],
+                [3, 4, -1],
+                [0, -1, 4],
+            ]);
+            const { L, U, perm } = a.lu();
+
+            const pa = new Array2D(3, 3);
+            for (let i = 0; i < 3; i++) pa.setRow(i, a.row(perm[i]));
+
+            expect(pa.isClose(L.matmul(U))).toBe(true);
+        });
+
+        it('returns a unit-lower-triangular L and an upper-triangular U', () => {
+            const a: Array2D = Array2D.from([
+                [2, -1, 3],
+                [4, 2, 1],
+                [-2, 5, 6],
+            ]);
+            const { L, U } = a.lu();
+
+            for (let i = 0; i < 3; i++) {
+                expect(L.get(i, i)).toBe(1);
+                for (let j = i + 1; j < 3; j++) {
+                    expect(L.get(i, j)).toBeCloseTo(0);
+                    expect(U.get(j, i)).toBeCloseTo(0);
+                }
+            }
+        });
+
+        it('needs no pivoting on an already-triangular matrix: identity perm, sign +1', () => {
+            const a: Array2D = Array2D.from([
+                [5, 0, 0],
+                [1, 3, 0],
+                [2, 1, 4],
+            ]);
+            const { perm, sign } = a.lu();
+            expect(perm).toEqual([0, 1, 2]);
+            expect(sign).toBe(1);
+        });
+
+        it('tracks the row-swap parity in sign, consistent with determinant()', () => {
+            const a: Array2D = Array2D.from([
+                [0, 1],
+                [1, 0],
+            ]); // needs exactly one pivot swap
+            const { U, sign } = a.lu();
+            const detFromLU = sign * U.get(0, 0) * U.get(1, 1);
+            expect(detFromLU).toBeCloseTo(a.determinant());
+        });
+
+        it('throws on a singular matrix', () => {
+            const singular: Array2D = new Array2D(2, 2, [1, 2, 2, 4]); // row1 = 2*row0
+            expect(() => singular.lu()).toThrowError();
+        });
+
+        it('rejects non-square input', () => {
+            expect(() => new Array2D(2, 3).lu()).toThrowError(RangeError);
+        });
+
+        it('handles the 1x1 case', () => {
+            const a: Array2D = Array2D.from([[7]]);
+            const { L, U, perm, sign } = a.lu();
+            expect(L.get(0, 0)).toBe(1);
+            expect(U.get(0, 0)).toBe(7);
+            expect(perm).toEqual([0]);
+            expect(sign).toBe(1);
+        });
+    });
+
+    describe('solveLower() and solveUpper()', () => {
+        it('solveLower solves a unit-lower-triangular system when unitDiagonal is true', () => {
+            const l: Array2D = Array2D.from([
+                [1, 0, 0],
+                [2, 1, 0],
+                [-1, 3, 1],
+            ]);
+            const b: Array1D = new Array1D([1, 4, 2]);
+            const x = l.solveLower(b, true);
+            expect(l.mulVec(x).isClose(b)).toBe(true);
+        });
+
+        it('solveLower divides by the diagonal when unitDiagonal is false (the default)', () => {
+            const l: Array2D = Array2D.from([
+                [2, 0],
+                [3, 4],
+            ]);
+            const b: Array1D = new Array1D([4, 11]);
+            const x = l.solveLower(b);
+            expect(x.isClose(new Array1D([2, 1.25]))).toBe(true);
+        });
+
+        it('solveUpper solves an upper-triangular system via back-substitution', () => {
+            const u: Array2D = Array2D.from([
+                [2, 1, -1],
+                [0, 3, 2],
+                [0, 0, 4],
+            ]);
+            const b: Array1D = new Array1D([3, 11, 8]);
+            const x = u.solveUpper(b);
+            expect(u.mulVec(x).isClose(b)).toBe(true);
+        });
+
+        it('ignores entries on the wrong side of the diagonal rather than validating shape', () => {
+            // solveLower only reads j <= i; entries above the diagonal are
+            // simply never consulted, even if the matrix isn't actually
+            // lower triangular.
+            const notLower: Array2D = Array2D.from([
+                [2, 99],
+                [1, 3],
+            ]);
+            const b: Array1D = new Array1D([4, 5]);
+            const x = notLower.solveLower(b);
+            expect(x.get(0)).toBeCloseTo(2); // 4 / 2, the "99" above the diagonal is ignored
+        });
+
+        it('throws on a zero diagonal entry', () => {
+            const u: Array2D = Array2D.from([
+                [2, 1],
+                [0, 0],
+            ]);
+            expect(() => u.solveUpper(new Array1D([1, 1]))).toThrowError();
+
+            const l: Array2D = Array2D.from([
+                [0, 0],
+                [1, 2],
+            ]);
+            expect(() => l.solveLower(new Array1D([1, 1]))).toThrowError();
+        });
+
+        it('rejects non-square input and shape-mismatched vectors', () => {
+            expect(() => new Array2D(2, 3).solveLower(new Array1D(2))).toThrowError(RangeError);
+            expect(() => new Array2D(2, 3).solveUpper(new Array1D(2))).toThrowError(RangeError);
+
+            const square: Array2D = new Array2D(2, 2, [1, 0, 1, 1]);
+            expect(() => square.solveLower(new Array1D(3))).toThrowError(RangeError);
+            expect(() => square.solveUpper(new Array1D(3))).toThrowError(RangeError);
+        });
+    });
+
+    it('solve() composes lu(), solveLower(), and solveUpper() consistently', () => {
+        // Factoring once and reusing L/U/perm directly (the pattern a Newton
+        // solver would use across several right-hand sides) must agree with
+        // calling solve() fresh each time.
+        const a: Array2D = Array2D.from([
+            [4, 3, 0],
+            [3, 4, -1],
+            [0, -1, 4],
+        ]);
+        const { L, U, perm } = a.lu();
+
+        for (const raw of [[1, 2, 3], [0, 1, 0], [-1, -2, -3]]) {
+            const b = new Array1D(raw);
+            const pb = new Array1D(perm.map(p => b.get(p)));
+            const reused = U.solveUpper(L.solveLower(pb, true));
+            expect(reused.isClose(a.solve(b))).toBe(true);
+        }
+    });
+
     it('rejects invalid shapes and mismatched input length in the constructor', () => {
         expect(() => new Array2D(0, 2)).toThrowError(RangeError);
         expect(() => new Array2D(2, 0)).toThrowError(RangeError);

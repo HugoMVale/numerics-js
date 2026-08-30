@@ -1,6 +1,29 @@
 import { Array1D } from './array1d';
 
 /**
+ * Result of `Array2D.lu()`: a partial-pivoted LU factorization such that
+ * `P * A = L * U`, where `P` is the row permutation implied by `perm`.
+ */
+export interface LUDecomposition {
+    /** Unit lower-triangular factor (1s on the diagonal). */
+    L: Array2D;
+    /** Upper-triangular factor. */
+    U: Array2D;
+    /**
+     * Row permutation applied during pivoting: `perm[i]` is the index, in
+     * the original matrix, of the row now in position `i`. Apply it to a
+     * vector `b` with `perm.map(p => b.data[p])` before the triangular
+     * solves.
+     */
+    perm: number[];
+    /**
+     * Parity of the row permutation: `+1` for an even number of row swaps,
+     * `-1` for an odd number. `sign * product(diag(U))` equals `det(A)`.
+     */
+    sign: number;
+}
+
+/**
  * A rows x cols matrix backed by a flat, row-major Float64Array.
  *
  * All element access (`get`, `set`, `row`, `col`, `setRow`, `setCol`,
@@ -397,8 +420,113 @@ export class Array2D {
     }
 
     /**
-     * Solves the linear system `this * x = b` for `x`, via Gaussian
-     * elimination with partial pivoting followed by back-substitution.
+     * Computes a partial-pivoted LU factorization of this matrix, such that
+     * `P * this = L * U` for the row permutation `P` implied by `perm`.
+     * Factoring once and reusing the result via `solveLower`/`solveUpper`
+     * is much cheaper than calling `solve()` repeatedly against the same
+     * matrix with different right-hand sides (e.g. inside a Newton solver
+     * that reuses a Jacobian across corrector steps).
+     * @param tol Absolute tolerance below which a candidate pivot is treated as zero.
+     * @returns The `{ L, U, perm, sign }` factorization.
+     * @throws {RangeError} If this matrix is not square.
+     * @throws {Error} If this matrix is singular.
+     */
+    lu(tol = 0): LUDecomposition {
+        if (this.rows !== this.cols) throw new RangeError(`Array2D lu requires a square matrix, got ${this.rows}x${this.cols}`);
+        const n = this.rows;
+        const U = this.copy();
+        const L = Array2D.identity(n);
+        const perm = Array.from({ length: n }, (_, i) => i);
+        let sign = 1;
+
+        for (let col = 0; col < n; col++) {
+            const pivotRow = Array2D._findPivotRow(U, col, col, tol);
+            if (pivotRow === -1) throw new Error('Array2D lu: matrix is singular');
+            if (pivotRow !== col) {
+                U.swapRows(col, pivotRow);
+                // Rows of L to the left of `col` already hold computed
+                // multipliers; swap those along with U's rows so that
+                // P * this === L * U still holds after the pivot.
+                for (let k = 0; k < col; k++) {
+                    const tmp = L.get(col, k);
+                    L.set(col, k, L.get(pivotRow, k));
+                    L.set(pivotRow, k, tmp);
+                }
+                [perm[col], perm[pivotRow]] = [perm[pivotRow], perm[col]];
+                sign = -sign;
+            }
+            const pivot = U.get(col, col);
+            for (let i = col + 1; i < n; i++) {
+                const factor = U.get(i, col) / pivot;
+                if (factor !== 0) {
+                    U.addScaledRow(i, col, -factor);
+                    L.set(i, col, factor);
+                }
+            }
+        }
+        return { L, U, perm, sign };
+    }
+
+    /**
+     * Solves `this * x = b` for `x`, treating this matrix as lower
+     * triangular: only entries on and below the diagonal are read, so this
+     * can be called directly on the `L` factor from `lu()`.
+     * @param b The right-hand side vector. Must have `b.size === this.rows`.
+     * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s
+     *   (as `lu()`'s `L` always is) and is never read, avoiding a division.
+     * @returns The solution vector `x`.
+     * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
+     * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
+     */
+    solveLower(b: Array1D, unitDiagonal = false): Array1D {
+        if (this.rows !== this.cols) throw new RangeError(`Array2D solveLower requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (b.size !== this.rows) throw new RangeError(`Array2D solveLower shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
+        const n = this.rows;
+        const x = new Array1D(n);
+        for (let i = 0; i < n; i++) {
+            let s = b.data[i];
+            for (let j = 0; j < i; j++) s -= this.get(i, j) * x.data[j];
+            if (unitDiagonal) {
+                x.data[i] = s;
+            } else {
+                const d = this.get(i, i);
+                if (d === 0) throw new Error('Array2D solveLower: zero diagonal entry, matrix is singular');
+                x.data[i] = s / d;
+            }
+        }
+        return x;
+    }
+
+    /**
+     * Solves `this * x = b` for `x`, treating this matrix as upper
+     * triangular: only entries on and above the diagonal are read, so this
+     * can be called directly on the `U` factor from `lu()`.
+     * @param b The right-hand side vector. Must have `b.size === this.rows`.
+     * @returns The solution vector `x`.
+     * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
+     * @throws {Error} If a zero diagonal entry is encountered.
+     */
+    solveUpper(b: Array1D): Array1D {
+        if (this.rows !== this.cols) throw new RangeError(`Array2D solveUpper requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (b.size !== this.rows) throw new RangeError(`Array2D solveUpper shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
+        const n = this.rows;
+        const x = new Array1D(n);
+        for (let i = n - 1; i >= 0; i--) {
+            let s = b.data[i];
+            for (let j = i + 1; j < n; j++) s -= this.get(i, j) * x.data[j];
+            const d = this.get(i, i);
+            if (d === 0) throw new Error('Array2D solveUpper: zero diagonal entry, matrix is singular');
+            x.data[i] = s / d;
+        }
+        return x;
+    }
+
+    /**
+     * Solves the linear system `this * x = b` for `x`, via LU decomposition
+     * with partial pivoting (`lu()`) followed by forward and back
+     * substitution. If you need to solve against the same matrix with
+     * several right-hand sides, call `lu()` once yourself and reuse
+     * `solveLower`/`solveUpper` directly instead of calling this repeatedly.
      * @param b The right-hand side vector. Must have `b.size === this.rows`.
      * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
      *   floating-point error) equal to `b`.
@@ -408,31 +536,10 @@ export class Array2D {
     solve(b: Array1D): Array1D {
         if (this.rows !== this.cols) throw new RangeError(`Array2D solve requires a square matrix, got ${this.rows}x${this.cols}`);
         if (b.size !== this.rows) throw new RangeError(`Array2D solve shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
-        const n = this.rows;
-        // Augment [this | b] and forward-eliminate to row echelon form,
-        // then back-substitute for x - this avoids ever computing this^-1.
-        const aug = new Array2D(n, n + 1);
-        for (let i = 0; i < n; i++) {
-            aug.data.set(this.data.subarray(this._idx(i, 0), this._idx(i, 0) + n), aug._idx(i, 0));
-            aug.set(i, n, b.data[i]);
-        }
-        for (let col = 0; col < n; col++) {
-            const pivotRow = Array2D._findPivotRow(aug, col, col, 0);
-            if (pivotRow === -1) throw new Error('Array2D solve: matrix is singular, no unique solution');
-            if (pivotRow !== col) aug.swapRows(col, pivotRow);
-            const pivot = aug.get(col, col);
-            for (let i = col + 1; i < n; i++) {
-                const factor = aug.get(i, col) / pivot;
-                if (factor !== 0) aug.addScaledRow(i, col, -factor);
-            }
-        }
-        const x = new Array1D(n);
-        for (let i = n - 1; i >= 0; i--) {
-            let s = aug.get(i, n);
-            for (let j = i + 1; j < n; j++) s -= aug.get(i, j) * x.data[j];
-            x.data[i] = s / aug.get(i, i);
-        }
-        return x;
+        const { L, U, perm } = this.lu();
+        const pb = new Array1D(perm.map(p => b.data[p]));
+        const y = L.solveLower(pb, true);
+        return U.solveUpper(y);
     }
 
     /**
