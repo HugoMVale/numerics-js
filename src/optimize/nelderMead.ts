@@ -19,6 +19,50 @@ export interface NelderMeadResult {
 }
 
 /**
+ * Options for {@link nelderMead}.
+ */
+export interface NelderMeadOptions {
+    /**
+     * Absolute tolerance for `x`. The algorithm terminates when the maximum
+     * scaled distance between the simplex vertices is less than `tolX`.
+     * Defaults to `1e-8`.
+     */
+    tolX?: number;
+    /**
+     * Absolute tolerance for `f`. The algorithm terminates when the maximum
+     * difference between the function values at the simplex vertices is less
+     * than `tolF`. Defaults to `1e-8`.
+     */
+    tolF?: number;
+    /**
+     * Positive scaling factors for the components of `x`, as a plain array
+     * or an `Array1D`. Ideally, these should be chosen so that `scale*x` is
+     * of order 1 near the solution for all components. If omitted, scaling
+     * is inferred from `x0` as `1 / max(|x0_i|, 1)`.
+     */
+    scale?: number[] | Array1D;
+    /** Maximum number of iterations. Defaults to `200*N`. */
+    maxIter?: number;
+    /** Maximum number of function evaluations. Defaults to `200*N`. */
+    maxFunEvals?: number;
+    /**
+     * Whether to use the adaptive parameter scheme proposed by Gao (2012).
+     * If `false`, the standard Nelder-Mead parameters are used. Defaults to
+     * `true`.
+     */
+    adaptive?: boolean;
+    /**
+     * Optional callback invoked at each iteration as
+     * `callback(nIter, x, fx) -> {stop, success}`, where `x` is the
+     * `(N+1) x N` matrix of simplex vertices (one per row) and `fx` the
+     * corresponding `N+1` function values. Neither should be mutated by the
+     * callback. If `stop` is `true`, the iteration is terminated; `success`
+     * then decides whether the result is reported as successful.
+     */
+    callback?: (nIter: number, x: Array2D, fx: Array1D) => { stop: boolean; success: boolean };
+}
+
+/**
  * Infers default scaling factors from the initial guess: `1 / max(|x0_i|, 1)`.
  * @param x0 Initial guess.
  * @returns Default scaling factors.
@@ -94,27 +138,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * @param fn Objective function to minimize.
  * @param x0 Initial guess for the optimum. If no user-defined `scale` is
  * provided, the scaling factors will be determined from this value.
- * @param tolX Absolute tolerance for `x`. The algorithm terminates when
- * the maximum scaled distance between the simplex vertices is less than
- * `tolX`.
- * @param tolF Absolute tolerance for `f`. The algorithm terminates when
- * the maximum difference between the function values at the simplex
- * vertices is less than `tolF`.
- * @param scale Positive scaling factors for the components of `x`, as a
- * plain array or an `Array1D`. Ideally, these should be chosen so that
- * `scale*x` is of order 1 near the solution for all components. If omitted,
- * scaling is inferred from `x0` as `1 / max(|x0_i|, 1)`.
- * @param maxIter Maximum number of iterations. Defaults to `200*N`.
- * @param maxFunEvals Maximum number of function evaluations. Defaults to
- * `200*N`.
- * @param adaptive Whether to use the adaptive parameter scheme proposed
- * by Gao (2012). If `false`, the standard Nelder-Mead parameters are used.
- * @param callback Optional callback invoked at each iteration as
- * `callback(nIter, x, fx) -> {stop, success}`, where `x` is the `(N+1) x N`
- * matrix of simplex vertices (one per row) and `fx` the corresponding `N+1`
- * function values. Neither should be mutated by the callback. If `stop` is
- * `true`, the iteration is terminated; `success` then decides whether the
- * result is reported as successful.
+ * @param options Optional settings; see {@link NelderMeadOptions}.
  * @returns The optimize result.
  *
  * @example
@@ -122,6 +146,8 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * // Find the minimum of f(x) = (x0-100)^2 + (x1-1e10)^2
  * const fn = (x: Array1D): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
  * const result = nelderMead(fn, [1, 1e8]);
+ * // or, with explicit options:
+ * // const result = nelderMead(fn, [1, 1e8], { tolX: 1e-10, adaptive: false });
  * console.log(result);
  * ```
  *
@@ -139,14 +165,18 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
 export function nelderMead(
     fn: VectorFunction,
     x0: number[] | Array1D,
-    tolX: number = 1e-8,
-    tolF: number = 1e-8,
-    scale?: number[] | Array1D,
-    maxIter?: number,
-    maxFunEvals?: number,
-    adaptive: boolean = true,
-    callback?: (nIter: number, x: Array2D, fx: Array1D) => { stop: boolean; success: boolean }
+    options: NelderMeadOptions = {}
 ): NelderMeadResult {
+    const {
+        tolX = 1e-8,
+        tolF = 1e-8,
+        scale,
+        maxIter,
+        maxFunEvals,
+        adaptive = true,
+        callback,
+    } = options;
+
     const x0v = x0 instanceof Array1D ? x0.copy() : Array1D.from(x0);
     const n = x0v.size;
     if (n === 0) {
