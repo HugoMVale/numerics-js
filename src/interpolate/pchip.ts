@@ -1,5 +1,5 @@
 import { Array1D } from '../array/array1d.js';
-import { prepareInterp } from './common.js';
+import { prepareInterp, InterpOptions } from './common.js';
 
 /**
  * Evaluates the cubic Hermite polynomial or its derivative at a single point.
@@ -89,7 +89,7 @@ function pchipMany(
  * standard cubic spline, PCHIP does not introduce overshoots between monotonic
  * data points and has a continuous first derivative. For `x` outside the range
  * of `xp`, the result is clamped to the boundary value of `fp` unless
- * `left`/`right` are given.
+ * `options.left`/`options.right` are given.
  *
  * Validation (matching lengths, non-empty, sorted) happens once, in the
  * constructor, rather than on every evaluation. This makes `PchipInterpolator`
@@ -116,25 +116,17 @@ export class PchipInterpolator {
      * interpolant.
      * @param fp The y-coordinates of the data points. Must have the same
      * length as `xp`.
-     * @param left Value to return for `x < xp[0]`. Defaults to `fp[0]`.
-     * @param right Value to return for `x > xp[xp.length - 1]`. Defaults
-     * to `fp[fp.length - 1]`.
-     * @param checkSorted Whether to verify that `xp` is monotonically
-     * strictly increasing. Defaults to `true`. This check is `O(xp.size)` and runs
-     * once, here in the constructor; pass `false` to skip it if `xp` is
-     * already known to be sorted. If `false` and `xp` is not actually
-     * sorted, `eval`, `derivative`, and `integrate` results are unspecified.
+     * @param options Optional settings; see `InterpOptions`. Validation
+     * (matching lengths, non-empty, and, unless `options.checkSorted` is
+     * `false`, strictly increasing) happens once, here in the constructor.
+     * If `options.checkSorted` is `false` and `xp` is not actually sorted,
+     * `eval`, `derivative`, and `integrate` results are unspecified.
      * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
-     * lengths, or (when `checkSorted` is `true`) if `xp` is not
+     * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
      * strictly increasing.
      */
-    constructor(
-        xp: number[] | Array1D,
-        fp: number[] | Array1D,
-        left?: number,
-        right?: number,
-        checkSorted: boolean = true
-    ) {
+    constructor(xp: number[] | Array1D, fp: number[] | Array1D, options: InterpOptions = {}) {
+        const { left, right, checkSorted = true } = options;
         const p = prepareInterp(xp, fp, left, right, checkSorted, 'PchipInterpolator');
         if (checkSorted) {
             for (let i = 1; i < p.xp.size; i++) {

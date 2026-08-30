@@ -143,7 +143,7 @@ describe('Interpolator1D', () => {
     });
 
     it('respects custom left/right clamp values', () => {
-        const f = new LinearInterpolator(xp, fp, -1, 99);
+        const f = new LinearInterpolator(xp, fp, { left: -1, right: 99 });
         expect(f.eval(0)).toBe(-1);
         expect(f.eval(4)).toBe(99);
     });
@@ -163,7 +163,7 @@ describe('Interpolator1D', () => {
     });
 
     it('skips the sortedness check when checkSorted is false', () => {
-        expect(() => new LinearInterpolator([3, 2, 1], [1, 2, 3], undefined, undefined, false)).not.toThrow();
+        expect(() => new LinearInterpolator([3, 2, 1], [1, 2, 3], { checkSorted: false })).not.toThrow();
     });
 
     it('accepts Array1D directly for xp and fp', () => {

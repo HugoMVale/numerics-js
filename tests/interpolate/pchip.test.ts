@@ -60,7 +60,7 @@ describe('PchipInterpolator', () => {
     it('applies left and right clamping for evaluation', () => {
         const xp = [0, 1, 2];
         const fp = [10, 20, 30];
-        const pchip = new PchipInterpolator(xp, fp, 5, 35); // Custom bounds
+        const pchip = new PchipInterpolator(xp, fp, { left: 5, right: 35 }); // Custom bounds
 
         expect(pchip.eval(-1)).toBe(5);
         expect(pchip.eval(3)).toBe(35);
@@ -134,7 +134,7 @@ describe('PchipInterpolator', () => {
     it('computes exact rectangular areas for constant out-of-bounds integration', () => {
         const xp = [0, 2];
         const fp = [10, 10]; // Flat line
-        const pchip = new PchipInterpolator(xp, fp, 10, 10);
+        const pchip = new PchipInterpolator(xp, fp, { left: 10, right: 10 });
 
         // Interior
         expect(pchip.integrate(0, 2)).toBeCloseTo(20);

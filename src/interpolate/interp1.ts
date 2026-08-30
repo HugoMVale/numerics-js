@@ -97,7 +97,7 @@ function linearDerivativeMany(x: number[] | Array1D, xp: Array1D, fp: Array1D): 
  * Given the discrete data points `(xp[i], fp[i])`, with `xp` increasing,
  * `eval(x)` returns the linearly interpolated value(s) at `x`. For `x`
  * outside the range of `xp`, the result is clamped to the boundary value of
- * `fp` unless `left`/`right` are given.
+ * `fp` unless `options.left`/`options.right` are given.
  *
  * Validation (matching lengths, non-empty, sorted) happens once, in the
  * constructor, rather than on every evaluation. This makes `LinearInterpolator`
@@ -123,26 +123,15 @@ export class LinearInterpolator {
      * monotonically increasing (duplicates allowed) and non-empty.
      * @param fp The y-coordinates of the data points. Must have the same
      * length as `xp`.
-     * @param left Value to return for `x < xp[0]`. Defaults to `fp[0]`.
-     * @param right Value to return for `x > xp[xp.length - 1]`. Defaults
-     * to `fp[fp.length - 1]`.
-     * @param checkSorted Whether to verify that `xp` is monotonically
-     * increasing. Defaults to `true`. This check is `O(xp.size)` and runs
-     * once, here in the constructor; pass `false` to skip it if `xp` is
-     * already known to be sorted. If `false` and `xp` is not actually
-     * sorted, `eval` results are unspecified, matching `numpy.interp`, which
-     * performs no such check at all.
+     * @param options Optional settings; see `InterpOptions`. Validation
+     * (matching lengths, non-empty, and, unless `options.checkSorted` is
+     * `false`, sorted) happens once, here in the constructor.
      * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
-     * lengths, or (when `checkSorted` is `true`) if `xp` is not
+     * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
      * monotonically increasing.
      */
-    constructor(
-        xp: number[] | Array1D,
-        fp: number[] | Array1D,
-        left?: number,
-        right?: number,
-        checkSorted: boolean = true
-    ) {
+    constructor(xp: number[] | Array1D, fp: number[] | Array1D, options: InterpOptions = {}) {
+        const { left, right, checkSorted = true } = options;
         const p = prepareInterp(xp, fp, left, right, checkSorted, 'LinearInterpolator');
         this.xp = p.xp;
         this.fp = p.fp;
