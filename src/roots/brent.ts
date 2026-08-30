@@ -1,5 +1,6 @@
 import type { ScalarFunction } from '../types';
 import { copysign } from '../misc';
+import type { RootResult } from './types';
 
 /**
  * Finds a root of fn using Brent's method, given a bracketing interval.
@@ -18,7 +19,7 @@ import { copysign } from '../misc';
  * @param tolX Stop when the bracket half-width is below this (absolute x tolerance).
  * @param tolF Stop when |fn(x)| is below this (absolute function-value tolerance).
  * @param maxIter Maximum number of iterations.
- * @returns Approximate root.
+ * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If fn(xa) and fn(xb) do not have opposite signs.
  *
  * @example
@@ -27,8 +28,8 @@ import { copysign } from '../misc';
  * function f1(x: number): number {
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
  * }
- * const root = brent(f1, 0, 1);
- * console.log(`x = ${root.toFixed(3)}`);
+ * const result = brent(f1, 0, 1);
+ * console.log(`x = ${result.x.toFixed(3)}`);
  * ```
  *
  * Output:
@@ -43,14 +44,18 @@ export function brent(
     tolX: number = 1e-8,
     tolF: number = 1e-8,
     maxIter: number = 100
-): number {
+): RootResult {
     const eps = Number.EPSILON;
 
+    let evaluations = 0;
+
     let fa = fn(xa);
-    if (Math.abs(fa) <= tolF) return xa;
+    evaluations++;
+    if (Math.abs(fa) <= tolF) return { method: 'brent', evaluations, x: xa, fx: fa };
 
     let fb = fn(xb);
-    if (Math.abs(fb) <= tolF) return xb;
+    evaluations++;
+    if (Math.abs(fb) <= tolF) return { method: 'brent', evaluations, x: xb, fx: fb };
 
     if (fa * fb > 0) {
         throw new Error(
@@ -81,11 +86,11 @@ export function brent(
         const m = 0.5 * (xc - xb);
 
         if (Math.abs(fb) <= tolF) {
-            return xb;
+            return { method: 'brent', evaluations, x: xb, fx: fb };
         }
 
         if (Math.abs(m) <= tol1) {
-            return xb;
+            return { method: 'brent', evaluations, x: xb, fx: fb };
         }
 
         if (Math.abs(e) >= tol1 && Math.abs(fa) > Math.abs(fb)) {
@@ -133,10 +138,11 @@ export function brent(
         }
 
         fb = fn(xb);
+        evaluations++;
     }
 
     console.warn(
         `brent: reached maxIter (${maxIter}) without converging to tolX=${tolX}, tolF=${tolF}`
     );
-    return xb;
+    return { method: 'brent', evaluations, x: xb, fx: fb };
 }

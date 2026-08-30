@@ -1,4 +1,5 @@
 import type { ScalarFunction } from '../types.js';
+import type { RootResult } from './types.js';
 
 /**
  * Finds a root of fn in the interval [a, b] using the bisection method.
@@ -8,7 +9,7 @@ import type { ScalarFunction } from '../types.js';
  * @param b Right endpoint of the bracketing interval.
  * @param tolX Stop when the interval half-width is below this.
  * @param maxIter Maximum number of iterations.
- * @returns Approximate root.
+ * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
  *
  * @example
@@ -17,8 +18,8 @@ import type { ScalarFunction } from '../types.js';
  * function f1(x: number): number {
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
  * }
- * const root = bisection(f1, 0, 1);
- * console.log(`x = ${root.toFixed(3)}`);
+ * const result = bisection(f1, 0, 1);
+ * console.log(`x = ${result.x.toFixed(3)}`);
  * ```
  *
  * Output:
@@ -32,7 +33,7 @@ export function bisection(
     b: number,
     tolX: number = 1e-8,
     maxIter: number = 100
-): number {
+): RootResult {
     if (a === b) {
         throw new Error('bisection: a and b must be different');
     }
@@ -40,11 +41,14 @@ export function bisection(
         [a, b] = [b, a];
     }
 
+    let evaluations = 0;
     let fa = fn(a);
+    evaluations++;
     let fb = fn(b);
+    evaluations++;
 
-    if (fa === 0) return a;
-    if (fb === 0) return b;
+    if (fa === 0) return { method: 'bisection', evaluations, x: a, fx: fa };
+    if (fb === 0) return { method: 'bisection', evaluations, x: b, fx: fb };
 
     if (Math.sign(fa) === Math.sign(fb)) {
         throw new Error(
@@ -53,13 +57,15 @@ export function bisection(
     }
 
     let mid = (a + b) / 2;
+    let fmid = fa;
 
     for (let k = 0; k < maxIter; k++) {
         mid = (a + b) / 2;
-        const fmid = fn(mid);
+        fmid = fn(mid);
+        evaluations++;
 
         if (fmid === 0 || (b - a) / 2 < tolX) {
-            return mid;
+            return { method: 'bisection', evaluations, x: mid, fx: fmid };
         }
 
         if (Math.sign(fmid) === Math.sign(fa)) {
@@ -73,5 +79,5 @@ export function bisection(
     console.warn(
         `bisection: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
     );
-    return mid;
+    return { method: 'bisection', evaluations, x: mid, fx: fmid };
 }

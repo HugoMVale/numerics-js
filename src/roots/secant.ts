@@ -1,4 +1,5 @@
 import type { ScalarFunction } from '../types.js';
+import type { RootResult } from './types.js';
 
 /**
  * Finds a root of fn using the secant method, starting from two initial guesses.
@@ -13,7 +14,7 @@ import type { ScalarFunction } from '../types.js';
  * @param x1 Second initial guess (should differ from x0).
  * @param tolX Stop when |x1 - x0| (the step size) is below this.
  * @param maxIter Maximum number of iterations.
- * @returns Approximate root.
+ * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
  *
  * @example
@@ -22,8 +23,8 @@ import type { ScalarFunction } from '../types.js';
  * function f1(x: number): number {
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
  * }
- * const root = secant(f1, 0, 1);
- * console.log(`x = ${root.toFixed(3)}`);
+ * const result = secant(f1, 0, 1);
+ * console.log(`x = ${result.x.toFixed(3)}`);
  * ```
  *
  * Output:
@@ -37,16 +38,19 @@ export function secant(
     x1: number,
     tolX: number = 1e-8,
     maxIter: number = 100
-): number {
+): RootResult {
     if (x0 === x1) {
         throw new Error('secant: x0 and x1 must be different');
     }
 
+    let evaluations = 0;
     let f0 = fn(x0);
+    evaluations++;
     let f1 = fn(x1);
+    evaluations++;
 
-    if (f0 === 0) return x0;
-    if (f1 === 0) return x1;
+    if (f0 === 0) return { method: 'secant', evaluations, x: x0, fx: f0 };
+    if (f1 === 0) return { method: 'secant', evaluations, x: x1, fx: f1 };
 
     for (let k = 0; k < maxIter; k++) {
         const denom = f1 - f0;
@@ -60,21 +64,24 @@ export function secant(
         const x2 = x1 - (f1 * (x1 - x0)) / denom;
 
         if (Math.abs(x2 - x1) < tolX) {
-            return x2;
+            const fx2 = fn(x2);
+            evaluations++;
+            return { method: 'secant', evaluations, x: x2, fx: fx2 };
         }
 
         x0 = x1;
         f0 = f1;
         x1 = x2;
         f1 = fn(x1);
+        evaluations++;
 
         if (f1 === 0) {
-            return x1;
+            return { method: 'secant', evaluations, x: x1, fx: f1 };
         }
     }
 
     console.warn(
         `secant: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
     );
-    return x1;
+    return { method: 'secant', evaluations, x: x1, fx: f1 };
 }

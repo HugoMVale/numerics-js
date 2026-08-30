@@ -27,6 +27,7 @@ import { array, integrate, interpolate, misc, ode, optimize, roots, special } fr
 const vector = new array.Array1D([1, 2, 3]);
 const root = roots.bisection((x) => x * x - 2, 1, 2);
 const solution = ode.rungeKuttaFixed('rk4', /* ... */);
+console.log(root.x);
 const value = special.bessel.J(0, 1.5);
 ```
 
@@ -105,10 +106,15 @@ endpoint values have opposite signs. Brent's method combines bisection,
 secant, and inverse quadratic interpolation. `secant` starts from two guesses
 and does not require a bracket; it can fail to converge for some functions.
 
+All three return a `RootResult`: `{ method, evaluations, x, fx }`, giving the
+approximate root, the function value there, the method name, and the number of
+function evaluations used.
+
 ```ts
 const root = bisection((x) => x * x - 2, 1, 2);
 const robustRoot = brent((x) => Math.cos(x) - x, 0, 1);
 const otherRoot = secant((x) => Math.cos(x) - x, 0, 1);
+console.log(root.x, root.fx, root.evaluations);
 ```
 
 All root finders accept optional tolerances and an iteration limit. `bisection`
