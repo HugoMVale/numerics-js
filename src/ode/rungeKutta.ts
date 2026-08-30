@@ -1,8 +1,8 @@
 import { Array1D } from '../array/array1d';
 import { Array2D } from '../array/array2d';
-import type { DerivativeFunction, OdeResult } from './types';
+import type { DerivativeFunction, OdeResult, RungeKuttaMethod } from './types';
 
-export type RungeKuttaMethod = 'euler' | 'midpoint' | 'trapezoid' | 'rk4';
+export type { RungeKuttaMethod } from './types';
 
 /**
  * Reusable intermediate vectors for a Runge-Kutta integration step.
@@ -151,7 +151,8 @@ export function rungeKuttaStep(
  * negative to integrate backward).
  * @returns An {@link OdeResult}: `t`, the recorded time points (length `n`), and
  * `y`, an `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
- * always `y0` and the last row is always the state at `tEnd`.
+ * always `y0` and the last row is always the state at `tEnd`. `method` echoes the
+ * `method` argument.
  * @throws {RangeError} If `h` is `0`, if the sign of `h` doesn't match the direction
  * from `t0` to `tEnd`, if `y0` has dimension `0`, or if `method` is not one of the
  * recognized `RungeKuttaMethod` values.
@@ -168,7 +169,8 @@ export function rungeKuttaStep(
  * ```text
  * {
  *   t: Array1D [ 0, 0.25, 0.5, 0.75, 1 ],
- *   y: Array2D [[1], [0.7788085937500001], [0.6065428256988528], [0.472380765131675], [0.36789419940674883]]
+ *   y: Array2D [[1], [0.7788085937500001], [0.6065428256988528], [0.472380765131675], [0.36789419940674883]],
+ *   method: 'rk4'
  * }
  * ```
  */
@@ -224,5 +226,5 @@ export function rungeKuttaFixed(
         yMat.setRow(nRecorded, next.data);
     }
 
-    return { t: tVec, y: yMat };
+    return { t: tVec, y: yMat, method };
 }

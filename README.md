@@ -185,8 +185,9 @@ const adaptive = dormandPrince45(
 );
 ```
 
-Both integration functions return `{ t: Array1D, y: Array2D }`, where `t`
-contains recorded times and row `i` of `y` contains the corresponding state.
+Both integration functions return `{ t: Array1D, y: Array2D, method }`, where `t`
+contains recorded times, row `i` of `y` contains the corresponding state, and
+`method` identifies the solver that produced the result.
 For allocating derivative functions with the simpler `(t, y) => Array1D`
 signature, use `wrapAllocatingDerivative`; the direct callback form avoids
 per-stage allocations in solver loops.

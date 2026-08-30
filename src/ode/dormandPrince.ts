@@ -337,7 +337,7 @@ function estimateInitialStep(
  * @param maxScale Largest allowed per-step growth factor. Default: `10`.
  * @returns An {@link OdeResult}: `t`, the recorded (accepted-step) time points, and
  * `y`, a matrix whose row `i` is the state at `t.get(i)`. Row 0 is always `y0` and
- * the last row is always the state at `tEnd`.
+ * the last row is always the state at `tEnd`. `method` is always `'dp54'`.
  * @throws {RangeError} If `y0` has dimension `0`, or if any option is out of its
  * valid range (e.g. negative tolerances, `hMin > hMax`, `minScale > maxScale`,
  * non-positive `maxSteps`, or a `safety` factor outside `(0, 1]`).
@@ -357,7 +357,8 @@ function estimateInitialStep(
  * ```text
  * {
  *   t: Array1D [ 0, 0.14680437989650819, 1 ],
- *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]]
+ *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]],
+ *   method: 'dp54'
  * }
  * ```
  * (Default tolerances accept the whole interval in a single adaptive step
@@ -419,7 +420,7 @@ export function dormandPrince45(
         tVec.data[0] = t0;
         const yMat = new Array2D(1, dim);
         yMat.setRow(0, y0.data);
-        return { t: tVec, y: yMat };
+        return { t: tVec, y: yMat, method: 'dp54' };
     }
 
     const dir = Math.sign(tEnd - t0) as 1 | -1;
@@ -493,5 +494,5 @@ export function dormandPrince45(
         yMat.setRow(i, yBuf[i]);
     }
 
-    return { t: tVec, y: yMat };
+    return { t: tVec, y: yMat, method: 'dp54' };
 }

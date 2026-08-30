@@ -27,7 +27,8 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types';
  * ```text
  * {
  *   t: Array1D [ 0, 0.14680437989650819, 1 ],
- *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]]
+ *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]],
+ *   method: 'dp54'
  * }
  * ```
  */
