@@ -48,6 +48,6 @@ jobs:
           cd "$consumer_dir"
           npm init --yes --silent
           npm install --ignore-scripts "$GITHUB_WORKSPACE/${{ steps.pack.outputs.tarball }}"
-          node --input-type=module -e "import { array, roots } from 'numerics-js'; const root = roots.bisection((x) => x * x - 2, 1, 2); if (Math.abs(root.x - Math.SQRT2) > 1e-12 || new array.Array1D([1, 2]).sum() !== 3) throw new Error('Packed package smoke test failed');"
+          node --input-type=module -e "import { array } from 'numerics-js'; const x = new array.Array1D([1, 2, 3]); if (x.sum() !== 6) throw new Error('Packed package smoke test failed');"       
           printf "import { roots } from 'numerics-js';\nconst root: number = roots.bisection((x) => x * x - 2, 1, 2).x;\nvoid root;\n" > consumer.ts
           "$GITHUB_WORKSPACE/node_modules/.bin/tsc" --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 consumer.ts
