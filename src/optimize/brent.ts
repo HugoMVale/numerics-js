@@ -13,7 +13,7 @@ export interface BrentResult {
     message: string;
     /** Number of function evaluations performed. */
     functionEvaluations: number;
-    /** Number of iterations performed. */
+    /** Best point found. */
     x: number;
     /** Function value at `x`. */
     fx: number;
