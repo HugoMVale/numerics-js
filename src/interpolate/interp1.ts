@@ -244,6 +244,25 @@ export class LinearInterpolator {
 }
 
 /**
+ * Options controlling out-of-range clamping and input validation for `interp`.
+ */
+export interface InterpOptions {
+    /** Value to return for `x < xp[0]`. Defaults to `fp[0]`. */
+    left?: number;
+    /** Value to return for `x > xp[xp.length - 1]`. Defaults to `fp[fp.length - 1]`. */
+    right?: number;
+    /**
+     * Whether to verify that `xp` is monotonically increasing before
+     * interpolating. Defaults to `true`. This check is `O(xp.size)`; pass
+     * `false` to skip it (e.g. in a hot loop where `xp` is reused and
+     * already known to be sorted). If `false` and `xp` is not actually
+     * sorted, results are unspecified, matching `numpy.interp`, which
+     * performs no such check at all.
+     */
+    checkSorted?: boolean;
+}
+
+/**
  * One-dimensional linear interpolation.
  *
  * The algorithm is similar to, and inspired by, `numpy.interp`.
@@ -251,7 +270,7 @@ export class LinearInterpolator {
  * Given the discrete data points `(xp[i], fp[i])`, with `xp` increasing,
  * returns the linearly interpolated value(s) at `x`. For `x` outside the
  * range of `xp`, the result is clamped to the boundary value of `fp`
- * unless `left`/`right` are given.
+ * unless `options.left`/`options.right` are given.
  *
  * A one-shot convenience function. If you need to evaluate the same
  * `(xp, fp)` pair more than once, construct a `LinearInterpolator` directly to
@@ -264,19 +283,11 @@ export class LinearInterpolator {
  * increasing (duplicates allowed) and non-empty.
  * @param fp The y-coordinates of the data points. Must have the same
  * length as `xp`.
- * @param left Value to return for `x < xp[0]`. Defaults to `fp[0]`.
- * @param right Value to return for `x > xp[xp.length - 1]`. Defaults to
- * `fp[fp.length - 1]`.
- * @param checkSorted Whether to verify that `xp` is monotonically
- * increasing before interpolating. Defaults to `true`. This check is
- * `O(xp.size)`; pass `false` to skip it (e.g. in a hot loop where `xp` is
- * reused and already known to be sorted). If `false` and `xp` is not
- * actually sorted, results are unspecified, matching `numpy.interp`, which
- * performs no such check at all.
+ * @param options Optional settings; see `InterpOptions`.
  * @returns The interpolated value(s), matching the shape of `x`.
  * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
- * lengths, or (when `checkSorted` is `true`) if `xp` is not monotonically
- * increasing.
+ * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
+ * monotonically increasing.
  *
  * @example
  * ```ts
@@ -284,32 +295,28 @@ export class LinearInterpolator {
  * const fp = [3, 2, 0];
  * interp(2.5, xp, fp); // 1
  * interp([0, 1, 1.5, 2.72, 3.14], xp, fp); // Array1D(3, 3, 2.5, 0.56, 0)
+ * interp(0, xp, fp, { left: -1 }); // -1
  * ```
  */
 export function interp(
     x: number,
     xp: number[] | Array1D,
     fp: number[] | Array1D,
-    left?: number,
-    right?: number,
-    checkSorted?: boolean
+    options?: InterpOptions
 ): number;
 export function interp(
     x: number[] | Array1D,
     xp: number[] | Array1D,
     fp: number[] | Array1D,
-    left?: number,
-    right?: number,
-    checkSorted?: boolean
+    options?: InterpOptions
 ): Array1D;
 export function interp(
     x: number | number[] | Array1D,
     xp: number[] | Array1D,
     fp: number[] | Array1D,
-    left?: number,
-    right?: number,
-    checkSorted: boolean = true
+    options: InterpOptions = {}
 ): number | Array1D {
+    const { left, right, checkSorted = true } = options;
     const { xp: xpv, fp: fpv, leftVal, rightVal } = prepareInterp(xp, fp, left, right, checkSorted, 'interp');
 
     if (typeof x === 'number') {

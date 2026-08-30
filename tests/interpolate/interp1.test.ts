@@ -38,11 +38,11 @@ describe('interp', () => {
         });
 
         it('uses a custom left value below the range', () => {
-            expect(interp(0, xp, fp, -1)).toBe(-1);
+            expect(interp(0, xp, fp, { left: -1 })).toBe(-1);
         });
 
         it('uses a custom right value above the range', () => {
-            expect(interp(4, xp, fp, undefined, 99)).toBe(99);
+            expect(interp(4, xp, fp, { right: 99 })).toBe(99);
         });
 
         it('propagates NaN', () => {
@@ -108,8 +108,8 @@ describe('interp', () => {
         it('skips the sortedness check when checkSorted is false', () => {
             // xp is not actually sorted; result is unspecified, but it must
             // not throw and must still return a number.
-            expect(() => interp(1, [3, 2, 1], [1, 2, 3], undefined, undefined, false)).not.toThrow();
-            expect(typeof interp(1, [3, 2, 1], [1, 2, 3], undefined, undefined, false)).toBe('number');
+            expect(() => interp(1, [3, 2, 1], [1, 2, 3], { checkSorted: false })).not.toThrow();
+            expect(typeof interp(1, [3, 2, 1], [1, 2, 3], { checkSorted: false })).toBe('number');
         });
     });
 });
