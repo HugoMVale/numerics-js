@@ -66,7 +66,7 @@ describe('fminNelderMead — options and edge cases', () => {
             5
         );
         expect(res.success).toBe(false);
-        expect(res.functionEvaluations).toBeGreaterThanOrEqual(5);
+        expect(res.evaluations).toBeGreaterThanOrEqual(5);
         expect(res.message).toMatch(/maximum number of function evaluations/i);
     });
 
