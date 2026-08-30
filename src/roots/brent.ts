@@ -1,6 +1,6 @@
 import type { ScalarFunction } from '../types';
 import { copysign } from '../misc';
-import type { RootResult } from './types';
+import type { BrentOptions, RootResult } from './types';
 
 /**
  * Finds a root of fn using Brent's method, given a bracketing interval.
@@ -16,9 +16,10 @@ import type { RootResult } from './types';
  * @param fn Function to find a root of.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
- * @param tolX Stop when the bracket half-width is below this (absolute x tolerance).
- * @param tolF Stop when |fn(x)| is below this (absolute function-value tolerance).
- * @param maxIter Maximum number of iterations.
+ * @param options Tuning options.
+ * @param options.tolX Stop when the bracket half-width is below this (absolute x tolerance). Defaults to `1e-8`.
+ * @param options.tolF Stop when |fn(x)| is below this (absolute function-value tolerance). Defaults to `1e-8`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `100`.
  * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If fn(xa) and fn(xb) do not have opposite signs.
  *
@@ -41,15 +42,21 @@ import type { RootResult } from './types';
  *   fx: 5.475264686083392e-11
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * // Overriding a single option; unspecified options keep their defaults.
+ * const result = brent(f1, 0, 1, { maxIter: 200 });
+ * ```
  */
 export function brent(
     fn: ScalarFunction,
     xa: number,
     xb: number,
-    tolX: number = 1e-8,
-    tolF: number = 1e-8,
-    maxIter: number = 100
+    options: BrentOptions = {}
 ): RootResult {
+    const { tolX = 1e-8, tolF = 1e-8, maxIter = 100 } = options;
+
     const eps = Number.EPSILON;
 
     let evaluations = 0;

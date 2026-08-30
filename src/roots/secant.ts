@@ -1,5 +1,5 @@
 import type { ScalarFunction } from '../types.js';
-import type { RootResult } from './types.js';
+import type { RootResult, SecantOptions } from './types.js';
 
 /**
  * Finds a root of fn using the secant method, starting from two initial guesses.
@@ -12,8 +12,9 @@ import type { RootResult } from './types.js';
  * @param fn Function to find a root of.
  * @param x0 First initial guess.
  * @param x1 Second initial guess (should differ from x0).
- * @param tolX Stop when |x1 - x0| (the step size) is below this.
- * @param maxIter Maximum number of iterations.
+ * @param options Tuning options.
+ * @param options.tolX Stop when |x1 - x0| (the step size) is below this. Defaults to `1e-8`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `100`.
  * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
  *
@@ -36,14 +37,21 @@ import type { RootResult } from './types.js';
  *   fx: -2.220446049250313e-16
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * // Overriding a single option; unspecified options keep their defaults.
+ * const result = secant(f1, 0, 1, { maxIter: 200 });
+ * ```
  */
 export function secant(
     fn: ScalarFunction,
     x0: number,
     x1: number,
-    tolX: number = 1e-8,
-    maxIter: number = 100
+    options: SecantOptions = {}
 ): RootResult {
+    const { tolX = 1e-8, maxIter = 100 } = options;
+
     if (x0 === x1) {
         throw new Error('secant: x0 and x1 must be different');
     }

@@ -1,5 +1,5 @@
 import type { ScalarFunction } from '../types.js';
-import type { RootResult } from './types.js';
+import type { BisectionOptions, RootResult } from './types.js';
 
 /**
  * Finds a root of fn in the interval [a, b] using the bisection method.
@@ -7,8 +7,9 @@ import type { RootResult } from './types.js';
  * @param fn Continuous function to find a root of.
  * @param a Left endpoint of the bracketing interval.
  * @param b Right endpoint of the bracketing interval.
- * @param tolX Stop when the interval half-width is below this.
- * @param maxIter Maximum number of iterations.
+ * @param options Tuning options.
+ * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `100`.
  * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
  *
@@ -31,14 +32,21 @@ import type { RootResult } from './types.js';
  *   fx: -7.824495273922594e-9
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * // Overriding a single option; unspecified options keep their defaults.
+ * const result = bisection(f1, 0, 1, { maxIter: 200 });
+ * ```
  */
 export function bisection(
     fn: ScalarFunction,
     a: number,
     b: number,
-    tolX: number = 1e-8,
-    maxIter: number = 100
+    options: BisectionOptions = {}
 ): RootResult {
+    const { tolX = 1e-8, maxIter = 100 } = options;
+
     if (a === b) {
         throw new Error('bisection: a and b must be different');
     }

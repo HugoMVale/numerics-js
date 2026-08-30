@@ -49,7 +49,7 @@ describe('bisection', () => {
     it('should warn and return mid if maxIter is reached without convergence', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         // Only allow 2 iterations, which won't be enough to reach the default 1e-8 tolerance
-        const result = bisection(f, 0, 5, 1e-8, 2);
+        const result = bisection(f, 0, 5, { maxIter: 2 });
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('bisection: reached maxIter (2) without converging')
@@ -98,7 +98,7 @@ describe('secant', () => {
     it('should warn and return the last estimate if maxIter is reached', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         // Only allow 1 iteration
-        const result = secant(f, 0, 5, 1e-8, 1);
+        const result = secant(f, 0, 5, { maxIter: 1 });
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('secant: reached maxIter (1) without converging')
@@ -148,7 +148,7 @@ describe('brent', () => {
     it('should warn and return the last estimate if maxIter is reached', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         // Only allow 1 iteration, which won't be enough to reach the default tolerances
-        const result = brent(f, 0, 5, 1e-8, 1e-8, 1);
+        const result = brent(f, 0, 5, { maxIter: 1 });
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('brent: reached maxIter (1) without converging')
@@ -160,7 +160,7 @@ describe('brent', () => {
     it('should converge early when |f(x)| is within tolF', () => {
         // A wide bracket but a loose function-value tolerance should let the
         // function-value stop criterion trigger before the x-tolerance would.
-        const result = brent(f, 0, 5, 1e-15, 1e-1);
+        const result = brent(f, 0, 5, { tolX: 1e-15, tolF: 1e-1 });
         expect(f(result.x)).toBeLessThanOrEqual(1e-1);
     });
 });
