@@ -1,5 +1,6 @@
 /**
  * A 3-component vector, used for positions, directions, velocities, etc.
+ *
  * All operations that produce a new vector are non-mutating (they return
  * a new Vec3 instance rather than modifying `this`).
  */
