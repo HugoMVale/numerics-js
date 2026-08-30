@@ -243,6 +243,43 @@ function estimateInitialStep(
 }
 
 /**
+ * Optional tuning parameters for {@link rungeKuttaAdaptive}.
+ */
+export interface RungeKuttaAdaptiveOptions {
+    /** Absolute error tolerance per state component. Defaults to `1e-6`. */
+    atol?: number;
+    /** Relative error tolerance per state component. Defaults to `1e-3`. */
+    rtol?: number;
+    /**
+     * Optional initial step-size magnitude. Its sign is ignored because the
+     * integration direction follows `tEnd - t0`. Estimated automatically when
+     * omitted.
+     */
+    h0?: number;
+    /** Maximum permitted step-size magnitude. Defaults to `Infinity`. */
+    hMax?: number;
+    /**
+     * Minimum permitted step-size magnitude after a rejected step. Defaults
+     * to `1e-12`.
+     */
+    hMin?: number;
+    /**
+     * Maximum number of attempted steps, including rejected steps. Defaults
+     * to `1e5`.
+     */
+    maxSteps?: number;
+    /**
+     * Safety factor applied when scaling a step after error estimation. Must
+     * be in `(0, 1]`; defaults to `0.9`.
+     */
+    safety?: number;
+    /** Smallest allowed multiplier for the next step size. Defaults to `0.2`. */
+    minScale?: number;
+    /** Largest allowed multiplier for the next step size. Defaults to `10`. */
+    maxScale?: number;
+}
+
+/**
  * Integrates `dy/dt = f(t, y)` from `t0` to `tEnd` using adaptive step size control.
  *
  * Uses Bogacki-Shampine 3(2) (`'rk23'`) or Dormand-Prince 5(4) (`'rk45'`) with
@@ -260,21 +297,7 @@ function estimateInitialStep(
  * backward; the solver selects the required direction automatically.
  * @param y0 Initial state at `t0`. It must have at least one component and is
  * copied internally, so it is never mutated.
- * @param atol Absolute error tolerance per state component. Defaults to `1e-6`.
- * @param rtol Relative error tolerance per state component. Defaults to `1e-3`.
- * @param h0 Optional initial step-size magnitude. Its sign is ignored because
- * the integration direction follows `tEnd - t0`.
- * @param hMax Maximum permitted step-size magnitude. Defaults to `Infinity`.
- * @param hMin Minimum permitted step-size magnitude after a rejected step.
- * Defaults to `1e-12`.
- * @param maxSteps Maximum number of attempted steps, including rejected steps.
- * Defaults to `1e5`.
- * @param safety Safety factor applied when scaling a step after error
- * estimation. Must be in `(0, 1]`; defaults to `0.9`.
- * @param minScale Smallest allowed multiplier for the next step size. Defaults
- * to `0.2`.
- * @param maxScale Largest allowed multiplier for the next step size. Defaults
- * to `10`.
+ * @param options Optional tuning parameters; see {@link RungeKuttaAdaptiveOptions}.
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
  * `y0`, the last row is at `tEnd`, `evaluations` is the number of calls to `f`,
@@ -305,6 +328,16 @@ function estimateInitialStep(
  *   method: 'rk45'
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * // Same integration, with explicit tolerances and an initial step size.
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Array1D([1]), {
+ *     atol: 1e-8,
+ *     rtol: 1e-8,
+ *     h0: 0.01,
+ * });
+ * ```
  */
 export function rungeKuttaAdaptive(
     method: RungeKuttaAdaptiveMethod,
@@ -312,16 +345,19 @@ export function rungeKuttaAdaptive(
     t0: number,
     tEnd: number,
     y0: Array1D,
-    atol: number = 1e-6,
-    rtol: number = 1e-3,
-    h0?: number,
-    hMax: number = Infinity,
-    hMin: number = 1e-12,
-    maxSteps: number = 1e5,
-    safety: number = 0.9,
-    minScale: number = 0.2,
-    maxScale: number = 10
+    options: RungeKuttaAdaptiveOptions = {}
 ): OdeResult {
+    const {
+        atol = 1e-6,
+        rtol = 1e-3,
+        h0,
+        hMax = Infinity,
+        hMin = 1e-12,
+        maxSteps = 1e5,
+        safety = 0.9,
+        minScale = 0.2,
+        maxScale = 10,
+    } = options;
     const dim = y0.size;
     if (dim <= 0) throw new RangeError(`rungeKuttaAdaptive: y0 must have at least one component, got dimension ${dim}.`);
     if (atol < 0 || rtol < 0) throw new RangeError(`rungeKuttaAdaptive: atol (${atol}) and rtol (${rtol}) must be non-negative.`);

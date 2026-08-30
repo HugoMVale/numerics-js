@@ -22,7 +22,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
     it.each(methods)('(%s) accepts an explicit initial step size h0', (method) => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
         const y0 = new Array1D([1]);
-        const result = rungeKuttaAdaptive(method, f, 0, 1, y0, 1e-8, 1e-8, 0.01);
+        const result = rungeKuttaAdaptive(method, f, 0, 1, y0, { atol: 1e-8, rtol: 1e-8, h0: 0.01 });
 
         const finalY = result.y.row(result.y.rows - 1).data[0];
         expect(finalY).toBeCloseTo(Math.exp(-1), 6);
@@ -35,7 +35,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
             out.data[0] = -y.data[0];
             return out;
         };
-        const result = rungeKuttaAdaptive(method, f, 0, 1, new Array1D([1]), 1e-8, 1e-8, 0.01);
+        const result = rungeKuttaAdaptive(method, f, 0, 1, new Array1D([1]), { atol: 1e-8, rtol: 1e-8, h0: 0.01 });
 
         expect(result.evaluations).toBe(calls);
         expect(result.evaluations).toBeGreaterThan(0);
@@ -59,7 +59,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
             return out;
         };
         const y0 = new Array1D([0.01]);
-        const result = rungeKuttaAdaptive(method, f, 0, 1, y0, 1e-8, 1e-8, 0.5);
+        const result = rungeKuttaAdaptive(method, f, 0, 1, y0, { atol: 1e-8, rtol: 1e-8, h0: 0.5 });
 
         // Reference solution via the closed-form logistic curve.
         const exact = 1 / (1 + (1 / 0.01 - 1) * Math.exp(-10));
@@ -79,7 +79,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
         };
         const y0 = new Array1D([1]);
 
-        expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-14, 1e-14, undefined, Infinity, 1e-9))
+        expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-14, rtol: 1e-14, hMin: 1e-9 }))
             .toThrowError(/underflowed below hMin/);
     });
 
@@ -88,32 +88,32 @@ describe('rungeKuttaAdaptive additional coverage', () => {
         const y0 = new Array1D([1]);
 
         it('rejects h0 = 0', () => {
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, 0)).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, h0: 0 })).toThrow(RangeError);
         });
 
         it('rejects non-positive hMin', () => {
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, undefined, Infinity, 0)).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, hMin: 0 })).toThrow(RangeError);
         });
 
         it('rejects non-positive hMax', () => {
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, undefined, -1)).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, hMax: -1 })).toThrow(RangeError);
         });
 
         it('rejects hMin > hMax', () => {
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, undefined, 1, 2)).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, hMax: 1, hMin: 2 })).toThrow(RangeError);
         });
 
         it('rejects non-positive maxSteps', () => {
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, undefined, Infinity, 1e-12, 0)).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, maxSteps: 0 })).toThrow(RangeError);
         });
 
         it('rejects safety outside (0, 1]', () => {
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, undefined, Infinity, 1e-12, 1e5, 1.5)).toThrow(RangeError);
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, undefined, Infinity, 1e-12, 1e5, 0)).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, safety: 1.5 })).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, safety: 0 })).toThrow(RangeError);
         });
 
         it('rejects minScale > maxScale', () => {
-            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, 1e-6, 1e-6, undefined, Infinity, 1e-12, 1e5, 0.9, 5, 2)).toThrow(RangeError);
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, minScale: 5, maxScale: 2 })).toThrow(RangeError);
         });
     });
 
@@ -139,7 +139,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
     it.each(methods)('(%s) produces a monotonically increasing t for forward integration', (method) => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
         const y0 = new Array1D([1]);
-        const result = rungeKuttaAdaptive(method, f, 0, 5, y0, 1e-6, 1e-6);
+        const result = rungeKuttaAdaptive(method, f, 0, 5, y0, { atol: 1e-6, rtol: 1e-6 });
 
         for (let i = 1; i < result.t.size; i++) {
             expect(result.t.data[i]).toBeGreaterThan(result.t.data[i - 1]);
