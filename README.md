@@ -70,10 +70,10 @@ components are accessed through its `x`, `y`, and `z` properties.
 
 ### Integration
 
-`trapezoid` and `simpson` integrate sampled `Array1D` values. They accept
-optional `Array1D` sample locations for non-uniform spacing, or a uniform `dx`
-spacing that defaults to `1`. `gaussKronrod` integrates a scalar function over
-an interval with adaptive 7-15 Gauss-Kronrod quadrature and returns
+`trapezoid` and `simpson` integrate sampled `Array1D` values. They accept optional `Array1D` sample locations for non-uniform spacing, or a uniform `dx`
+spacing that defaults to `1`.
+
+`gaussKronrod` integrates a scalar function over an interval with adaptive 7-15 Gauss-Kronrod quadrature and returns
 `{ value, error, evaluations, converged, subintervals }`.
 
 ```ts
