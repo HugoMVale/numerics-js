@@ -149,7 +149,7 @@ export const bessel: BesselUtility = {
             if (sign !== 0) {
                 if (sign !== lastSign) {
                     rootsFound++;
-                    cache[rootsFound] = brent(fn, x - step, x);
+                    cache[rootsFound] = brent(fn, x - step, x).x;
                 }
                 lastSign = sign;
             }
