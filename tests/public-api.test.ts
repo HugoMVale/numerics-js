@@ -22,7 +22,7 @@ describe('public API', () => {
         expect(typeof roots.brent).toBe('function');
         expect(typeof roots.secant).toBe('function');
         expect(typeof ode.rungeKuttaFixed).toBe('function');
-        expect(typeof ode.dormandPrince45).toBe('function');
+        expect(typeof ode.rungeKuttaAdaptive).toBe('function');
         expect(typeof ode.createVelocityVerlet).toBe('function');
         expect(typeof ode.wrapAllocatingDerivative).toBe('function');
         expect(typeof optimize.brent).toBe('function');

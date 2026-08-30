@@ -7,11 +7,14 @@ export type DerivativeFunction = (t: number, y: Array1D, dydt: Array1D) => Array
 /** Derivative function that returns a newly allocated result. */
 export type AllocatingDerivativeFunction = (t: number, y: Array1D) => Array1D;
 
-/** Fixed-step Runge-Kutta scheme used by `rungeKuttaFixed`/`rungeKuttaStep`. */
-export type RungeKuttaMethod = 'euler' | 'midpoint' | 'trapezoid' | 'rk4';
+/** Fixed-step Runge-Kutta scheme used by `rungeKuttaFixed`. */
+export type RungeKuttaFixedMethod = 'euler' | 'midpoint' | 'trapezoid' | 'rk4';
+
+/** Fixed-step Runge-Kutta scheme used by `rungeKuttaAdaptive`. */
+export type RungeKuttaAdaptiveMethod = 'rk45' | 'rk23';
 
 /** Identifies which ODE solver produced an {@link OdeResult}. */
-export type OdeMethod = RungeKuttaMethod | 'dp54';
+export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod;
 
 /** Result of integrating an ODE over a span of time. */
 export interface OdeResult {
