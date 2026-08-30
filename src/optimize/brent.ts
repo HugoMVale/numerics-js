@@ -44,7 +44,6 @@ export interface BrentResult {
  * Output:
  * ```text
  * {
- *   method: 'Brent',
  *   success: true,
  *   message: '|dx| <= tolX',
  *   evaluations: 19,
