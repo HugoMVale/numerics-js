@@ -111,6 +111,7 @@ export function gaussKronrod15(
  * The algorithm is similar to, and inspired by, `scipy.integrate.quad`
  * (QUADPACK's globally adaptive QAGS): both repeatedly bisect the subinterval
  * with the largest estimated error until the total error estimate meets `tol`.
+ *
  * Results are validated against `scipy.integrate.quad` (see
  * `tests/integrate/gaussKronrod.scipy.test.ts`); at the default `tol` and for
  * integrands without singularities, `evaluations` is within a factor of 1.5 of
