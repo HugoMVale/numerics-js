@@ -1,6 +1,7 @@
 export { rungeKuttaFixed } from './ode/rungeKuttaFixed.js';
 
 export { rungeKuttaAdaptive } from './ode/rungeKuttaAdaptive.js';
+export type { RungeKuttaAdaptiveOptions } from './ode/rungeKuttaAdaptive.js';
 
 export { wrapAllocatingDerivative } from './ode/adapters.js';
 
