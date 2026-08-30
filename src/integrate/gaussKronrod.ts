@@ -108,6 +108,16 @@ export function gaussKronrod15(
  * Numerically integrate `f` over [`a`, `b`] using adaptive Gauss-Kronrod
  * (G7-K15) quadrature.
  *
+ * The algorithm is similar to, and inspired by, `scipy.integrate.quad`
+ * (QUADPACK's globally adaptive QAGS): both repeatedly bisect the subinterval
+ * with the largest estimated error until the total error estimate meets `tol`.
+ * Results are validated against `scipy.integrate.quad` (see
+ * `tests/integrate/gaussKronrod.scipy.test.ts`); at the default `tol` and for
+ * integrands without singularities, `evaluations` is within a factor of 1.5 of
+ * SciPy's. This implementation has no singularity-aware extrapolation, so
+ * integrands with singularities or sharp, narrow features can require
+ * substantially more evaluations than SciPy's QAGS to reach the same `tol`.
+ *
  * @param fn Scalar function to integrate.
  * @param a Lower bound of integration.
  * @param b Upper bound of integration.

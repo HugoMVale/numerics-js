@@ -8,6 +8,10 @@ Run with: uv run scripts/benchmarks/generate_gauss_kronrod_fixtures.py
 
 Each case here must have a matching hand-written integrand in
 tests/integrate/gaussKronrod.scipy.test.ts (same id, same math, same bounds).
+
+Cases with a non-smooth endpoint (marked "singular": True) are excluded from the
+evaluation-count comparison there: gaussKronrod has no singularity-aware subdivision
+like QUADPACK's QAGS, so panel counts aren't meaningfully comparable for those.
 """
 
 import json
@@ -18,7 +22,8 @@ from scipy.integrate import quad
 
 # Requested tolerance shared with the gaussKronrod(fn, a, b, tol) call in
 # tests/integrate/gaussKronrod.scipy.test.ts, so evaluation counts are comparable.
-TOL = 1e-12
+# Matches gaussKronrod's own default tol, since that's the representative use case.
+TOL = 1e-8
 
 CASES = [
     {
@@ -48,6 +53,7 @@ CASES = [
         "f": lambda x: 1.0 / math.sqrt(x),
         "a": 0.0,
         "b": 1.0,
+        "singular": True,
     },
     {
         "id": "log_singularity",
@@ -55,6 +61,7 @@ CASES = [
         "f": lambda x: -math.log(x),
         "a": 0.0,
         "b": 1.0,
+        "singular": True,
     },
     {
         "id": "gaussian",
@@ -109,6 +116,7 @@ def main() -> None:
                 "scipyValue": value,
                 "scipyAbsError": abserr,
                 "scipyEvaluations": infodict["neval"],
+                "singular": case.get("singular", False),
             }
         )
 

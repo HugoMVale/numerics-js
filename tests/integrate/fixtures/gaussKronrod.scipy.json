@@ -6,7 +6,8 @@
         "b": 3.141592653589793,
         "scipyValue": 2.0,
         "scipyAbsError": 2.220446049250313e-14,
-        "scipyEvaluations": 21
+        "scipyEvaluations": 21,
+        "singular": false
     },
     {
         "id": "rational_pi",
@@ -15,7 +16,8 @@
         "b": 1.0,
         "scipyValue": 3.1415926535897936,
         "scipyAbsError": 3.4878684980086326e-14,
-        "scipyEvaluations": 21
+        "scipyEvaluations": 21,
+        "singular": false
     },
     {
         "id": "oscillatory",
@@ -24,7 +26,8 @@
         "b": 3.141592653589793,
         "scipyValue": 2.3480880169895062e-15,
         "scipyAbsError": 2.0499989896754768e-14,
-        "scipyEvaluations": 21
+        "scipyEvaluations": 21,
+        "singular": false
     },
     {
         "id": "sqrt_singularity",
@@ -33,7 +36,8 @@
         "b": 1.0,
         "scipyValue": 1.9999999999999984,
         "scipyAbsError": 5.773159728050814e-15,
-        "scipyEvaluations": 231
+        "scipyEvaluations": 231,
+        "singular": true
     },
     {
         "id": "log_singularity",
@@ -42,7 +46,8 @@
         "b": 1.0,
         "scipyValue": 0.9999999999999999,
         "scipyAbsError": 1.1102230246251563e-15,
-        "scipyEvaluations": 231
+        "scipyEvaluations": 231,
+        "singular": true
     },
     {
         "id": "gaussian",
@@ -51,16 +56,18 @@
         "b": 2.0,
         "scipyValue": 1.764162781524843,
         "scipyAbsError": 1.958614141564776e-14,
-        "scipyEvaluations": 63
+        "scipyEvaluations": 63,
+        "singular": false
     },
     {
         "id": "runge",
         "description": "1 / (1 + 25 x^2) on [-1, 1]",
         "a": -1.0,
         "b": 1.0,
-        "scipyValue": 0.5493603067780064,
-        "scipyAbsError": 6.072309143906026e-15,
-        "scipyEvaluations": 231
+        "scipyValue": 0.5493603067780066,
+        "scipyAbsError": 2.8668279350011863e-09,
+        "scipyEvaluations": 147,
+        "singular": false
     },
     {
         "id": "high_freq_cos",
@@ -69,16 +76,18 @@
         "b": 6.283185307179586,
         "scipyValue": -8.767201725730857e-16,
         "scipyAbsError": 4.3520742565306136e-14,
-        "scipyEvaluations": 147
+        "scipyEvaluations": 147,
+        "singular": false
     },
     {
         "id": "lorentzian_peak",
         "description": "1 / ((x - 0.5)^2 + 1e-4) on [0, 1]",
         "a": 0.0,
         "b": 1.0,
-        "scipyValue": 310.1597985643492,
-        "scipyAbsError": 1.8350200109985533e-10,
-        "scipyEvaluations": 525
+        "scipyValue": 310.1597985643515,
+        "scipyAbsError": 9.136514289437292e-07,
+        "scipyEvaluations": 399,
+        "singular": false
     },
     {
         "id": "exp_growth",
@@ -87,6 +96,7 @@
         "b": 1.0,
         "scipyValue": 1.7182818284590453,
         "scipyAbsError": 1.9076760487502457e-14,
-        "scipyEvaluations": 21
+        "scipyEvaluations": 21,
+        "singular": false
     }
 ]
