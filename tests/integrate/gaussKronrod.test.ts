@@ -17,11 +17,11 @@ describe('gaussKronrod15', () => {
 
 describe('gaussKronrod', () => {
     it('integrates standard functions accurately', () => {
-        const r1 = gaussKronrod(Math.sin, 0, Math.PI, 1e-10);
+        const r1 = gaussKronrod(Math.sin, 0, Math.PI, { tol: 1e-10 });
         expect(r1.value).toBeCloseTo(2, 10);
         expect(r1.converged).toBe(true);
 
-        const r2 = gaussKronrod((x) => 4 / (1 + x * x), 0, 1, 1e-12);
+        const r2 = gaussKronrod((x) => 4 / (1 + x * x), 0, 1, { tol: 1e-12 });
         expect(r2.value).toBeCloseTo(Math.PI, 12);
         expect(r2.converged).toBe(true);
     });
@@ -47,7 +47,7 @@ describe('gaussKronrod', () => {
 
     it('respects maxSubintervals and sets converged to false when exceeded', () => {
         const oscillatory = (x: number) => Math.sin(100 * x);
-        const res = gaussKronrod(oscillatory, 0, Math.PI, 1e-15, 3);
+        const res = gaussKronrod(oscillatory, 0, Math.PI, { tol: 1e-15, maxSubintervals: 3 });
 
         expect(res.converged).toBe(false);
         expect(res.subintervals).toBe(3);

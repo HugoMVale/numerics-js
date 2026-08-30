@@ -20,6 +20,14 @@ interface LocalGaussKronrodResult {
     error: number;
 }
 
+/** Optional settings for adaptive Gauss-Kronrod quadrature. */
+export interface GaussKronrodOptions {
+    /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
+    tol?: number;
+    /** Safety limit on panel count. Defaults to `200`. */
+    maxSubintervals?: number;
+}
+
 const KRONROD_NODES: readonly number[] = [
     0.000000000000000000000000000000000,
     0.207784955007898467600689403773245,
@@ -122,8 +130,9 @@ export function gaussKronrod15(
  * @param fn Scalar function to integrate.
  * @param a Lower bound of integration.
  * @param b Upper bound of integration.
- * @param tol Absolute error tolerance for the whole interval. Defaults to `1e-8`.
- * @param maxSubintervals Safety limit on panel count. Defaults to `200`.
+ * @param options Optional settings.
+ * @param options.tol Absolute error tolerance for the whole interval. Defaults to `1e-8`.
+ * @param options.maxSubintervals Safety limit on panel count. Defaults to `200`.
  * @returns Quadrature output including final value, estimated error, and diagnostics.
  * @throws {RangeError} If `a` or `b` are non-finite numbers.
  * @throws {Error} If `f` evaluates to a non-finite value.
@@ -150,9 +159,10 @@ export function gaussKronrod(
     fn: ScalarFunction,
     a: number,
     b: number,
-    tol: number = 1e-8,
-    maxSubintervals: number = 200
+    options: GaussKronrodOptions = {}
 ): GaussKronrodResult {
+    const { tol = 1e-8, maxSubintervals = 200 } = options;
+
     if (!Number.isFinite(a) || !Number.isFinite(b)) {
         throw new RangeError('gaussKronrod: a and b must be finite numbers');
     }
