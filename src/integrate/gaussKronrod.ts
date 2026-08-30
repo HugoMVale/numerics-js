@@ -1,6 +1,6 @@
 import { ScalarFunction } from '../types.js';
 
-/** Result of adaptive Gauss-Kronrod quadrature. */
+/** Result of a {@link gaussKronrod} quadrature. */
 export interface GaussKronrodResult {
     /** Estimated value of the definite integral. */
     value: number;
@@ -20,7 +20,7 @@ interface LocalGaussKronrodResult {
     error: number;
 }
 
-/** Optional settings for adaptive Gauss-Kronrod quadrature. */
+/** Options for {@link gaussKronrod}. */
 export interface GaussKronrodOptions {
     /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
     tol?: number;

@@ -2,7 +2,7 @@ import type { ScalarFunction } from '../types.js';
 import { copysign } from '../misc.js';
 
 /**
- * Result of a `brent` optimize.
+ * Result of a {@link brent} optimization.
  */
 export interface BrentResult {
     /** Whether the optimize terminated successfully. */

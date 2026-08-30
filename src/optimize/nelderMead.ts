@@ -3,7 +3,7 @@ import { Array2D } from '../array/array2d.js';
 import type { VectorFunction } from '../types.js';
 
 /**
- * Result of a `nelderMead` optimize.
+ * Result of a {@link nelderMead} optimization.
  */
 export interface NelderMeadResult {
     /** Whether the optimize terminated successfully. */
