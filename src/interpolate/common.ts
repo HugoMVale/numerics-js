@@ -1,7 +1,7 @@
 import { Array1D } from '../array/array1d.js';
 
 /**
- * Options controlling out-of-range clamping and input validation for `interp`.
+ * Options controlling out-of-range clamping and input validation for interpolation methods.
  */
 export interface InterpOptions {
     /** Value to return for `x < xp[0]`. Defaults to `fp[0]`. */

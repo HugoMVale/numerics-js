@@ -116,7 +116,7 @@ export class PchipInterpolator {
      * interpolant.
      * @param fp The y-coordinates of the data points. Must have the same
      * length as `xp`.
-     * @param options Optional settings; see `InterpOptions`. Validation
+     * @param options Optional settings; see {@link InterpOptions}. Validation
      * (matching lengths, non-empty, and, unless `options.checkSorted` is
      * `false`, strictly increasing) happens once, here in the constructor.
      * If `options.checkSorted` is `false` and `xp` is not actually sorted,

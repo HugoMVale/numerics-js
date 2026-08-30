@@ -123,7 +123,7 @@ export class LinearInterpolator {
      * monotonically increasing (duplicates allowed) and non-empty.
      * @param fp The y-coordinates of the data points. Must have the same
      * length as `xp`.
-     * @param options Optional settings; see `InterpOptions`. Validation
+     * @param options Optional settings; see {@link InterpOptions}. Validation
      * (matching lengths, non-empty, and, unless `options.checkSorted` is
      * `false`, sorted) happens once, here in the constructor.
      * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
@@ -252,7 +252,7 @@ export class LinearInterpolator {
  * increasing (duplicates allowed) and non-empty.
  * @param fp The y-coordinates of the data points. Must have the same
  * length as `xp`.
- * @param options Optional settings; see `InterpOptions`.
+ * @param options Optional settings; see {@link InterpOptions}.
  * @returns The interpolated value(s), matching the shape of `x`.
  * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
  * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
