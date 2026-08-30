@@ -36,9 +36,11 @@ jobs:
 
       - name: Pack package
         id: pack
+        shell: bash
         run: |
           npm pack --json > pack.json
-          echo "tarball=$(node -p \"require('./pack.json')[0].filename\")" >> "$GITHUB_OUTPUT"
+          tarball="$(node -e "console.log(require('./pack.json')[0].filename)")"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test packed package as a consumer
         run: |
