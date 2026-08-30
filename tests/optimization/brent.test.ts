@@ -19,7 +19,6 @@ describe('fminBrent', () => {
             success: true,
             message: '|dx| <= tolX',
             functionEvaluations: 19,
-            iterations: 18,
         });
         expect(result.x).toBeCloseTo(0.6299605249, 6);
         expect(result.fx).toBeCloseTo(0.5275296058, 6);

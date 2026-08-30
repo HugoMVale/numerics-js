@@ -14,8 +14,6 @@ export interface BrentResult {
     /** Number of function evaluations performed. */
     functionEvaluations: number;
     /** Number of iterations performed. */
-    iterations: number;
-    /** Location of the minimum. */
     x: number;
     /** Function value at `x`. */
     fx: number;
@@ -52,7 +50,6 @@ export interface BrentResult {
  *   success: true,
  *   message: '|dx| <= tolX',
  *   functionEvaluations: 19,
- *   iterations: 18,
  *   x: 0.62996052,
  *   fx: 0.52752961
  * }
@@ -95,7 +92,6 @@ export function brent(
                 success: true,
                 message: '|dx| <= tolX',
                 functionEvaluations: nFev,
-                iterations: k,
                 x,
                 fx: fx,
             };
@@ -175,7 +171,6 @@ export function brent(
         success: false,
         message: `Maximum number of iterations (${maxIter}) reached.`,
         functionEvaluations: nFev,
-        iterations: maxIter,
         x,
         fx: fx,
     };
