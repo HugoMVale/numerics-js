@@ -99,13 +99,13 @@ describe('rungeKuttaStep', () => {
 describe('rungeKuttaFixed', () => {
     it.each(methods)('%s: records the initial state as the first row, unchanged', (method) => {
         const y0 = new Array1D([1, 2, 3]);
-        const f: DerivativeFunction = (_t, y, out) => out.reset();
+        const f: DerivativeFunction = (_t, y, out) => out.fill(0);
         const result = rungeKuttaFixed(method, f, 0, 1, y0, 0.5);
         expect(Array.from(result.y.row(0).data)).toEqual([1, 2, 3]);
     });
 
     it.each(methods)('%s: produces the expected time grid for an exact multiple of h', (method) => {
-        const f: DerivativeFunction = (_t, y, out) => out.reset();
+        const f: DerivativeFunction = (_t, y, out) => out.fill(0);
         const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 0.25);
         expect(result.t.size).toBe(5);
         expect(Array.from(result.t.data)).toEqual([0, 0.25, 0.5, 0.75, 1]);
@@ -120,7 +120,7 @@ describe('rungeKuttaFixed', () => {
         let calls = 0;
         const f: DerivativeFunction = (_t, _y, out) => {
             calls++;
-            return out.reset();
+            return out.fill(0);
         };
         const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 0.5);
 
@@ -137,7 +137,7 @@ describe('rungeKuttaFixed', () => {
         let calls = 0;
         const f: DerivativeFunction = (_t, _y, out) => {
             calls++;
-            return out.reset();
+            return out.fill(0);
         };
         const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 0.6);
 
@@ -146,7 +146,7 @@ describe('rungeKuttaFixed', () => {
     });
 
     it.each(methods)('%s: adds one partial final step when h does not evenly divide the span', (method) => {
-        const f: DerivativeFunction = (_t, y, out) => out.reset();
+        const f: DerivativeFunction = (_t, y, out) => out.fill(0);
         const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 0.3);
         // 3 full steps of 0.3 (0, 0.3, 0.6, 0.9) + 1 partial step to reach 1.0
         expect(result.t.size).toBe(5);
@@ -157,7 +157,7 @@ describe('rungeKuttaFixed', () => {
     });
 
     it.each(methods)('%s: the last recorded time is exactly tEnd, never an accumulated approximation', (method) => {
-        const f: DerivativeFunction = (_t, y, out) => out.reset();
+        const f: DerivativeFunction = (_t, y, out) => out.fill(0);
         const result = rungeKuttaFixed(method, f, 0, 1, new Array1D([0]), 1 / 3);
         expect(result.t.data[result.t.size - 1]).toBe(1);
     });

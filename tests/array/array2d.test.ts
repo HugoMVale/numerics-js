@@ -48,7 +48,7 @@ describe('Array2D', () => {
         const b: Array1D = new Array1D([5, 2]);
         const x: Array1D = m.solve(b);
 
-        expect(x.isClose(new Array1D([1, 3]))).toBe(true);
+        expect(x.allClose(new Array1D([1, 3]))).toBe(true);
     });
 
     describe('lu()', () => {
@@ -132,7 +132,7 @@ describe('Array2D', () => {
             ]);
             const b: Array1D = new Array1D([1, 4, 2]);
             const x = l.solveLower(b, true);
-            expect(l.mulVec(x).isClose(b)).toBe(true);
+            expect(l.mulVec(x).allClose(b)).toBe(true);
         });
 
         it('solveLower divides by the diagonal when unitDiagonal is false (the default)', () => {
@@ -142,7 +142,7 @@ describe('Array2D', () => {
             ]);
             const b: Array1D = new Array1D([4, 11]);
             const x = l.solveLower(b);
-            expect(x.isClose(new Array1D([2, 1.25]))).toBe(true);
+            expect(x.allClose(new Array1D([2, 1.25]))).toBe(true);
         });
 
         it('solveUpper solves an upper-triangular system via back-substitution', () => {
@@ -153,7 +153,7 @@ describe('Array2D', () => {
             ]);
             const b: Array1D = new Array1D([3, 11, 8]);
             const x = u.solveUpper(b);
-            expect(u.mulVec(x).isClose(b)).toBe(true);
+            expect(u.mulVec(x).allClose(b)).toBe(true);
         });
 
         it('ignores entries on the wrong side of the diagonal rather than validating shape', () => {
@@ -208,7 +208,7 @@ describe('Array2D', () => {
             const b = new Array1D(raw);
             const pb = new Array1D(perm.map(p => b.get(p)));
             const reused = U.solveUpper(L.solveLower(pb, true));
-            expect(reused.isClose(a.solve(b))).toBe(true);
+            expect(reused.allClose(a.solve(b))).toBe(true);
         }
     });
 
