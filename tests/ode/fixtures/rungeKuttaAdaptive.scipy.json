@@ -1,0 +1,105 @@
+[
+    {
+        "id": "exponential_decay",
+        "description": "y' = -y on [0, 5]",
+        "t0": 0.0,
+        "tEnd": 5.0,
+        "y0": [
+            1.0
+        ],
+        "atol": 1e-08,
+        "rtol": 1e-08,
+        "scipy": {
+            "rk23": {
+                "finalY": [
+                    0.006737932137463285
+                ],
+                "evaluations": 965
+            },
+            "rk45": {
+                "finalY": [
+                    0.00673794877529549
+                ],
+                "evaluations": 212
+            }
+        }
+    },
+    {
+        "id": "logistic_growth",
+        "description": "y' = 10 y (1 - y) on [0, 1]",
+        "t0": 0.0,
+        "tEnd": 1.0,
+        "y0": [
+            0.01
+        ],
+        "atol": 1e-08,
+        "rtol": 1e-08,
+        "scipy": {
+            "rk23": {
+                "finalY": [
+                    0.9955255413843936
+                ],
+                "evaluations": 1184
+            },
+            "rk45": {
+                "finalY": [
+                    0.9955255158562136
+                ],
+                "evaluations": 296
+            }
+        }
+    },
+    {
+        "id": "harmonic_oscillator",
+        "description": "x' = v, v' = -x on [0, 2 pi]",
+        "t0": 0.0,
+        "tEnd": 6.283185307179586,
+        "y0": [
+            1.0,
+            0.0
+        ],
+        "atol": 1e-08,
+        "rtol": 1e-08,
+        "scipy": {
+            "rk23": {
+                "finalY": [
+                    0.9999998169204742,
+                    -1.3077754072807896e-09
+                ],
+                "evaluations": 2144
+            },
+            "rk45": {
+                "finalY": [
+                    0.9999999741605271,
+                    -4.870361530739942e-09
+                ],
+                "evaluations": 356
+            }
+        }
+    },
+    {
+        "id": "backward_exponential",
+        "description": "y' = -2 y from t = 2 to t = -1",
+        "t0": 2.0,
+        "tEnd": -1.0,
+        "y0": [
+            0.01831563888873418
+        ],
+        "atol": 1e-08,
+        "rtol": 1e-08,
+        "scipy": {
+            "rk23": {
+                "finalY": [
+                    7.389049695921839
+                ],
+                "evaluations": 1625
+            },
+            "rk45": {
+                "finalY": [
+                    7.3890569594053295
+                ],
+                "evaluations": 284
+            }
+        }
+    }
+]
