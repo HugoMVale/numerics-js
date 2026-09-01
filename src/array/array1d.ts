@@ -466,19 +466,6 @@ export class Array1D {
     }
 
     /**
-     * Returns a copy of this vector clamped to a maximum magnitude, preserving
-     * direction. If the vector's magnitude is already at or below `max`,
-     * returns an unchanged copy.
-     * @param max The maximum allowed magnitude (must be >= 0).
-     * @returns A new vector with magnitude at most `max`.
-     */
-    limit(max: number): Array1D {
-        if (max < 0) throw new RangeError(`Array1D.limit: max must be >= 0, got ${max}`);
-        const m = this.norm();
-        return m > max ? this.mult(max / m) : this.copy();
-    }
-
-    /**
      * Creates an independent copy of this vector.
      * @returns A new Array1D with the same values.
      */

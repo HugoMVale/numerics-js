@@ -112,20 +112,6 @@ describe('Array1D', () => {
         expect(() => a.dist(new Array1D(3))).toThrowError(RangeError);
     });
 
-    it('limits magnitude in limit(), leaving short vectors unchanged', () => {
-        const long: Array1D = new Array1D([3, 4]); // norm 5
-        const limited: Array1D = long.limit(2);
-        expect(limited.norm()).toBeCloseTo(2);
-        expect(limited.get(0)).toBeCloseTo(1.2);
-        expect(limited.get(1)).toBeCloseTo(1.6);
-
-        const short: Array1D = new Array1D([1, 0]);
-        const unchanged: Array1D = short.limit(10);
-        expect(unchanged.toArray()).toEqual([1, 0]);
-        expect(unchanged).not.toBe(short); // still a copy, not the same instance
-        expect(() => short.limit(-1)).toThrowError(RangeError);
-    });
-
     it('performs addSelf/subSelf/multSelf/addScaled/fill in place', () => {
         const v: Array1D = new Array1D([1, 2, 3]);
         v.subSelf(new Array1D([1, 1, 1]));
