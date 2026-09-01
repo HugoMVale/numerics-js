@@ -9,7 +9,7 @@ used, unmodified, as it would be by a typical caller. Test problems and
 starting points mirror `TEST_FUNCTIONS_MULTIVAR` in
 [testFunctions.ts](../../tests/optimize/testFunctions.ts), evaluated at `N = 2`.
 
-| Test problem | SciPy evaluations | numerics-js evaluations | Ratio |
+| Test problem  | SciPy evaluations  | numerics-js evaluations  | Ratio |
 | :------------ | :----------------: | :----------------------: | ----: |
 | `sphere`      |        137         |           119            | 0.869 |
 | `ellipsoid`   |        240         |           221            | 0.921 |
