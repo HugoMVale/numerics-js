@@ -1,0 +1,52 @@
+[
+    {
+        "id": "quadratic",
+        "description": "(x - 2)^2 on [-5, 5]",
+        "xa": -5.0,
+        "xb": 5.0,
+        "tolX": 1e-08,
+        "scipyX": 1.9999999999999996,
+        "scipyFx": 1.9721522630525295e-31,
+        "scipyEvaluations": 8
+    },
+    {
+        "id": "quartic",
+        "description": "x^4 - x + 1 on [-3, 3]",
+        "xa": -3.0,
+        "xb": 3.0,
+        "tolX": 1e-08,
+        "scipyX": 0.6299605204602141,
+        "scipyFx": 0.5275296062894226,
+        "scipyEvaluations": 16
+    },
+    {
+        "id": "absolute_value",
+        "description": "abs(x - 0.5) on [-1, 2]",
+        "xa": -1.0,
+        "xb": 2.0,
+        "tolX": 1e-08,
+        "scipyX": 0.5,
+        "scipyFx": 0.0,
+        "scipyEvaluations": 20
+    },
+    {
+        "id": "oscillatory_local_minimum",
+        "description": "sin(5 x) + (x - 1)^2 on [0, 2]",
+        "xa": 0.0,
+        "xb": 2.0,
+        "tolX": 1e-08,
+        "scipyX": 0.9467389958692974,
+        "scipyFx": -0.9969363012290876,
+        "scipyEvaluations": 12
+    },
+    {
+        "id": "sharp_minimum",
+        "description": "exp(50 (x - 0.3)^2) on [0, 1]",
+        "xa": 0.0,
+        "xb": 1.0,
+        "tolX": 1e-08,
+        "scipyX": 0.2999999987295888,
+        "scipyFx": 1.0,
+        "scipyEvaluations": 12
+    }
+]
