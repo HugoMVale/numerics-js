@@ -1,0 +1,66 @@
+[
+    {
+        "id": "sphere",
+        "description": "sum(x_i^2)",
+        "x0": [
+            5.0,
+            5.0
+        ],
+        "tolX": 1e-08,
+        "tolF": 1e-14,
+        "scipyX": [
+            -1.531492988720708e-09,
+            3.7235996968498023e-09
+        ],
+        "scipyFx": 1.6210665476880626e-17,
+        "scipyEvaluations": 137
+    },
+    {
+        "id": "ellipsoid",
+        "description": "sum(c_i * x_i^2) with c_i = 1e6^(i/(n-1))",
+        "x0": [
+            1.0,
+            2.0
+        ],
+        "tolX": 1e-08,
+        "tolF": 1e-14,
+        "scipyX": [
+            1.5050861674550208e-09,
+            1.8712806165679006e-12
+        ],
+        "scipyFx": 5.7669755174071856e-18,
+        "scipyEvaluations": 240
+    },
+    {
+        "id": "rosenbrock",
+        "description": "sum(100*(x_{i+1} - x_i^2)^2 + (1 - x_i)^2)",
+        "x0": [
+            -1.2,
+            -1.2
+        ],
+        "tolX": 1e-08,
+        "tolF": 1e-14,
+        "scipyX": [
+            0.9999999994402684,
+            0.9999999990274265
+        ],
+        "scipyFx": 2.4709585185505214e-18,
+        "scipyEvaluations": 202
+    },
+    {
+        "id": "zakharov",
+        "description": "sum(x_i^2) + u^2 + u^4, u = 0.5*sum((i+1)*x_i)",
+        "x0": [
+            1.5,
+            1.5
+        ],
+        "tolX": 1e-08,
+        "tolF": 1e-14,
+        "scipyX": [
+            -2.71853213973772e-09,
+            -3.1206402740852443e-10
+        ],
+        "scipyFx": 1.0281145246054608e-17,
+        "scipyEvaluations": 149
+    }
+]

@@ -129,11 +129,17 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * and/or `scale` reflect the expected scale of the variables. If `scale` is
  * not provided, the variable scaling is inferred from `x0`.
  *
+ * Results are validated against `scipy.optimize.minimize` with
+ * `method="Nelder-Mead"` (see `tests/optimize/nelderMead.scipy.test.ts`);
+ * see `tests/optimize/nelderMead.scipy.benchmark.md` for the comparison
+ * table.
+ *
  * References:
  * - Nelder, J. A.; Mead, R. A Simplex Method for Function Minimization.
  *   Comput. J. 1965, 7, 308-313.
  * - Gao, F.; Han, L. Implementing the Nelder-Mead Simplex Algorithm with
  *   Adaptive Parameters. Comput. Optim. Appl. 2012, 51, 259-277.
+ *
  *
  * @param fn Objective function to minimize.
  * @param x0 Initial guess for the optimum. If no user-defined `scale` is
