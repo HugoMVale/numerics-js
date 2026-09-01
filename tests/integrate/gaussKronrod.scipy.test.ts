@@ -18,7 +18,7 @@ const INTEGRANDS: Record<string, (x: number) => number> = {
 
 // Allowed slack for evaluations vs SciPy's QUADPACK reference, applied only to smooth
 // integrands (see EVALUATION_FACTOR use below): observed ratios there are ~0.7x-1.2x.
-const EVALUATION_FACTOR = 1.5;
+const EVALUATION_FACTOR = 1.2;
 
 describe('gaussKronrod vs SciPy quad reference values', () => {
     for (const fixture of fixtures) {

@@ -122,8 +122,9 @@ export function gaussKronrod15(
  *
  * Results are validated against `scipy.integrate.quad` (see
  * `tests/integrate/gaussKronrod.scipy.test.ts`); at the default `tol` and for
- * integrands without singularities, `evaluations` is within a factor of 1.5 of
- * SciPy's. This implementation has no singularity-aware extrapolation, so
+ * integrands without singularities, `evaluations` is within a factor of 1.2 of
+ * SciPy's; see `tests/integrate/gaussKronrod.scipy.benchmark.md` for the
+ * comparison table. This implementation has no singularity-aware extrapolation, so
  * integrands with singularities or sharp, narrow features can require
  * substantially more evaluations than SciPy's QAGS to reach the same `tol`.
  *
