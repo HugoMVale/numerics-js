@@ -9,7 +9,7 @@ import type { BisectionOptions, RootResult } from './types.js';
  * @param b Right endpoint of the bracketing interval.
  * @param options Tuning options.
  * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
- * @param options.maxIter Maximum number of iterations. Defaults to `100`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
  *
@@ -36,7 +36,7 @@ import type { BisectionOptions, RootResult } from './types.js';
  * @example
  * ```ts
  * // Overriding a single option; unspecified options keep their defaults.
- * const result = bisection(f1, 0, 1, { maxIter: 200 });
+ * const result = bisection(f1, 0, 1, { maxIter: 100 });
  * ```
  */
 export function bisection(
@@ -45,7 +45,7 @@ export function bisection(
     b: number,
     options: BisectionOptions = {}
 ): RootResult {
-    const { tolX = 1e-8, maxIter = 100 } = options;
+    const { tolX = 1e-8, maxIter = 50 } = options;
 
     if (a === b) {
         throw new Error('bisection: a and b must be different');

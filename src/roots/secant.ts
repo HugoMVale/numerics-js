@@ -14,7 +14,7 @@ import type { RootResult, SecantOptions } from './types.js';
  * @param x1 Second initial guess (should differ from x0).
  * @param options Tuning options.
  * @param options.tolX Stop when |x1 - x0| (the step size) is below this. Defaults to `1e-8`.
- * @param options.maxIter Maximum number of iterations. Defaults to `100`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
  *
@@ -41,7 +41,7 @@ import type { RootResult, SecantOptions } from './types.js';
  * @example
  * ```ts
  * // Overriding a single option; unspecified options keep their defaults.
- * const result = secant(f1, 0, 1, { maxIter: 200 });
+ * const result = secant(f1, 0, 1, { maxIter: 100 });
  * ```
  */
 export function secant(
@@ -50,7 +50,7 @@ export function secant(
     x1: number,
     options: SecantOptions = {}
 ): RootResult {
-    const { tolX = 1e-8, maxIter = 100 } = options;
+    const { tolX = 1e-8, maxIter = 50 } = options;
 
     if (x0 === x1) {
         throw new Error('secant: x0 and x1 must be different');

@@ -19,7 +19,7 @@ import type { BrentOptions, RootResult } from './types';
  * @param options Tuning options.
  * @param options.tolX Stop when the bracket half-width is below this (absolute x tolerance). Defaults to `1e-8`.
  * @param options.tolF Stop when |fn(x)| is below this (absolute function-value tolerance). Defaults to `1e-8`.
- * @param options.maxIter Maximum number of iterations. Defaults to `100`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing the approximate root, function value, and evaluation count.
  * @throws {Error} If fn(xa) and fn(xb) do not have opposite signs.
  *
@@ -46,7 +46,7 @@ import type { BrentOptions, RootResult } from './types';
  * @example
  * ```ts
  * // Overriding a single option; unspecified options keep their defaults.
- * const result = brent(f1, 0, 1, { maxIter: 200 });
+ * const result = brent(f1, 0, 1, { maxIter: 100 });
  * ```
  */
 export function brent(
@@ -55,7 +55,7 @@ export function brent(
     xb: number,
     options: BrentOptions = {}
 ): RootResult {
-    const { tolX = 1e-8, tolF = 1e-8, maxIter = 100 } = options;
+    const { tolX = 1e-8, tolF = 1e-8, maxIter = 50 } = options;
 
     const eps = Number.EPSILON;
 
