@@ -12,3 +12,9 @@ export const fEndpointSingularity = (x: number) => 1 / Math.sqrt(x);
 
 // Function designed to throw a non-finite error at exactly x = 0.5
 export const fBlowupMidpoint = (x: number) => (x === 0.5 ? Infinity : 1 / x);
+
+// Functions for infinite domain testing
+export const fExpMinusX = (x: number) => Math.exp(-x);
+export const fExpX = (x: number) => Math.exp(x);
+export const fGaussian = (x: number) => Math.exp(-x * x);
+export const fExpMinusAbsX = (x: number) => Math.exp(-Math.abs(x));
