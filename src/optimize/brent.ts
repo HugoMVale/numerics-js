@@ -38,17 +38,17 @@ export interface BrentOptions {
  * step.
  *
  * Results are validated against `scipy.optimize.minimize_scalar` with
- * `method="brent"` (see `tests/optimize/brent.scipy.test.ts`). With the same
- * tolerance, this implementation uses no more than 20% additional function
- * evaluations across the benchmark problems; see
- * `tests/optimize/brent.scipy.benchmark.md` for the comparison table.
+ * `method="brent"` (see `tests/optimize/brent.scipy.test.ts`).
+ * With the same `tolX`, the number of function calls is essentially identical to SciPy's 
+ * across the benchmark problems; see `tests/optimize/brent.scipy.benchmark.md`
+ * for the comparison table.
  *
  * @param fn Function to minimize.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
  * @param options Optional settings.
  * @param options.tolX Stop when the search interval shrinks to approximately this width. Defaults to `1e-8`.
- * @param options.maxIter Maximum number of iterations. Defaults to `100`.
+ * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Optimization result containing the minimum, function value, and convergence information.
  *
  * @example
@@ -75,7 +75,7 @@ export function brent(
     xb: number,
     options: BrentOptions = {}
 ): BrentResult {
-    const { tolX = 1e-8, maxIter = 100 } = options;
+    const { tolX = 1e-8, maxIter = 50 } = options;
 
     // Golden ratio constant: (3 - sqrt(5)) / 2
     const GOLDEN = 0.38196601125010515179;

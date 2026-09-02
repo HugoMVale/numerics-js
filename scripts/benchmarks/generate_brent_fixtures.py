@@ -64,7 +64,7 @@ def main() -> None:
     for case in CASES:
         result = minimize_scalar(
             case["f"],
-            bracket=(case["xa"], (case["xa"] + case["xb"]) / 2, case["xb"]),
+            bracket=(case["xa"], case["xb"]),
             method="brent",
             options={"xtol": TOL_X},
         )

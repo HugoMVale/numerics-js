@@ -5,8 +5,8 @@
         "xa": -5.0,
         "xb": 5.0,
         "tolX": 1e-08,
-        "scipyX": 1.9999999999999996,
-        "scipyFx": 1.9721522630525295e-31,
+        "scipyX": 1.9999999999999998,
+        "scipyFx": 4.930380657631324e-32,
         "scipyEvaluations": 8
     },
     {
@@ -15,9 +15,9 @@
         "xa": -3.0,
         "xb": 3.0,
         "tolX": 1e-08,
-        "scipyX": 0.6299605204602141,
+        "scipyX": 0.6299605192989446,
         "scipyFx": 0.5275296062894226,
-        "scipyEvaluations": 16
+        "scipyEvaluations": 18
     },
     {
         "id": "absolute_value",
@@ -25,9 +25,9 @@
         "xa": -1.0,
         "xb": 2.0,
         "tolX": 1e-08,
-        "scipyX": 0.5,
-        "scipyFx": 0.0,
-        "scipyEvaluations": 20
+        "scipyX": 0.5000000007682621,
+        "scipyFx": 7.682621205873374e-10,
+        "scipyEvaluations": 21
     },
     {
         "id": "oscillatory_local_minimum",
@@ -35,9 +35,9 @@
         "xa": 0.0,
         "xb": 2.0,
         "tolX": 1e-08,
-        "scipyX": 0.9467389958692974,
-        "scipyFx": -0.9969363012290876,
-        "scipyEvaluations": 12
+        "scipyX": 0.9467389944863474,
+        "scipyFx": -0.9969363012290875,
+        "scipyEvaluations": 15
     },
     {
         "id": "sharp_minimum",
@@ -45,8 +45,8 @@
         "xa": 0.0,
         "xb": 1.0,
         "tolX": 1e-08,
-        "scipyX": 0.2999999987295888,
+        "scipyX": 0.3000000000215872,
         "scipyFx": 1.0,
-        "scipyEvaluations": 12
+        "scipyEvaluations": 14
     }
 ]

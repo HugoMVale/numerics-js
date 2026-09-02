@@ -13,7 +13,7 @@ const OBJECTIVES: Record<string, ScalarFunction> = {
     sharp_minimum: (x) => Math.exp(50 * (x - 0.3) ** 2),
 };
 
-const EVALUATION_FACTOR = 1.2;
+const EVALUATION_FACTOR = 1.1;
 const RESULT_TOLERANCE_FACTOR = 10;
 
 describe('brent vs scipy.optimize.minimize_scalar Brent reference values', () => {
