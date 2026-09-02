@@ -290,8 +290,8 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * Results are validated against the corresponding `scipy.integrate.solve_ivp`
  * `RK23` and `RK45` methods (see `tests/ode/rungeKuttaAdaptive.scipy.test.ts`).
- * With the same `atol` and `rtol`, this implementation uses a number of
- * derivative evaluations within 1% of SciPy's across the benchmark problems;
+ * With the same `atol` and `rtol`, the number of function calls is essentially 
+ * identical to SciPy's across the benchmark problems;
  * see `tests/ode/rungeKuttaAdaptive.scipy.benchmark.md` for the comparison
  * table.
  *
