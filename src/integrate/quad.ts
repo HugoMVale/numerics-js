@@ -88,12 +88,13 @@ function getFullyInfiniteTransform(): Transformation {
 /**
  * Numerically integrate `fn` over [`a`, `b`] using adaptive quadrature.
  * 
- * This function serves as a general-purpose integrator. It delegates to the 
- * Gauss-Kronrod (G7-K15) adaptive rule for each interval. It natively supports
- * infinite integration limits (`Infinity` and `-Infinity`) by applying algebraic 
- * transformations that map the infinite domain onto a finite interval. It also 
+ * This function serves as a general-purpose integrator. It natively supports
+ * infinite integration limits (`Infinity` and `-Infinity`). It also 
  * supports splitting the integration range at known `breakpoints` to handle 
  * piecewise functions or sharp features.
+ * 
+ * Within each interval, the integration is performed using the Gauss-Kronrod (G7-K15)
+ * adaptive rule.
  *
  * @param fn Scalar function to integrate.
  * @param a Lower bound of integration. Can be `-Infinity`.
