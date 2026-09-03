@@ -307,12 +307,13 @@ export interface RungeKuttaAdaptiveOptions {
  * @param options Optional tuning parameters; see {@link RungeKuttaAdaptiveOptions}.
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
- * `y0`, the last row is at `tEnd`, `evaluations` is the number of calls to `f`,
- * and `method` echoes `method`.
+ * `y0`; on success, the last row is at `tEnd`. `evaluations` is the number of calls to `f`,
+ * and `method` echoes `method`. The `success` flag indicates whether `tEnd` was
+ * reached, and `message` provides additional status information.
  * @throws {RangeError} If the state has no components, tolerances are invalid,
- * a step-size or controller limit is invalid, the step size would fall below
- * `hMin`, or `method` is not recognized.
- * @throws {Error} If the solver exceeds `maxSteps` before reaching `tEnd`.
+ * a step-size or controller limit is invalid, or `method` is not recognized.
+ * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
+ * with the reason in `message`.
  *
  * @example
  * ```ts
@@ -325,14 +326,12 @@ export interface RungeKuttaAdaptiveOptions {
  * Output:
  * ```text
  * {
- *   t: Array1D { data: Float64Array(3) [ 0, 0.14680437989650819, 1 ] },
- *   y: Array2D {
- *     _rows: 3,
- *     _cols: 1,
- *     data: Float64Array(3) [ 1, 0.863462874659396, 0.3680228572282582 ]
- *   },
+ *   method: 'rk45',
+ *   success: true,
+ *   message: 'Integration successful.',
  *   evaluations: 14,
- *   method: 'rk45'
+ *   t: Array1D [ 0, 0.14680437989650819, 1 ],
+ *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]],
  * }
  * ```
  *
@@ -384,7 +383,14 @@ export function rungeKuttaAdaptive(
         tVec.data[0] = t0;
         const yMat = new Array2D(1, dim);
         yMat.setRow(0, y0.data);
-        return { t: tVec, y: yMat, evaluations: 0, method };
+        return {
+            method: method,
+            success: true,
+            message: 'Integration successful.',
+            evaluations: 0,
+            t: tVec,
+            y: yMat,
+        };
     }
 
     const dir = Math.sign(tEnd - t0) as 1 | -1;
@@ -430,6 +436,15 @@ export function rungeKuttaAdaptive(
 
     const tBuf: number[] = [t0];
     const yBuf: Float64Array[] = [y.data.slice()];
+    const makeResult = (success: boolean, message: string): OdeResult => {
+        const tVec = new Array1D(tBuf.length);
+        tVec.set(tBuf);
+        const yMat = new Array2D(tBuf.length, dim);
+        for (let i = 0; i < tBuf.length; i++) {
+            yMat.setRow(i, yBuf[i]);
+        }
+        return { method, success, message, evaluations, t: tVec, y: yMat };
+    };
 
     let steps = 0;
     while (t !== tEnd) {
@@ -460,28 +475,20 @@ export function rungeKuttaAdaptive(
             const shrink = clip(safety * Math.pow(err, errExp), minScale, maxScale);
             const hNext = h * shrink;
             if (!(Math.abs(hNext) >= hMin)) {
-                throw new RangeError(
+                const message =
                     `rungeKuttaAdaptive: step size underflowed below hMin (${hMin}) near t=${t}` +
                     (Number.isNaN(hNext) ? ' (step size became NaN)' : '') +
-                    `; the problem may be stiff, or atol/rtol too tight.`
-                );
+                    `; the problem may be stiff, or atol/rtol too tight.`;
+                return makeResult(false, message);
             }
             h = hNext;
         }
 
         steps++;
         if (steps > maxSteps) {
-            throw new Error(`rungeKuttaAdaptive: exceeded maxSteps (${maxSteps}) without reaching tEnd.`);
+            return makeResult(false, `rungeKuttaAdaptive: exceeded maxSteps (${maxSteps}) without reaching tEnd.`);
         }
     }
 
-    const nTimes = tBuf.length;
-    const tVec = new Array1D(nTimes);
-    tVec.set(tBuf);
-    const yMat = new Array2D(nTimes, dim);
-    for (let i = 0; i < nTimes; i++) {
-        yMat.setRow(i, yBuf[i]);
-    }
-
-    return { t: tVec, y: yMat, evaluations, method };
+    return makeResult(true, 'Integration successful.');
 }

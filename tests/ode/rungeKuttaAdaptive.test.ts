@@ -17,6 +17,16 @@ describe('rungeKuttaAdaptive additional coverage', () => {
         expect(result.y.cols).toBe(2);
         expect(Array.from(result.y.row(0).data)).toEqual([3, 4]);
         expect(result.evaluations).toBe(0);
+        expect(result.success).toBe(true);
+        expect(result.message).toBe('Integration successful.');
+    });
+
+    it.each(methods)('(%s) reports a successful integration with a message', (method) => {
+        const f: DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
+        const result = rungeKuttaAdaptive(method, f, 0, 1, new Array1D([1]), { h0: 0.1 });
+
+        expect(result.success).toBe(true);
+        expect(result.message).toBe('Integration successful.');
     });
 
     it.each(methods)('(%s) accepts an explicit initial step size h0', (method) => {
@@ -72,15 +82,31 @@ describe('rungeKuttaAdaptive additional coverage', () => {
         expect(result.t.size).toBeGreaterThan(5);
     });
 
-    it('throws a RangeError when step size underflows below hMin', () => {
+    it('returns an unsuccessful result when step size underflows below hMin', () => {
         const f: DerivativeFunction = (t, y, out) => {
             out.data[0] = Math.sin(1 / (y.data[0] + 1e-3)) * 1e8;
             return out;
         };
         const y0 = new Array1D([1]);
 
-        expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-14, rtol: 1e-14, hMin: 1e-9 }))
-            .toThrowError(/underflowed below hMin/);
+        const result = rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-14, rtol: 1e-14, hMin: 1e-9 });
+        expect(result.success).toBe(false);
+        expect(result.message).toMatch(/underflowed below hMin/);
+        expect(result.t.size).toBe(result.y.rows);
+    });
+
+    it('returns an unsuccessful result when maxSteps is exceeded', () => {
+        const f: DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
+        const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Array1D([1]), {
+            h0: 0.1,
+            hMax: 0.1,
+            maxSteps: 1,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.message).toBe('rungeKuttaAdaptive: exceeded maxSteps (1) without reaching tEnd.');
+        expect(result.t.size).toBe(result.y.rows);
+        expect(result.t.data[result.t.size - 1]).toBeCloseTo(0.2, 12);
     });
 
     describe('input validation', () => {

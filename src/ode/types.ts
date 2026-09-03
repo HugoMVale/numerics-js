@@ -18,12 +18,16 @@ export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod;
 
 /** Result of integrating an ODE over a span of time. */
 export interface OdeResult {
+    /** Which solver method produced this result. */
+    method: OdeMethod;
+    /** Whether the solver successfully reached the end of the integration interval. */
+    success: boolean;
+    /** Message providing additional information about the solver's success or failure. */
+    message: string;
+    /** Number of times the solver evaluated the derivative function. */
+    evaluations: number;
     /** Time points at which the solution was evaluated. */
     t: Array1D;
     /** Solution values, one row per time point and one column per state variable. */
     y: Array2D;
-    /** Number of times the solver evaluated the derivative function. */
-    evaluations: number;
-    /** Which solver method produced this result. */
-    method: OdeMethod;
 }

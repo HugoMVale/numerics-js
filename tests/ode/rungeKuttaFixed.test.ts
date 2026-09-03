@@ -234,6 +234,12 @@ describe('rungeKuttaFixed', () => {
         expect(result.y.get(0, 0)).toBe(1);
     });
 
+    it('reports a successful integration with a message', () => {
+        const result = rungeKuttaFixed('rk4', exponential, 0, 1, new Array1D([1]), 0.1);
+        expect(result.success).toBe(true);
+        expect(result.message).toBe('Integration successful.');
+    });
+
     it('throws a RangeError for an unrecognized method', () => {
         expect(() =>
             rungeKuttaFixed('bogus' as unknown as RungeKuttaMethod, exponential, 0, 1, new Array1D([1]), 0.1)
