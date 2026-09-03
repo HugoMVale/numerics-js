@@ -1,4 +1,4 @@
-# Gauss-Kronrod SciPy Benchmark Results
+# quad vs SciPy Benchmark Results
 
 Reference: `scipy.integrate.quad` (QUADPACK QAGS). Both solvers use the
 default absolute tolerance `1e-8` for every case.

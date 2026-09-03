@@ -2,15 +2,15 @@
 # requires-python = ">=3.11"
 # dependencies = ["scipy"]
 # ///
-"""Generate SciPy reference values for the gaussKronrod integrator test fixture.
+"""Generate SciPy reference values for the 'quad' integrator test fixture.
 
-Run with: uv run scripts/benchmarks/generate_gauss_kronrod_fixtures.py
+Run with: uv run scripts/benchmarks/generate_quad_fixtures.py
 
 Each case here must have a matching hand-written integrand in
-tests/integrate/gaussKronrod.scipy.test.ts (same id, same math, same bounds).
+tests/integrate/quad.scipy.test.ts (same id, same math, same bounds).
 
 Cases with a non-smooth endpoint (marked "singular": True) are excluded from the
-evaluation-count comparison there: gaussKronrod has no singularity-aware subdivision
+evaluation-count comparison there: 'quad' has no singularity-aware subdivision
 like QUADPACK's QAGS, so panel counts aren't meaningfully comparable for those.
 """
 
@@ -20,9 +20,9 @@ from pathlib import Path
 
 from scipy.integrate import quad
 
-# Requested tolerance shared with the gaussKronrod(fn, a, b, tol) call in
-# tests/integrate/gaussKronrod.scipy.test.ts, so evaluation counts are comparable.
-# Matches gaussKronrod's own default tol, since that's the representative use case.
+# Requested tolerance shared with the quad(fn, a, b, tol) call in
+# tests/integrate/quad.scipy.test.ts, so evaluation counts are comparable.
+# Matches quad's own default tol, since that's the representative use case.
 TOL = 1e-8
 
 CASES = [
@@ -120,7 +120,7 @@ def main() -> None:
             }
         )
 
-    out_path = Path(__file__).resolve().parents[2] / "tests" / "integrate" / "fixtures" / "gaussKronrod.scipy.json"
+    out_path = Path(__file__).resolve().parents[2] / "tests" / "integrate" / "fixtures" / "quad.scipy.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")

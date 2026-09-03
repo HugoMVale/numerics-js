@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { gaussKronrod } from '../../src/integrate/gaussKronrod.js';
-import fixtures from './fixtures/gaussKronrod.scipy.json' with { type: 'json' };
+import { quad } from '../../src/integrate/quad.js';
+import fixtures from './fixtures/quad.scipy.json' with { type: 'json' };
 
 // Must mirror the CASES list in scripts/benchmarks/generate_gauss_kronrod_fixtures.py (same id, math, bounds).
 const INTEGRANDS: Record<string, (x: number) => number> = {
@@ -28,7 +28,7 @@ describe('gaussKronrod vs SciPy quad reference values', () => {
 
             // Uses gaussKronrod's own default tol, matching TOL in generate_gauss_kronrod_fixtures.py,
             // so evaluation counts reflect the library's representative use case.
-            const result = gaussKronrod(f, fixture.a, fixture.b);
+            const result = quad(f, fixture.a, fixture.b);
             expect(result.converged).toBe(true);
 
             // Tolerance accounts for both SciPy's and our own reported error estimates.
