@@ -8,7 +8,7 @@
         "src/ode.ts",
         "src/optimize.ts",
         "src/special.ts",
-        "src/misc.ts",
+        "src/math.ts",
         "src/types.ts"
     ],
     "tsconfig": "tsconfig.build.json",

@@ -1,5 +1,5 @@
 import type { ScalarFunction } from '../types';
-import { copysign } from '../misc';
+import { copysign } from '../math';
 import type { BrentOptions, RootResult } from './types';
 
 /**

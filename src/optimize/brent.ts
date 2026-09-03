@@ -1,5 +1,5 @@
 import type { ScalarFunction } from '../types.js';
-import { copysign } from '../misc.js';
+import { copysign } from '../math.js';
 
 /**
  * Result of a {@link brent} optimization.

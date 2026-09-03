@@ -5,7 +5,7 @@ export * as ode from './ode.js';
 export * as optimize from './optimize.js'
 export * as roots from './roots.js';
 export * as special from './special.js';
-export * as misc from './misc.js';
+export * as math from './math.js';
 export type { ScalarFunction, VectorFunction } from './types.js';
 
 export const version = '0.1.0';

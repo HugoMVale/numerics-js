@@ -8,7 +8,7 @@
  *
  * @example
  * ```ts
- * import { clip } from 'numerics-js/misc';
+ * import { clip } from 'numerics-js/math';
  *
  * const value = clip(12, 0, 10);
  * console.log(value);
@@ -37,7 +37,7 @@ export function clip(x: number, low: number, high: number): number {
  *
  * @example
  * ```ts
- * import { copysign } from 'numerics-js/misc';
+ * import { copysign } from 'numerics-js/math';
  *
  * const value = copysign(3.5, -1);
  * console.log(value);
@@ -65,7 +65,7 @@ export function copysign(magnitude: number, sign: number): number {
  *
  * @example
  * ```ts
- * import { isClose } from 'numerics-js/misc';
+ * import { isClose } from 'numerics-js/math';
  *
  * const result = isClose(Math.PI, 3.14159, 1e-5);
  * console.log(result);

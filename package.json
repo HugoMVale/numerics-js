@@ -33,11 +33,11 @@
             "import": "./dist/special/bessel.js",
             "default": "./dist/special/bessel.js"
         },
-        "./misc": {
-            "types": "./dist/misc.d.ts",
-            "browser": "./dist/misc.js",
-            "import": "./dist/misc.js",
-            "default": "./dist/misc.js"
+        "./math": {
+            "types": "./dist/math.d.ts",
+            "browser": "./dist/math.js",
+            "import": "./dist/math.js",
+            "default": "./dist/math.js"
         },
         "./roots": {
             "types": "./dist/roots.d.ts",

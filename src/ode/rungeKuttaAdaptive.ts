@@ -1,6 +1,6 @@
 import { Array1D } from '../array/array1d';
 import { Array2D } from '../array/array2d';
-import { clip } from '../misc';
+import { clip } from '../math';
 import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types';
 
 /**

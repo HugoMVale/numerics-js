@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { brent } from '../../src/optimize/brent.js';
-import { isClose } from '../../src/misc.js'
+import { isClose } from '../../src/math.js'
 import type { ScalarFunction } from '../../src/types.js';
 
 describe('brent', () => {
