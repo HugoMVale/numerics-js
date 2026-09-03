@@ -39,7 +39,7 @@ describe('Array2D', () => {
 
         const inv: Array2D = m.inverse();
         const identity: Array2D = m.matmul(inv);
-        expect(identity.isClose(Array2D.identity(2))).toBe(true);
+        expect(identity.allClose(Array2D.identity(2))).toBe(true);
     });
 
     it('solves linear systems efficiently', () => {
@@ -63,7 +63,7 @@ describe('Array2D', () => {
             const pa = new Array2D(3, 3);
             for (let i = 0; i < 3; i++) pa.setRow(i, a.row(perm[i]));
 
-            expect(pa.isClose(L.matmul(U))).toBe(true);
+            expect(pa.allClose(L.matmul(U))).toBe(true);
         });
 
         it('returns a unit-lower-triangular L and an upper-triangular U', () => {
@@ -335,24 +335,234 @@ describe('Array2D', () => {
         expect(c.get(0, 0)).toBe(999);
     });
 
-    it('distinguishes equals (exact) from isClose (tolerant), including shape mismatches', () => {
+    it('returns a per-element boolean array from isClose, in row-major order', () => {
+        const a: Array2D = new Array2D(2, 2, [1, 2, 100, 4]);
+        const b: Array2D = new Array2D(2, 2, [1.00001, 2.5, 100, 4]);
+        expect(a.isClose(b)).toEqual([true, false, true, true]);
+    });
+
+    it('isClose: rtol scales the argument, not `this` (asymmetric)', () => {
+        const smaller: Array2D = new Array2D(1, 1, [0.5]);
+        const larger: Array2D = new Array2D(1, 1, [1]);
+        expect(smaller.isClose(larger, 0.5, 0)).toEqual([true]);
+        expect(larger.isClose(smaller, 0.5, 0)).toEqual([false]);
+    });
+
+    it('throws on shape mismatch in isClose/allClose, rather than returning false', () => {
+        const a: Array2D = new Array2D(2, 2, [1, 2, 3, 4]);
+        expect(() => a.isClose(new Array2D(3, 3))).toThrowError(RangeError);
+        expect(() => a.allClose(new Array2D(3, 3))).toThrowError(RangeError);
+    });
+
+    it('never considers NaN close to anything, including another NaN', () => {
+        const a: Array2D = new Array2D(1, 1, [NaN]);
+        const b: Array2D = new Array2D(1, 1, [NaN]);
+        expect(a.isClose(b)).toEqual([false]);
+        expect(a.allClose(b)).toBe(false);
+    });
+
+    it('allClose is true only when every element is close', () => {
         const a: Array2D = new Array2D(2, 2, [1, 2, 3, 4]);
         const b: Array2D = new Array2D(2, 2, [1, 2, 3, 4.0000001]);
-        expect(a.equals(a.copy())).toBe(true);
-        expect(a.equals(b)).toBe(false);
-        expect(a.isClose(b)).toBe(true);
-        expect(a.equals(new Array2D(3, 3))).toBe(false);
-        expect(a.isClose(new Array2D(3, 3))).toBe(false);
+        const c: Array2D = new Array2D(2, 2, [1, 2, 3, 5]);
+        expect(a.allClose(a.copy())).toBe(true);
+        expect(a.allClose(b)).toBe(true);
+        expect(a.allClose(c)).toBe(false);
     });
 
-    it('computes sum/min/max over all elements', () => {
+    it('computes sum/mean/min/max/variance/std over all elements when axis is omitted', () => {
         const m: Array2D = new Array2D(2, 2, [1, -2, 3, 4]);
         expect(m.sum()).toBe(6);
+        expect(m.mean()).toBe(1.5);
         expect(m.min()).toBe(-2);
         expect(m.max()).toBe(4);
+        expect(m.variance()).toBeCloseTo(5.25);
+        expect(m.std()).toBeCloseTo(Math.sqrt(5.25));
     });
 
-    it('performs addSelf/subSelf/multSelf/reset in place', () => {
+    it('propagates NaN in min()/max(), matching Math.min/Math.max semantics', () => {
+        const m: Array2D = new Array2D(2, 2, [1, NaN, 3, 4]);
+        expect(Number.isNaN(m.min())).toBe(true);
+        expect(Number.isNaN(m.max())).toBe(true);
+    });
+
+    it('reduces along axis 0 (down each column) and axis 1 (across each row)', () => {
+        const m: Array2D = new Array2D(2, 3, [1, 2, 3, 4, 5, 6]);
+        expect(m.sum(0).toArray()).toEqual([5, 7, 9]);
+        expect(m.sum(1).toArray()).toEqual([6, 15]);
+
+        expect(m.mean(0).toArray()).toEqual([2.5, 3.5, 4.5]);
+        expect(m.mean(1).toArray()).toEqual([2, 5]);
+
+        expect(m.min(0).toArray()).toEqual([1, 2, 3]);
+        expect(m.min(1).toArray()).toEqual([1, 4]);
+
+        expect(m.max(0).toArray()).toEqual([4, 5, 6]);
+        expect(m.max(1).toArray()).toEqual([3, 6]);
+    });
+
+    it('computes variance/std per axis, with ddof forwarded correctly', () => {
+        const m: Array2D = new Array2D(2, 2, [1, 2, 3, 5]);
+        // Column 0: [1, 3], column 1: [2, 5]
+        expect(m.variance(0).toArray()).toEqual([1, 2.25]);
+        expect(m.variance(0, 1).toArray()).toEqual([2, 4.5]);
+        expect(m.std(0).toArray()).toEqual([1, 1.5]);
+    });
+
+    it('cumsum flattens in row-major order when axis is omitted', () => {
+        const m: Array2D = new Array2D(2, 3, [1, 2, 3, 4, 5, 6]);
+        expect(m.cumsum().toArray()).toEqual([1, 3, 6, 10, 15, 21]);
+    });
+
+    it('cumsum accumulates independently down each column (axis 0) or across each row (axis 1)', () => {
+        const m: Array2D = new Array2D(2, 3, [1, 2, 3, 4, 5, 6]);
+        expect(m.cumsum(0).toArray()).toEqual([
+            [1, 2, 3],
+            [5, 7, 9],
+        ]);
+        expect(m.cumsum(1).toArray()).toEqual([
+            [1, 3, 6],
+            [4, 9, 15],
+        ]);
+    });
+
+    it('argmin/argmax return a flat index when axis is omitted', () => {
+        const m: Array2D = new Array2D(2, 3, [5, 1, 4, 2, 8, 0]);
+        expect(m.argmin()).toBe(5); // value 0 at flat index 5
+        expect(m.argmax()).toBe(4); // value 8 at flat index 4
+    });
+
+    it('argmin/argmax return the row index per column (axis 0) or column index per row (axis 1)', () => {
+        const m: Array2D = new Array2D(2, 3, [5, 1, 4, 2, 8, 0]);
+        // Columns: [5,2], [1,8], [4,0]
+        expect(m.argmin(0).toArray()).toEqual([1, 0, 1]);
+        expect(m.argmax(0).toArray()).toEqual([0, 1, 0]);
+        // Rows: [5,1,4], [2,8,0]
+        expect(m.argmin(1).toArray()).toEqual([1, 2]);
+        expect(m.argmax(1).toArray()).toEqual([0, 1]);
+    });
+
+    it('argmin/argmax return the first index on ties, and prioritize NaN, in every axis mode', () => {
+        const ties: Array2D = new Array2D(2, 2, [3, 3, 3, 3]);
+        expect(ties.argmin()).toBe(0);
+        expect(ties.argmin(0).toArray()).toEqual([0, 0]);
+        expect(ties.argmin(1).toArray()).toEqual([0, 0]);
+
+        const withNaN: Array2D = new Array2D(2, 2, [1, NaN, 3, 4]);
+        expect(withNaN.argmin()).toBe(1);
+        expect(withNaN.argmin(0).toArray()).toEqual([0, 0]); // col 0 = [1, 3] -> index 0; col 1 = [NaN, 4] -> index 0
+        expect(withNaN.argmin(1).toArray()).toEqual([1, 0]); // row 0 = [1, NaN] -> index 1; row 1 = [3, 4] -> index 0
+    });
+
+    it('sort() defaults to axis 1, sorting each row independently', () => {
+        const m: Array2D = new Array2D(2, 3, [5, 6, 4, 1, 2, 3]);
+        expect(m.sort().toArray()).toEqual([
+            [4, 5, 6],
+            [1, 2, 3],
+        ]);
+    });
+
+    it('sort(0) sorts each column independently', () => {
+        const m: Array2D = new Array2D(2, 3, [5, 6, 4, 1, 2, 3]);
+        expect(m.sort(0).toArray()).toEqual([
+            [1, 2, 3],
+            [5, 6, 4],
+        ]);
+    });
+
+    it('sort() does not mutate the original matrix', () => {
+        const m: Array2D = new Array2D(2, 2, [4, 3, 2, 1]);
+        const sorted = m.sort();
+        expect(m.toArray()).toEqual([[4, 3], [2, 1]]);
+        expect(sorted.toArray()).toEqual([[3, 4], [1, 2]]);
+    });
+
+    it('sort() accepts a custom comparator', () => {
+        const m: Array2D = new Array2D(2, 3, [5, 6, 4, 1, 2, 3]);
+        expect(m.sort(1, (a, b) => b - a).toArray()).toEqual([
+            [6, 5, 4],
+            [3, 2, 1],
+        ]);
+    });
+
+    it('slices a sub-matrix with Array.prototype.slice semantics, per axis', () => {
+        const m: Array2D = new Array2D(3, 4, [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+            8, 9, 10, 11,
+        ]);
+        expect(m.slice(1, 3, 1, 3).toArray()).toEqual([
+            [5, 6],
+            [9, 10],
+        ]);
+        expect(m.slice(1).toArray()).toEqual([
+            [4, 5, 6, 7],
+            [8, 9, 10, 11],
+        ]);
+        expect(m.slice(undefined, undefined, 2).toArray()).toEqual([
+            [2, 3],
+            [6, 7],
+            [10, 11],
+        ]);
+        expect(m.slice().toArray()).toEqual(m.toArray());
+    });
+
+    it('slice() supports negative indices, counting back from the end, per axis', () => {
+        const m: Array2D = new Array2D(3, 3, [
+            0, 1, 2,
+            3, 4, 5,
+            6, 7, 8,
+        ]);
+        expect(m.slice(-2).toArray()).toEqual([
+            [3, 4, 5],
+            [6, 7, 8],
+        ]);
+        expect(m.slice(undefined, undefined, -2).toArray()).toEqual([
+            [1, 2],
+            [4, 5],
+            [7, 8],
+        ]);
+    });
+
+    it('slice() returns an independent copy', () => {
+        const m: Array2D = new Array2D(2, 2, [1, 2, 3, 4]);
+        const s = m.slice(0, 1, 0, 1);
+        s.set(0, 0, 999);
+        expect(m.get(0, 0)).toBe(1);
+    });
+
+    it('slice() throws if the resolved range is empty on either axis', () => {
+        const m: Array2D = new Array2D(2, 2, [1, 2, 3, 4]);
+        expect(() => m.slice(1, 1)).toThrowError(RangeError);
+        expect(() => m.slice(undefined, undefined, 1, 1)).toThrowError(RangeError);
+        expect(() => m.slice(5, 6)).toThrowError(RangeError);
+    });
+
+    it('multiplies and divides elementwise via mult/div with a matrix argument (Hadamard)', () => {
+        const a: Array2D = new Array2D(2, 2, [2, 3, 4, 6]);
+        const b: Array2D = new Array2D(2, 2, [1, 2, 4, 3]);
+        expect(a.mult(b).toArray()).toEqual([[2, 6], [16, 18]]);
+        expect(a.div(b).toArray()).toEqual([[2, 1.5], [1, 2]]);
+        expect(() => a.mult(new Array2D(3, 3))).toThrowError(RangeError);
+        expect(() => a.div(new Array2D(3, 3))).toThrowError(RangeError);
+    });
+
+    it('accepts a scalar in add/sub, matching Array1D', () => {
+        const a: Array2D = new Array2D(2, 2, [1, 2, 3, 4]);
+        expect(a.add(10).toArray()).toEqual([[11, 12], [13, 14]]);
+        expect(a.sub(1).toArray()).toEqual([[0, 1], [2, 3]]);
+    });
+
+    it('divides by zero following standard float semantics', () => {
+        const a: Array2D = new Array2D(1, 3, [1, -1, 0]);
+        const zero: Array2D = new Array2D(1, 3);
+        const result = a.div(zero).toArray()[0];
+        expect(result[0]).toBe(Infinity);
+        expect(result[1]).toBe(-Infinity);
+        expect(Number.isNaN(result[2])).toBe(true);
+    });
+
+    it('performs addSelf/subSelf/multSelf/divSelf/fill in place', () => {
         const m: Array2D = new Array2D(2, 2, [1, 2, 3, 4]);
         m.addSelf(new Array2D(2, 2, [1, 1, 1, 1]));
         expect(m.toArray()).toEqual([[2, 3], [4, 5]]);
@@ -361,8 +571,24 @@ describe('Array2D', () => {
         m.multSelf(10);
         expect(m.toArray()).toEqual([[10, 20], [30, 40]]);
 
-        m.reset();
+        m.divSelf(new Array2D(2, 2, [2, 2, 2, 2]));
+        expect(m.toArray()).toEqual([[5, 10], [15, 20]]);
+
+        m.fill(0);
         expect(m.toArray()).toEqual([[0, 0], [0, 0]]);
+    });
+
+    it('computes the Frobenius norm, inner product, and distance (inherited from ArrayND)', () => {
+        const a: Array2D = new Array2D(2, 2, [3, 0, 0, 4]);
+        expect(a.norm()).toBe(5);
+        expect(a.normSq()).toBe(25);
+
+        const b: Array2D = new Array2D(2, 2, [1, 0, 0, 1]);
+        expect(a.dot(b)).toBe(7); // 3*1 + 0*0 + 0*0 + 4*1
+        expect(() => a.dot(new Array2D(3, 3))).toThrowError(RangeError);
+
+        const zero: Array2D = new Array2D(2, 2);
+        expect(zero.dist(a)).toBe(5);
     });
 
     it('builds matrices via static zero(), identity(), and from()', () => {

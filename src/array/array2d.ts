@@ -1,3 +1,4 @@
+import { ArrayND } from './arraynd';
 import { Array1D } from './array1d';
 
 /**
@@ -30,8 +31,18 @@ export interface LUDecomposition {
  * `swapRows`, `scaleRow`, `addScaledRow`) is **0-based**: valid row indices
  * are `0..rows-1` and valid column indices are `0..cols-1`, matching JS's
  * usual 0-based indexing convention.
+ *
+ * Elementwise arithmetic (`add`/`sub`/`mult`/`div` + `Self` variants,
+ * `abs`/`pow`/`sqrt`/`clip` + `Self` variants — `mult`/`div` accept either
+ * another `Array2D` of the same shape, elementwise, or a scalar), tolerance
+ * comparisons (`isClose`/`allClose`), `normSq`/`norm`/`dot`/`dist`
+ * (Frobenius), and `copy`/`fill` are inherited from `ArrayND` unchanged;
+ * see that class for their docs. There is currently no broadcasting
+ * against an `Array1D` (row/column vector) — both operands must be the
+ * same shape, or a plain scalar. `toArray` is not inherited (its natural
+ * shape differs per subclass) and is defined here directly, as an array of row arrays.
  */
-export class Array2D {
+export class Array2D extends ArrayND {
     private _rows: number;
     private _cols: number;
     public data: Float64Array;
@@ -46,6 +57,7 @@ export class Array2D {
      *   if `input` is provided and its length is not exactly `rows * cols`.
      */
     constructor(rows: number, cols: number, input?: ArrayLike<number>) {
+        super();
         if (!Number.isInteger(rows) || rows < 1) {
             throw new RangeError(`Array2D: rows must be a positive integer, got ${rows}`);
         }
@@ -80,23 +92,59 @@ export class Array2D {
     }
 
     /**
-     * The total number of elements in this matrix, i.e. `rows * cols`.
-     * Derived directly from `data.length` so it can never desync.
+     * Throws if `other` is not shape-compatible with this instance: for
+     * Array2D, "compatible" means the same `rows` *and* `cols` — matching
+     * `data.length` is not enough, since e.g. a 2x3 and a 3x2 matrix have
+     * equal length but incompatible shape. Used internally (via `ArrayND`'s
+     * arithmetic/isClose/dot/dist methods) to guard against silent shape
+     * mismatches.
+     * @param other The other matrix.
+     * @param caller Name of the public method invoking this check, used to
+     * produce a precise error message (e.g. `"add"`).
+     * @throws {RangeError} If `other.rows !== this.rows || other.cols !== this.cols`.
      */
-    get size(): number {
-        return this.data.length;
+    protected _checkSameShape(other: this, caller: string): void {
+        if (other.rows !== this.rows || other.cols !== this.cols) {
+            throw new RangeError(`Array2D.${caller}: shape mismatch: ${this.rows}x${this.cols} vs ${other.rows}x${other.cols}`);
+        }
     }
 
     /**
-     * Throws if `m` is not an Array2D with the same shape as this one. Used
-     * internally to guard binary operations against silent shape mismatches.
-     * @param m The other matrix.
-     * @throws {RangeError} If `m.rows !== this.rows || m.cols !== this.cols`.
+     * Internal-only fast constructor: wraps `data` directly as a new
+     * Array2D of shape `rows x cols`, with no copying and no validation
+     * whatsoever — `data` must already be a fresh `Float64Array` of length
+     * `rows * cols`. Used by `_create()` (so `ArrayND`'s arithmetic
+     * doesn't pay for a second allocation+copy, plus redundant
+     * re-validation of already-known-good `rows`/`cols`, on top of the
+     * buffer it already built) and by `row()` (which already owns a
+     * freshly sliced, independent buffer by the time it gets here). Not
+     * part of the public API — despite being a public static method
+     * (TypeScript has no package-private), treat the leading underscore as
+     * a hard "don't call this from outside the array module." Like
+     * `_create`'s `as this` cast, this assumes Array2D is never itself
+     * subclassed.
+     * @param rows Number of rows.
+     * @param cols Number of columns.
+     * @param data The buffer to wrap directly. Not copied. Must have length `rows * cols`.
+     * @returns A new Array2D wrapping `data`.
      */
-    private _checkShape(m: Array2D): void {
-        if (m.rows !== this.rows || m.cols !== this.cols) {
-            throw new RangeError(`Array2D shape mismatch: ${this.rows}x${this.cols} vs ${m.rows}x${m.cols}`);
-        }
+    static _wrapUnchecked(rows: number, cols: number, data: Float64Array): Array2D {
+        const m = Object.create(Array2D.prototype) as Array2D;
+        m._rows = rows;
+        m._cols = cols;
+        m.data = data;
+        return m;
+    }
+
+    /**
+     * Constructs a new Array2D with this instance's shape, wrapping the
+     * given buffer directly.
+     * @param data The buffer for the new matrix to wrap. Must already have
+     * length `rows * cols`.
+     * @returns A new `rows x cols` Array2D.
+     */
+    protected _create(data: Float64Array): this {
+        return Array2D._wrapUnchecked(this.rows, this.cols, data) as this;
     }
 
     /**
@@ -119,6 +167,31 @@ export class Array2D {
      */
     private _idx(i: number, j: number): number {
         return i * this.cols + j;
+    }
+
+    /**
+     * Unchecked element read: skips `_checkBounds`. Internal-only, for
+     * hot loops (`matmul`, `inverse`, `lu`, etc.) where the loop bounds
+     * already guarantee `i`/`j` are valid, so the public `get`'s bounds
+     * check would be pure overhead. Callers are responsible for correctness.
+     * @param i Row index (0-based). Must be valid; not checked.
+     * @param j Column index (0-based). Must be valid; not checked.
+     * @returns The value at `(i, j)`.
+     */
+    private _get(i: number, j: number): number {
+        return this.data[this._idx(i, j)];
+    }
+
+    /**
+     * Unchecked element write: skips `_checkBounds`. Internal-only, for
+     * hot loops where the loop bounds already guarantee `i`/`j` are valid.
+     * Callers are responsible for correctness.
+     * @param i Row index (0-based). Must be valid; not checked.
+     * @param j Column index (0-based). Must be valid; not checked.
+     * @param value The value to store.
+     */
+    private _set(i: number, j: number, value: number): void {
+        this.data[this._idx(i, j)] = value;
     }
 
     // -----------------------------------------------------------------
@@ -156,7 +229,7 @@ export class Array2D {
      */
     row(i: number): Array1D {
         if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
-        return new Array1D(this.data.slice(this._idx(i, 0), this._idx(i, 0) + this.cols));
+        return Array1D._wrapUnchecked(this.data.slice(this._idx(i, 0), this._idx(i, 0) + this.cols));
     }
 
     /**
@@ -167,7 +240,7 @@ export class Array2D {
     col(j: number): Array1D {
         if (j < 0 || j >= this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
         const res = new Array1D(this.rows);
-        for (let i = 0; i < this.rows; i++) res.data[i] = this.get(i, j);
+        for (let i = 0; i < this.rows; i++) res.data[i] = this._get(i, j);
         return res;
     }
 
@@ -201,51 +274,19 @@ export class Array2D {
         if (src.length !== this.rows) {
             throw new RangeError(`Array2D setCol: expected ${this.rows} values for column ${j}, got ${src.length}`);
         }
-        for (let i = 0; i < this.rows; i++) this.set(i, j, src[i]);
+        for (let i = 0; i < this.rows; i++) this._set(i, j, src[i]);
         return this;
     }
 
     // -----------------------------------------------------------------
-    // Immutable operations (return new instances)
+    // Matrix-specific operations: no Array1D equivalent, or deliberately
+    // not inherited from ArrayND (arity/shape differ too much to share).
     // -----------------------------------------------------------------
 
     /**
-     * Adds another matrix to this one, elementwise.
-     * @param m The matrix to add. Must have the same shape as this one.
-     * @returns A new matrix equal to `this + m`.
-     */
-    add(m: Array2D): Array2D {
-        this._checkShape(m);
-        const res = new Array2D(this.rows, this.cols);
-        for (let k = 0; k < this.data.length; k++) res.data[k] = this.data[k] + m.data[k];
-        return res;
-    }
-
-    /**
-     * Subtracts another matrix from this one, elementwise.
-     * @param m The matrix to subtract. Must have the same shape as this one.
-     * @returns A new matrix equal to `this - m`.
-     */
-    sub(m: Array2D): Array2D {
-        this._checkShape(m);
-        const res = new Array2D(this.rows, this.cols);
-        for (let k = 0; k < this.data.length; k++) res.data[k] = this.data[k] - m.data[k];
-        return res;
-    }
-
-    /**
-     * Scales every element of this matrix by a scalar.
-     * @param s The scale factor.
-     * @returns A new matrix equal to `this * s`.
-     */
-    mult(s: number): Array2D {
-        const res = new Array2D(this.rows, this.cols);
-        for (let k = 0; k < this.data.length; k++) res.data[k] = this.data[k] * s;
-        return res;
-    }
-
-    /**
-     * Multiplies this matrix by another: `this * m` (matrix product).
+     * Multiplies this matrix by another: `this * m` (matrix product). Not
+     * to be confused with `mult()`, the inherited elementwise/scalar
+     * product.
      * @param m The right-hand matrix. Must have `m.rows === this.cols`.
      * @returns A new `this.rows x m.cols` matrix.
      */
@@ -254,14 +295,16 @@ export class Array2D {
             throw new RangeError(`Array2D matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}`);
         }
         const res = new Array2D(this.rows, m.cols);
+        const rowBuf = new Float64Array(m.cols);
         for (let i = 0; i < this.rows; i++) {
+            rowBuf.fill(0);
             for (let k = 0; k < this.cols; k++) {
-                const a = this.get(i, k);
+                const a = this._get(i, k);
                 if (a === 0) continue;
-                for (let j = 0; j < m.cols; j++) {
-                    res.set(i, j, res.get(i, j) + a * m.get(k, j));
-                }
+                const mOffset = m._idx(k, 0);
+                for (let j = 0; j < m.cols; j++) rowBuf[j] += a * m.data[mOffset + j];
             }
+            res.data.set(rowBuf, res._idx(i, 0));
         }
         return res;
     }
@@ -277,8 +320,9 @@ export class Array2D {
         }
         const res = new Array1D(this.rows);
         for (let i = 0; i < this.rows; i++) {
+            const offset = this._idx(i, 0);
             let sum = 0;
-            for (let j = 0; j < this.cols; j++) sum += this.get(i, j) * v.data[j];
+            for (let j = 0; j < this.cols; j++) sum += this.data[offset + j] * v.data[j];
             res.data[i] = sum;
         }
         return res;
@@ -291,7 +335,8 @@ export class Array2D {
     transpose(): Array2D {
         const res = new Array2D(this.cols, this.rows);
         for (let i = 0; i < this.rows; i++) {
-            for (let j = 0; j < this.cols; j++) res.set(j, i, this.get(i, j));
+            const offset = this._idx(i, 0);
+            for (let j = 0; j < this.cols; j++) res._set(j, i, this.data[offset + j]);
         }
         return res;
     }
@@ -304,7 +349,7 @@ export class Array2D {
     trace(): number {
         if (this.rows !== this.cols) throw new RangeError(`Array2D trace requires a square matrix, got ${this.rows}x${this.cols}`);
         let sum = 0;
-        for (let i = 0; i < this.rows; i++) sum += this.get(i, i);
+        for (let i = 0; i < this.rows; i++) sum += this._get(i, i);
         return sum;
     }
 
@@ -322,7 +367,7 @@ export class Array2D {
         let pivotRow = -1;
         let pivotVal = tol;
         for (let i = startRow; i < m.rows; i++) {
-            const v = Math.abs(m.get(i, col));
+            const v = Math.abs(m._get(i, col));
             if (v > pivotVal) { pivotVal = v; pivotRow = i; }
         }
         return pivotRow;
@@ -333,7 +378,11 @@ export class Array2D {
      * elimination with partial pivoting (forward elimination only, no
      * back-substitution or row scaling). Shared building block for `rank()`
      * and `determinant()`, which both need the same elimination but reduce
-     * the result differently.
+     * the result differently — and, deliberately, use different `tol`
+     * values: `determinant()` always passes `0` (matching LAPACK/numpy's
+     * exact-zero-only convention, same as `lu()`), while `rank()` exposes
+     * `tol` to the caller with a small nonzero default, since detecting
+     * near-singularity (not just exact singularity) is rank's whole job.
      * @param tol Absolute tolerance below which a candidate pivot is treated as zero.
      * @returns `rank` is the number of pivots found; `sign` is `+1`/`-1` tracking the row-swap
      *   parity; `pivots` are the pivot values in the order they were chosen.
@@ -347,10 +396,10 @@ export class Array2D {
             const pivotRow = Array2D._findPivotRow(m, col, rank, tol);
             if (pivotRow === -1) continue;
             if (pivotRow !== rank) { m.swapRows(rank, pivotRow); sign = -sign; }
-            const pivot = m.get(rank, col);
+            const pivot = m._get(rank, col);
             pivots.push(pivot);
             for (let i = rank + 1; i < m.rows; i++) {
-                const factor = m.get(i, col) / pivot;
+                const factor = m._get(i, col) / pivot;
                 if (factor !== 0) m.addScaledRow(i, rank, -factor);
             }
             rank++;
@@ -370,7 +419,13 @@ export class Array2D {
 
     /**
      * Computes the determinant of this matrix, via Gaussian elimination with
-     * partial pivoting.
+     * partial pivoting. Like `lu()`, there is no tolerance parameter: a
+     * pivot only counts as missing if it's *exactly* `0`, matching the
+     * convention LAPACK and numpy use internally (they compute the
+     * determinant from the same kind of LU factorization). A near-singular
+     * matrix will generally return a small-but-nonzero float here, not
+     * `0` — if you need near-singularity detection, use `rank()` instead,
+     * which is built for exactly that.
      * @returns The determinant.
      * @throws {RangeError} If this matrix is not square.
      */
@@ -399,22 +454,22 @@ export class Array2D {
         const aug = new Array2D(n, 2 * n);
         for (let i = 0; i < n; i++) {
             aug.data.set(this.data.subarray(this._idx(i, 0), this._idx(i, 0) + n), aug._idx(i, 0));
-            aug.set(i, n + i, 1);
+            aug._set(i, n + i, 1);
         }
         for (let col = 0; col < n; col++) {
             const pivotRow = Array2D._findPivotRow(aug, col, col, 0);
             if (pivotRow === -1) throw new Error('Array2D inverse: matrix is singular');
             if (pivotRow !== col) aug.swapRows(col, pivotRow);
-            aug.scaleRow(col, 1 / aug.get(col, col));
+            aug.scaleRow(col, 1 / aug._get(col, col));
             for (let i = 0; i < n; i++) {
                 if (i === col) continue;
-                const factor = aug.get(i, col);
+                const factor = aug._get(i, col);
                 if (factor !== 0) aug.addScaledRow(i, col, -factor);
             }
         }
         const res = new Array2D(n, n);
         for (let i = 0; i < n; i++) {
-            for (let j = 0; j < n; j++) res.set(i, j, aug.get(i, n + j));
+            res.data.set(aug.data.subarray(aug._idx(i, n), aug._idx(i, n) + n), res._idx(i, 0));
         }
         return res;
     }
@@ -426,12 +481,21 @@ export class Array2D {
      * is much cheaper than calling `solve()` repeatedly against the same
      * matrix with different right-hand sides (e.g. inside a Newton solver
      * that reuses a Jacobian across corrector steps).
-     * @param tol Absolute tolerance below which a candidate pivot is treated as zero.
+     *
+     * There is no tolerance parameter: matching the convention used by
+     * LAPACK's `dgetrf` (which this is modeled on), the pivot in each
+     * column is always the largest-magnitude entry available, regardless
+     * of how small it is — only a pivot that is *exactly* `0` counts as
+     * missing. A fuzzy "close enough to zero" threshold isn't part of
+     * plain LU pivoting in reference implementations; if you need that
+     * kind of near-singularity detection, use `rank()`, which does expose
+     * a tolerance for exactly this purpose.
      * @returns The `{ L, U, perm, sign }` factorization.
      * @throws {RangeError} If this matrix is not square.
-     * @throws {Error} If this matrix is singular.
+     * @throws {Error} If this matrix is singular (some column's largest
+     * available pivot is exactly `0`).
      */
-    lu(tol = 0): LUDecomposition {
+    lu(): LUDecomposition {
         if (this.rows !== this.cols) throw new RangeError(`Array2D lu requires a square matrix, got ${this.rows}x${this.cols}`);
         const n = this.rows;
         const U = this.copy();
@@ -440,7 +504,7 @@ export class Array2D {
         let sign = 1;
 
         for (let col = 0; col < n; col++) {
-            const pivotRow = Array2D._findPivotRow(U, col, col, tol);
+            const pivotRow = Array2D._findPivotRow(U, col, col, 0);
             if (pivotRow === -1) throw new Error('Array2D lu: matrix is singular');
             if (pivotRow !== col) {
                 U.swapRows(col, pivotRow);
@@ -448,19 +512,19 @@ export class Array2D {
                 // multipliers; swap those along with U's rows so that
                 // P * this === L * U still holds after the pivot.
                 for (let k = 0; k < col; k++) {
-                    const tmp = L.get(col, k);
-                    L.set(col, k, L.get(pivotRow, k));
-                    L.set(pivotRow, k, tmp);
+                    const tmp = L._get(col, k);
+                    L._set(col, k, L._get(pivotRow, k));
+                    L._set(pivotRow, k, tmp);
                 }
                 [perm[col], perm[pivotRow]] = [perm[pivotRow], perm[col]];
                 sign = -sign;
             }
-            const pivot = U.get(col, col);
+            const pivot = U._get(col, col);
             for (let i = col + 1; i < n; i++) {
-                const factor = U.get(i, col) / pivot;
+                const factor = U._get(i, col) / pivot;
                 if (factor !== 0) {
                     U.addScaledRow(i, col, -factor);
-                    L.set(i, col, factor);
+                    L._set(i, col, factor);
                 }
             }
         }
@@ -484,12 +548,13 @@ export class Array2D {
         const n = this.rows;
         const x = new Array1D(n);
         for (let i = 0; i < n; i++) {
+            const offset = this._idx(i, 0);
             let s = b.data[i];
-            for (let j = 0; j < i; j++) s -= this.get(i, j) * x.data[j];
+            for (let j = 0; j < i; j++) s -= this.data[offset + j] * x.data[j];
             if (unitDiagonal) {
                 x.data[i] = s;
             } else {
-                const d = this.get(i, i);
+                const d = this.data[offset + i];
                 if (d === 0) throw new Error('Array2D solveLower: zero diagonal entry, matrix is singular');
                 x.data[i] = s / d;
             }
@@ -512,9 +577,10 @@ export class Array2D {
         const n = this.rows;
         const x = new Array1D(n);
         for (let i = n - 1; i >= 0; i--) {
+            const offset = this._idx(i, 0);
             let s = b.data[i];
-            for (let j = i + 1; j < n; j++) s -= this.get(i, j) * x.data[j];
-            const d = this.get(i, i);
+            for (let j = i + 1; j < n; j++) s -= this.data[offset + j] * x.data[j];
+            const d = this.data[offset + i];
             if (d === 0) throw new Error('Array2D solveUpper: zero diagonal entry, matrix is singular');
             x.data[i] = s / d;
         }
@@ -542,79 +608,324 @@ export class Array2D {
         return U.solveUpper(y);
     }
 
-    /**
-     * Computes the sum of all elements of this matrix.
-     * @returns The sum, or `0` if the matrix is empty.
-     */
-    sum(): number {
-        let s = 0;
-        for (let k = 0; k < this.data.length; k++) s += this.data[k];
-        return s;
-    }
+    // -----------------------------------------------------------------
+    // Axis-aware reductions, following numpy's convention: `axis`
+    // omitted (or `undefined`) reduces over every element to a scalar
+    // (delegating to ArrayND's whole-buffer helpers); `axis: 0` reduces
+    // down each column (one result per column, an `Array1D` of length
+    // `cols`); `axis: 1` reduces across each row (one result per row, an
+    // `Array1D` of length `rows`). The underlying per-slice math (sum,
+    // mean, min/max with NaN propagation, variance/std, argmin/argmax)
+    // is not reimplemented here — `_reduceAxis` below reuses `ArrayND`'s
+    // `_sumArr`/`_meanArr`/`_minArr`/`_maxArr`/`_varianceArr`/`_stdArr`/
+    // `_argMinArr`/`_argMaxArr`, the same pure Float64Array reducers that
+    // back Array1D's and this class's own whole-buffer reductions.
+    // -----------------------------------------------------------------
+
 
     /**
-     * Finds the smallest element of this matrix.
-     * @returns The minimum value.
-     * @throws {RangeError} If the matrix is empty.
+     * Applies `reduceFn` along the given axis: for `axis: 0`, once per
+     * column, over that column's `rows` values; for `axis: 1`, once per
+     * row, over that row's `cols` values.
+     * @param axis `0` to reduce down columns, `1` to reduce across rows.
+     * @param reduceFn Reduces one row's or column's values to a single number.
+     * @returns An `Array1D` of length `cols` (for `axis: 0`) or `rows` (for `axis: 1`).
      */
-    min(): number {
-        if (this.data.length === 0) throw new RangeError('Array2D min() called on an empty matrix');
-        let m = this.data[0];
-        for (let k = 1; k < this.data.length; k++) if (this.data[k] < m) m = this.data[k];
-        return m;
-    }
-
-    /**
-     * Finds the largest element of this matrix.
-     * @returns The maximum value.
-     * @throws {RangeError} If the matrix is empty.
-     */
-    max(): number {
-        if (this.data.length === 0) throw new RangeError('Array2D max() called on an empty matrix');
-        let m = this.data[0];
-        for (let k = 1; k < this.data.length; k++) if (this.data[k] > m) m = this.data[k];
-        return m;
-    }
-
-    /**
-     * Creates an independent copy of this matrix.
-     * @returns A new Array2D with the same shape and values.
-     */
-    copy(): Array2D {
-        return new Array2D(this.rows, this.cols, this.data);
-    }
-
-    /**
-     * Checks whether this matrix is elementwise close to another. Symmetric
-     * in `this` and `m`: an element `a` is close to `b` if
-     * `|a - b| <= atol + rtol * max(|a|, |b|)`, so `a.isClose(b) === b.isClose(a)`.
-     * @param m The other matrix.
-     * @param rtol Relative tolerance.
-     * @param atol Absolute tolerance.
-     * @returns `true` if `m` has the same shape and all elements of `this` are close to `m`'s.
-     */
-    isClose(m: Array2D, rtol = 1e-5, atol = 1e-8): boolean {
-        if (m.rows !== this.rows || m.cols !== this.cols) return false;
-        for (let k = 0; k < this.data.length; k++) {
-            const a = this.data[k];
-            const b = m.data[k];
-            if (Math.abs(a - b) > atol + rtol * Math.max(Math.abs(a), Math.abs(b))) return false;
+    private _reduceAxis(axis: 0 | 1, reduceFn: (values: Float64Array) => number): Array1D {
+        if (axis === 0) {
+            const res = new Array1D(this.cols);
+            const col = new Float64Array(this.rows);
+            for (let j = 0; j < this.cols; j++) {
+                for (let i = 0; i < this.rows; i++) col[i] = this._get(i, j);
+                res.data[j] = reduceFn(col);
+            }
+            return res;
+        } else {
+            const res = new Array1D(this.rows);
+            for (let i = 0; i < this.rows; i++) {
+                const row = this.data.subarray(this._idx(i, 0), this._idx(i, 0) + this.cols);
+                res.data[i] = reduceFn(row);
+            }
+            return res;
         }
-        return true;
     }
 
     /**
-     * Checks whether this matrix is exactly elementwise equal to another.
-     * For tolerance-based comparison, use `isClose` instead.
-     * @param m The other matrix.
-     * @returns `true` if `m` has the same shape and all elements are exactly equal.
+     * Sums this matrix's elements to a scalar.
+     * @returns The sum, or `0` if the buffer is empty.
      */
-    equals(m: Array2D): boolean {
-        if (m.rows !== this.rows || m.cols !== this.cols) return false;
-        for (let k = 0; k < this.data.length; k++) {
-            if (this.data[k] !== m.data[k]) return false;
+    sum(axis?: undefined): number;
+    /**
+     * Sums this matrix's elements along one axis. `0` sums down each
+     * column, returning an `Array1D` of length `cols`; `1` sums across
+     * each row, returning an `Array1D` of length `rows`.
+     */
+    sum(axis: 0 | 1): Array1D;
+    sum(axis?: 0 | 1): number | Array1D {
+        if (axis === undefined) return this._sumAll();
+        return this._reduceAxis(axis, ArrayND._sumArr);
+    }
+
+    /**
+     * Computes the arithmetic mean of this matrix's elements to a scalar.
+     */
+    mean(axis?: undefined): number;
+    /**
+     * Computes the arithmetic mean along one axis. `0` averages down each
+     * column; `1` averages across each row.
+     */
+    mean(axis: 0 | 1): Array1D;
+    mean(axis?: 0 | 1): number | Array1D {
+        if (axis === undefined) return this._meanAll();
+        return this._reduceAxis(axis, ArrayND._meanArr);
+    }
+
+    /**
+     * Finds the smallest element of this matrix. NaN wins the comparison
+     * so it propagates, matching `Math.min`.
+     */
+    min(axis?: undefined): number;
+    /**
+     * Finds the smallest element along one axis. `0` finds the minimum of
+     * each column; `1` finds the minimum of each row. NaN propagates, as
+     * in the no-axis form.
+     */
+    min(axis: 0 | 1): Array1D;
+    min(axis?: 0 | 1): number | Array1D {
+        if (axis === undefined) return this._minAll();
+        return this._reduceAxis(axis, ArrayND._minArr);
+    }
+
+    /**
+     * Finds the largest element of this matrix. NaN wins the comparison
+     * so it propagates, matching `Math.max`.
+     */
+    max(axis?: undefined): number;
+    /**
+     * Finds the largest element along one axis. `0` finds the maximum of
+     * each column; `1` finds the maximum of each row. NaN propagates, as
+     * in the no-axis form.
+     */
+    max(axis: 0 | 1): Array1D;
+    max(axis?: 0 | 1): number | Array1D {
+        if (axis === undefined) return this._maxAll();
+        return this._reduceAxis(axis, ArrayND._maxArr);
+    }
+
+    /**
+     * Computes the variance of this matrix's elements to a scalar: the
+     * mean of the squared deviations from the mean.
+     * @param ddof Delta degrees of freedom. The divisor used is
+     * `n - ddof`. Defaults to `0` (population variance); pass `1` for the
+     * unbiased sample variance.
+     */
+    variance(axis?: undefined, ddof?: number): number;
+    /**
+     * Computes the variance along one axis. `0` computes the variance of
+     * each column; `1` computes the variance of each row.
+     * @param ddof Delta degrees of freedom, as in the no-axis form, applied
+     * per row/column.
+     */
+    variance(axis: 0 | 1, ddof?: number): Array1D;
+    variance(axis?: 0 | 1, ddof: number = 0): number | Array1D {
+        if (axis === undefined) return this._varianceAll(ddof);
+        return this._reduceAxis(axis, (a) => ArrayND._varianceArr(a, ddof));
+    }
+
+    /**
+     * Computes the standard deviation of this matrix's elements to a scalar.
+     * @param ddof Delta degrees of freedom, forwarded to `variance()`.
+     */
+    std(axis?: undefined, ddof?: number): number;
+    /**
+     * Computes the standard deviation along one axis. `0` computes it for
+     * each column; `1` for each row.
+     * @param ddof Delta degrees of freedom, forwarded to `variance()`.
+     */
+    std(axis: 0 | 1, ddof?: number): Array1D;
+    std(axis?: 0 | 1, ddof: number = 0): number | Array1D {
+        if (axis === undefined) return this._stdAll(ddof);
+        return this._reduceAxis(axis, (a) => ArrayND._stdArr(a, ddof));
+    }
+
+    /**
+     * Computes the cumulative sum of this matrix's elements, flattened in
+     * row-major order first (row 0 followed by row 1, etc.): a single
+     * running total over that sequence, as an `Array1D` of length `rows * cols`.
+     */
+    cumsum(axis?: undefined): Array1D;
+    /**
+     * Computes the cumulative sum along one axis, keeping this matrix's
+     * shape. `0` accumulates down each column independently, restarting
+     * the running total at the top of each column. `1` accumulates across
+     * each row independently, restarting at the start of each row.
+     */
+    cumsum(axis: 0 | 1): Array2D;
+    cumsum(axis?: 0 | 1): Array1D | Array2D {
+        if (axis === undefined) {
+            const res = new Array1D(this.size);
+            let running = 0;
+            for (let i = 0; i < this.data.length; i++) {
+                running += this.data[i];
+                res.data[i] = running;
+            }
+            return res;
         }
-        return true;
+        const res = this._create(new Float64Array(this.data.length));
+        if (axis === 0) {
+            for (let j = 0; j < this.cols; j++) {
+                let running = 0;
+                for (let i = 0; i < this.rows; i++) {
+                    running += this._get(i, j);
+                    res._set(i, j, running);
+                }
+            }
+        } else {
+            for (let i = 0; i < this.rows; i++) {
+                const offset = this._idx(i, 0);
+                let running = 0;
+                for (let j = 0; j < this.cols; j++) {
+                    running += this.data[offset + j];
+                    res.data[offset + j] = running;
+                }
+            }
+        }
+        return res;
+    }
+
+    /**
+     * Finds the index of this matrix's smallest element, as a single flat
+     * index into the matrix flattened in row-major order. If multiple
+     * elements tie for the minimum, the first flat index is returned. NaN
+     * elements take priority, matching `min()`'s NaN-propagation semantics.
+     */
+    argmin(axis?: undefined): number;
+    /**
+     * Finds the index of the smallest element along one axis. `0` returns,
+     * for each column, the *row* index (`0` to `rows - 1`) of that
+     * column's minimum, as an `Array1D` of length `cols`. `1` returns, for
+     * each row, the *column* index (`0` to `cols - 1`) of that row's
+     * minimum, as an `Array1D` of length `rows`. Ties and NaN priority
+     * follow the no-axis form, applied per row/column.
+     */
+    argmin(axis: 0 | 1): Array1D;
+    argmin(axis?: 0 | 1): number | Array1D {
+        if (axis === undefined) return ArrayND._argMinArr(this.data);
+        return this._reduceAxis(axis, ArrayND._argMinArr);
+    }
+
+    /**
+     * Finds the index of this matrix's largest element, as a single flat
+     * index into the matrix flattened in row-major order. If multiple
+     * elements tie for the maximum, the first flat index is returned. NaN
+     * elements take priority, matching `max()`'s NaN-propagation semantics.
+     */
+    argmax(axis?: undefined): number;
+    /**
+     * Finds the index of the largest element along one axis. `0` returns,
+     * for each column, the *row* index (`0` to `rows - 1`) of that
+     * column's maximum, as an `Array1D` of length `cols`. `1` returns, for
+     * each row, the *column* index (`0` to `cols - 1`) of that row's
+     * maximum, as an `Array1D` of length `rows`. Ties and NaN priority
+     * follow the no-axis form, applied per row/column.
+     */
+    argmax(axis: 0 | 1): Array1D;
+    argmax(axis?: 0 | 1): number | Array1D {
+        if (axis === undefined) return ArrayND._argMaxArr(this.data);
+        return this._reduceAxis(axis, ArrayND._argMaxArr);
+    }
+
+    // -----------------------------------------------------------------
+    // Axis-aware reshaping: unlike the reductions above, these don't
+    // collapse a dimension — `sort` permutes each row/column in place
+    // (same shape in, same shape out) and `slice` extracts a sub-matrix.
+    // Grouped here by their shared per-axis structure, not by behavior.
+    // -----------------------------------------------------------------
+
+    /**
+     * Returns a sorted copy of this matrix, leaving the original unchanged.
+     * Unlike the reductions above (`sum`, `argmin`, etc.), where omitting
+     * `axis` flattens the whole matrix, `sort` defaults to `axis: 1`
+     * (sorting each row independently) since a flattened *ordering* isn't
+     * a matrix anymore, so there's no sensible no-axis default here.
+     * @param axis `0` sorts each column independently, top to bottom;
+     * `1` (the default) sorts each row independently, left to right.
+     * @param compareFn Optional comparator, as in `Array.prototype.sort`.
+     * Defaults to ascending numeric order (unlike `Array.prototype.sort`'s
+     * default, which sorts lexicographically).
+     * @returns A new matrix, the same shape as this one, with each row or
+     * column sorted independently.
+     */
+    sort(axis: 0 | 1 = 1, compareFn?: (a: number, b: number) => number): Array2D {
+        const res = this.copy();
+        if (axis === 1) {
+            for (let i = 0; i < res.rows; i++) {
+                const start = res._idx(i, 0);
+                res.data.subarray(start, start + res.cols).sort(compareFn);
+            }
+        } else {
+            const col = new Float64Array(res.rows);
+            for (let j = 0; j < res.cols; j++) {
+                for (let i = 0; i < res.rows; i++) col[i] = res._get(i, j);
+                col.sort(compareFn);
+                for (let i = 0; i < res.rows; i++) res._set(i, j, col[i]);
+            }
+        }
+        return res;
+    }
+
+    /**
+     * Resolves a `(start, end)` pair against an axis of the given
+     * `length`, with the same semantics as `Array.prototype.slice`:
+     * omitted means "from the start" / "to the end", negative indices
+     * count back from the end, and everything is clamped to
+     * `[0, length]`. Shared by `slice()` for its row and column axes,
+     * independently.
+     * @param start Start index, inclusive. Defaults to `0`.
+     * @param end End index, exclusive. Defaults to `length`.
+     * @param length The length of the axis being sliced.
+     * @returns The resolved, clamped `[start, end)` range (`end >= start`, always).
+     */
+    private static _resolveRange(start: number | undefined, end: number | undefined, length: number): { start: number; end: number } {
+        const resolve = (idx: number | undefined, def: number): number => {
+            if (idx === undefined) return def;
+            return idx < 0 ? Math.max(length + idx, 0) : Math.min(idx, length);
+        };
+        const s = resolve(start, 0);
+        const e = Math.max(resolve(end, length), s);
+        return { start: s, end: e };
+    }
+
+    /**
+     * Extracts a sub-matrix, with the same start/end/negative-index
+     * semantics as `Array.prototype.slice`, applied independently to rows
+     * and columns.
+     * @param rowStart Row start index, inclusive. Defaults to `0`.
+     * Negative values count back from the last row.
+     * @param rowEnd Row end index, exclusive. Defaults to `rows`. Negative
+     * values count back from the last row.
+     * @param colStart Column start index, inclusive. Defaults to `0`.
+     * Negative values count back from the last column.
+     * @param colEnd Column end index, exclusive. Defaults to `cols`.
+     * Negative values count back from the last column.
+     * @returns A new, independent matrix holding the selected rows and columns.
+     * @throws {RangeError} If the resolved row or column range is empty
+     * (Array2D cannot represent a matrix with 0 rows or 0 columns).
+     */
+    slice(rowStart?: number, rowEnd?: number, colStart?: number, colEnd?: number): Array2D {
+        const { start: rs, end: re } = Array2D._resolveRange(rowStart, rowEnd, this.rows);
+        const { start: cs, end: ce } = Array2D._resolveRange(colStart, colEnd, this.cols);
+        const newRows = re - rs;
+        const newCols = ce - cs;
+        if (newRows === 0 || newCols === 0) {
+            throw new RangeError(`Array2D.slice: resolved range is ${newRows}x${newCols}, but Array2D cannot represent a matrix with 0 rows or 0 columns`);
+        }
+        const res = new Array2D(newRows, newCols);
+        for (let i = 0; i < newRows; i++) {
+            const srcOffset = this._idx(rs + i, cs);
+            res.data.set(this.data.subarray(srcOffset, srcOffset + newCols), res._idx(i, 0));
+        }
+        return res;
     }
 
     /**
@@ -645,49 +956,8 @@ export class Array2D {
     }
 
     // -----------------------------------------------------------------
-    // In-place (mutating) operations.
+    // In-place (mutating) operations that stay matrix-specific.
     // -----------------------------------------------------------------
-
-    /**
-     * Resets this matrix to all zeros in place.
-     * @returns `this`, for chaining.
-     */
-    reset(): this {
-        this.data.fill(0);
-        return this;
-    }
-
-    /**
-     * Adds another matrix to this one in place, elementwise: `this += m`.
-     * @param m The matrix to add. Must have the same shape as this one.
-     * @returns `this`, for chaining.
-     */
-    addSelf(m: Array2D): this {
-        this._checkShape(m);
-        for (let k = 0; k < this.data.length; k++) this.data[k] += m.data[k];
-        return this;
-    }
-
-    /**
-     * Subtracts another matrix from this one in place, elementwise: `this -= m`.
-     * @param m The matrix to subtract. Must have the same shape as this one.
-     * @returns `this`, for chaining.
-     */
-    subSelf(m: Array2D): this {
-        this._checkShape(m);
-        for (let k = 0; k < this.data.length; k++) this.data[k] -= m.data[k];
-        return this;
-    }
-
-    /**
-     * Scales every element of this matrix in place: `this *= s`.
-     * @param s The scale factor.
-     * @returns `this`, for chaining.
-     */
-    multSelf(s: number): this {
-        for (let k = 0; k < this.data.length; k++) this.data[k] *= s;
-        return this;
-    }
 
     /**
      * Transposes a square matrix in place.
@@ -698,16 +968,17 @@ export class Array2D {
         if (this.rows !== this.cols) throw new RangeError(`Array2D transposeSelf requires a square matrix, got ${this.rows}x${this.cols}`);
         for (let i = 0; i < this.rows; i++) {
             for (let j = i + 1; j < this.cols; j++) {
-                const tmp = this.get(i, j);
-                this.set(i, j, this.get(j, i));
-                this.set(j, i, tmp);
+                const tmp = this._get(i, j);
+                this._set(i, j, this._get(j, i));
+                this._set(j, i, tmp);
             }
         }
         return this;
     }
 
     /**
-     * Swaps two rows in place. Useful when implementing pivoting algorithms.
+     * Swaps two rows in place, with no allocation. Useful when
+     * implementing pivoting algorithms.
      * @param i First row index (0-based).
      * @param j Second row index (0-based).
      * @returns `this`, for chaining.
@@ -717,9 +988,13 @@ export class Array2D {
         if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
         if (j < 0 || j >= this.rows) throw new RangeError(`Array2D row ${j} out of bounds for ${this.rows} rows`);
         if (i === j) return this;
-        const a = this.row(i).toArray();
-        this.setRow(i, this.row(j).data);
-        this.setRow(j, a);
+        const oi = this._idx(i, 0);
+        const oj = this._idx(j, 0);
+        for (let k = 0; k < this.cols; k++) {
+            const tmp = this.data[oi + k];
+            this.data[oi + k] = this.data[oj + k];
+            this.data[oj + k] = tmp;
+        }
         return this;
     }
 
