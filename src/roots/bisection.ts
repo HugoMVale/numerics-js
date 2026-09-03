@@ -10,8 +10,8 @@ import type { BisectionOptions, RootResult } from './types.js';
  * @param options Tuning options.
  * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
- * @returns Result containing the approximate root, function value, and evaluation count.
- * @throws {Error} If fn(a) and fn(b) don't bracket a root, or if convergence fails.
+ * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
+ * @throws {Error} If a and b are equal, or if fn(a) and fn(b) don't bracket a root.
  *
  * @example
  * ```ts
@@ -27,6 +27,8 @@ import type { BisectionOptions, RootResult } from './types.js';
  * ```text
  * {
  *   method: 'bisection',
+ *   success: true,
+ *   message: 'converged: interval half-width below tolX',
  *   evaluations: 29,
  *   x: 0.5369737669825554,
  *   fx: -7.824495273922594e-9
@@ -60,8 +62,26 @@ export function bisection(
     let fb = fn(b);
     evaluations++;
 
-    if (fa === 0) return { method: 'bisection', evaluations, x: a, fx: fa };
-    if (fb === 0) return { method: 'bisection', evaluations, x: b, fx: fb };
+    if (fa === 0) {
+        return {
+            method: 'bisection',
+            success: true,
+            message: 'converged: exact root at a',
+            evaluations,
+            x: a,
+            fx: fa
+        };
+    }
+    if (fb === 0) {
+        return {
+            method: 'bisection',
+            success: true,
+            message: 'converged: exact root at b',
+            evaluations,
+            x: b,
+            fx: fb
+        };
+    }
 
     if (Math.sign(fa) === Math.sign(fb)) {
         throw new Error(
@@ -77,8 +97,25 @@ export function bisection(
         fmid = fn(mid);
         evaluations++;
 
-        if (fmid === 0 || (b - a) / 2 < tolX) {
-            return { method: 'bisection', evaluations, x: mid, fx: fmid };
+        if (fmid === 0) {
+            return {
+                method: 'bisection',
+                success: true,
+                message: 'converged: exact root found',
+                evaluations,
+                x: mid,
+                fx: fmid
+            };
+        }
+        if ((b - a) / 2 < tolX) {
+            return {
+                method: 'bisection',
+                success: true,
+                message: 'converged: interval half-width below tolX',
+                evaluations,
+                x: mid,
+                fx: fmid
+            };
         }
 
         if (Math.sign(fmid) === Math.sign(fa)) {
@@ -89,8 +126,12 @@ export function bisection(
         }
     }
 
-    console.warn(
-        `bisection: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
-    );
-    return { method: 'bisection', evaluations, x: mid, fx: fmid };
+    return {
+        method: 'bisection',
+        success: false,
+        message: `did not converge: reached maxIter (${maxIter}) without meeting tolX`,
+        evaluations,
+        x: mid,
+        fx: fmid
+    };
 }

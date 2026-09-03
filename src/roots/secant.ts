@@ -15,8 +15,8 @@ import type { RootResult, SecantOptions } from './types.js';
  * @param options Tuning options.
  * @param options.tolX Stop when |x1 - x0| (the step size) is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
- * @returns Result containing the approximate root, function value, and evaluation count.
- * @throws {Error} If x0 and x1 are equal, or if a zero derivative estimate is encountered.
+ * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
+ * @throws {Error} If x0 and x1 are equal.
  *
  * @example
  * ```ts
@@ -32,6 +32,8 @@ import type { RootResult, SecantOptions } from './types.js';
  * ```text
  * {
  *   method: 'secant',
+ *   success: true,
+ *   message: 'converged: step size below tolX',
  *   evaluations: 10,
  *   x: 0.5369737680962301,
  *   fx: -2.220446049250313e-16
@@ -62,16 +64,39 @@ export function secant(
     let f1 = fn(x1);
     evaluations++;
 
-    if (f0 === 0) return { method: 'secant', evaluations, x: x0, fx: f0 };
-    if (f1 === 0) return { method: 'secant', evaluations, x: x1, fx: f1 };
+    if (f0 === 0) {
+        return {
+            method: 'secant',
+            success: true,
+            message: 'converged: exact root at x0',
+            evaluations,
+            x: x0,
+            fx: f0
+        };
+    }
+    if (f1 === 0) {
+        return {
+            method: 'secant',
+            success: true,
+            message: 'converged: exact root at x1',
+            evaluations,
+            x: x1,
+            fx: f1
+        };
+    }
 
     for (let k = 0; k < maxIter; k++) {
         const denom = f1 - f0;
 
         if (denom === 0) {
-            throw new Error(
-                `secant: zero denominator encountered (fn(x0)=${f0}, fn(x1)=${f1}); cannot continue`
-            );
+            return {
+                method: 'secant',
+                success: false,
+                message: `did not converge: zero denominator encountered (fn(x0)=${f0}, fn(x1)=${f1})`,
+                evaluations,
+                x: x1,
+                fx: f1
+            };
         }
 
         const x2 = x1 - (f1 * (x1 - x0)) / denom;
@@ -79,7 +104,14 @@ export function secant(
         if (Math.abs(x2 - x1) < tolX) {
             const fx2 = fn(x2);
             evaluations++;
-            return { method: 'secant', evaluations, x: x2, fx: fx2 };
+            return {
+                method: 'secant',
+                success: true,
+                message: 'converged: step size below tolX',
+                evaluations,
+                x: x2,
+                fx: fx2
+            };
         }
 
         x0 = x1;
@@ -89,12 +121,23 @@ export function secant(
         evaluations++;
 
         if (f1 === 0) {
-            return { method: 'secant', evaluations, x: x1, fx: f1 };
+            return {
+                method: 'secant',
+                success: true,
+                message: 'converged: exact root found',
+                evaluations,
+                x: x1,
+                fx: f1
+            };
         }
     }
 
-    console.warn(
-        `secant: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
-    );
-    return { method: 'secant', evaluations, x: x1, fx: f1 };
+    return {
+        method: 'secant',
+        success: false,
+        message: `did not converge: reached maxIter (${maxIter}) without meeting tolX`,
+        evaluations,
+        x: x1,
+        fx: f1
+    };
 }
