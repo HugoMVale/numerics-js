@@ -1,4 +1,4 @@
-# Adaptive Runge-Kutta SciPy Benchmark Results
+# Adaptive Runge-Kutta vs SciPy Benchmark Results
 
 Reference: `scipy.integrate.solve_ivp` with the matching `RK23` or `RK45`
 method. Both solvers use `atol = 1e-8` and `rtol = 1e-8` for every case.

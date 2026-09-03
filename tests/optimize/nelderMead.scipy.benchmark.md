@@ -1,4 +1,4 @@
-# Nelder-Mead SciPy Benchmark Results
+# Nelder-Mead vs SciPy Benchmark Results
 
 Reference: `scipy.optimize.minimize(method="Nelder-Mead", options={"adaptive": True})`
 with `xatol = 1e-8` and `fatol = 1e-14`. The numerics-js solver uses the

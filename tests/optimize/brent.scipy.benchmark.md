@@ -1,4 +1,4 @@
-# Brent SciPy Benchmark Results
+# Brent vs SciPy Benchmark Results
 
 Reference: `scipy.optimize.minimize_scalar(method="brent")` with `xtol = 1e-8`.
 The numerics-js solver uses `tolX = 1e-8` for every case.
