@@ -6,7 +6,7 @@ describe('public API', () => {
     it('exports the main numerical library modules', () => {
         expect(array.Vec3).toBeTypeOf('function');
         expect(array.Array1D).toBeTypeOf('function');
-        expect(array.Array2D).toBeTypeOf('function');
+        expect(array.Matrix).toBeTypeOf('function');
         expect(typeof integrate.trapezoid).toBe('function');
         expect(typeof integrate.simpson).toBe('function');
         expect(typeof integrate.gaussKronrod).toBe('function');

@@ -5,7 +5,7 @@
  * buffer, tolerance comparisons, copying). Shape-specific behavior
  * (element access, `transpose`, `matmul`, `sort`, `slice`, `cumsum`,
  * `argmin`/`argmax`, axis-aware reductions, etc.) belongs on the
- * concrete subclasses (`Array1D`, `Array2D`), not here.
+ * concrete subclasses (`Array1D`, `Matrix`), not here.
  *
  * Subclasses provide two hooks so the arithmetic family can be written
  * once, using TypeScript's polymorphic `this` type, and still return the
@@ -23,7 +23,7 @@ export abstract class ArrayND {
 
     /**
      * The total number of elements in the underlying flat buffer. For
-     * `Array1D` this is the same as `size`/dimension; for `Array2D` this is
+     * `Array1D` this is the same as `size`/dimension; for `Matrix` this is
      * `rows * cols`.
      */
     get size(): number {
@@ -45,7 +45,7 @@ export abstract class ArrayND {
     /**
      * Constructs a new instance of the concrete subclass, wrapping the
      * given buffer directly (no copying, no validation) and preserving
-     * this instance's shape (e.g. an `Array2D`'s `rows`/`cols`).
+     * this instance's shape (e.g. an `Matrix`'s `rows`/`cols`).
      * @param data The buffer for the new instance to wrap. Must already be
      * the correct length for this instance's shape.
      * @returns A new instance of the same concrete type as `this`.
@@ -427,7 +427,7 @@ export abstract class ArrayND {
 
     /**
      * Computes the squared Euclidean norm of the flat buffer (for
-     * `Array1D`, the squared vector length; for `Array2D`, the squared
+     * `Array1D`, the squared vector length; for `Matrix`, the squared
      * Frobenius norm). Cheaper than `norm()` since it avoids a square root.
      * @returns The sum of squares of every element.
      */
@@ -439,7 +439,7 @@ export abstract class ArrayND {
 
     /**
      * Computes the Euclidean norm of the flat buffer (for `Array1D`, the
-     * vector length; for `Array2D`, the Frobenius norm).
+     * vector length; for `Matrix`, the Frobenius norm).
      * @returns `sqrt(normSq())`.
      */
     norm(): number {
@@ -447,7 +447,7 @@ export abstract class ArrayND {
     }
 
     /**
-     * Computes the elementwise (Frobenius, for `Array2D`) inner product of
+     * Computes the elementwise (Frobenius, for `Matrix`) inner product of
      * this instance with another.
      * @param x The other instance. Must be shape-compatible with this one.
      * @returns The scalar `this · x`, summed over every element of the flat buffer.
@@ -462,7 +462,7 @@ export abstract class ArrayND {
 
     /**
      * Computes the Euclidean distance between this instance and another,
-     * treating both as flat buffers (for `Array2D`, this is the Frobenius
+     * treating both as flat buffers (for `Matrix`, this is the Frobenius
      * distance).
      * @param x The other instance. Must be shape-compatible with this one.
      * @returns The distance between `this` and `x`.
@@ -480,7 +480,7 @@ export abstract class ArrayND {
 
     // -----------------------------------------------------------------
     // Pure, array-level reducers: operate on any Float64Array, not just
-    // this instance's own `data`. This is what lets Array2D reuse the
+    // this instance's own `data`. This is what lets Matrix reuse the
     // exact same reduction/argmin/argmax logic for its axis-aware
     // methods (reducing one row or column at a time), instead of
     // duplicating it. The `_xAll`/instance-level methods below are thin

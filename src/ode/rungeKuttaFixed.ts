@@ -1,5 +1,5 @@
 import { Array1D } from '../array/array1d.js';
-import { Array2D } from '../array/array2d.js';
+import { Matrix } from '../array/Matrix.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types.js';
 
 export type { RungeKuttaFixedMethod as RungeKuttaMethod } from './types.js';
@@ -188,7 +188,7 @@ export function rungeKuttaStep(
  *   message: 'Integration successful.',
  *   evaluations: 16,
  *   t: Array1D [ 0, 0.25, 0.5, 0.75, 1 ],
- *   y: Array2D [[1], [0.7788085937500001], [0.6065428256988528], [0.472380765131675], [0.36789419940674883]],
+ *   y: Matrix [[1], [0.7788085937500001], [0.6065428256988528], [0.472380765131675], [0.36789419940674883]],
  * }
  * ```
  */
@@ -223,7 +223,7 @@ export function rungeKuttaFixed(
     const nTimes = nRecorded + 1;
     const evaluationsPerStep = stagesPerStep(method);
     const tVec = new Array1D(nTimes);
-    const yMat = new Array2D(nTimes, dim);
+    const yMat = new Matrix(nTimes, dim);
     let evaluations = 0;
 
     let t = t0;

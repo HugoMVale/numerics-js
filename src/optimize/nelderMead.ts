@@ -1,5 +1,5 @@
 import { Array1D } from '../array/array1d.js';
-import { Array2D } from '../array/array2d.js';
+import { Matrix } from '../array/Matrix.js';
 import type { VectorFunction } from '../types.js';
 
 /**
@@ -59,7 +59,7 @@ export interface NelderMeadOptions {
      * callback. If `stop` is `true`, the iteration is terminated; `success`
      * then decides whether the result is reported as successful.
      */
-    callback?: (nIter: number, x: Array2D, fx: Array1D) => { stop: boolean; success: boolean };
+    callback?: (nIter: number, x: Matrix, fx: Array1D) => { stop: boolean; success: boolean };
 }
 
 /**
@@ -213,7 +213,7 @@ export function nelderMead(
     }
 
     // Initialize the simplex vertices: (n+1) x n matrix, one vertex per row
-    const x = new Array2D(n + 1, n);
+    const x = new Matrix(n + 1, n);
     x.setRow(0, x0v);
     for (let k = 0; k < n; k++) {
         const v = x0v.copy();

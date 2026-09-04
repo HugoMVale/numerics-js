@@ -53,7 +53,7 @@ export class Array1D extends ArrayND {
      * already be a fresh `Float64Array` of the right length. Used by
      * `_create()` (so `ArrayND`'s arithmetic doesn't pay for a second
      * allocation+copy on top of the buffer it already built) and by
-     * `Array2D.row()` (which already owns a freshly sliced, independent
+     * `Matrix.row()` (which already owns a freshly sliced, independent
      * buffer by the time it gets here). Not part of the public API —
      * despite being a public static method (TypeScript has no
      * package-private), treat the leading underscore as a hard "don't call
@@ -103,7 +103,7 @@ export class Array1D extends ArrayND {
     // -----------------------------------------------------------------
     // Operations that stay vector-specific: arity/shape differ too much
     // from ArrayND's shared logic to be shared directly (e.g. `get`/`set`
-    // take one index here vs two on Array2D). Array2D has its own,
+    // take one index here vs two on Matrix). Matrix has its own,
     // axis-aware versions of sort/slice/cumsum/argmin/argmax — these
     // aren't shared with those, each class's version is its own design.
     // -----------------------------------------------------------------

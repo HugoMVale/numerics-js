@@ -2,14 +2,14 @@ import { ArrayND } from './arraynd.js';
 import { Array1D } from './array1d.js';
 
 /**
- * Result of `Array2D.lu()`: a partial-pivoted LU factorization such that
+ * Result of `Matrix.lu()`: a partial-pivoted LU factorization such that
  * `P * A = L * U`, where `P` is the row permutation implied by `perm`.
  */
 export interface LUDecomposition {
     /** Unit lower-triangular factor (1s on the diagonal). */
-    L: Array2D;
+    L: Matrix;
     /** Upper-triangular factor. */
-    U: Array2D;
+    U: Matrix;
     /**
      * Row permutation applied during pivoting: `perm[i]` is the index, in
      * the original matrix, of the row now in position `i`. Apply it to a
@@ -34,7 +34,7 @@ export interface LUDecomposition {
  *
  * Elementwise arithmetic (`add`/`sub`/`mult`/`div` + `Self` variants,
  * `abs`/`pow`/`sqrt`/`clip` + `Self` variants — `mult`/`div` accept either
- * another `Array2D` of the same shape, elementwise, or a scalar), tolerance
+ * another `Matrix` of the same shape, elementwise, or a scalar), tolerance
  * comparisons (`isClose`/`allClose`), `normSq`/`norm`/`dot`/`dist`
  * (Frobenius), and `copy`/`fill` are inherited from `ArrayND` unchanged;
  * see that class for their docs. There is currently no broadcasting
@@ -42,7 +42,7 @@ export interface LUDecomposition {
  * same shape, or a plain scalar. `toArray` is not inherited (its natural
  * shape differs per subclass) and is defined here directly, as an array of row arrays.
  */
-export class Array2D extends ArrayND {
+export class Matrix extends ArrayND {
     private _rows: number;
     private _cols: number;
     public data: Float64Array;
@@ -59,14 +59,14 @@ export class Array2D extends ArrayND {
     constructor(rows: number, cols: number, input?: ArrayLike<number>) {
         super();
         if (!Number.isInteger(rows) || rows < 1) {
-            throw new RangeError(`Array2D: rows must be a positive integer, got ${rows}`);
+            throw new RangeError(`Matrix: rows must be a positive integer, got ${rows}`);
         }
         if (!Number.isInteger(cols) || cols < 1) {
-            throw new RangeError(`Array2D: cols must be a positive integer, got ${cols}`);
+            throw new RangeError(`Matrix: cols must be a positive integer, got ${cols}`);
         }
         if (input !== undefined && input.length !== rows * cols) {
             throw new RangeError(
-                `Array2D: expected ${rows * cols} values for a ${rows}x${cols} matrix, got ${input.length}`
+                `Matrix: expected ${rows * cols} values for a ${rows}x${cols} matrix, got ${input.length}`
             );
         }
         this._rows = rows;
@@ -93,7 +93,7 @@ export class Array2D extends ArrayND {
 
     /**
      * Throws if `other` is not shape-compatible with this instance: for
-     * Array2D, "compatible" means the same `rows` *and* `cols` — matching
+     * Matrix, "compatible" means the same `rows` *and* `cols` — matching
      * `data.length` is not enough, since e.g. a 2x3 and a 3x2 matrix have
      * equal length but incompatible shape. Used internally (via `ArrayND`'s
      * arithmetic/isClose/dot/dist methods) to guard against silent shape
@@ -105,13 +105,13 @@ export class Array2D extends ArrayND {
      */
     protected _checkSameShape(other: this, caller: string): void {
         if (other.rows !== this.rows || other.cols !== this.cols) {
-            throw new RangeError(`Array2D.${caller}: shape mismatch: ${this.rows}x${this.cols} vs ${other.rows}x${other.cols}`);
+            throw new RangeError(`Matrix.${caller}: shape mismatch: ${this.rows}x${this.cols} vs ${other.rows}x${other.cols}`);
         }
     }
 
     /**
      * Internal-only fast constructor: wraps `data` directly as a new
-     * Array2D of shape `rows x cols`, with no copying and no validation
+     * Matrix of shape `rows x cols`, with no copying and no validation
      * whatsoever — `data` must already be a fresh `Float64Array` of length
      * `rows * cols`. Used by `_create()` (so `ArrayND`'s arithmetic
      * doesn't pay for a second allocation+copy, plus redundant
@@ -121,15 +121,15 @@ export class Array2D extends ArrayND {
      * part of the public API — despite being a public static method
      * (TypeScript has no package-private), treat the leading underscore as
      * a hard "don't call this from outside the array module." Like
-     * `_create`'s `as this` cast, this assumes Array2D is never itself
+     * `_create`'s `as this` cast, this assumes Matrix is never itself
      * subclassed.
      * @param rows Number of rows.
      * @param cols Number of columns.
      * @param data The buffer to wrap directly. Not copied. Must have length `rows * cols`.
-     * @returns A new Array2D wrapping `data`.
+     * @returns A new Matrix wrapping `data`.
      */
-    static _wrapUnchecked(rows: number, cols: number, data: Float64Array): Array2D {
-        const m = Object.create(Array2D.prototype) as Array2D;
+    static _wrapUnchecked(rows: number, cols: number, data: Float64Array): Matrix {
+        const m = Object.create(Matrix.prototype) as Matrix;
         m._rows = rows;
         m._cols = cols;
         m.data = data;
@@ -137,14 +137,14 @@ export class Array2D extends ArrayND {
     }
 
     /**
-     * Constructs a new Array2D with this instance's shape, wrapping the
+     * Constructs a new Matrix with this instance's shape, wrapping the
      * given buffer directly.
      * @param data The buffer for the new matrix to wrap. Must already have
      * length `rows * cols`.
-     * @returns A new `rows x cols` Array2D.
+     * @returns A new `rows x cols` Matrix.
      */
     protected _create(data: Float64Array): this {
-        return Array2D._wrapUnchecked(this.rows, this.cols, data) as this;
+        return Matrix._wrapUnchecked(this.rows, this.cols, data) as this;
     }
 
     /**
@@ -155,7 +155,7 @@ export class Array2D extends ArrayND {
      */
     private _checkBounds(i: number, j: number): void {
         if (i < 0 || i >= this.rows || j < 0 || j >= this.cols) {
-            throw new RangeError(`Array2D index (${i}, ${j}) out of bounds for ${this.rows}x${this.cols} matrix`);
+            throw new RangeError(`Matrix index (${i}, ${j}) out of bounds for ${this.rows}x${this.cols} matrix`);
         }
     }
 
@@ -228,7 +228,7 @@ export class Array2D extends ArrayND {
      * @returns A new vector with `this.cols` components.
      */
     row(i: number): Array1D {
-        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
         return Array1D._wrapUnchecked(this.data.slice(this._idx(i, 0), this._idx(i, 0) + this.cols));
     }
 
@@ -238,7 +238,7 @@ export class Array2D extends ArrayND {
      * @returns A new vector with `this.rows` components.
      */
     col(j: number): Array1D {
-        if (j < 0 || j >= this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
+        if (j < 0 || j >= this.cols) throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
         const res = new Array1D(this.rows);
         for (let i = 0; i < this.rows; i++) res.data[i] = this._get(i, j);
         return res;
@@ -252,10 +252,10 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If `i` is out of bounds, or `values.length !== cols`.
      */
     setRow(i: number, values: Array1D | ArrayLike<number>): this {
-        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
         const src = values instanceof Array1D ? values.data : values;
         if (src.length !== this.cols) {
-            throw new RangeError(`Array2D setRow: expected ${this.cols} values for row ${i}, got ${src.length}`);
+            throw new RangeError(`Matrix setRow: expected ${this.cols} values for row ${i}, got ${src.length}`);
         }
         this.data.set(src, this._idx(i, 0));
         return this;
@@ -269,10 +269,10 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If `j` is out of bounds, or `values.length !== rows`.
      */
     setCol(j: number, values: Array1D | ArrayLike<number>): this {
-        if (j < 0 || j >= this.cols) throw new RangeError(`Array2D column ${j} out of bounds for ${this.cols} columns`);
+        if (j < 0 || j >= this.cols) throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
         const src = values instanceof Array1D ? values.data : values;
         if (src.length !== this.rows) {
-            throw new RangeError(`Array2D setCol: expected ${this.rows} values for column ${j}, got ${src.length}`);
+            throw new RangeError(`Matrix setCol: expected ${this.rows} values for column ${j}, got ${src.length}`);
         }
         for (let i = 0; i < this.rows; i++) this._set(i, j, src[i]);
         return this;
@@ -290,11 +290,11 @@ export class Array2D extends ArrayND {
      * @param m The right-hand matrix. Must have `m.rows === this.cols`.
      * @returns A new `this.rows x m.cols` matrix.
      */
-    matmul(m: Array2D): Array2D {
+    matmul(m: Matrix): Matrix {
         if (this.cols !== m.rows) {
-            throw new RangeError(`Array2D matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}`);
+            throw new RangeError(`Matrix matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}`);
         }
-        const res = new Array2D(this.rows, m.cols);
+        const res = new Matrix(this.rows, m.cols);
         const rowBuf = new Float64Array(m.cols);
         for (let i = 0; i < this.rows; i++) {
             rowBuf.fill(0);
@@ -316,7 +316,7 @@ export class Array2D extends ArrayND {
      */
     mulVec(v: Array1D): Array1D {
         if (v.size !== this.cols) {
-            throw new RangeError(`Array2D mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.size})`);
+            throw new RangeError(`Matrix mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.size})`);
         }
         const res = new Array1D(this.rows);
         for (let i = 0; i < this.rows; i++) {
@@ -332,8 +332,8 @@ export class Array2D extends ArrayND {
      * Computes the transpose of this matrix.
      * @returns A new `this.cols x this.rows` matrix equal to `this^T`.
      */
-    transpose(): Array2D {
-        const res = new Array2D(this.cols, this.rows);
+    transpose(): Matrix {
+        const res = new Matrix(this.cols, this.rows);
         for (let i = 0; i < this.rows; i++) {
             const offset = this._idx(i, 0);
             for (let j = 0; j < this.cols; j++) res._set(j, i, this.data[offset + j]);
@@ -347,7 +347,7 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If this matrix is not square.
      */
     trace(): number {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D trace requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (this.rows !== this.cols) throw new RangeError(`Matrix trace requires a square matrix, got ${this.rows}x${this.cols}`);
         let sum = 0;
         for (let i = 0; i < this.rows; i++) sum += this._get(i, i);
         return sum;
@@ -363,7 +363,7 @@ export class Array2D extends ArrayND {
      * @param tol Entries with absolute value at or below this are never chosen as a pivot.
      * @returns The 0-based row index of the best pivot, or `-1` if none exceeds `tol`.
      */
-    private static _findPivotRow(m: Array2D, col: number, startRow: number, tol: number): number {
+    private static _findPivotRow(m: Matrix, col: number, startRow: number, tol: number): number {
         let pivotRow = -1;
         let pivotVal = tol;
         for (let i = startRow; i < m.rows; i++) {
@@ -394,7 +394,7 @@ export class Array2D extends ArrayND {
         let sign = 1;
         const pivots: number[] = [];
         for (let col = 0; col < m.cols && rank < m.rows; col++) {
-            const pivotRow = Array2D._findPivotRow(m, col, rank, tol);
+            const pivotRow = Matrix._findPivotRow(m, col, rank, tol);
             if (pivotRow === -1) continue;
             if (pivotRow !== rank) { m.swapRows(rank, pivotRow); sign = -sign; }
             const pivot = m._get(rank, col);
@@ -454,7 +454,7 @@ export class Array2D extends ArrayND {
      * @returns The rank, between `0` and `min(rows, cols)`.
      */
     rank(tol?: number): number {
-        const effectiveTol = tol ?? Array2D._RANK_TOL_SCALE * Math.max(this.rows, this.cols) * Number.EPSILON * this._normInf();
+        const effectiveTol = tol ?? Matrix._RANK_TOL_SCALE * Math.max(this.rows, this.cols) * Number.EPSILON * this._normInf();
         return this._forwardEliminate(effectiveTol).rank;
     }
 
@@ -471,7 +471,7 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If this matrix is not square.
      */
     determinant(): number {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D determinant requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (this.rows !== this.cols) throw new RangeError(`Matrix determinant requires a square matrix, got ${this.rows}x${this.cols}`);
         const { rank, sign, pivots } = this._forwardEliminate(0);
         if (rank < this.rows) return 0;
         let det = sign;
@@ -487,19 +487,19 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If this matrix is not square.
      * @throws {Error} If this matrix is singular (not invertible).
      */
-    inverse(): Array2D {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D inverse requires a square matrix, got ${this.rows}x${this.cols}`);
+    inverse(): Matrix {
+        if (this.rows !== this.cols) throw new RangeError(`Matrix inverse requires a square matrix, got ${this.rows}x${this.cols}`);
         const n = this.rows;
         // Augment [this | I] and row-reduce the left half to I; the right
         // half then becomes this^-1.
-        const aug = new Array2D(n, 2 * n);
+        const aug = new Matrix(n, 2 * n);
         for (let i = 0; i < n; i++) {
             aug.data.set(this.data.subarray(this._idx(i, 0), this._idx(i, 0) + n), aug._idx(i, 0));
             aug._set(i, n + i, 1);
         }
         for (let col = 0; col < n; col++) {
-            const pivotRow = Array2D._findPivotRow(aug, col, col, 0);
-            if (pivotRow === -1) throw new Error('Array2D inverse: matrix is singular');
+            const pivotRow = Matrix._findPivotRow(aug, col, col, 0);
+            if (pivotRow === -1) throw new Error('Matrix inverse: matrix is singular');
             if (pivotRow !== col) aug.swapRows(col, pivotRow);
             aug.scaleRow(col, 1 / aug._get(col, col));
             for (let i = 0; i < n; i++) {
@@ -508,7 +508,7 @@ export class Array2D extends ArrayND {
                 if (factor !== 0) aug.addScaledRow(i, col, -factor);
             }
         }
-        const res = new Array2D(n, n);
+        const res = new Matrix(n, n);
         for (let i = 0; i < n; i++) {
             res.data.set(aug.data.subarray(aug._idx(i, n), aug._idx(i, n) + n), res._idx(i, 0));
         }
@@ -537,16 +537,16 @@ export class Array2D extends ArrayND {
      * available pivot is exactly `0`).
      */
     lu(): LUDecomposition {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D lu requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (this.rows !== this.cols) throw new RangeError(`Matrix lu requires a square matrix, got ${this.rows}x${this.cols}`);
         const n = this.rows;
         const U = this.copy();
-        const L = Array2D.identity(n);
+        const L = Matrix.identity(n);
         const perm = Array.from({ length: n }, (_, i) => i);
         let sign = 1;
 
         for (let col = 0; col < n; col++) {
-            const pivotRow = Array2D._findPivotRow(U, col, col, 0);
-            if (pivotRow === -1) throw new Error('Array2D lu: matrix is singular');
+            const pivotRow = Matrix._findPivotRow(U, col, col, 0);
+            if (pivotRow === -1) throw new Error('Matrix lu: matrix is singular');
             if (pivotRow !== col) {
                 U.swapRows(col, pivotRow);
                 // Rows of L to the left of `col` already hold computed
@@ -584,8 +584,8 @@ export class Array2D extends ArrayND {
      * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
      */
     solveLower(b: Array1D, unitDiagonal = false): Array1D {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D solveLower requires a square matrix, got ${this.rows}x${this.cols}`);
-        if (b.size !== this.rows) throw new RangeError(`Array2D solveLower shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
+        if (this.rows !== this.cols) throw new RangeError(`Matrix solveLower requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (b.size !== this.rows) throw new RangeError(`Matrix solveLower shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
         const n = this.rows;
         const x = new Array1D(n);
         for (let i = 0; i < n; i++) {
@@ -596,7 +596,7 @@ export class Array2D extends ArrayND {
                 x.data[i] = s;
             } else {
                 const d = this.data[offset + i];
-                if (d === 0) throw new Error('Array2D solveLower: zero diagonal entry, matrix is singular');
+                if (d === 0) throw new Error('Matrix solveLower: zero diagonal entry, matrix is singular');
                 x.data[i] = s / d;
             }
         }
@@ -613,8 +613,8 @@ export class Array2D extends ArrayND {
      * @throws {Error} If a zero diagonal entry is encountered.
      */
     solveUpper(b: Array1D): Array1D {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D solveUpper requires a square matrix, got ${this.rows}x${this.cols}`);
-        if (b.size !== this.rows) throw new RangeError(`Array2D solveUpper shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
+        if (this.rows !== this.cols) throw new RangeError(`Matrix solveUpper requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (b.size !== this.rows) throw new RangeError(`Matrix solveUpper shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
         const n = this.rows;
         const x = new Array1D(n);
         for (let i = n - 1; i >= 0; i--) {
@@ -622,7 +622,7 @@ export class Array2D extends ArrayND {
             let s = b.data[i];
             for (let j = i + 1; j < n; j++) s -= this.data[offset + j] * x.data[j];
             const d = this.data[offset + i];
-            if (d === 0) throw new Error('Array2D solveUpper: zero diagonal entry, matrix is singular');
+            if (d === 0) throw new Error('Matrix solveUpper: zero diagonal entry, matrix is singular');
             x.data[i] = s / d;
         }
         return x;
@@ -641,8 +641,8 @@ export class Array2D extends ArrayND {
      * @throws {Error} If this matrix is singular (no unique solution).
      */
     solve(b: Array1D): Array1D {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D solve requires a square matrix, got ${this.rows}x${this.cols}`);
-        if (b.size !== this.rows) throw new RangeError(`Array2D solve shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
+        if (this.rows !== this.cols) throw new RangeError(`Matrix solve requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (b.size !== this.rows) throw new RangeError(`Matrix solve shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
         const { L, U, perm } = this.lu();
         const pb = new Array1D(perm.map(p => b.data[p]));
         const y = L.solveLower(pb, true);
@@ -801,8 +801,8 @@ export class Array2D extends ArrayND {
      * the running total at the top of each column. `1` accumulates across
      * each row independently, restarting at the start of each row.
      */
-    cumsum(axis: 0 | 1): Array2D;
-    cumsum(axis?: 0 | 1): Array1D | Array2D {
+    cumsum(axis: 0 | 1): Matrix;
+    cumsum(axis?: 0 | 1): Array1D | Matrix {
         if (axis === undefined) {
             const res = new Array1D(this.size);
             let running = 0;
@@ -897,7 +897,7 @@ export class Array2D extends ArrayND {
      * @returns A new matrix, the same shape as this one, with each row or
      * column sorted independently.
      */
-    sort(axis: 0 | 1 = 1, compareFn?: (a: number, b: number) => number): Array2D {
+    sort(axis: 0 | 1 = 1, compareFn?: (a: number, b: number) => number): Matrix {
         const res = this.copy();
         if (axis === 1) {
             for (let i = 0; i < res.rows; i++) {
@@ -951,17 +951,17 @@ export class Array2D extends ArrayND {
      * Negative values count back from the last column.
      * @returns A new, independent matrix holding the selected rows and columns.
      * @throws {RangeError} If the resolved row or column range is empty
-     * (Array2D cannot represent a matrix with 0 rows or 0 columns).
+     * (Matrix cannot represent a matrix with 0 rows or 0 columns).
      */
-    slice(rowStart?: number, rowEnd?: number, colStart?: number, colEnd?: number): Array2D {
-        const { start: rs, end: re } = Array2D._resolveRange(rowStart, rowEnd, this.rows);
-        const { start: cs, end: ce } = Array2D._resolveRange(colStart, colEnd, this.cols);
+    slice(rowStart?: number, rowEnd?: number, colStart?: number, colEnd?: number): Matrix {
+        const { start: rs, end: re } = Matrix._resolveRange(rowStart, rowEnd, this.rows);
+        const { start: cs, end: ce } = Matrix._resolveRange(colStart, colEnd, this.cols);
         const newRows = re - rs;
         const newCols = ce - cs;
         if (newRows === 0 || newCols === 0) {
-            throw new RangeError(`Array2D.slice: resolved range is ${newRows}x${newCols}, but Array2D cannot represent a matrix with 0 rows or 0 columns`);
+            throw new RangeError(`Matrix.slice: resolved range is ${newRows}x${newCols}, but Matrix cannot represent a matrix with 0 rows or 0 columns`);
         }
-        const res = new Array2D(newRows, newCols);
+        const res = new Matrix(newRows, newCols);
         for (let i = 0; i < newRows; i++) {
             const srcOffset = this._idx(rs + i, cs);
             res.data.set(this.data.subarray(srcOffset, srcOffset + newCols), res._idx(i, 0));
@@ -981,15 +981,15 @@ export class Array2D extends ArrayND {
 
     /**
      * Returns a human-readable string representation of this matrix, one row per line.
-     * @returns e.g. `"Array2D[[1, 2], [3, 4]]"`.
+     * @returns e.g. `"Matrix[[1, 2], [3, 4]]"`.
      */
     toString(): string {
         const rows = this.toArray().map(r => `[${r.join(', ')}]`);
-        return `Array2D[${rows.join(', ')}]`;
+        return `Matrix[${rows.join(', ')}]`;
     }
 
     /**
-     * Makes Array2D iterable over its rows, e.g. `for (const r of someMatrix)`.
+     * Makes Matrix iterable over its rows, e.g. `for (const r of someMatrix)`.
      * Each yielded value is an Array1D.
      */
     *[Symbol.iterator](): Generator<Array1D, void, unknown> {
@@ -1006,7 +1006,7 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If this matrix is not square.
      */
     transposeSelf(): this {
-        if (this.rows !== this.cols) throw new RangeError(`Array2D transposeSelf requires a square matrix, got ${this.rows}x${this.cols}`);
+        if (this.rows !== this.cols) throw new RangeError(`Matrix transposeSelf requires a square matrix, got ${this.rows}x${this.cols}`);
         for (let i = 0; i < this.rows; i++) {
             for (let j = i + 1; j < this.cols; j++) {
                 const tmp = this._get(i, j);
@@ -1026,8 +1026,8 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If `i` or `j` is out of bounds.
      */
     swapRows(i: number, j: number): this {
-        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
-        if (j < 0 || j >= this.rows) throw new RangeError(`Array2D row ${j} out of bounds for ${this.rows} rows`);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
+        if (j < 0 || j >= this.rows) throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows`);
         if (i === j) return this;
         const oi = this._idx(i, 0);
         const oj = this._idx(j, 0);
@@ -1047,7 +1047,7 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If `i` is out of bounds.
      */
     scaleRow(i: number, s: number): this {
-        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
         const offset = this._idx(i, 0);
         for (let k = 0; k < this.cols; k++) this.data[offset + k] *= s;
         return this;
@@ -1063,8 +1063,8 @@ export class Array2D extends ArrayND {
      * @throws {RangeError} If `i` or `j` is out of bounds.
      */
     addScaledRow(i: number, j: number, s: number): this {
-        if (i < 0 || i >= this.rows) throw new RangeError(`Array2D row ${i} out of bounds for ${this.rows} rows`);
-        if (j < 0 || j >= this.rows) throw new RangeError(`Array2D row ${j} out of bounds for ${this.rows} rows`);
+        if (i < 0 || i >= this.rows) throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
+        if (j < 0 || j >= this.rows) throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows`);
         const offsetI = this._idx(i, 0);
         const offsetJ = this._idx(j, 0);
         for (let k = 0; k < this.cols; k++) this.data[offsetI + k] += this.data[offsetJ + k] * s;
@@ -1077,8 +1077,8 @@ export class Array2D extends ArrayND {
      * @param cols Number of columns.
      * @returns A new zero matrix.
      */
-    static zero(rows: number, cols: number): Array2D {
-        return new Array2D(rows, cols);
+    static zero(rows: number, cols: number): Matrix {
+        return new Matrix(rows, cols);
     }
 
     /**
@@ -1086,27 +1086,27 @@ export class Array2D extends ArrayND {
      * @param n The matrix dimension.
      * @returns A new identity matrix.
      */
-    static identity(n: number): Array2D {
-        const res = new Array2D(n, n);
+    static identity(n: number): Matrix {
+        const res = new Matrix(n, n);
         for (let i = 0; i < n; i++) res.set(i, i, 1);
         return res;
     }
 
     /**
-     * Creates an Array2D from an array of row arrays.
+     * Creates an Matrix from an array of row arrays.
      * @param rows Source data; each inner array must have the same length.
      * @returns A new matrix with shape `rows.length x rows[0].length`.
      */
-    static from(rows: number[][]): Array2D {
+    static from(rows: number[][]): Matrix {
         if (rows.length === 0) {
-            throw new RangeError('Array2D.from: cannot construct a matrix from an empty array (need at least one row)');
+            throw new RangeError('Matrix.from: cannot construct a matrix from an empty array (need at least one row)');
         }
         const nRows = rows.length;
         const nCols = rows[0].length;
         if (nCols === 0) {
-            throw new RangeError('Array2D.from: cannot construct a matrix with empty rows (need at least one column)');
+            throw new RangeError('Matrix.from: cannot construct a matrix with empty rows (need at least one column)');
         }
-        const res = new Array2D(nRows, nCols);
+        const res = new Matrix(nRows, nCols);
         for (let i = 0; i < nRows; i++) res.setRow(i, rows[i]);
         return res;
     }

@@ -1,5 +1,5 @@
 import { Array1D } from '../array/array1d.js';
-import { Array2D } from '../array/array2d.js';
+import { Matrix } from '../array/Matrix.js';
 import { clip } from '../math.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
 
@@ -331,7 +331,7 @@ export interface RungeKuttaAdaptiveOptions {
  *   message: 'Integration successful.',
  *   evaluations: 14,
  *   t: Array1D [ 0, 0.14680437989650819, 1 ],
- *   y: Array2D [[1], [0.863462874659396], [0.3680228572282582]],
+ *   y: Matrix [[1], [0.863462874659396], [0.3680228572282582]],
  * }
  * ```
  *
@@ -381,7 +381,7 @@ export function rungeKuttaAdaptive(
     if (tEnd === t0) {
         const tVec = new Array1D(1);
         tVec.data[0] = t0;
-        const yMat = new Array2D(1, dim);
+        const yMat = new Matrix(1, dim);
         yMat.setRow(0, y0.data);
         return {
             method: method,
@@ -439,7 +439,7 @@ export function rungeKuttaAdaptive(
     const makeResult = (success: boolean, message: string): OdeResult => {
         const tVec = new Array1D(tBuf.length);
         tVec.set(tBuf);
-        const yMat = new Array2D(tBuf.length, dim);
+        const yMat = new Matrix(tBuf.length, dim);
         for (let i = 0; i < tBuf.length; i++) {
             yMat.setRow(i, yBuf[i]);
         }

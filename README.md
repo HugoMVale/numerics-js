@@ -46,10 +46,10 @@ The same modules can be imported through `numerics-js/array`,
 ### Vectors and matrices
 
 - `Array1D` is an N-component vector backed by `Float64Array`. It provides addition, subtraction, scaling, norms, dot products, distances, min/max/sum, closeness checks, conversion, iteration, and in-place operations.
-- `Array2D` is a row-major matrix backed by `Float64Array`. It provides element/row/column access, arithmetic, matrix and vector multiplication, transpose, trace, rank, determinant, inverse, linear-system solving, reductions, conversion, iteration, and in-place row operations.
+- `Matrix` is a row-major matrix backed by `Float64Array`. It provides element/row/column access, arithmetic, matrix and vector multiplication, transpose, trace, rank, determinant, inverse, linear-system solving, reductions, conversion, iteration, and in-place row operations.
 - `Vec3` is a three-component vector for positions, directions, and velocities. It provides the same core vector operations as `Array1D`, plus tuple conversion and static constructors.
 
-`Array1D` component indices and `Array2D` row and column indices are zero-based,
+`Array1D` component indices and `Matrix` row and column indices are zero-based,
 including through their `get`, `set`, `row`, and `col` accessors. Their public
 `data` properties expose the underlying zero-based `Float64Array` storage. `Array1D` and `Vec3`
 operations that do not end in `Self` return new values; methods ending in
@@ -60,13 +60,13 @@ const a = new Array1D([1, 2, 3]);
 const b = new Array1D([4, 5, 6]);
 const sum = a.add(b);
 
-const matrix = new Array2D(2, 2, [1, 2, 3, 4]);
+const matrix = new Matrix(2, 2, [1, 2, 3, 4]);
 const product = matrix.mulVec(new Array1D([10, 20]));
 const direction = new Vec3(3, 4, 0).normalize();
 const solved = matrix.solve(new Array1D([5, 11]));
 ```
 
-`Array1D` and `Array2D` also provide `zero` and `from` constructors. `Vec3`
+`Array1D` and `Matrix` also provide `zero` and `from` constructors. `Vec3`
 components are accessed through its `x`, `y`, and `z` properties.
 
 ### Integration
@@ -195,7 +195,7 @@ const adaptive = rungeKuttaAdaptive(
 );
 ```
 
-Both integration functions return `{ t: Array1D, y: Array2D, method }`, where `t`
+Both integration functions return `{ t: Array1D, y: Matrix, method }`, where `t`
 contains recorded times, row `i` of `y` contains the corresponding state, and
 `method` identifies the solver that produced the result.
 For allocating derivative functions with the simpler `(t, y) => Array1D`

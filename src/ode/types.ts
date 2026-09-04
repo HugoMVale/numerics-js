@@ -1,5 +1,5 @@
 import type { Array1D } from '../array/array1d.js';
-import type { Array2D } from '../array/array2d.js';
+import type { Matrix } from '../array/Matrix.js';
 
 /** Derivative function that writes its result into the provided `dydt` buffer to avoid allocation. */
 export type DerivativeFunction = (t: number, y: Array1D, dydt: Array1D) => Array1D;
@@ -29,5 +29,5 @@ export interface OdeResult {
     /** Time points at which the solution was evaluated. */
     t: Array1D;
     /** Solution values, one row per time point and one column per state variable. */
-    y: Array2D;
+    y: Matrix;
 }

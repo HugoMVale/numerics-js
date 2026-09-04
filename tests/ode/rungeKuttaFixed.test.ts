@@ -218,7 +218,7 @@ describe('rungeKuttaFixed', () => {
 
     it('throws a clear RangeError when y0 has dimension 0', () => {
         // Asserting the message (not just `RangeError`) matters here: without an explicit
-        // guard in rungeKuttaFixed, `new Array2D(nTimes, 0)` throws its own RangeError
+        // guard in rungeKuttaFixed, `new Matrix(nTimes, 0)` throws its own RangeError
         // ("cols must be a positive integer"), which would make this test pass for the
         // wrong reason and mask a missing/removed check.
         expect(() => rungeKuttaFixed('rk4', exponential, 0, 1, new Array1D(0), 0.1)).toThrow(
