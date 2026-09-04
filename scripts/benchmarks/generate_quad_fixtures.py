@@ -9,6 +9,10 @@ Run with: uv run scripts/benchmarks/generate_quad_fixtures.py
 Each case here must have a matching hand-written integrand in
 tests/integrate/quad.scipy.test.ts (same id, same math, same bounds).
 
+Infinite bounds are written as strings in the JSON fixture because JSON has no
+representation for Infinity. Finite breakpoints are passed to SciPy as
+``points`` and recorded for the TypeScript test as ``breakpoints``.
+
 Cases with a non-smooth endpoint (marked "singular": True) are excluded from the
 evaluation-count comparison there: 'quad' has no singularity-aware subdivision
 like QUADPACK's QAGS, so panel counts aren't meaningfully comparable for those.
@@ -98,6 +102,35 @@ CASES = [
         "a": 0.0,
         "b": 1.0,
     },
+    {
+        "id": "exp_decay_positive_infinite",
+        "description": "exp(-x) on [0, infinity)",
+        "f": lambda x: math.exp(-x),
+        "a": 0.0,
+        "b": math.inf,
+    },
+    {
+        "id": "exp_decay_negative_infinite",
+        "description": "exp(x) on (-infinity, 0]",
+        "f": lambda x: math.exp(x),
+        "a": -math.inf,
+        "b": 0.0,
+    },
+    {
+        "id": "gaussian_fully_infinite",
+        "description": "exp(-x^2) on (-infinity, infinity)",
+        "f": lambda x: math.exp(-x * x),
+        "a": -math.inf,
+        "b": math.inf,
+    },
+    {
+        "id": "piecewise_breakpoint",
+        "description": "piecewise constant function on [0, 2] with breakpoint at 1",
+        "f": lambda x: 1.0 if x < 1.0 else 2.0,
+        "a": 0.0,
+        "b": 2.0,
+        "breakpoints": [1.0],
+    },
 ]
 
 
@@ -105,18 +138,27 @@ def main() -> None:
     results = []
     for case in CASES:
         value, abserr, infodict = quad(
-            case["f"], case["a"], case["b"], epsabs=TOL, epsrel=TOL, full_output=1
+            case["f"],
+            case["a"],
+            case["b"],
+            epsabs=TOL,
+            epsrel=TOL,
+            points=case.get("breakpoints"),
+            full_output=1,
         )
+        json_a = "-Infinity" if case["a"] == -math.inf else "Infinity" if case["a"] == math.inf else case["a"]
+        json_b = "-Infinity" if case["b"] == -math.inf else "Infinity" if case["b"] == math.inf else case["b"]
         results.append(
             {
                 "id": case["id"],
                 "description": case["description"],
-                "a": case["a"],
-                "b": case["b"],
+                "a": json_a,
+                "b": json_b,
                 "scipyValue": value,
                 "scipyAbsError": abserr,
                 "scipyEvaluations": infodict["neval"],
                 "singular": case.get("singular", False),
+                "breakpoints": case.get("breakpoints", []),
             }
         )
 

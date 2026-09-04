@@ -1,21 +1,38 @@
 # quad vs SciPy Benchmark Results
 
-Reference: `scipy.integrate.quad` (QUADPACK QAGS). Both solvers use the
-default absolute tolerance `1e-8` for every case.
+Reference: `scipy.integrate.quad` (QUADPACK QAGS for finite intervals and QAGI
+for infinite intervals). Both solvers use the default absolute tolerance
+`1e-8` for every case.
 
-| Test problem            | SciPy evaluations | numerics-js evaluations | Ratio |
-| :---------------------- | ----------------: | ----------------------: | ----: |
-| Sine                    |                21 |                      15 | 0.714 |
-| Rational pi             |                21 |                      15 | 0.714 |
-| Oscillatory sine        |                21 |                      15 | 0.714 |
-| Gaussian                |                63 |                      75 | 1.190 |
-| Runge                   |               147 |                     165 | 1.122 |
-| High-frequency cosine   |               147 |                     105 | 0.714 |
-| Lorentzian peak         |               399 |                     465 | 1.165 |
-| Exponential growth      |                21 |                      15 | 0.714 |
+| Test problem                        | SciPy evaluations | numerics-js evaluations | Ratio |
+| :---------------------------------- | ----------------: | ----------------------: | ----: |
+| Sine                                |                21 |                      15 | 0.714 |
+| Rational pi                         |                21 |                      15 | 0.714 |
+| Oscillatory sine                    |                21 |                      15 | 0.714 |
+| Gaussian                            |                63 |                      75 | 1.190 |
+| Runge                               |               147 |                     165 | 1.122 |
+| High-frequency cosine               |               147 |                     105 | 0.714 |
+| Lorentzian peak                     |               399 |                     465 | 1.165 |
+| Exponential growth                  |                21 |                      15 | 0.714 |
+| Piecewise constant, breakpoint at 1 |                42 |                      30 | 0.714 |
 
 The test enforces `EVALUATION_FACTOR = 1.2` for non-singular integrands; the
 highest observed ratio is `1.190` for the Gaussian case.
+
+## Infinite Domains
+
+The benchmark also covers `quad`'s variable transformations for positive
+semi-infinite, negative semi-infinite, and fully infinite intervals.
+
+| Test problem                         | SciPy evaluations | numerics-js evaluations | Ratio |
+| :----------------------------------- | ----------------: | ----------------------: | ----: |
+| `exp(-x)` on [0, infinity)           |               135 |                     135 | 1.000 |
+| `exp(x)` on (-infinity, 0]           |               135 |                     135 | 1.000 |
+| `exp(-x^2)` on (-infinity, infinity) |               270 |                     225 | 0.833 |
+
+The breakpoint case passes the same split point to SciPy's `points` argument
+and `quad`'s `breakpoints` option. Infinite bounds are encoded as strings in
+the JSON fixture because JSON has no native representation for Infinity.
 
 ## Singular Cases
 
