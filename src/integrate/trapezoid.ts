@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 
 /**
  * Integrates `y` using the composite trapezoidal rule.
@@ -18,7 +18,7 @@ import { Array1D } from '../array/array1d.js';
  *
  * @example
  * ```ts
- * const y = Array1D.from([0, 1, 2, 3, 4]);
+ * const y = Vector.from([0, 1, 2, 3, 4]);
  * const integral = trapezoid(y);
  * console.log(`integral = ${integral}`);
  * ```
@@ -28,7 +28,7 @@ import { Array1D } from '../array/array1d.js';
  * integral = 8
  * ```
  */
-export function trapezoid(y: Array1D, x?: Array1D, dx: number = 1): number {
+export function trapezoid(y: Vector, x?: Vector, dx: number = 1): number {
     const n = y.size;
     if (n < 2) return 0;
 

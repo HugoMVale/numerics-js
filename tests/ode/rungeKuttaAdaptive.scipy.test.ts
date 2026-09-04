@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Array1D } from '../../src/array/array1d.js';
+import { Vector } from '../../src/array/Vector.js';
 import { rungeKuttaAdaptive } from '../../src/ode/rungeKuttaAdaptive.js';
 import type { DerivativeFunction, RungeKuttaAdaptiveMethod } from '../../src/ode/types.js';
 import fixtures from './fixtures/rungeKuttaAdaptive.scipy.json' with { type: 'json' };
@@ -41,7 +41,7 @@ describe('rungeKuttaAdaptive vs scipy.integrate.solve_ivp reference values', () 
                     f,
                     fixture.t0,
                     fixture.tEnd,
-                    new Array1D(fixture.y0),
+                    new Vector(fixture.y0),
                     { atol: fixture.atol, rtol: fixture.rtol }
                 );
                 const reference = fixture.scipy[method];

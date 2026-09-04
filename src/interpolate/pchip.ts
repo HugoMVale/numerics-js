@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 import { prepareInterp, InterpOptions } from './common.js';
 
 /**
@@ -6,8 +6,8 @@ import { prepareInterp, InterpOptions } from './common.js';
  */
 function pchipOne(
     xi: number,
-    xp: Array1D,
-    fp: Array1D,
+    xp: Vector,
+    fp: Vector,
     d: Float64Array,
     leftVal: number,
     rightVal: number,
@@ -63,16 +63,16 @@ function pchipOne(
 }
 
 function pchipMany(
-    x: number[] | Array1D,
-    xp: Array1D,
-    fp: Array1D,
+    x: number[] | Vector,
+    xp: Vector,
+    fp: Vector,
     d: Float64Array,
     leftVal: number,
     rightVal: number,
     computeDerivative: boolean
-): Array1D {
-    const xv = x instanceof Array1D ? x : Array1D.from(x);
-    const res = new Array1D(xv.size);
+): Vector {
+    const xv = x instanceof Vector ? x : Vector.from(x);
+    const res = new Vector(xv.size);
     const xdata = xv.data;
     const rdata = res.data;
     for (let i = 0; i < xv.size; i++) {
@@ -100,12 +100,12 @@ function pchipMany(
  * ```ts
  * const f = new PchipInterpolator([1, 2, 3], [3, 2, 0]);
  * f.eval(2.5); // 1.1458333333333333
- * f.eval([0, 1.5, 3.14]); // Array1D(3, 3, 2.6041666666666665, 0)
+ * f.eval([0, 1.5, 3.14]); // Vector(3, 3, 2.6041666666666665, 0)
  * ```
  */
 export class PchipInterpolator {
-    private readonly xp: Array1D;
-    private readonly fp: Array1D;
+    private readonly xp: Vector;
+    private readonly fp: Vector;
     private readonly leftVal: number;
     private readonly rightVal: number;
     private readonly d: Float64Array; // Precomputed slopes at knots
@@ -125,7 +125,7 @@ export class PchipInterpolator {
      * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
      * strictly increasing.
      */
-    constructor(xp: number[] | Array1D, fp: number[] | Array1D, options: InterpOptions = {}) {
+    constructor(xp: number[] | Vector, fp: number[] | Vector, options: InterpOptions = {}) {
         const { left, right, checkSorted = true } = options;
         const p = prepareInterp(xp, fp, left, right, checkSorted, 'PchipInterpolator');
         if (checkSorted) {
@@ -207,12 +207,12 @@ export class PchipInterpolator {
     /**
      * Evaluates the shape-preserving cubic interpolant at `x`.
      * @param x The x-coordinate(s) at which to evaluate. A single `number` returns a `number`;
-     * a plain array or `Array1D` returns an `Array1D`.
+     * a plain array or `Vector` returns an `Vector`.
      * @returns The interpolated or clamped value(s), matching the shape of `x`.
      */
     eval(x: number): number;
-    eval(x: number[] | Array1D): Array1D;
-    eval(x: number | number[] | Array1D): number | Array1D {
+    eval(x: number[] | Vector): Vector;
+    eval(x: number | number[] | Vector): number | Vector {
         if (typeof x === 'number') {
             return pchipOne(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
         }
@@ -224,12 +224,12 @@ export class PchipInterpolator {
      * Values outside the data range return `0`, the derivative of the
      * constant clamping regions.
      * @param x The x-coordinate(s) at which to evaluate. A single
-     * `number` returns a `number`; a plain array or `Array1D` returns an `Array1D`.
+     * `number` returns a `number`; a plain array or `Vector` returns an `Vector`.
      * @returns The derivative value(s), matching the shape of `x`.
      */
     derivative(x: number): number;
-    derivative(x: number[] | Array1D): Array1D;
-    derivative(x: number | number[] | Array1D): number | Array1D {
+    derivative(x: number[] | Vector): Vector;
+    derivative(x: number | number[] | Vector): number | Vector {
         if (typeof x === 'number') {
             return pchipOne(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
         }

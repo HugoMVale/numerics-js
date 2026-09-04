@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Array1D } from '../../src/array/array1d.js';
+import { Vector } from '../../src/array/Vector.js';
 import { rungeKuttaAdaptive, rungeKuttaAdaptiveStep } from '../../src/ode/rungeKuttaAdaptive.js';
 import type { DerivativeFunction } from '../../src/ode/types.js';
 
@@ -8,7 +8,7 @@ const methods = ['rk23', 'rk45'] as const;
 describe('rungeKuttaAdaptive additional coverage', () => {
     it('returns the initial state unchanged when tEnd === t0', () => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
-        const y0 = new Array1D([3, 4]);
+        const y0 = new Vector([3, 4]);
         const result = rungeKuttaAdaptive('rk45', f, 2, 2, y0);
 
         expect(result.t.size).toBe(1);
@@ -23,7 +23,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
     it.each(methods)('(%s) reports a successful integration with a message', (method) => {
         const f: DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
-        const result = rungeKuttaAdaptive(method, f, 0, 1, new Array1D([1]), { h0: 0.1 });
+        const result = rungeKuttaAdaptive(method, f, 0, 1, new Vector([1]), { h0: 0.1 });
 
         expect(result.success).toBe(true);
         expect(result.message).toBe('Integration successful.');
@@ -31,7 +31,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
     it.each(methods)('(%s) accepts an explicit initial step size h0', (method) => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
-        const y0 = new Array1D([1]);
+        const y0 = new Vector([1]);
         const result = rungeKuttaAdaptive(method, f, 0, 1, y0, { atol: 1e-8, rtol: 1e-8, h0: 0.01 });
 
         const finalY = result.y.row(result.y.rows - 1).data[0];
@@ -45,7 +45,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
             out.data[0] = -y.data[0];
             return out;
         };
-        const result = rungeKuttaAdaptive(method, f, 0, 1, new Array1D([1]), { atol: 1e-8, rtol: 1e-8, h0: 0.01 });
+        const result = rungeKuttaAdaptive(method, f, 0, 1, new Vector([1]), { atol: 1e-8, rtol: 1e-8, h0: 0.01 });
 
         expect(result.evaluations).toBe(calls);
         expect(result.evaluations).toBeGreaterThan(0);
@@ -68,7 +68,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
             out.data[0] = 10 * y.data[0] * (1 - y.data[0]);
             return out;
         };
-        const y0 = new Array1D([0.01]);
+        const y0 = new Vector([0.01]);
         const result = rungeKuttaAdaptive(method, f, 0, 1, y0, { atol: 1e-8, rtol: 1e-8, h0: 0.5 });
 
         // Reference solution via the closed-form logistic curve.
@@ -87,7 +87,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
             out.data[0] = Math.sin(1 / (y.data[0] + 1e-3)) * 1e8;
             return out;
         };
-        const y0 = new Array1D([1]);
+        const y0 = new Vector([1]);
 
         const result = rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-14, rtol: 1e-14, hMin: 1e-9 });
         expect(result.success).toBe(false);
@@ -97,7 +97,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
     it('returns an unsuccessful result when maxSteps is exceeded', () => {
         const f: DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
-        const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Array1D([1]), {
+        const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]), {
             h0: 0.1,
             hMax: 0.1,
             maxSteps: 1,
@@ -111,7 +111,7 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
     describe('input validation', () => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
-        const y0 = new Array1D([1]);
+        const y0 = new Vector([1]);
 
         it('rejects h0 = 0', () => {
             expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, h0: 0 })).toThrow(RangeError);
@@ -145,11 +145,11 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
     it('rungeKuttaAdaptiveStep throws for an unrecognized method', () => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
-        const y0 = new Array1D([1]);
-        const out = new Array1D(1);
+        const y0 = new Vector([1]);
+        const out = new Vector(1);
         const scratch = {
-            k1: new Array1D(1), k2: new Array1D(1), k3: new Array1D(1), k4: new Array1D(1),
-            k5: new Array1D(1), k6: new Array1D(1), k7: new Array1D(1), yTemp: new Array1D(1),
+            k1: new Vector(1), k2: new Vector(1), k3: new Vector(1), k4: new Vector(1),
+            k5: new Vector(1), k6: new Vector(1), k7: new Vector(1), yTemp: new Vector(1),
         };
 
         expect(() => rungeKuttaAdaptiveStep('bogus' as any, f, 0, y0, 0.1, out, scratch)).toThrow(RangeError);
@@ -157,14 +157,14 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
     it('throws for an unrecognized method at the top level', () => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
-        const y0 = new Array1D([1]);
+        const y0 = new Vector([1]);
 
         expect(() => rungeKuttaAdaptive('bogus' as any, f, 0, 1, y0)).toThrow(RangeError);
     });
 
     it.each(methods)('(%s) produces a monotonically increasing t for forward integration', (method) => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
-        const y0 = new Array1D([1]);
+        const y0 = new Vector([1]);
         const result = rungeKuttaAdaptive(method, f, 0, 5, y0, { atol: 1e-6, rtol: 1e-6 });
 
         for (let i = 1; i < result.t.size; i++) {

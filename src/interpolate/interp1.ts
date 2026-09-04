@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 import { prepareInterp, InterpOptions } from './common.js';
 
 /**
@@ -11,12 +11,12 @@ import { prepareInterp, InterpOptions } from './common.js';
  * @param rightVal Value to return for `xi > xp[xp.size - 1]`.
  * @returns The interpolated (or clamped) value at `xi`.
  */
-function interpOne(xi: number, xp: Array1D, fp: Array1D, leftVal: number, rightVal: number): number {
+function interpOne(xi: number, xp: Vector, fp: Vector, leftVal: number, rightVal: number): number {
     const n = xp.size;
     const xpd = xp.data;
     const fpd = fp.data;
 
-    // NaN propagates, matching Array1D.min/max's NaN-wins convention.
+    // NaN propagates, matching Vector.min/max's NaN-wins convention.
     if (Number.isNaN(xi)) return NaN;
     if (xi < xpd[0]) return leftVal;
     if (xi > xpd[n - 1]) return rightVal;
@@ -46,9 +46,9 @@ function interpOne(xi: number, xp: Array1D, fp: Array1D, leftVal: number, rightV
  * @param rightVal Value to return for components above `xp[xp.size - 1]`.
  * @returns The interpolated (or clamped) values, one per component of `x`.
  */
-function interpMany(x: number[] | Array1D, xp: Array1D, fp: Array1D, leftVal: number, rightVal: number): Array1D {
-    const xv = x instanceof Array1D ? x : Array1D.from(x);
-    const res = new Array1D(xv.size);
+function interpMany(x: number[] | Vector, xp: Vector, fp: Vector, leftVal: number, rightVal: number): Vector {
+    const xv = x instanceof Vector ? x : Vector.from(x);
+    const res = new Vector(xv.size);
     const xdata = xv.data;
     const rdata = res.data;
     for (let i = 0; i < xv.size; i++) {
@@ -60,7 +60,7 @@ function interpMany(x: number[] | Array1D, xp: Array1D, fp: Array1D, leftVal: nu
 /**
  * Evaluates the derivative of the piecewise-linear interpolant at one point.
  */
-function linearDerivativeOne(xi: number, xp: Array1D, fp: Array1D): number {
+function linearDerivativeOne(xi: number, xp: Vector, fp: Vector): number {
     const n = xp.size;
     const xpd = xp.data;
     const fpd = fp.data;
@@ -80,9 +80,9 @@ function linearDerivativeOne(xi: number, xp: Array1D, fp: Array1D): number {
     return h === 0 ? 0 : (fpd[hi] - fpd[lo]) / h;
 }
 
-function linearDerivativeMany(x: number[] | Array1D, xp: Array1D, fp: Array1D): Array1D {
-    const xv = x instanceof Array1D ? x : Array1D.from(x);
-    const res = new Array1D(xv.size);
+function linearDerivativeMany(x: number[] | Vector, xp: Vector, fp: Vector): Vector {
+    const xv = x instanceof Vector ? x : Vector.from(x);
+    const res = new Vector(xv.size);
     const xdata = xv.data;
     const rdata = res.data;
     for (let i = 0; i < xv.size; i++) {
@@ -109,12 +109,12 @@ function linearDerivativeMany(x: number[] | Array1D, xp: Array1D, fp: Array1D): 
  * ```ts
  * const f = new LinearInterpolator ([1, 2, 3], [3, 2, 0]);
  * f.eval(2.5); // 1
- * f.eval([0, 1.5, 3.14]); // Array1D(3, 2.5, 0)
+ * f.eval([0, 1.5, 3.14]); // Vector(3, 2.5, 0)
  * ```
  */
 export class LinearInterpolator {
-    private readonly xp: Array1D;
-    private readonly fp: Array1D;
+    private readonly xp: Vector;
+    private readonly fp: Vector;
     private readonly leftVal: number;
     private readonly rightVal: number;
 
@@ -130,7 +130,7 @@ export class LinearInterpolator {
      * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
      * monotonically increasing.
      */
-    constructor(xp: number[] | Array1D, fp: number[] | Array1D, options: InterpOptions = {}) {
+    constructor(xp: number[] | Vector, fp: number[] | Vector, options: InterpOptions = {}) {
         const { left, right, checkSorted = true } = options;
         const p = prepareInterp(xp, fp, left, right, checkSorted, 'LinearInterpolator');
         this.xp = p.xp;
@@ -152,13 +152,13 @@ export class LinearInterpolator {
      * constant clamping regions. At a knot, this returns the slope of the
      * segment to its right (or the final segment at the right endpoint).
      * @param x The x-coordinate(s) at which to evaluate. A single
-     * `number` returns a `number`; a plain array or `Array1D` returns an
-     * `Array1D`.
+     * `number` returns a `number`; a plain array or `Vector` returns an
+     * `Vector`.
      * @returns The derivative value(s), matching the shape of `x`.
      */
     derivative(x: number): number;
-    derivative(x: number[] | Array1D): Array1D;
-    derivative(x: number | number[] | Array1D): number | Array1D {
+    derivative(x: number[] | Vector): Vector;
+    derivative(x: number | number[] | Vector): number | Vector {
         if (typeof x === 'number') {
             return linearDerivativeOne(x, this.xp, this.fp);
         }
@@ -217,13 +217,13 @@ export class LinearInterpolator {
     /**
      * Evaluates the interpolant at `x`.
      * @param x The x-coordinate(s) at which to evaluate. A single
-     * `number` returns a `number`; a plain array or `Array1D` returns an
-     * `Array1D`.
+     * `number` returns a `number`; a plain array or `Vector` returns an
+     * `Vector`.
      * @returns The interpolated value(s), matching the shape of `x`.
      */
     eval(x: number): number;
-    eval(x: number[] | Array1D): Array1D;
-    eval(x: number | number[] | Array1D): number | Array1D {
+    eval(x: number[] | Vector): Vector;
+    eval(x: number | number[] | Vector): number | Vector {
         if (typeof x === 'number') {
             return interpOne(x, this.xp, this.fp, this.leftVal, this.rightVal);
         }
@@ -247,7 +247,7 @@ export class LinearInterpolator {
  *
  * @param x The x-coordinate(s) at which to evaluate the interpolated
  * value(s). A single `number` returns a `number`; a plain array or
- * `Array1D` returns an `Array1D`.
+ * `Vector` returns an `Vector`.
  * @param xp The x-coordinates of the data points. Must be monotonically
  * increasing (duplicates allowed) and non-empty.
  * @param fp The y-coordinates of the data points. Must have the same
@@ -263,28 +263,28 @@ export class LinearInterpolator {
  * const xp = [1, 2, 3];
  * const fp = [3, 2, 0];
  * interp(2.5, xp, fp); // 1
- * interp([0, 1, 1.5, 2.72, 3.14], xp, fp); // Array1D(3, 3, 2.5, 0.56, 0)
+ * interp([0, 1, 1.5, 2.72, 3.14], xp, fp); // Vector(3, 3, 2.5, 0.56, 0)
  * interp(0, xp, fp, { left: -1 }); // -1
  * ```
  */
 export function interp(
     x: number,
-    xp: number[] | Array1D,
-    fp: number[] | Array1D,
+    xp: number[] | Vector,
+    fp: number[] | Vector,
     options?: InterpOptions
 ): number;
 export function interp(
-    x: number[] | Array1D,
-    xp: number[] | Array1D,
-    fp: number[] | Array1D,
+    x: number[] | Vector,
+    xp: number[] | Vector,
+    fp: number[] | Vector,
     options?: InterpOptions
-): Array1D;
+): Vector;
 export function interp(
-    x: number | number[] | Array1D,
-    xp: number[] | Array1D,
-    fp: number[] | Array1D,
+    x: number | number[] | Vector,
+    xp: number[] | Vector,
+    fp: number[] | Vector,
     options: InterpOptions = {}
-): number | Array1D {
+): number | Vector {
     const { left, right, checkSorted = true } = options;
     const { xp: xpv, fp: fpv, leftVal, rightVal } = prepareInterp(xp, fp, left, right, checkSorted, 'interp');
 

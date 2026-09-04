@@ -1,11 +1,11 @@
-import type { Array1D } from '../array/array1d.js';
+import type { Vector } from '../array/Vector.js';
 import type { Matrix } from '../array/Matrix.js';
 
 /** Derivative function that writes its result into the provided `dydt` buffer to avoid allocation. */
-export type DerivativeFunction = (t: number, y: Array1D, dydt: Array1D) => Array1D;
+export type DerivativeFunction = (t: number, y: Vector, dydt: Vector) => Vector;
 
 /** Derivative function that returns a newly allocated result. */
-export type AllocatingDerivativeFunction = (t: number, y: Array1D) => Array1D;
+export type AllocatingDerivativeFunction = (t: number, y: Vector) => Vector;
 
 /** Fixed-step Runge-Kutta scheme used by `rungeKuttaFixed`. */
 export type RungeKuttaFixedMethod = 'euler' | 'midpoint' | 'trapezoid' | 'rk4';
@@ -27,7 +27,7 @@ export interface OdeResult {
     /** Number of times the solver evaluated the derivative function. */
     evaluations: number;
     /** Time points at which the solution was evaluated. */
-    t: Array1D;
+    t: Vector;
     /** Solution values, one row per time point and one column per state variable. */
     y: Matrix;
 }

@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 
 /**
  * Options controlling out-of-range clamping and input validation for interpolation methods.
@@ -20,12 +20,12 @@ export interface InterpOptions {
 }
 
 /**
- * Validated, ready-to-evaluate interpolation data: `xp`/`fp` as `Array1D`,
+ * Validated, ready-to-evaluate interpolation data: `xp`/`fp` as `Vector`,
  * with the `left`/`right` clamp values resolved to concrete numbers.
  */
 interface PreparedInterp {
-    xp: Array1D;
-    fp: Array1D;
+    xp: Vector;
+    fp: Vector;
     leftVal: number;
     rightVal: number;
 }
@@ -42,21 +42,21 @@ interface PreparedInterp {
  * @param checkSorted Whether to verify that `xp` is monotonically increasing.
  * @param caller Name of the public entry point invoking this check, used
  * to produce a precise error message (e.g. `"interp"` or `"LinearInterpolator "`).
- * @returns The validated `xp`/`fp` as `Array1D`, plus resolved clamp values.
+ * @returns The validated `xp`/`fp` as `Vector`, plus resolved clamp values.
  * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
  * lengths, or (when `checkSorted` is `true`) if `xp` is not monotonically
  * increasing.
  */
 export function prepareInterp(
-    xp: number[] | Array1D,
-    fp: number[] | Array1D,
+    xp: number[] | Vector,
+    fp: number[] | Vector,
     left: number | undefined,
     right: number | undefined,
     checkSorted: boolean,
     caller: string
 ): PreparedInterp {
-    const xpv = xp instanceof Array1D ? xp : Array1D.from(xp);
-    const fpv = fp instanceof Array1D ? fp : Array1D.from(fp);
+    const xpv = xp instanceof Vector ? xp : Vector.from(xp);
+    const fpv = fp instanceof Vector ? fp : Vector.from(fp);
 
     if (xpv.size === 0) {
         throw new RangeError(`${caller}: xp must have at least one element`);

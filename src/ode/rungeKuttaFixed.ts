@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 import { Matrix } from '../array/Matrix.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types.js';
 
@@ -10,11 +10,11 @@ export type { RungeKuttaFixedMethod as RungeKuttaMethod } from './types.js';
  * @internal
  */
 export interface RungeKuttaScratch {
-    k1: Array1D;
-    k2: Array1D;
-    k3: Array1D;
-    k4: Array1D;
-    yTemp: Array1D;
+    k1: Vector;
+    k2: Vector;
+    k3: Vector;
+    k4: Vector;
+    yTemp: Vector;
 }
 
 /**
@@ -23,11 +23,11 @@ export interface RungeKuttaScratch {
  */
 function makeScratch(dim: number): RungeKuttaScratch {
     return {
-        k1: new Array1D(dim),
-        k2: new Array1D(dim),
-        k3: new Array1D(dim),
-        k4: new Array1D(dim),
-        yTemp: new Array1D(dim),
+        k1: new Vector(dim),
+        k2: new Vector(dim),
+        k3: new Vector(dim),
+        k4: new Vector(dim),
+        yTemp: new Vector(dim),
     };
 }
 
@@ -72,25 +72,25 @@ function stagesPerStep(method: RungeKuttaFixedMethod): number {
  * ```ts
  * // Exponential decay: dy/dt = -y
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const out = new Array1D(1);
- * rungeKuttaStep('rk4', f, 0, new Array1D([1]), 0.25, out);
+ * const out = new Vector(1);
+ * rungeKuttaStep('rk4', f, 0, new Vector([1]), 0.25, out);
  * console.log(out);
  * ```
  *
  * Output:
  * ```text
- * Array1D [ 0.7788085937500001 ]
+ * Vector [ 0.7788085937500001 ]
  * ```
  */
 export function rungeKuttaStep(
     method: RungeKuttaFixedMethod,
     f: DerivativeFunction,
     t: number,
-    y: Array1D,
+    y: Vector,
     h: number,
-    out: Array1D,
+    out: Vector,
     scratch: RungeKuttaScratch = makeScratch(y.size)
-): Array1D {
+): Vector {
     const { k1, k2, k3, k4, yTemp } = scratch;
     const half = h / 2;
 
@@ -176,7 +176,7 @@ export function rungeKuttaStep(
  * ```ts
  * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const result = rungeKuttaFixed('rk4', f, 0, 1, new Array1D([1]), 0.25);
+ * const result = rungeKuttaFixed('rk4', f, 0, 1, new Vector([1]), 0.25);
  * console.log(result);
  * ```
  *
@@ -187,7 +187,7 @@ export function rungeKuttaStep(
  *   success: true,
  *   message: 'Integration successful.',
  *   evaluations: 16,
- *   t: Array1D [ 0, 0.25, 0.5, 0.75, 1 ],
+ *   t: Vector [ 0, 0.25, 0.5, 0.75, 1 ],
  *   y: Matrix [[1], [0.7788085937500001], [0.6065428256988528], [0.472380765131675], [0.36789419940674883]],
  * }
  * ```
@@ -197,7 +197,7 @@ export function rungeKuttaFixed(
     f: DerivativeFunction,
     t0: number,
     tEnd: number,
-    y0: Array1D,
+    y0: Vector,
     h: number
 ): OdeResult {
     if (h === 0) throw new RangeError('Step size h must be nonzero.');
@@ -222,13 +222,13 @@ export function rungeKuttaFixed(
     const nRecorded = nFull + (hasPartialStep ? 1 : 0);
     const nTimes = nRecorded + 1;
     const evaluationsPerStep = stagesPerStep(method);
-    const tVec = new Array1D(nTimes);
+    const tVec = new Vector(nTimes);
     const yMat = new Matrix(nTimes, dim);
     let evaluations = 0;
 
     let t = t0;
     let y = y0.copy();
-    let next = new Array1D(dim);
+    let next = new Vector(dim);
     tVec.data[0] = t0;
     yMat.setRow(0, y.data);
 

@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 import { Matrix } from '../array/Matrix.js';
 import type { VectorFunction } from '../types.js';
 
@@ -13,7 +13,7 @@ export interface NelderMeadResult {
     /** Number of function evaluations performed. */
     evaluations: number;
     /** Best point found. */
-    x: Array1D;
+    x: Vector;
     /** Function value at `x`. */
     fx: number;
 }
@@ -36,11 +36,11 @@ export interface NelderMeadOptions {
     tolF?: number;
     /**
      * Positive scaling factors for the components of `x`, as a plain array
-     * or an `Array1D`. Ideally, these should be chosen so that `scale*x` is
+     * or an `Vector`. Ideally, these should be chosen so that `scale*x` is
      * of order 1 near the solution for all components. If omitted, scaling
      * is inferred from `x0` as `1 / max(|x0_i|, 1)`.
      */
-    scale?: number[] | Array1D;
+    scale?: number[] | Vector;
     /** Maximum number of iterations. Defaults to `200*N`. */
     maxIter?: number;
     /** Maximum number of function evaluations. Defaults to `200*N`. */
@@ -59,7 +59,7 @@ export interface NelderMeadOptions {
      * callback. If `stop` is `true`, the iteration is terminated; `success`
      * then decides whether the result is reported as successful.
      */
-    callback?: (nIter: number, x: Matrix, fx: Array1D) => { stop: boolean; success: boolean };
+    callback?: (nIter: number, x: Matrix, fx: Vector) => { stop: boolean; success: boolean };
 }
 
 /**
@@ -67,8 +67,8 @@ export interface NelderMeadOptions {
  * @param x0 Initial guess.
  * @returns Default scaling factors.
  */
-function defaultScale(x0: Array1D): Array1D {
-    const s = new Array1D(x0.size);
+function defaultScale(x0: Vector): Vector {
+    const s = new Vector(x0.size);
     for (let i = 0; i < x0.size; i++) {
         s.set(i, 1 / Math.max(Math.abs(x0.get(i)), 1));
     }
@@ -82,7 +82,7 @@ function defaultScale(x0: Array1D): Array1D {
  * @returns `{imin, imax, imax2}`, where `imax` is the largest and `imax2`
  * the second largest.
  */
-function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: number } {
+function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: number } {
     const d = fx.data;
 
     let imin = 0;
@@ -150,7 +150,7 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  * @example
  * ```ts
  * // Find the minimum of f(x) = (x0-100)^2 + (x1-1e10)^2
- * const fn = (x: Array1D): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
+ * const fn = (x: Vector): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
  * const result = nelderMead(fn, [1, 1e8]);
  * // or, with explicit options:
  * // const result = nelderMead(fn, [1, 1e8], { tolX: 1e-10, adaptive: false });
@@ -163,14 +163,14 @@ function simplexExtremes(fx: Array1D): { imin: number; imax: number; imax2: numb
  *   success: true,
  *   message: 'Function value spread is less than `tolF`.',
  *   evaluations: 225,
- *   x: Array1D [ 99.99998642148125, 9999999999.999956 ],
+ *   x: Vector [ 99.99998642148125, 9999999999.999956 ],
  *   fx: 2.1088669603067145e-9
  * }
  * ```
  */
 export function nelderMead(
     fn: VectorFunction,
-    x0: number[] | Array1D,
+    x0: number[] | Vector,
     options: NelderMeadOptions = {}
 ): NelderMeadResult {
     const {
@@ -183,7 +183,7 @@ export function nelderMead(
         callback,
     } = options;
 
-    const x0v = x0 instanceof Array1D ? x0.copy() : Array1D.from(x0);
+    const x0v = x0 instanceof Vector ? x0.copy() : Vector.from(x0);
     const n = x0v.size;
     if (n === 0) {
         throw new RangeError('nelderMead: x0 must have at least one component');
@@ -191,7 +191,7 @@ export function nelderMead(
 
     const xScale =
         scale !== undefined
-            ? Array1D.from(Array.from(scale instanceof Array1D ? scale.data : scale, Math.abs))
+            ? Vector.from(Array.from(scale instanceof Vector ? scale.data : scale, Math.abs))
             : defaultScale(x0v);
 
     const iterLimit = maxIter ?? 200 * n;
@@ -223,7 +223,7 @@ export function nelderMead(
     }
 
     // Evaluate the function at the simplex vertices
-    const fx = new Array1D(n + 1);
+    const fx = new Vector(n + 1);
     for (let k = 0; k <= n; k++) {
         fx.data[k] = fn(x.row(k));
     }
@@ -284,7 +284,7 @@ export function nelderMead(
         }
 
         // Centroid excluding the worst point
-        const xc = new Array1D(n);
+        const xc = new Vector(n);
         for (let k = 0; k <= n; k++) {
             if (k === imax) continue;
             xc.addSelf(x.row(k));

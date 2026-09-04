@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { interp, LinearInterpolator } from '../../src/interpolate/interp1.js';
-import { Array1D } from '../../src/array/array1d.js';
+import { Vector } from '../../src/array/Vector.js';
 
 describe('interp', () => {
     const xp = [1, 2, 3];
@@ -62,9 +62,9 @@ describe('interp', () => {
     });
 
     describe('array x', () => {
-        it('accepts a plain array and returns an Array1D', () => {
+        it('accepts a plain array and returns an Vector', () => {
             const result = interp([0, 1, 1.5, 2.72, 3.14], xp, fp);
-            expect(result).toBeInstanceOf(Array1D);
+            expect(result).toBeInstanceOf(Vector);
             expect(result.toArray()[0]).toBeCloseTo(3);
             expect(result.toArray()[1]).toBeCloseTo(3);
             expect(result.toArray()[2]).toBeCloseTo(2.5);
@@ -72,17 +72,17 @@ describe('interp', () => {
             expect(result.toArray()[4]).toBeCloseTo(0);
         });
 
-        it('accepts an Array1D for x', () => {
-            const result = interp(Array1D.from([1.5, 2.5]), xp, fp);
+        it('accepts an Vector for x', () => {
+            const result = interp(Vector.from([1.5, 2.5]), xp, fp);
             expect(result.toArray()).toEqual([2.5, 1]);
         });
 
-        it('accepts Array1D for xp and fp as well', () => {
-            const result = interp([1.5, 2.5], Array1D.from(xp), Array1D.from(fp));
+        it('accepts Vector for xp and fp as well', () => {
+            const result = interp([1.5, 2.5], Vector.from(xp), Vector.from(fp));
             expect(result.toArray()).toEqual([2.5, 1]);
         });
 
-        it('returns an empty Array1D for empty x', () => {
+        it('returns an empty Vector for empty x', () => {
             const result = interp([], xp, fp);
             expect(result.size).toBe(0);
         });
@@ -131,9 +131,9 @@ describe('Interpolator1D', () => {
         expect(result.toArray()).toEqual(expected.toArray());
     });
 
-    it('accepts an Array1D for x in eval', () => {
+    it('accepts an Vector for x in eval', () => {
         const f = new LinearInterpolator(xp, fp);
-        const result = f.eval(Array1D.from([1.5, 2.5]));
+        const result = f.eval(Vector.from([1.5, 2.5]));
         expect(result.toArray()).toEqual([2.5, 1]);
     });
 
@@ -166,8 +166,8 @@ describe('Interpolator1D', () => {
         expect(() => new LinearInterpolator([3, 2, 1], [1, 2, 3], { checkSorted: false })).not.toThrow();
     });
 
-    it('accepts Array1D directly for xp and fp', () => {
-        const f = new LinearInterpolator(Array1D.from(xp), Array1D.from(fp));
+    it('accepts Vector directly for xp and fp', () => {
+        const f = new LinearInterpolator(Vector.from(xp), Vector.from(fp));
         expect(f.eval(2.5)).toBeCloseTo(1);
     });
 

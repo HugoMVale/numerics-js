@@ -35,9 +35,9 @@ Use the narrowest relevant test while iterating, then run `npm run typecheck` an
 ## Numerical code expectations
 
 - Prefer clear, allocation-conscious loops and reusable working buffers in hot solver paths.
-- Prefer `Array1D`, `Matrix`, and `Vec3` for numerical operations and inputs that represent vectors, matrices, or three-dimensional vectors, rather than raw JavaScript arrays. Where an API accepts array-like input, prefer the corresponding library array type unless accepting plain arrays is intentional for ergonomics or interoperability.
-- Preserve documented mutability contracts. In particular, methods ending in `Self` mutate their instance; other `Array1D` and `Vec3` operations return new values.
-- `Array1D` and `Matrix` public accessors and exposed `data` storage use zero-based indexing.
+- Prefer `Vector`, `Matrix`, and `Vec3` for numerical operations and inputs that represent vectors, matrices, or three-dimensional vectors, rather than raw JavaScript arrays. Where an API accepts array-like input, prefer the corresponding library array type unless accepting plain arrays is intentional for ergonomics or interoperability.
+- Preserve documented mutability contracts. In particular, methods ending in `Self` mutate their instance; other `Vector` and `Vec3` operations return new values.
+- `Vector` and `Matrix` public accessors and exposed `data` storage use zero-based indexing.
 - Numerical changes need targeted tests covering expected values, boundary conditions, invalid inputs, and convergence or iteration-limit behavior where applicable.
 - Do not silently alter tolerance defaults, convergence criteria, error handling, callback signatures, output shapes, or indexing conventions.
 

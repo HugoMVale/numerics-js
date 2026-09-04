@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 import { Matrix } from '../array/Matrix.js';
 import { clip } from '../math.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
@@ -13,21 +13,21 @@ import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './
  */
 export interface AdaptiveScratch {
     /** First stage derivative; may contain the derivative reused from the previous accepted step. */
-    k1: Array1D;
+    k1: Vector;
     /** Second stage derivative. */
-    k2: Array1D;
+    k2: Vector;
     /** Third stage derivative. */
-    k3: Array1D;
+    k3: Vector;
     /** Fourth stage derivative and the FSAL derivative for `'rk23'`. */
-    k4: Array1D;
+    k4: Vector;
     /** Fifth stage derivative, used by `'rk45'`. */
-    k5: Array1D;
+    k5: Vector;
     /** Sixth stage derivative, used by `'rk45'`. */
-    k6: Array1D;
+    k6: Vector;
     /** Seventh stage derivative and the FSAL derivative for `'rk45'`. */
-    k7: Array1D;
+    k7: Vector;
     /** Temporary state vector used to evaluate intermediate stages. */
-    yTemp: Array1D;
+    yTemp: Vector;
 }
 
 /**
@@ -35,14 +35,14 @@ export interface AdaptiveScratch {
  */
 function makeAdaptiveScratch(dim: number): AdaptiveScratch {
     return {
-        k1: new Array1D(dim),
-        k2: new Array1D(dim),
-        k3: new Array1D(dim),
-        k4: new Array1D(dim),
-        k5: new Array1D(dim),
-        k6: new Array1D(dim),
-        k7: new Array1D(dim),
-        yTemp: new Array1D(dim),
+        k1: new Vector(dim),
+        k2: new Vector(dim),
+        k3: new Vector(dim),
+        k4: new Vector(dim),
+        k5: new Vector(dim),
+        k6: new Vector(dim),
+        k7: new Vector(dim),
+        yTemp: new Vector(dim),
     };
 }
 
@@ -74,12 +74,12 @@ export function rungeKuttaAdaptiveStep(
     method: RungeKuttaAdaptiveMethod,
     f: DerivativeFunction,
     t: number,
-    y: Array1D,
+    y: Vector,
     h: number,
-    out: Array1D,
+    out: Vector,
     scratch: AdaptiveScratch,
     k1Ready: boolean = false
-): Array1D {
+): Vector {
     const { k1, k2, k3, k4, k5, k6, k7, yTemp } = scratch;
 
     if (!k1Ready) f(t, y, k1);
@@ -141,8 +141,8 @@ export function rungeKuttaAdaptiveStep(
  */
 function adaptiveErrorNorm(
     method: RungeKuttaAdaptiveMethod,
-    y: Array1D,
-    out: Array1D,
+    y: Vector,
+    out: Vector,
     h: number,
     scratch: AdaptiveScratch,
     atol: number,
@@ -190,7 +190,7 @@ function adaptiveErrorNorm(
 function estimateInitialStep(
     f: DerivativeFunction,
     t0: number,
-    y0: Array1D,
+    y0: Vector,
     dir: 1 | -1,
     atol: number,
     rtol: number,
@@ -319,7 +319,7 @@ export interface RungeKuttaAdaptiveOptions {
  * ```ts
  * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Array1D([1]));
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]));
  * console.log(result);
  * ```
  *
@@ -330,7 +330,7 @@ export interface RungeKuttaAdaptiveOptions {
  *   success: true,
  *   message: 'Integration successful.',
  *   evaluations: 14,
- *   t: Array1D [ 0, 0.14680437989650819, 1 ],
+ *   t: Vector [ 0, 0.14680437989650819, 1 ],
  *   y: Matrix [[1], [0.863462874659396], [0.3680228572282582]],
  * }
  * ```
@@ -338,7 +338,7 @@ export interface RungeKuttaAdaptiveOptions {
  * @example
  * ```ts
  * // Same integration, with explicit tolerances and an initial step size.
- * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Array1D([1]), {
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]), {
  *     atol: 1e-8,
  *     rtol: 1e-8,
  *     h0: 0.01,
@@ -350,7 +350,7 @@ export function rungeKuttaAdaptive(
     f: DerivativeFunction,
     t0: number,
     tEnd: number,
-    y0: Array1D,
+    y0: Vector,
     options: RungeKuttaAdaptiveOptions = {}
 ): OdeResult {
     const {
@@ -379,7 +379,7 @@ export function rungeKuttaAdaptive(
     }
 
     if (tEnd === t0) {
-        const tVec = new Array1D(1);
+        const tVec = new Vector(1);
         tVec.data[0] = t0;
         const yMat = new Matrix(1, dim);
         yMat.setRow(0, y0.data);
@@ -398,7 +398,7 @@ export function rungeKuttaAdaptive(
 
     let methodOrder: number;
     let errExp: number;
-    let fsalSource: Array1D;
+    let fsalSource: Vector;
     let stagesPerAttempt: number;
     switch (method) {
         case 'rk23':
@@ -421,7 +421,7 @@ export function rungeKuttaAdaptive(
 
     let t = t0;
     let y = y0.copy();
-    let next = new Array1D(dim);
+    let next = new Vector(dim);
     let evaluations = h0 === undefined ? 2 : 0;
 
     let k1Ready = false;
@@ -437,7 +437,7 @@ export function rungeKuttaAdaptive(
     const tBuf: number[] = [t0];
     const yBuf: Float64Array[] = [y.data.slice()];
     const makeResult = (success: boolean, message: string): OdeResult => {
-        const tVec = new Array1D(tBuf.length);
+        const tVec = new Vector(tBuf.length);
         tVec.set(tBuf);
         const yMat = new Matrix(tBuf.length, dim);
         for (let i = 0; i < tBuf.length; i++) {

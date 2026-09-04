@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PchipInterpolator } from '../../src/interpolate/pchip.js';
-import { Array1D } from '../../src/array/array1d.js';
+import { Vector } from '../../src/array/Vector.js';
 
 describe('PchipInterpolator', () => {
     it('produces the values shown in its documentation example', () => {
@@ -78,14 +78,14 @@ describe('PchipInterpolator', () => {
         const xQuery = [0, 1, 2, 3];
 
         const evalRes = pchip.eval(xQuery);
-        expect(evalRes).toBeInstanceOf(Array1D);
+        expect(evalRes).toBeInstanceOf(Vector);
         expect(evalRes.data[0]).toBe(0);
         expect(evalRes.data[1]).toBe(1);
         expect(evalRes.data[2]).toBe(8);
         expect(evalRes.data[3]).toBe(8); // Clamped
 
         const derivRes = pchip.derivative(xQuery);
-        expect(derivRes).toBeInstanceOf(Array1D);
+        expect(derivRes).toBeInstanceOf(Vector);
         expect(derivRes.data[3]).toBe(0); // Out of bounds derivative is 0
     });
 

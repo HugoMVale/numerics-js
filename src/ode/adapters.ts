@@ -1,9 +1,9 @@
-import type { Array1D } from '../array/array1d.js';
+import type { Vector } from '../array/Vector.js';
 import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.js';
 
 /**
  * Adapts a convenience-style derivative function that allocates and returns
- * a new `Array1D` - `(t, y) => Array1D` - into the writes-into-`dydt` style that
+ * a new `Vector` - `(t, y) => Vector` - into the writes-into-`dydt` style that
  * ODE steppers/integrators in this package use.
  *
  * The wrapped function allocates on every derivative evaluation. Prefer a
@@ -11,7 +11,7 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
  * performance-sensitive integrations.
  *
  * @param f Derivative function `dy/dt = f(t, y)` that returns a newly allocated
- * `Array1D`. Its result must have the same dimension as `y`.
+ * `Vector`. Its result must have the same dimension as `y`.
  * @returns A {@link DerivativeFunction} that copies `f`'s result into the
  * supplied `dydt` buffer and returns that buffer.
  *
@@ -19,14 +19,14 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
  * ```ts
  * // Exponential decay: dy/dt = -y
  * const f = wrapAllocatingDerivative((t, y) => y.copy().multSelf(-1));
- * const result = dormandPrince45(f, 0, 1, new Array1D([1]));
+ * const result = dormandPrince45(f, 0, 1, new Vector([1]));
  * console.log(result);
  * ```
  *
  * Output:
  * ```text
  * {
- *   t: Array1D [ 0, 0.14680437989650819, 1 ],
+ *   t: Vector [ 0, 0.14680437989650819, 1 ],
  *   y: Matrix [[1], [0.863462874659396], [0.3680228572282582]],
  *   method: 'dp54'
  * }
@@ -35,6 +35,6 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
 export function wrapAllocatingDerivative(
     f: AllocatingDerivativeFunction
 ): DerivativeFunction {
-    return (t: number, y: Array1D, dydt: Array1D): Array1D =>
+    return (t: number, y: Vector, dydt: Vector): Vector =>
         dydt.set(f(t, y).data);
 }

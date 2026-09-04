@@ -1,5 +1,5 @@
 import { ArrayND } from './arraynd.js';
-import { Array1D } from './array1d.js';
+import { Vector } from './Vector.js';
 
 /**
  * Result of `Matrix.lu()`: a partial-pivoted LU factorization such that
@@ -38,7 +38,7 @@ export interface LUDecomposition {
  * comparisons (`isClose`/`allClose`), `normSq`/`norm`/`dot`/`dist`
  * (Frobenius), and `copy`/`fill` are inherited from `ArrayND` unchanged;
  * see that class for their docs. There is currently no broadcasting
- * against an `Array1D` (row/column vector) — both operands must be the
+ * against an `Vector` (row/column vector) — both operands must be the
  * same shape, or a plain scalar. `toArray` is not inherited (its natural
  * shape differs per subclass) and is defined here directly, as an array of row arrays.
  */
@@ -76,7 +76,7 @@ export class Matrix extends ArrayND {
     }
 
     /**
-     * The number of rows in this matrix. Read-only (like `Array1D.size`) so
+     * The number of rows in this matrix. Read-only (like `Vector.size`) so
      * it can never desync from `data`.
      */
     get rows(): number {
@@ -84,7 +84,7 @@ export class Matrix extends ArrayND {
     }
 
     /**
-     * The number of columns in this matrix. Read-only (like `Array1D.size`)
+     * The number of columns in this matrix. Read-only (like `Vector.size`)
      * so it can never desync from `data`.
      */
     get cols(): number {
@@ -227,9 +227,9 @@ export class Matrix extends ArrayND {
      * @param i Row index (0-based).
      * @returns A new vector with `this.cols` components.
      */
-    row(i: number): Array1D {
+    row(i: number): Vector {
         if (i < 0 || i >= this.rows) throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
-        return Array1D._wrapUnchecked(this.data.slice(this._idx(i, 0), this._idx(i, 0) + this.cols));
+        return Vector._wrapUnchecked(this.data.slice(this._idx(i, 0), this._idx(i, 0) + this.cols));
     }
 
     /**
@@ -237,9 +237,9 @@ export class Matrix extends ArrayND {
      * @param j Column index (0-based).
      * @returns A new vector with `this.rows` components.
      */
-    col(j: number): Array1D {
+    col(j: number): Vector {
         if (j < 0 || j >= this.cols) throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
-        const res = new Array1D(this.rows);
+        const res = new Vector(this.rows);
         for (let i = 0; i < this.rows; i++) res.data[i] = this._get(i, j);
         return res;
     }
@@ -251,9 +251,9 @@ export class Matrix extends ArrayND {
      * @returns `this`, for chaining.
      * @throws {RangeError} If `i` is out of bounds, or `values.length !== cols`.
      */
-    setRow(i: number, values: Array1D | ArrayLike<number>): this {
+    setRow(i: number, values: Vector | ArrayLike<number>): this {
         if (i < 0 || i >= this.rows) throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
-        const src = values instanceof Array1D ? values.data : values;
+        const src = values instanceof Vector ? values.data : values;
         if (src.length !== this.cols) {
             throw new RangeError(`Matrix setRow: expected ${this.cols} values for row ${i}, got ${src.length}`);
         }
@@ -268,9 +268,9 @@ export class Matrix extends ArrayND {
      * @returns `this`, for chaining.
      * @throws {RangeError} If `j` is out of bounds, or `values.length !== rows`.
      */
-    setCol(j: number, values: Array1D | ArrayLike<number>): this {
+    setCol(j: number, values: Vector | ArrayLike<number>): this {
         if (j < 0 || j >= this.cols) throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
-        const src = values instanceof Array1D ? values.data : values;
+        const src = values instanceof Vector ? values.data : values;
         if (src.length !== this.rows) {
             throw new RangeError(`Matrix setCol: expected ${this.rows} values for column ${j}, got ${src.length}`);
         }
@@ -279,7 +279,7 @@ export class Matrix extends ArrayND {
     }
 
     // -----------------------------------------------------------------
-    // Matrix-specific operations: no Array1D equivalent, or deliberately
+    // Matrix-specific operations: no Vector equivalent, or deliberately
     // not inherited from ArrayND (arity/shape differ too much to share).
     // -----------------------------------------------------------------
 
@@ -314,11 +314,11 @@ export class Matrix extends ArrayND {
      * @param v The vector. Must have `v.size === this.cols`.
      * @returns A new vector with `this.rows` components.
      */
-    mulVec(v: Array1D): Array1D {
+    mulVec(v: Vector): Vector {
         if (v.size !== this.cols) {
             throw new RangeError(`Matrix mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.size})`);
         }
-        const res = new Array1D(this.rows);
+        const res = new Vector(this.rows);
         for (let i = 0; i < this.rows; i++) {
             const offset = this._idx(i, 0);
             let sum = 0;
@@ -583,11 +583,11 @@ export class Matrix extends ArrayND {
      * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
      * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
      */
-    solveLower(b: Array1D, unitDiagonal = false): Array1D {
+    solveLower(b: Vector, unitDiagonal = false): Vector {
         if (this.rows !== this.cols) throw new RangeError(`Matrix solveLower requires a square matrix, got ${this.rows}x${this.cols}`);
         if (b.size !== this.rows) throw new RangeError(`Matrix solveLower shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
         const n = this.rows;
-        const x = new Array1D(n);
+        const x = new Vector(n);
         for (let i = 0; i < n; i++) {
             const offset = this._idx(i, 0);
             let s = b.data[i];
@@ -612,11 +612,11 @@ export class Matrix extends ArrayND {
      * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
      * @throws {Error} If a zero diagonal entry is encountered.
      */
-    solveUpper(b: Array1D): Array1D {
+    solveUpper(b: Vector): Vector {
         if (this.rows !== this.cols) throw new RangeError(`Matrix solveUpper requires a square matrix, got ${this.rows}x${this.cols}`);
         if (b.size !== this.rows) throw new RangeError(`Matrix solveUpper shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
         const n = this.rows;
-        const x = new Array1D(n);
+        const x = new Vector(n);
         for (let i = n - 1; i >= 0; i--) {
             const offset = this._idx(i, 0);
             let s = b.data[i];
@@ -640,11 +640,11 @@ export class Matrix extends ArrayND {
      * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
      * @throws {Error} If this matrix is singular (no unique solution).
      */
-    solve(b: Array1D): Array1D {
+    solve(b: Vector): Vector {
         if (this.rows !== this.cols) throw new RangeError(`Matrix solve requires a square matrix, got ${this.rows}x${this.cols}`);
         if (b.size !== this.rows) throw new RangeError(`Matrix solve shape mismatch: ${this.rows}x${this.cols} vs vec(${b.size})`);
         const { L, U, perm } = this.lu();
-        const pb = new Array1D(perm.map(p => b.data[p]));
+        const pb = new Vector(perm.map(p => b.data[p]));
         const y = L.solveLower(pb, true);
         return U.solveUpper(y);
     }
@@ -653,14 +653,14 @@ export class Matrix extends ArrayND {
     // Axis-aware reductions, following numpy's convention: `axis`
     // omitted (or `undefined`) reduces over every element to a scalar
     // (delegating to ArrayND's whole-buffer helpers); `axis: 0` reduces
-    // down each column (one result per column, an `Array1D` of length
+    // down each column (one result per column, an `Vector` of length
     // `cols`); `axis: 1` reduces across each row (one result per row, an
-    // `Array1D` of length `rows`). The underlying per-slice math (sum,
+    // `Vector` of length `rows`). The underlying per-slice math (sum,
     // mean, min/max with NaN propagation, variance/std, argmin/argmax)
     // is not reimplemented here — `_reduceAxis` below reuses `ArrayND`'s
     // `_sumArr`/`_meanArr`/`_minArr`/`_maxArr`/`_varianceArr`/`_stdArr`/
     // `_argMinArr`/`_argMaxArr`, the same pure Float64Array reducers that
-    // back Array1D's and this class's own whole-buffer reductions.
+    // back Vector's and this class's own whole-buffer reductions.
     // -----------------------------------------------------------------
 
 
@@ -670,11 +670,11 @@ export class Matrix extends ArrayND {
      * row, over that row's `cols` values.
      * @param axis `0` to reduce down columns, `1` to reduce across rows.
      * @param reduceFn Reduces one row's or column's values to a single number.
-     * @returns An `Array1D` of length `cols` (for `axis: 0`) or `rows` (for `axis: 1`).
+     * @returns An `Vector` of length `cols` (for `axis: 0`) or `rows` (for `axis: 1`).
      */
-    private _reduceAxis(axis: 0 | 1, reduceFn: (values: Float64Array) => number): Array1D {
+    private _reduceAxis(axis: 0 | 1, reduceFn: (values: Float64Array) => number): Vector {
         if (axis === 0) {
-            const res = new Array1D(this.cols);
+            const res = new Vector(this.cols);
             const col = new Float64Array(this.rows);
             for (let j = 0; j < this.cols; j++) {
                 for (let i = 0; i < this.rows; i++) col[i] = this._get(i, j);
@@ -682,7 +682,7 @@ export class Matrix extends ArrayND {
             }
             return res;
         } else {
-            const res = new Array1D(this.rows);
+            const res = new Vector(this.rows);
             for (let i = 0; i < this.rows; i++) {
                 const row = this.data.subarray(this._idx(i, 0), this._idx(i, 0) + this.cols);
                 res.data[i] = reduceFn(row);
@@ -698,11 +698,11 @@ export class Matrix extends ArrayND {
     sum(axis?: undefined): number;
     /**
      * Sums this matrix's elements along one axis. `0` sums down each
-     * column, returning an `Array1D` of length `cols`; `1` sums across
-     * each row, returning an `Array1D` of length `rows`.
+     * column, returning an `Vector` of length `cols`; `1` sums across
+     * each row, returning an `Vector` of length `rows`.
      */
-    sum(axis: 0 | 1): Array1D;
-    sum(axis?: 0 | 1): number | Array1D {
+    sum(axis: 0 | 1): Vector;
+    sum(axis?: 0 | 1): number | Vector {
         if (axis === undefined) return this._sumAll();
         return this._reduceAxis(axis, ArrayND._sumArr);
     }
@@ -715,8 +715,8 @@ export class Matrix extends ArrayND {
      * Computes the arithmetic mean along one axis. `0` averages down each
      * column; `1` averages across each row.
      */
-    mean(axis: 0 | 1): Array1D;
-    mean(axis?: 0 | 1): number | Array1D {
+    mean(axis: 0 | 1): Vector;
+    mean(axis?: 0 | 1): number | Vector {
         if (axis === undefined) return this._meanAll();
         return this._reduceAxis(axis, ArrayND._meanArr);
     }
@@ -731,8 +731,8 @@ export class Matrix extends ArrayND {
      * each column; `1` finds the minimum of each row. NaN propagates, as
      * in the no-axis form.
      */
-    min(axis: 0 | 1): Array1D;
-    min(axis?: 0 | 1): number | Array1D {
+    min(axis: 0 | 1): Vector;
+    min(axis?: 0 | 1): number | Vector {
         if (axis === undefined) return this._minAll();
         return this._reduceAxis(axis, ArrayND._minArr);
     }
@@ -747,8 +747,8 @@ export class Matrix extends ArrayND {
      * each column; `1` finds the maximum of each row. NaN propagates, as
      * in the no-axis form.
      */
-    max(axis: 0 | 1): Array1D;
-    max(axis?: 0 | 1): number | Array1D {
+    max(axis: 0 | 1): Vector;
+    max(axis?: 0 | 1): number | Vector {
         if (axis === undefined) return this._maxAll();
         return this._reduceAxis(axis, ArrayND._maxArr);
     }
@@ -767,8 +767,8 @@ export class Matrix extends ArrayND {
      * @param ddof Delta degrees of freedom, as in the no-axis form, applied
      * per row/column.
      */
-    variance(axis: 0 | 1, ddof?: number): Array1D;
-    variance(axis?: 0 | 1, ddof: number = 0): number | Array1D {
+    variance(axis: 0 | 1, ddof?: number): Vector;
+    variance(axis?: 0 | 1, ddof: number = 0): number | Vector {
         if (axis === undefined) return this._varianceAll(ddof);
         return this._reduceAxis(axis, (a) => ArrayND._varianceArr(a, ddof));
     }
@@ -783,8 +783,8 @@ export class Matrix extends ArrayND {
      * each column; `1` for each row.
      * @param ddof Delta degrees of freedom, forwarded to `variance()`.
      */
-    std(axis: 0 | 1, ddof?: number): Array1D;
-    std(axis?: 0 | 1, ddof: number = 0): number | Array1D {
+    std(axis: 0 | 1, ddof?: number): Vector;
+    std(axis?: 0 | 1, ddof: number = 0): number | Vector {
         if (axis === undefined) return this._stdAll(ddof);
         return this._reduceAxis(axis, (a) => ArrayND._stdArr(a, ddof));
     }
@@ -792,9 +792,9 @@ export class Matrix extends ArrayND {
     /**
      * Computes the cumulative sum of this matrix's elements, flattened in
      * row-major order first (row 0 followed by row 1, etc.): a single
-     * running total over that sequence, as an `Array1D` of length `rows * cols`.
+     * running total over that sequence, as an `Vector` of length `rows * cols`.
      */
-    cumsum(axis?: undefined): Array1D;
+    cumsum(axis?: undefined): Vector;
     /**
      * Computes the cumulative sum along one axis, keeping this matrix's
      * shape. `0` accumulates down each column independently, restarting
@@ -802,9 +802,9 @@ export class Matrix extends ArrayND {
      * each row independently, restarting at the start of each row.
      */
     cumsum(axis: 0 | 1): Matrix;
-    cumsum(axis?: 0 | 1): Array1D | Matrix {
+    cumsum(axis?: 0 | 1): Vector | Matrix {
         if (axis === undefined) {
-            const res = new Array1D(this.size);
+            const res = new Vector(this.size);
             let running = 0;
             for (let i = 0; i < this.data.length; i++) {
                 running += this.data[i];
@@ -844,13 +844,13 @@ export class Matrix extends ArrayND {
     /**
      * Finds the index of the smallest element along one axis. `0` returns,
      * for each column, the *row* index (`0` to `rows - 1`) of that
-     * column's minimum, as an `Array1D` of length `cols`. `1` returns, for
+     * column's minimum, as an `Vector` of length `cols`. `1` returns, for
      * each row, the *column* index (`0` to `cols - 1`) of that row's
-     * minimum, as an `Array1D` of length `rows`. Ties and NaN priority
+     * minimum, as an `Vector` of length `rows`. Ties and NaN priority
      * follow the no-axis form, applied per row/column.
      */
-    argmin(axis: 0 | 1): Array1D;
-    argmin(axis?: 0 | 1): number | Array1D {
+    argmin(axis: 0 | 1): Vector;
+    argmin(axis?: 0 | 1): number | Vector {
         if (axis === undefined) return ArrayND._argMinArr(this.data);
         return this._reduceAxis(axis, ArrayND._argMinArr);
     }
@@ -865,13 +865,13 @@ export class Matrix extends ArrayND {
     /**
      * Finds the index of the largest element along one axis. `0` returns,
      * for each column, the *row* index (`0` to `rows - 1`) of that
-     * column's maximum, as an `Array1D` of length `cols`. `1` returns, for
+     * column's maximum, as an `Vector` of length `cols`. `1` returns, for
      * each row, the *column* index (`0` to `cols - 1`) of that row's
-     * maximum, as an `Array1D` of length `rows`. Ties and NaN priority
+     * maximum, as an `Vector` of length `rows`. Ties and NaN priority
      * follow the no-axis form, applied per row/column.
      */
-    argmax(axis: 0 | 1): Array1D;
-    argmax(axis?: 0 | 1): number | Array1D {
+    argmax(axis: 0 | 1): Vector;
+    argmax(axis?: 0 | 1): number | Vector {
         if (axis === undefined) return ArrayND._argMaxArr(this.data);
         return this._reduceAxis(axis, ArrayND._argMaxArr);
     }
@@ -990,9 +990,9 @@ export class Matrix extends ArrayND {
 
     /**
      * Makes Matrix iterable over its rows, e.g. `for (const r of someMatrix)`.
-     * Each yielded value is an Array1D.
+     * Each yielded value is an Vector.
      */
-    *[Symbol.iterator](): Generator<Array1D, void, unknown> {
+    *[Symbol.iterator](): Generator<Vector, void, unknown> {
         for (let i = 0; i < this.rows; i++) yield this.row(i);
     }
 

@@ -10,7 +10,7 @@ import { ArrayND } from './arraynd.js';
  * `toArray` is not inherited (its natural shape differs per subclass) and
  * is defined here directly.
  */
-export class Array1D extends ArrayND {
+export class Vector extends ArrayND {
     public data: Float64Array;
 
     /**
@@ -20,10 +20,10 @@ export class Array1D extends ArrayND {
         super();
         if (typeof input === 'number') {
             if (!Number.isInteger(input)) {
-                throw new RangeError(`Array1D.constructor: dimension must be an integer, got ${input}`);
+                throw new RangeError(`Vector.constructor: dimension must be an integer, got ${input}`);
             }
             if (input < 0) {
-                throw new RangeError(`Array1D.constructor: dimension must be >= 0, got ${input}`);
+                throw new RangeError(`Vector.constructor: dimension must be >= 0, got ${input}`);
             }
             this.data = new Float64Array(input);
         } else {
@@ -33,7 +33,7 @@ export class Array1D extends ArrayND {
 
     /**
      * Throws if `other` is not shape-compatible with this instance: for
-     * Array1D, "compatible" means the same `size`. Used internally
+     * Vector, "compatible" means the same `size`. Used internally
      * (via `ArrayND`'s arithmetic/isClose/dot/dist methods) to guard
      * against silent dimension mismatches.
      * @param other The other vector.
@@ -43,13 +43,13 @@ export class Array1D extends ArrayND {
      */
     protected _checkSameShape(other: this, caller: string): void {
         if (other.size !== this.size) {
-            throw new RangeError(`Array1D.${caller}: dimension mismatch: ${this.size} vs ${other.size}`);
+            throw new RangeError(`Vector.${caller}: dimension mismatch: ${this.size} vs ${other.size}`);
         }
     }
 
     /**
      * Internal-only fast constructor: wraps `data` directly as a new
-     * Array1D, with no copying and no validation whatsoever — `data` must
+     * Vector, with no copying and no validation whatsoever — `data` must
      * already be a fresh `Float64Array` of the right length. Used by
      * `_create()` (so `ArrayND`'s arithmetic doesn't pay for a second
      * allocation+copy on top of the buffer it already built) and by
@@ -58,23 +58,23 @@ export class Array1D extends ArrayND {
      * despite being a public static method (TypeScript has no
      * package-private), treat the leading underscore as a hard "don't call
      * this from outside the array module." Like `_create`'s `as this`
-     * cast, this assumes Array1D is never itself subclassed.
+     * cast, this assumes Vector is never itself subclassed.
      * @param data The buffer to wrap directly. Not copied.
-     * @returns A new Array1D wrapping `data`.
+     * @returns A new Vector wrapping `data`.
      */
-    static _wrapUnchecked(data: Float64Array): Array1D {
-        const v = Object.create(Array1D.prototype) as Array1D;
+    static _wrapUnchecked(data: Float64Array): Vector {
+        const v = Object.create(Vector.prototype) as Vector;
         v.data = data;
         return v;
     }
 
     /**
-     * Constructs a new Array1D wrapping the given buffer directly.
+     * Constructs a new Vector wrapping the given buffer directly.
      * @param data The buffer for the new vector to wrap.
-     * @returns A new Array1D of the same dimension as `data.length`.
+     * @returns A new Vector of the same dimension as `data.length`.
      */
     protected _create(data: Float64Array): this {
-        return Array1D._wrapUnchecked(data) as this;
+        return Vector._wrapUnchecked(data) as this;
     }
 
     /**
@@ -86,7 +86,7 @@ export class Array1D extends ArrayND {
      */
     private _checkIndex(i: number, caller: string): void {
         if (!Number.isInteger(i) || i < 0 || i >= this.size) {
-            throw new RangeError(`Array1D.${caller}: index ${i} out of bounds for dimension ${this.size}`);
+            throw new RangeError(`Vector.${caller}: index ${i} out of bounds for dimension ${this.size}`);
         }
     }
 
@@ -115,7 +115,7 @@ export class Array1D extends ArrayND {
      * default, which sorts lexicographically).
      * @returns A new, sorted vector.
      */
-    sort(compareFn?: (a: number, b: number) => number): Array1D {
+    sort(compareFn?: (a: number, b: number) => number): Vector {
         const res = this.copy();
         res.data.sort(compareFn);
         return res;
@@ -130,8 +130,8 @@ export class Array1D extends ArrayND {
      * count back from the end.
      * @returns A new, independent vector holding the selected components.
      */
-    slice(start?: number, end?: number): Array1D {
-        return new Array1D(this.data.slice(start, end));
+    slice(start?: number, end?: number): Vector {
+        return new Vector(this.data.slice(start, end));
     }
 
     /**
@@ -140,8 +140,8 @@ export class Array1D extends ArrayND {
      * value becomes the corresponding component of the result.
      * @returns A new vector, the same size as this one, holding the mapped values.
      */
-    map(fn: (value: number, index: number) => number): Array1D {
-        const res = new Array1D(this.size);
+    map(fn: (value: number, index: number) => number): Vector {
+        const res = new Vector(this.size);
         for (let i = 0; i < this.size; i++) res.data[i] = fn(this.data[i], i);
         return res;
     }
@@ -152,9 +152,9 @@ export class Array1D extends ArrayND {
      * dividing by zero.
      * @returns The normalized vector, or a zero vector if this vector is zero.
      */
-    normalize(): Array1D {
+    normalize(): Vector {
         const m = this.norm();
-        return m === 0 ? new Array1D(this.size) : this.mult(1 / m);
+        return m === 0 ? new Vector(this.size) : this.mult(1 / m);
     }
 
     /**
@@ -201,8 +201,8 @@ export class Array1D extends ArrayND {
      * @returns A new vector of the same size where component `i` is the
      * sum of `this[0..i]`.
      */
-    cumsum(): Array1D {
-        const res = new Array1D(this.size);
+    cumsum(): Vector {
+        const res = new Vector(this.size);
         let running = 0;
         for (let i = 0; i < this.size; i++) {
             running += this.data[i];
@@ -228,7 +228,7 @@ export class Array1D extends ArrayND {
      * @throws {RangeError} If `size === 0`.
      */
     argmin(): number {
-        if (this.size === 0) throw new RangeError('Array1D.argmin: cannot compute the argmin of an empty vector');
+        if (this.size === 0) throw new RangeError('Vector.argmin: cannot compute the argmin of an empty vector');
         return ArrayND._argMinArr(this.data);
     }
 
@@ -249,7 +249,7 @@ export class Array1D extends ArrayND {
      * @throws {RangeError} If `size === 0`.
      */
     argmax(): number {
-        if (this.size === 0) throw new RangeError('Array1D.argmax: cannot compute the argmax of an empty vector');
+        if (this.size === 0) throw new RangeError('Vector.argmax: cannot compute the argmax of an empty vector');
         return ArrayND._argMaxArr(this.data);
     }
 
@@ -263,14 +263,14 @@ export class Array1D extends ArrayND {
 
     /**
      * Returns a human-readable string representation of this vector.
-     * @returns e.g. `"Array1D(1, 2, 3)"`.
+     * @returns e.g. `"Vector(1, 2, 3)"`.
      */
     toString(): string {
-        return `Array1D(${this.data.join(', ')})`;
+        return `Vector(${this.data.join(', ')})`;
     }
 
     /**
-     * Makes Array1D iterable, e.g. `const [a, b, c] = someVector;` or `for (const x of v)`.
+     * Makes Vector iterable, e.g. `const [a, b, c] = someVector;` or `for (const x of v)`.
      */
     [Symbol.iterator](): IterableIterator<number> {
         return this.data[Symbol.iterator]();
@@ -302,7 +302,7 @@ export class Array1D extends ArrayND {
         } else {
             if (valuesOrIndex.length !== this.size) {
                 throw new RangeError(
-                    `Array1D.set: expected ${this.size} values, got ${valuesOrIndex.length}`
+                    `Vector.set: expected ${this.size} values, got ${valuesOrIndex.length}`
                 );
             }
             this.data.set(valuesOrIndex);
@@ -317,7 +317,7 @@ export class Array1D extends ArrayND {
      * @param s The scale factor applied to `v`.
      * @returns `this`, for chaining.
      */
-    addScaled(v: Array1D, s: number): this {
+    addScaled(v: Vector, s: number): this {
         this._checkSameShape(v as this, 'addScaled');
         for (let i = 0; i < this.size; i++) this.data[i] += v.data[i] * s;
         return this;
@@ -330,7 +330,7 @@ export class Array1D extends ArrayND {
      * @param b Must have the same `size` as `a` and as this vector.
      * @returns `this`, set to `a - b`.
      */
-    subVectors(a: Array1D, b: Array1D): this {
+    subVectors(a: Vector, b: Vector): this {
         this._checkSameShape(a as this, 'subVectors');
         this._checkSameShape(b as this, 'subVectors');
         for (let i = 0; i < this.size; i++) this.data[i] = a.data[i] - b.data[i];
@@ -342,8 +342,8 @@ export class Array1D extends ArrayND {
      * @param dim The number of components.
      * @returns A new zero vector.
      */
-    static zero(dim: number): Array1D {
-        return new Array1D(dim);
+    static zero(dim: number): Vector {
+        return new Vector(dim);
     }
 
     /**
@@ -351,8 +351,8 @@ export class Array1D extends ArrayND {
      * @param dim The number of components.
      * @returns A new vector of all ones.
      */
-    static ones(dim: number): Array1D {
-        return new Array1D(dim).fill(1);
+    static ones(dim: number): Vector {
+        return new Vector(dim).fill(1);
     }
 
     /**
@@ -361,17 +361,17 @@ export class Array1D extends ArrayND {
      * @param value The value to fill with.
      * @returns A new vector with every component equal to `value`.
      */
-    static full(dim: number, value: number): Array1D {
-        return new Array1D(dim).fill(value);
+    static full(dim: number, value: number): Vector {
+        return new Vector(dim).fill(value);
     }
 
     /**
-     * Creates a Array1D from an array or typed array.
+     * Creates a Vector from an array or typed array.
      * @param arr Source values.
      * @returns A new vector with dimension equal to `arr.length`.
      */
-    static from(arr: number[] | Float64Array): Array1D {
-        return new Array1D(arr);
+    static from(arr: number[] | Float64Array): Vector {
+        return new Vector(arr);
     }
 
     /**
@@ -381,7 +381,7 @@ export class Array1D extends ArrayND {
      * @param stop Exclusive upper bound, with `start` defaulting to `0` and `step` to `1`.
      * @returns A new vector of values `0, 1, 2, ..., stop - 1`.
      */
-    static arange(stop: number): Array1D;
+    static arange(stop: number): Vector;
 
     /**
      * Creates a vector of evenly spaced values within a half-open interval
@@ -394,14 +394,14 @@ export class Array1D extends ArrayND {
      * @returns A new vector of values `start, start + step, start + 2*step, ...` up to (excluding) `stop`.
      * @throws {RangeError} If `step === 0`.
      */
-    static arange(start: number, stop: number, step?: number): Array1D;
+    static arange(start: number, stop: number, step?: number): Vector;
 
-    static arange(startOrStop: number, stop?: number, step: number = 1): Array1D {
+    static arange(startOrStop: number, stop?: number, step: number = 1): Vector {
         const start = stop === undefined ? 0 : startOrStop;
         const actualStop = stop === undefined ? startOrStop : stop;
-        if (step === 0) throw new RangeError('Array1D.arange: step must not be 0');
+        if (step === 0) throw new RangeError('Vector.arange: step must not be 0');
         const n = Math.max(0, Math.ceil((actualStop - start) / step));
-        const res = new Array1D(n);
+        const res = new Vector(n);
         for (let i = 0; i < n; i++) res.data[i] = start + i * step;
         return res;
     }
@@ -415,11 +415,11 @@ export class Array1D extends ArrayND {
      * @returns A new vector of length `num`.
      * @throws {RangeError} If `num` is not a non-negative integer.
      */
-    static linspace(start: number, stop: number, num: number = 50, endpoint: boolean = true): Array1D {
+    static linspace(start: number, stop: number, num: number = 50, endpoint: boolean = true): Vector {
         if (!Number.isInteger(num) || num < 0) {
-            throw new RangeError(`Array1D.linspace: num must be a non-negative integer, got ${num}`);
+            throw new RangeError(`Vector.linspace: num must be a non-negative integer, got ${num}`);
         }
-        const res = new Array1D(num);
+        const res = new Vector(num);
         if (num === 0) return res;
         if (num === 1) {
             res.data[0] = start;
@@ -453,9 +453,9 @@ export class Array1D extends ArrayND {
         num: number = 50,
         endpoint: boolean = true,
         base: number = 10
-    ): Array1D {
-        const exponents = Array1D.linspace(start, stop, num, endpoint);
-        const res = new Array1D(num);
+    ): Vector {
+        const exponents = Vector.linspace(start, stop, num, endpoint);
+        const res = new Vector(num);
         for (let i = 0; i < num; i++) res.data[i] = Math.pow(base, exponents.data[i]);
         return res;
     }

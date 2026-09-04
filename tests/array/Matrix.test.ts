@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Array1D } from '../../src/array/array1d.js';
+import { Vector } from '../../src/array/Vector.js';
 import { Matrix } from '../../src/array/Matrix.js';
 
 describe('Matrix', () => {
@@ -45,10 +45,10 @@ describe('Matrix', () => {
     it('solves linear systems efficiently', () => {
         // System: 2x + y = 5, -x + y = 2  => x = 1, y = 3
         const m: Matrix = new Matrix(2, 2, [2, 1, -1, 1]);
-        const b: Array1D = new Array1D([5, 2]);
-        const x: Array1D = m.solve(b);
+        const b: Vector = new Vector([5, 2]);
+        const x: Vector = m.solve(b);
 
-        expect(x.allClose(new Array1D([1, 3]))).toBe(true);
+        expect(x.allClose(new Vector([1, 3]))).toBe(true);
     });
 
     describe('lu()', () => {
@@ -130,7 +130,7 @@ describe('Matrix', () => {
                 [2, 1, 0],
                 [-1, 3, 1],
             ]);
-            const b: Array1D = new Array1D([1, 4, 2]);
+            const b: Vector = new Vector([1, 4, 2]);
             const x = l.solveLower(b, true);
             expect(l.mulVec(x).allClose(b)).toBe(true);
         });
@@ -140,9 +140,9 @@ describe('Matrix', () => {
                 [2, 0],
                 [3, 4],
             ]);
-            const b: Array1D = new Array1D([4, 11]);
+            const b: Vector = new Vector([4, 11]);
             const x = l.solveLower(b);
-            expect(x.allClose(new Array1D([2, 1.25]))).toBe(true);
+            expect(x.allClose(new Vector([2, 1.25]))).toBe(true);
         });
 
         it('solveUpper solves an upper-triangular system via back-substitution', () => {
@@ -151,7 +151,7 @@ describe('Matrix', () => {
                 [0, 3, 2],
                 [0, 0, 4],
             ]);
-            const b: Array1D = new Array1D([3, 11, 8]);
+            const b: Vector = new Vector([3, 11, 8]);
             const x = u.solveUpper(b);
             expect(u.mulVec(x).allClose(b)).toBe(true);
         });
@@ -164,7 +164,7 @@ describe('Matrix', () => {
                 [2, 99],
                 [1, 3],
             ]);
-            const b: Array1D = new Array1D([4, 5]);
+            const b: Vector = new Vector([4, 5]);
             const x = notLower.solveLower(b);
             expect(x.get(0)).toBeCloseTo(2); // 4 / 2, the "99" above the diagonal is ignored
         });
@@ -174,22 +174,22 @@ describe('Matrix', () => {
                 [2, 1],
                 [0, 0],
             ]);
-            expect(() => u.solveUpper(new Array1D([1, 1]))).toThrowError();
+            expect(() => u.solveUpper(new Vector([1, 1]))).toThrowError();
 
             const l: Matrix = Matrix.from([
                 [0, 0],
                 [1, 2],
             ]);
-            expect(() => l.solveLower(new Array1D([1, 1]))).toThrowError();
+            expect(() => l.solveLower(new Vector([1, 1]))).toThrowError();
         });
 
         it('rejects non-square input and shape-mismatched vectors', () => {
-            expect(() => new Matrix(2, 3).solveLower(new Array1D(2))).toThrowError(RangeError);
-            expect(() => new Matrix(2, 3).solveUpper(new Array1D(2))).toThrowError(RangeError);
+            expect(() => new Matrix(2, 3).solveLower(new Vector(2))).toThrowError(RangeError);
+            expect(() => new Matrix(2, 3).solveUpper(new Vector(2))).toThrowError(RangeError);
 
             const square: Matrix = new Matrix(2, 2, [1, 0, 1, 1]);
-            expect(() => square.solveLower(new Array1D(3))).toThrowError(RangeError);
-            expect(() => square.solveUpper(new Array1D(3))).toThrowError(RangeError);
+            expect(() => square.solveLower(new Vector(3))).toThrowError(RangeError);
+            expect(() => square.solveUpper(new Vector(3))).toThrowError(RangeError);
         });
     });
 
@@ -205,8 +205,8 @@ describe('Matrix', () => {
         const { L, U, perm } = a.lu();
 
         for (const raw of [[1, 2, 3], [0, 1, 0], [-1, -2, -3]]) {
-            const b = new Array1D(raw);
-            const pb = new Array1D(perm.map(p => b.get(p)));
+            const b = new Vector(raw);
+            const pb = new Vector(perm.map(p => b.get(p)));
             const reused = U.solveUpper(L.solveLower(pb, true));
             expect(reused.allClose(a.solve(b))).toBe(true);
         }
@@ -284,12 +284,12 @@ describe('Matrix', () => {
         expect(() => a.add(b)).toThrowError(RangeError);
         expect(() => a.sub(b)).toThrowError(RangeError);
         expect(() => a.matmul(b)).toThrowError(RangeError);
-        expect(() => a.mulVec(new Array1D(3))).toThrowError(RangeError);
+        expect(() => a.mulVec(new Vector(3))).toThrowError(RangeError);
     });
 
     it('multiplies a matrix by a column vector with mulVec', () => {
         const m: Matrix = new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
-        const v: Array1D = new Array1D([1, 0, 1]);
+        const v: Vector = new Vector([1, 0, 1]);
         expect(m.mulVec(v).toArray()).toEqual([4, 10]);
     });
 
@@ -314,7 +314,7 @@ describe('Matrix', () => {
         expect(singular.determinant()).toBeCloseTo(0);
         expect(singular.rank()).toBe(1);
         expect(() => singular.inverse()).toThrowError();
-        expect(() => singular.solve(new Array1D([1, 1]))).toThrowError();
+        expect(() => singular.solve(new Vector([1, 1]))).toThrowError();
     });
 
     it("rank()'s default tolerance treats tiny floating-point noise as rank-deficient, but an explicit tol=0 does not", () => {
@@ -348,10 +348,10 @@ describe('Matrix', () => {
         const nonSquare: Matrix = new Matrix(2, 3);
         expect(() => nonSquare.determinant()).toThrowError(RangeError);
         expect(() => nonSquare.inverse()).toThrowError(RangeError);
-        expect(() => nonSquare.solve(new Array1D(2))).toThrowError(RangeError);
+        expect(() => nonSquare.solve(new Vector(2))).toThrowError(RangeError);
 
         const square: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
-        expect(() => square.solve(new Array1D(3))).toThrowError(RangeError);
+        expect(() => square.solve(new Vector(3))).toThrowError(RangeError);
     });
 
     it('copy() produces an independent matrix', () => {
@@ -574,7 +574,7 @@ describe('Matrix', () => {
         expect(() => a.div(new Matrix(3, 3))).toThrowError(RangeError);
     });
 
-    it('accepts a scalar in add/sub, matching Array1D', () => {
+    it('accepts a scalar in add/sub, matching Vector', () => {
         const a: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
         expect(a.add(10).toArray()).toEqual([[11, 12], [13, 14]]);
         expect(a.sub(1).toArray()).toEqual([[0, 1], [2, 3]]);

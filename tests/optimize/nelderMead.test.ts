@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Array1D } from '../../src/array/array1d.js';
+import { Vector } from '../../src/array/Vector.js';
 import { Matrix } from '../../src/array/Matrix.js';
 import { nelderMead } from '../../src/optimize/nelderMead.js';
 import { TEST_FUNCTIONS_MULTIVAR } from './testFunctions.js';
@@ -33,8 +33,8 @@ describe('fminNelderMead — options and edge cases', () => {
         expect(() => nelderMead(() => 0, [])).toThrow(RangeError);
     });
 
-    it('accepts an Array1D as the initial guess', () => {
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Array1D.from([3, -4]));
+    it('accepts an Vector as the initial guess', () => {
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([3, -4]));
         expect(res.success).toBe(true);
         expect(res.fx).toBeCloseTo(0, 5);
     });
@@ -64,13 +64,13 @@ describe('fminNelderMead — options and edge cases', () => {
         expect(res.fx).toBeCloseTo(0, 5);
     });
 
-    it('passes the callback an (N+1) x N Matrix and an (N+1) Array1D', () => {
+    it('passes the callback an (N+1) x N Matrix and an (N+1) Vector', () => {
         let seenRows = -1;
         let seenCols = -1;
         let seenFxDim = -1;
 
         nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [5, -3], {
-            callback: (nIter, x: Matrix, fx: Array1D) => {
+            callback: (nIter, x: Matrix, fx: Vector) => {
                 if (nIter === 1) {
                     seenRows = x.rows;
                     seenCols = x.cols;

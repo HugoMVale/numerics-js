@@ -1,4 +1,4 @@
-import { Array1D } from '../array/array1d.js';
+import { Vector } from '../array/Vector.js';
 import { trapezoid } from './trapezoid.js';
 
 /**
@@ -57,8 +57,8 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
  * @example
  * ```ts
  * // Integrate y = x^2 at non-uniform sample locations.
- * const x = Array1D.from([0, 1, 3]);
- * const y = Array1D.from([0, 1, 9]);
+ * const x = Vector.from([0, 1, 3]);
+ * const y = Vector.from([0, 1, 9]);
  * const integral = simpson(y, x);
  * console.log(`integral = ${integral}`);
  * ```
@@ -68,7 +68,7 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
  * integral = 9
  * ```
  */
-export function simpson(y: Array1D, x?: Array1D, dx: number = 1): number {
+export function simpson(y: Vector, x?: Vector, dx: number = 1): number {
     const n = y.size;
     if (n < 2) return 0;
 

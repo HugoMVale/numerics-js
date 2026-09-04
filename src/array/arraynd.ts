@@ -5,7 +5,7 @@
  * buffer, tolerance comparisons, copying). Shape-specific behavior
  * (element access, `transpose`, `matmul`, `sort`, `slice`, `cumsum`,
  * `argmin`/`argmax`, axis-aware reductions, etc.) belongs on the
- * concrete subclasses (`Array1D`, `Matrix`), not here.
+ * concrete subclasses (`Vector`, `Matrix`), not here.
  *
  * Subclasses provide two hooks so the arithmetic family can be written
  * once, using TypeScript's polymorphic `this` type, and still return the
@@ -23,7 +23,7 @@ export abstract class ArrayND {
 
     /**
      * The total number of elements in the underlying flat buffer. For
-     * `Array1D` this is the same as `size`/dimension; for `Matrix` this is
+     * `Vector` this is the same as `size`/dimension; for `Matrix` this is
      * `rows * cols`.
      */
     get size(): number {
@@ -427,7 +427,7 @@ export abstract class ArrayND {
 
     /**
      * Computes the squared Euclidean norm of the flat buffer (for
-     * `Array1D`, the squared vector length; for `Matrix`, the squared
+     * `Vector`, the squared vector length; for `Matrix`, the squared
      * Frobenius norm). Cheaper than `norm()` since it avoids a square root.
      * @returns The sum of squares of every element.
      */
@@ -438,7 +438,7 @@ export abstract class ArrayND {
     }
 
     /**
-     * Computes the Euclidean norm of the flat buffer (for `Array1D`, the
+     * Computes the Euclidean norm of the flat buffer (for `Vector`, the
      * vector length; for `Matrix`, the Frobenius norm).
      * @returns `sqrt(normSq())`.
      */
@@ -604,7 +604,7 @@ export abstract class ArrayND {
     // Whole-buffer reductions, applying the reducers above to `this.data`.
     // Protected: subclasses expose these as public methods, adding an
     // `axis` parameter where numpy would (only meaningful for shapes with
-    // more than one axis, i.e. not Array1D).
+    // more than one axis, i.e. not Vector).
     // -----------------------------------------------------------------
 
     /**

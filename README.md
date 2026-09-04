@@ -24,7 +24,7 @@ The package publishes native ESM with export conditions for browser bundlers and
 ```ts
 import { array, integrate, interpolate, math, ode, optimize, roots, special } from 'numerics-js';
 
-const vector = new array.Array1D([1, 2, 3]);
+const vector = new array.Vector([1, 2, 3]);
 const root = roots.bisection((x) => x * x - 2, 1, 2);
 const solution = ode.rungeKuttaFixed('rk4', /* ... */);
 console.log(root.x);
@@ -45,41 +45,41 @@ The same modules can be imported through `numerics-js/array`,
 
 ### Vectors and matrices
 
-- `Array1D` is an N-component vector backed by `Float64Array`. It provides addition, subtraction, scaling, norms, dot products, distances, min/max/sum, closeness checks, conversion, iteration, and in-place operations.
+- `Vector` is an N-component vector backed by `Float64Array`. It provides addition, subtraction, scaling, norms, dot products, distances, min/max/sum, closeness checks, conversion, iteration, and in-place operations.
 - `Matrix` is a row-major matrix backed by `Float64Array`. It provides element/row/column access, arithmetic, matrix and vector multiplication, transpose, trace, rank, determinant, inverse, linear-system solving, reductions, conversion, iteration, and in-place row operations.
-- `Vec3` is a three-component vector for positions, directions, and velocities. It provides the same core vector operations as `Array1D`, plus tuple conversion and static constructors.
+- `Vec3` is a three-component vector for positions, directions, and velocities. It provides the same core vector operations as `Vector`, plus tuple conversion and static constructors.
 
-`Array1D` component indices and `Matrix` row and column indices are zero-based,
+`Vector` component indices and `Matrix` row and column indices are zero-based,
 including through their `get`, `set`, `row`, and `col` accessors. Their public
-`data` properties expose the underlying zero-based `Float64Array` storage. `Array1D` and `Vec3`
+`data` properties expose the underlying zero-based `Float64Array` storage. `Vector` and `Vec3`
 operations that do not end in `Self` return new values; methods ending in
 `Self` mutate the instance.
 
 ```ts
-const a = new Array1D([1, 2, 3]);
-const b = new Array1D([4, 5, 6]);
+const a = new Vector([1, 2, 3]);
+const b = new Vector([4, 5, 6]);
 const sum = a.add(b);
 
 const matrix = new Matrix(2, 2, [1, 2, 3, 4]);
-const product = matrix.mulVec(new Array1D([10, 20]));
+const product = matrix.mulVec(new Vector([10, 20]));
 const direction = new Vec3(3, 4, 0).normalize();
-const solved = matrix.solve(new Array1D([5, 11]));
+const solved = matrix.solve(new Vector([5, 11]));
 ```
 
-`Array1D` and `Matrix` also provide `zero` and `from` constructors. `Vec3`
+`Vector` and `Matrix` also provide `zero` and `from` constructors. `Vec3`
 components are accessed through its `x`, `y`, and `z` properties.
 
 ### Integration
 
-`trapezoid` and `simpson` integrate sampled `Array1D` values. They accept optional `Array1D` sample locations for non-uniform spacing, or a uniform `dx`
+`trapezoid` and `simpson` integrate sampled `Vector` values. They accept optional `Vector` sample locations for non-uniform spacing, or a uniform `dx`
 spacing that defaults to `1`.
 
 `gaussKronrod` integrates a scalar function over an interval with adaptive 7-15 Gauss-Kronrod quadrature and returns
 `{ value, error, evaluations, converged, subintervals }`.
 
 ```ts
-const x = new array.Array1D([0, 1, 3]);
-const y = new array.Array1D([0, 1, 9]);
+const x = new array.Vector([0, 1, 3]);
+const y = new array.Vector([0, 1, 9]);
 const area = integrate.simpson(y, x);
 const adaptiveArea = integrate.gaussKronrod((x) => Math.exp(-x * x), 0, 1);
 ```
@@ -128,7 +128,7 @@ or its denominator becomes zero.
 `optimize.brent` finds a local minimum of a scalar function within an interval,
 returning its location, value, evaluation count, iteration count, and convergence
 status. `optimize.nelderMead` minimizes an unconstrained multivariate function
-from an `Array1D` or array initial guess and returns the same convergence data.
+from an `Vector` or array initial guess and returns the same convergence data.
 
 ```ts
 const scalarMinimum = optimize.brent((x) => (x - 2) ** 2, -1, 5);
@@ -165,7 +165,7 @@ Both solvers accept a derivative callback with the signature
 mutate `y`.
 
 ```ts
-const initial = new Array1D([1]);
+const initial = new Vector([1]);
 const solution = rungeKuttaFixed(
     'rk4',
     (t, y, dydt) => dydt.set([-y.data[0]]),
@@ -189,16 +189,16 @@ const adaptive = rungeKuttaAdaptive(
     (t, y, dydt) => dydt.set([-y.data[0]]),
     0,
     1,
-    new Array1D([1]),
+    new Vector([1]),
     1e-10,
     1e-10,
 );
 ```
 
-Both integration functions return `{ t: Array1D, y: Matrix, method }`, where `t`
+Both integration functions return `{ t: Vector, y: Matrix, method }`, where `t`
 contains recorded times, row `i` of `y` contains the corresponding state, and
 `method` identifies the solver that produced the result.
-For allocating derivative functions with the simpler `(t, y) => Array1D`
+For allocating derivative functions with the simpler `(t, y) => Vector`
 signature, use `wrapAllocatingDerivative`; the direct callback form avoids
 per-stage allocations in solver loops.
 

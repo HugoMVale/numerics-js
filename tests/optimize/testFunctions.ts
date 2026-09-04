@@ -1,4 +1,4 @@
-import { Array1D } from '../../src/array/array1d.js';
+import { Vector } from '../../src/array/Vector.js';
 
 /**
  * Multivariate test functions commonly used in optimize benchmarks.
@@ -12,18 +12,18 @@ import { Array1D } from '../../src/array/array1d.js';
  */
 export interface TestFunctionData {
     /** The objective function to minimize. */
-    fn: (x: Array1D) => number;
+    fn: (x: Vector) => number;
     /** Returns a standard N-dimensional starting point for this function. */
-    initialPoint: (n: number) => Array1D;
+    initialPoint: (n: number) => Vector;
     /** The known global minimum value. */
     globalMinimum: number;
 }
 
 /** `linspace(start, end, n)`, matching `numpy.linspace`. */
-function linspace(start: number, end: number, n: number): Array1D {
-    if (n === 1) return Array1D.from([start]);
+function linspace(start: number, end: number, n: number): Vector {
+    if (n === 1) return Vector.from([start]);
     const step = (end - start) / (n - 1);
-    return Array1D.from(Array.from({ length: n }, (_, i) => start + step * i));
+    return Vector.from(Array.from({ length: n }, (_, i) => start + step * i));
 }
 
 /** Per-component weights for the `ellipsoid` test function. */
@@ -33,7 +33,7 @@ function ellipsoidCoeffs(n: number): number[] {
 }
 
 /** `u(x) = 0.5 * sum((i+1) * x_i)`, shared by the `zakharov` function. */
-function zakharovU(x: Array1D): number {
+function zakharovU(x: Vector): number {
     let u = 0;
     for (let i = 0; i < x.size; i++) u += 0.5 * (i + 1) * x.get(i);
     return u;
@@ -47,7 +47,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
             return s;
         },
         // Simple start to verify basic algorithm correctness
-        initialPoint: (n) => Array1D.from(Array(n).fill(5.0)),
+        initialPoint: (n) => Vector.from(Array(n).fill(5.0)),
         globalMinimum: 0,
     },
     ellipsoid: {
@@ -70,7 +70,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
             return s;
         },
         // Classic challenging but not extreme start
-        initialPoint: (n) => Array1D.from(Array(n).fill(-1.2)),
+        initialPoint: (n) => Vector.from(Array(n).fill(-1.2)),
         globalMinimum: 0,
     },
     zakharov: {
@@ -81,7 +81,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
             return s + u ** 2 + u ** 4;
         },
         // Initial point recommended by standard benchmark literature
-        initialPoint: (n) => Array1D.from(Array(n).fill(1.5)),
+        initialPoint: (n) => Vector.from(Array(n).fill(1.5)),
         globalMinimum: 0,
     },
 };
