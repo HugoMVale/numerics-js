@@ -1,6 +1,6 @@
-import type { ScalarFunction } from '../types';
-import { copysign } from '../math';
-import type { BrentOptions, RootResult } from './types';
+import type { ScalarFunction } from '../types.js';
+import { copysign } from '../math.js';
+import type { BrentOptions, RootResult } from './types.js';
 
 /**
  * Finds a root of fn using Brent's method, given a bracketing interval.

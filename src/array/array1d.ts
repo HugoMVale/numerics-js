@@ -1,4 +1,4 @@
-import { ArrayND } from './arraynd';
+import { ArrayND } from './arraynd.js';
 
 /**
  * An N-component vector utilizing Float64Array for performance.

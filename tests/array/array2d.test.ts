@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Array1D } from '../../src/array/array1d';
-import { Array2D } from '../../src/array/array2d';
+import { Array1D } from '../../src/array/array1d.js';
+import { Array2D } from '../../src/array/array2d.js';
 
 describe('Array2D', () => {
     it('enforces 0-based indexing for get and set', () => {

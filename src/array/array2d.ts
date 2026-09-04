@@ -1,5 +1,5 @@
-import { ArrayND } from './arraynd';
-import { Array1D } from './array1d';
+import { ArrayND } from './arraynd.js';
+import { Array1D } from './array1d.js';
 
 /**
  * Result of `Array2D.lu()`: a partial-pivoted LU factorization such that

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { bessel } from '../../src/special/bessel';
+import { bessel } from '../../src/special/bessel.js';
 import * as roots from '../../src/roots/brent.js';
 
 describe('Bessel Function Module', () => {

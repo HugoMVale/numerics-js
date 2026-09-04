@@ -1,5 +1,5 @@
-import type { Array1D } from '../array/array1d';
-import type { AllocatingDerivativeFunction, DerivativeFunction } from './types';
+import type { Array1D } from '../array/array1d.js';
+import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.js';
 
 /**
  * Adapts a convenience-style derivative function that allocates and returns

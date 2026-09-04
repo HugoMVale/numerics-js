@@ -1,5 +1,5 @@
-import type { Array1D } from '../array/array1d';
-import type { Array2D } from '../array/array2d';
+import type { Array1D } from '../array/array1d.js';
+import type { Array2D } from '../array/array2d.js';
 
 /** Derivative function that writes its result into the provided `dydt` buffer to avoid allocation. */
 export type DerivativeFunction = (t: number, y: Array1D, dydt: Array1D) => Array1D;

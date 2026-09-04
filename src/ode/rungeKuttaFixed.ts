@@ -1,8 +1,8 @@
-import { Array1D } from '../array/array1d';
-import { Array2D } from '../array/array2d';
-import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types';
+import { Array1D } from '../array/array1d.js';
+import { Array2D } from '../array/array2d.js';
+import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types.js';
 
-export type { RungeKuttaFixedMethod as RungeKuttaMethod } from './types';
+export type { RungeKuttaFixedMethod as RungeKuttaMethod } from './types.js';
 
 /**
  * Reusable intermediate vectors for a Runge-Kutta integration step.

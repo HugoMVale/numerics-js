@@ -1,7 +1,7 @@
-import { Array1D } from '../array/array1d';
-import { Array2D } from '../array/array2d';
-import { clip } from '../math';
-import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types';
+import { Array1D } from '../array/array1d.js';
+import { Array2D } from '../array/array2d.js';
+import { clip } from '../math.js';
+import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
 
 /**
  * Reusable intermediate vectors for adaptive Runge-Kutta integration steps.
