@@ -317,6 +317,33 @@ describe('Array2D', () => {
         expect(() => singular.solve(new Array1D([1, 1]))).toThrowError();
     });
 
+    it("rank()'s default tolerance treats tiny floating-point noise as rank-deficient, but an explicit tol=0 does not", () => {
+        // row1 is row0*2 plus a perturbation far below float64 precision at
+        // this matrix's scale: mathematically singular, numerically not
+        // quite. determinant() (no tolerance, matching LAPACK/numpy) still
+        // reports the tiny nonzero value rather than exactly 0.
+        const nearSingular: Array2D = new Array2D(2, 2, [1, 2, 2, 4 + 1e-14]);
+        expect(nearSingular.rank()).toBe(1);
+        expect(nearSingular.rank(0)).toBe(2);
+        expect(nearSingular.determinant()).not.toBe(0);
+        expect(nearSingular.determinant()).toBeCloseTo(0);
+    });
+
+    it("rank()'s default tolerance scales with the matrix's own magnitude, unlike a fixed threshold", () => {
+        // Same relative near-singularity as above, but every entry scaled
+        // up by 1e8. A fixed absolute tolerance (e.g. the old default of
+        // 1e-10) would be swamped by the larger elimination noise at this
+        // scale and misreport this as full rank; the auto-scaled default
+        // (proportional to the matrix's own infinity norm) still catches it.
+        const scale = 1e8;
+        const scaledNearSingular: Array2D = new Array2D(2, 2, [
+            scale, 2 * scale,
+            2 * scale, 4 * scale + scale * 1e-14,
+        ]);
+        expect(scaledNearSingular.rank()).toBe(1);
+        expect(scaledNearSingular.rank(1e-10)).toBe(2);
+    });
+
     it('rejects non-square input and shape-mismatched vectors for determinant/inverse/solve', () => {
         const nonSquare: Array2D = new Array2D(2, 3);
         expect(() => nonSquare.determinant()).toThrowError(RangeError);

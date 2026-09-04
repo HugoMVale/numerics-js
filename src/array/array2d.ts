@@ -380,9 +380,10 @@ export class Array2D extends ArrayND {
      * and `determinant()`, which both need the same elimination but reduce
      * the result differently — and, deliberately, use different `tol`
      * values: `determinant()` always passes `0` (matching LAPACK/numpy's
-     * exact-zero-only convention, same as `lu()`), while `rank()` exposes
-     * `tol` to the caller with a small nonzero default, since detecting
-     * near-singularity (not just exact singularity) is rank's whole job.
+     * exact-zero-only convention, same as `lu()`), while `rank()` defaults
+     * to an auto-scaled nonzero tolerance (see its own docstring), since
+     * detecting near-singularity (not just exact singularity) is rank's
+     * whole job.
      * @param tol Absolute tolerance below which a candidate pivot is treated as zero.
      * @returns `rank` is the number of pivots found; `sign` is `+1`/`-1` tracking the row-swap
      *   parity; `pivots` are the pivot values in the order they were chosen.
@@ -408,13 +409,53 @@ export class Array2D extends ArrayND {
     }
 
     /**
+     * The scale factor `c` in `rank()`'s default tolerance,
+     * `c * max(rows, cols) * Number.EPSILON * normInf(this)`.
+     */
+    private static readonly _RANK_TOL_SCALE = 10;
+
+    /**
+     * Computes the matrix infinity norm: the largest absolute row sum.
+     * Used only to auto-scale `rank()`'s default tolerance to this
+     * matrix's magnitude — this is a private implementation detail, not a
+     * general-purpose norm method (unlike `ArrayND`'s `norm()`, which is
+     * the Frobenius norm and applies to the whole flat buffer regardless
+     * of shape).
+     */
+    private _normInf(): number {
+        let maxRowSum = 0;
+        for (let i = 0; i < this.rows; i++) {
+            const offset = this._idx(i, 0);
+            let rowSum = 0;
+            for (let j = 0; j < this.cols; j++) rowSum += Math.abs(this.data[offset + j]);
+            if (rowSum > maxRowSum) maxRowSum = rowSum;
+        }
+        return maxRowSum;
+    }
+
+    /**
      * Computes the rank of this matrix (the number of linearly independent
      * rows/columns), via Gaussian elimination with partial pivoting.
-     * @param tol Absolute tolerance below which a pivot is treated as zero.
+     *
+     * This is inherently an approximation: elimination-based rank is a
+     * fundamentally less numerically robust way to estimate rank than the
+     * SVD-based approach production libraries like numpy actually use
+     * (`numpy.linalg.matrix_rank`), which this library doesn't implement.
+     * Treat this as a reasonable estimate for well-scaled matrices, not as
+     * a numpy-equivalent result for pathological or ill-conditioned ones.
+     * @param tol Absolute tolerance below which a pivot is treated as
+     * zero. If omitted, defaults to `c * max(rows, cols) * Number.EPSILON
+     * * normInf(this)` with `c = 10` — the same shape of scale-relative
+     * formula numpy's SVD-based `matrix_rank` uses (`S.max() * max(M, N) *
+     * eps`), substituting this matrix's infinity norm for numpy's largest
+     * singular value, since this library doesn't have singular values
+     * available without SVD. Pass `0` explicitly for exact-zero-only
+     * pivot rejection, matching `lu()`/`determinant()`'s convention.
      * @returns The rank, between `0` and `min(rows, cols)`.
      */
-    rank(tol = 1e-10): number {
-        return this._forwardEliminate(tol).rank;
+    rank(tol?: number): number {
+        const effectiveTol = tol ?? Array2D._RANK_TOL_SCALE * Math.max(this.rows, this.cols) * Number.EPSILON * this._normInf();
+        return this._forwardEliminate(effectiveTol).rank;
     }
 
     /**
