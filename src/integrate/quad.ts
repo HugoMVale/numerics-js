@@ -108,13 +108,17 @@ function getFullyInfiniteTransform(): Transformation {
  * // Integrate a function over a finite interval.
  * const result = quad(x => x * x, 0, 1);
  * console.log(result);
- * // {
- * //   value: 0.3333333333333333,
- * //   error: 0,
- * //   evaluations: 15,
- * //   converged: true,
- * //   subintervals: 1
- * // }
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   value: 0.3333333333333333,
+ *   error: 0,
+ *   evaluations: 15,
+ *   converged: true,
+ *   subintervals: 1
+ * }
  * ```
  *
  * @example
@@ -124,13 +128,17 @@ function getFullyInfiniteTransform(): Transformation {
  *     breakpoints: [1]
  * });
  * console.log(result);
- * // {
- * //   value: 3,
- * //   error: 0,
- * //   evaluations: 30,
- * //   converged: true,
- * //   subintervals: 2
- * // }
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   value: 3,
+ *   error: 0,
+ *   evaluations: 30,
+ *   converged: true,
+ *   subintervals: 2
+ * }
  * ```
  *
  * @example
@@ -138,13 +146,17 @@ function getFullyInfiniteTransform(): Transformation {
  * // Integrate over a semi-infinite domain.
  * const result = quad(x => Math.exp(-x), 0, Infinity);
  * console.log(result);
- * // {
- * //   value: 1.0000000000000002,
- * //   error: 4.507393744129824e-11,
- * //   evaluations: 135,
- * //   converged: true,
- * //   subintervals: 5
- * // }
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   value: 1.0000000000000002,
+ *   error: 4.507393744129824e-11,
+ *   evaluations: 135,
+ *   converged: true,
+ *   subintervals: 5
+ * }
  * ```
  */
 export function quad(
