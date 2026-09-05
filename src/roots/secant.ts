@@ -1,5 +1,5 @@
 import type { ScalarFunction } from '../types.js';
-import type { RootResult, SecantOptions } from './types.js';
+import type { RootResult } from './types.js';
 
 /**
  * Finds a root of fn using the secant method, starting from two initial guesses.
@@ -50,7 +50,10 @@ export function secant(
     fn: ScalarFunction,
     x0: number,
     x1: number,
-    options: SecantOptions = {}
+    options: {
+        tolX?: number;
+        maxIter?: number;
+    } = {}
 ): RootResult {
     const { tolX = 1e-8, maxIter = 50 } = options;
 

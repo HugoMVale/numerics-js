@@ -1,6 +1,6 @@
 import type { ScalarFunction } from '../types.js';
 import { copysign } from '../math.js';
-import type { BrentOptions, RootResult } from './types.js';
+import type { RootResult } from './types.js';
 
 /**
  * Finds a root of fn using Brent's method, given a bracketing interval.
@@ -55,7 +55,11 @@ export function brent(
     fn: ScalarFunction,
     xa: number,
     xb: number,
-    options: BrentOptions = {}
+    options: {
+        tolX?: number;
+        tolF?: number;
+        maxIter?: number;
+    } = {}
 ): RootResult {
     const { tolX = 1e-8, tolF = 1e-8, maxIter = 50 } = options;
 
