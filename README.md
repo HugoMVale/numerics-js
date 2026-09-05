@@ -1,6 +1,7 @@
 # numerics-js
 
 [![CI](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml/badge.svg)](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/HugoMVale/numerics-js/graph/badge.svg?token=WrJkecJXR0)](https://codecov.io/gh/HugoMVale/numerics-js)
 
 A small, high-quality, mathematically literate numerical toolbox for modern JavaScript/TypeScript.
 
@@ -15,6 +16,7 @@ For local development:
 ```bash
 npm install
 npm test
+npm run test:coverage
 ```
 
 ## Import
@@ -234,6 +236,7 @@ The generated site is written to `docs/`.
 
 ```bash
 npm test          # run the test suite once
+npm run test:coverage # run the test suite and generate coverage
 npm run test:watch
 ```
 
