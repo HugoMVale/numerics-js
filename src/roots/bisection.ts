@@ -59,7 +59,7 @@ export function bisection(
     let evaluations = 0;
     let fa = fn(a);
     evaluations++;
-    let fb = fn(b);
+    const fb = fn(b);
     evaluations++;
 
     if (fa === 0) {

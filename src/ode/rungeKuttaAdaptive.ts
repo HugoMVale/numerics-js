@@ -214,7 +214,7 @@ function estimateInitialStep(
     const d0 = Math.sqrt(d0Sq / dim);
     const d1 = Math.sqrt(d1Sq / dim);
 
-    let h0 = d0 < 1e-5 || d1 < 1e-5 ? 1e-6 : 0.01 * (d0 / d1);
+    const h0 = d0 < 1e-5 || d1 < 1e-5 ? 1e-6 : 0.01 * (d0 / d1);
 
     const y1 = scratch.yTemp;
     const y1d = y1.data;

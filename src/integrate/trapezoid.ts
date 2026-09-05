@@ -45,6 +45,6 @@ export function trapezoid(y: Vector, x?: Vector, dx: number = 1): number {
 
     // Uniform spacing: sum all samples, then subtract half of each
     // endpoint (since those only contribute one trapezoid, not two).
-    let sum = y.sum() - (y.data[0] + y.data[n - 1]) / 2;
+    const sum = y.sum() - (y.data[0] + y.data[n - 1]) / 2;
     return sum * dx;
 }
