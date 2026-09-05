@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { brent } from '../../src/optimize/brent.js';
-import type { ScalarFunction } from '../../src/types.js';
 import fixtures from './fixtures/brent.scipy.json' with { type: 'json' };
 
 // Must mirror CASES in scripts/benchmarks/generate_brent_fixtures.py
 // (same id, objective, and bracket endpoints).
-const OBJECTIVES: Record<string, ScalarFunction> = {
+const OBJECTIVES: Record<string, (x: number) => number> = {
     quadratic: (x) => (x - 2) ** 2,
     quartic: (x) => x ** 4 - x + 1,
     absolute_value: (x) => Math.abs(x - 0.5),
