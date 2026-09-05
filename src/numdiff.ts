@@ -1,6 +1,5 @@
 import { Vector } from './linalg/Vector.js';
 import { Matrix } from './linalg/Matrix.js';
-import { ScalarFunction } from './types.js'
 
 /**
  * Calculates scaling factors for a given vector.
@@ -176,7 +175,7 @@ export function jacobianForward(
  * ```
  */
 export function derivativeCentered(
-    f: ScalarFunction,
+    f: (x: number) => number,
     x: number,
     options: {
         /** Machine precision of the function values. */
