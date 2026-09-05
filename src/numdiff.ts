@@ -7,7 +7,7 @@ import { Matrix } from './linalg/Matrix.js';
  * The scaling factors are computed according to the heuristic procedure
  * implemented in ODRPACK95.
  *
- * @param x Vector to be scaled.
+ * @param x Vector `x` to be scaled.
  * @returns A new Vector containing the computed scaling factors.
  *
  * @example
@@ -81,14 +81,14 @@ export function scaleVector(x: Vector): Vector {
  * If the function value at `x` is provided, `N` function evaluations are
  * required to compute the Jacobian, where `N` is the dimension of `x`.
  *
- * @param f Function to be differentiated.
- * @param x Differentiation point.
+ * @param f Function `f` to be differentiated.
+ * @param x Differentiation point `x`.
  * @param options Configuration options for the Jacobian calculation.
  * @returns Jacobian matrix.
  *
  * @example
  * ```ts
- * // Evaluate the numerical jacobian of f(x) = [x0**2 * x1**3] at (2, -2).
+ * // Evaluate the numerical Jacobian of `f(x) = [x0**2 * x1**3]` at `(2, -2)`.
  * const f = (x: Vector) => Vector.from([Math.pow(x.get(0), 2) * Math.pow(x.get(1), 3)]);
  * const x = Vector.from([2.0, -2.0]);
  * const jacobian = jacobianForward(f, x);
@@ -107,7 +107,7 @@ export function jacobianForward(
         /** Function values at `x`, if available. */
         fx?: Vector;
         /**
-         * Scaling factors for `x`. Ideally, `x[i]*sclx[i]` is close to 1. By
+         * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
          * default, the factors are set internally based on the magnitudes of `x`.
          */
         sclx?: Vector;
@@ -156,14 +156,14 @@ export function jacobianForward(
  * The step size is optimally determined according to the machine precision of
  * the function values.
  *
- * @param f Function to be differentiated.
- * @param x Differentiation point.
+ * @param f Function `f` to be differentiated.
+ * @param x Differentiation point `x`.
  * @param options Configuration options for the derivative calculation.
  * @returns Tuple containing the derivative and mean function value, `(f'(x), f(x))`.
  *
  * @example
  * ```ts
- * // Evaluate the numerical derivative of f(x) = x**3 at x = 1.
+ * // Evaluate the numerical derivative of `f(x) = x**3` at `x = 1`.
  * const f = (x: number) => x ** 3;
  * const [df, fx] = derivativeCentered(f, 1.0);
  * console.log(df, fx);
@@ -180,7 +180,7 @@ export function derivativeCentered(
     options: {
         /** Machine precision of the function values. */
         epsf?: number;
-        /** Finite-difference step. If 0, the theoretical optimum is used. */
+        /** Finite-difference step. If `0`, the theoretical optimum is used. */
         h?: number;
     } = {}
 ): [number, number] {
