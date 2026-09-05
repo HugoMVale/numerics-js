@@ -3,7 +3,7 @@
 [![CI](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml/badge.svg)](https://github.com/HugoMVale/numerics-js/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/HugoMVale/numerics-js/graph/badge.svg?token=WrJkecJXR0)](https://codecov.io/gh/HugoMVale/numerics-js)
 
-A small, high-quality, mathematically literate numerical toolbox for modern JavaScript/TypeScript.
+A small, high-quality, JavaScript/TypeScript numerical toolbox for scientific computing.
 
 ## Install
 
