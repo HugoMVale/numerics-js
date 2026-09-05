@@ -5,6 +5,33 @@ import { Vector } from './Vector.js';
  * Result of `Matrix.lu()`: a partial-pivoted LU factorization such that
  * `P * A = L * U`, where `P` is the row permutation implied by `perm`.
  */
+/**
+ * A single eigenvalue, real or complex. Complex eigenvalues of a real
+ * matrix always occur in conjugate pairs; each conjugate is reported as
+ * its own entry (same `re`, opposite-signed `im`).
+ */
+export interface Eigenvalue {
+    /** Real part. */
+    re: number;
+    /** Imaginary part; `0` for a real eigenvalue. */
+    im: number;
+}
+
+/**
+ * Result of `Matrix.qr()`: a Householder QR factorization such that
+ * `this = Q * R`.
+ */
+export interface QRDecomposition {
+    /** Orthogonal factor, `rows x rows`. */
+    Q: Matrix;
+    /** Upper-triangular factor, `rows x cols` (trapezoidal if `rows > cols`). */
+    R: Matrix;
+}
+
+/**
+ * Result of `Matrix.lu()`: a partial-pivoted LU factorization such that
+ * `P * A = L * U`, where `P` is the row permutation implied by `perm`.
+ */
 export interface LUDecomposition {
     /** Unit lower-triangular factor (1s on the diagonal). */
     L: Matrix;
@@ -647,6 +674,329 @@ export class Matrix extends ArrayND {
         const pb = new Vector(perm.map(p => b.data[p]));
         const y = L.solveLower(pb, true);
         return U.solveUpper(y);
+    }
+
+    // -----------------------------------------------------------------
+    // QR factorization and eigenvalues.
+    // -----------------------------------------------------------------
+
+    /**
+     * Raw Householder QR factorization: `A = Q * R`. Shared implementation
+     * used both by the public `qr()` (called on `this` directly) and
+     * internally by `eigenvalues()` (called on small working submatrices
+     * each shifted-QR iteration). Works for any shape, not just square.
+     * @param A The matrix to factor. Not mutated.
+     * @returns The `{ Q, R }` factorization, `Q` being `A.rows x A.rows`
+     * and `R` being `A.rows x A.cols` with (up to floating-point cleanup)
+     * zeros below the diagonal.
+     */
+    private static _householderQR(A: Matrix): QRDecomposition {
+        const m = A.rows;
+        const n = A.cols;
+        const R = A.copy();
+        const Q = Matrix.identity(m);
+        const v = new Float64Array(m);
+        const kMax = Math.min(m - 1, n);
+
+        for (let k = 0; k < kMax; k++) {
+            let normX = 0;
+            for (let i = k; i < m; i++) { const x = R._get(i, k); normX += x * x; }
+            normX = Math.sqrt(normX);
+            if (normX === 0) continue;
+
+            const x0 = R._get(k, k);
+            const alpha = x0 >= 0 ? -normX : normX;
+            let vnormSq = 0;
+            for (let i = k; i < m; i++) {
+                const val = i === k ? x0 - alpha : R._get(i, k);
+                v[i] = val;
+                vnormSq += val * val;
+            }
+            if (vnormSq === 0) continue;
+            const vnorm = Math.sqrt(vnormSq);
+            for (let i = k; i < m; i++) v[i] /= vnorm;
+
+            // Apply the reflector I - 2vv^T to R on the left (columns k..n-1).
+            for (let j = k; j < n; j++) {
+                let dot = 0;
+                for (let i = k; i < m; i++) dot += v[i] * R._get(i, j);
+                dot *= 2;
+                if (dot === 0) continue;
+                for (let i = k; i < m; i++) R._set(i, j, R._get(i, j) - dot * v[i]);
+            }
+            // Accumulate it into Q on the right: Q := Q * (I - 2vv^T).
+            for (let i = 0; i < m; i++) {
+                let dot = 0;
+                for (let c = k; c < m; c++) dot += Q._get(i, c) * v[c];
+                dot *= 2;
+                if (dot === 0) continue;
+                for (let c = k; c < m; c++) Q._set(i, c, Q._get(i, c) - dot * v[c]);
+            }
+        }
+
+        // Explicit cleanup: force exact zeros below the diagonal, matching
+        // the guarantee numpy/LAPACK-based `qr()` wrappers provide (the
+        // arithmetic above already drives these to ~0, up to rounding).
+        for (let i = 1; i < m; i++) {
+            for (let j = 0; j < Math.min(i, n); j++) R._set(i, j, 0);
+        }
+        return { Q, R };
+    }
+
+    /**
+     * Computes a Householder QR factorization of this matrix: `this = Q *
+     * R`, with `Q` orthogonal and `R` upper triangular (trapezoidal if
+     * `this.rows > this.cols`).
+     * @returns The `{ Q, R }` factorization.
+     */
+    qr(): QRDecomposition {
+        return Matrix._householderQR(this);
+    }
+
+    /**
+     * Reduces a copy of this (square) matrix to upper Hessenberg form via
+     * orthogonal similarity transforms (Householder reflectors applied on
+     * both sides), preserving eigenvalues. Used internally by
+     * `eigenvalues()` as a preprocessing step: it collapses each QR
+     * iteration from O(n^3) to O(n^2) and gives shifted QR its usual fast
+     * convergence behavior. Not exposed publicly since a Hessenberg-form
+     * result isn't useful on its own without the rest of the eigenvalue
+     * pipeline.
+     * @returns A new matrix, upper Hessenberg (zero below the subdiagonal),
+     * similar to this one.
+     */
+    private _hessenberg(): Matrix {
+        const n = this.rows;
+        const H = this.copy();
+        if (n < 3) return H;
+        const v = new Float64Array(n);
+
+        for (let k = 0; k < n - 2; k++) {
+            let normX = 0;
+            for (let i = k + 1; i < n; i++) { const x = H._get(i, k); normX += x * x; }
+            normX = Math.sqrt(normX);
+            if (normX === 0) continue;
+
+            const x0 = H._get(k + 1, k);
+            const alpha = x0 >= 0 ? -normX : normX;
+            let vnormSq = 0;
+            for (let i = k + 1; i < n; i++) {
+                const val = i === k + 1 ? x0 - alpha : H._get(i, k);
+                v[i] = val;
+                vnormSq += val * val;
+            }
+            if (vnormSq === 0) continue;
+            const vnorm = Math.sqrt(vnormSq);
+            for (let i = k + 1; i < n; i++) v[i] /= vnorm;
+
+            // Left multiply: H[k+1:, :] -= 2 v (v^T H[k+1:, :]).
+            for (let j = 0; j < n; j++) {
+                let dot = 0;
+                for (let i = k + 1; i < n; i++) dot += v[i] * H._get(i, j);
+                dot *= 2;
+                if (dot === 0) continue;
+                for (let i = k + 1; i < n; i++) H._set(i, j, H._get(i, j) - dot * v[i]);
+            }
+            // Right multiply (completes the similarity transform):
+            // H[:, k+1:] -= 2 (H[:, k+1:] v) v^T.
+            for (let i = 0; i < n; i++) {
+                let dot = 0;
+                for (let j = k + 1; j < n; j++) dot += H._get(i, j) * v[j];
+                dot *= 2;
+                if (dot === 0) continue;
+                for (let j = k + 1; j < n; j++) H._set(i, j, H._get(i, j) - dot * v[j]);
+            }
+        }
+
+        // Explicit cleanup: force exact zeros below the subdiagonal.
+        for (let i = 2; i < n; i++) {
+            for (let j = 0; j < i - 1; j++) H._set(i, j, 0);
+        }
+        return H;
+    }
+
+    /**
+     * Solves the characteristic equation of a 2x2 block `[[a, b], [c,
+     * d]]` directly, in closed form. Used by `eigenvalues()` to finish off
+     * a trailing 2x2 block once the active submatrix has shrunk that far —
+     * shifted QR alone never fully deflates a block whose eigenvalues are
+     * a complex-conjugate pair, so those are extracted this way instead of
+     * by further iteration.
+     * @returns The two eigenvalues (a complex-conjugate pair if the
+     * discriminant is negative, otherwise two reals).
+     */
+    private static _solve2x2Eigs(a: number, b: number, c: number, d: number): [Eigenvalue, Eigenvalue] {
+        const tr = a + d;
+        const det = a * d - b * c;
+        const disc = tr * tr - 4 * det;
+        if (disc >= 0) {
+            const s = Math.sqrt(disc);
+            return [
+                { re: (tr + s) / 2, im: 0 },
+                { re: (tr - s) / 2, im: 0 },
+            ];
+        }
+        const s = Math.sqrt(-disc);
+        return [
+            { re: tr / 2, im: s / 2 },
+            { re: tr / 2, im: -s / 2 },
+        ];
+    }
+
+    /**
+     * Computes the eigenvalues of this (square) matrix via shifted QR
+     * iteration: Householder reduction to upper Hessenberg form, then
+     * repeated double-shift QR steps with deflation as subdiagonal entries
+     * vanish. A block that shrinks to size 2 is closed out directly via
+     * the quadratic formula rather than by further iteration (which is
+     * also how complex-conjugate eigenvalue pairs, which a real matrix's
+     * Hessenberg form never fully deflates past a 2x2 block, get
+     * extracted).
+     *
+     * Each iteration shifts by the trace `s` and determinant `t` of the
+     * active block's trailing 2x2 submatrix — both always real, even when
+     * that 2x2's own eigenvalues are a complex-conjugate pair — via
+     * `M = H^2 - s*H + t*I`, `M = QR`, `H := Q^T * H * Q`. This is the
+     * *explicit* form of the real double-shift ("Francis") QR step LAPACK
+     * (`dhseqr`/`dlahqr`) implements *implicitly* via bulge-chasing:
+     * mathematically the same shift strategy and the same fast (locally
+     * cubic) convergence on both real and complex-conjugate eigenvalues,
+     * but computed by forming `H^2` explicitly each iteration rather than
+     * the implicit bulge-chase, trading some performance for a much
+     * simpler, easier-to-verify implementation. Every 10th iteration on a
+     * block that hasn't deflated, an ad hoc "exceptional shift" (a real
+     * value repeated twice, following EISPACK's/Numerical Recipes'
+     * `hqr`) is used in place of the trace/determinant pair, to break the
+     * rare stagnation cycles that can otherwise trap any fixed-shift
+     * strategy.
+     * @param options.tol Relative tolerance for the deflation test: a
+     * subdiagonal entry `H[k, k-1]` is treated as converged once
+     * `abs(H[k, k-1]) <= tol * (abs(H[k-1,k-1]) + abs(H[k,k]))` (falling
+     * back to `tol * norm` when that sum is `0`). Defaults to
+     * `Number.EPSILON`, i.e. one unit in the last place — the same
+     * machine-precision convention LAPACK (`dlamch('P')`) and EISPACK use
+     * for this test.
+     * @param options.maxIterations Total shifted-QR iteration budget
+     * across the whole computation (shared across all deflations, not
+     * per-eigenvalue). Defaults to `30 * this.rows`, matching EISPACK's
+     * `hqr` (`itn = 30*n`) and LAPACK's similar per-eigenvalue allowance.
+     * @returns The `rows` eigenvalues, in the order they were deflated out
+     * of the Hessenberg form (top-to-bottom for already-converged blocks,
+     * otherwise bottom-up) — not sorted by magnitude or otherwise.
+     * @throws {RangeError} If this matrix is not square.
+     * @throws {Error} If the iteration budget is exhausted before every
+     * block deflates (e.g. for a pathologically slow-converging matrix).
+     */
+    eigenvalues(options?: { maxIterations?: number; tol?: number }): Eigenvalue[] {
+        if (this.rows !== this.cols) throw new RangeError(`Matrix eigenvalues requires a square matrix, got ${this.rows}x${this.cols}`);
+        const n = this.rows;
+        const tol = options?.tol ?? Number.EPSILON;
+        let budget = options?.maxIterations ?? 30 * n;
+
+        const result: Eigenvalue[] = new Array(n);
+        if (n === 1) {
+            result[0] = { re: this._get(0, 0), im: 0 };
+            return result;
+        }
+
+        const H = this._hessenberg();
+
+        // Hessenberg-form norm (sum of magnitudes on/above the diagonal,
+        // plus the subdiagonal): used as a floor for the deflation test
+        // when the local diagonal entries are themselves ~0, matching
+        // EISPACK's `anorm` fallback.
+        let anorm = 0;
+        for (let i = 0; i < n; i++) {
+            for (let j = Math.max(0, i - 1); j < n; j++) anorm += Math.abs(H._get(i, j));
+        }
+
+        // Stack of active [lo, hi] (inclusive) diagonal blocks still to
+        // resolve. A block deflates either by splitting into two smaller
+        // blocks (an interior subdiagonal entry vanishes) or, once it
+        // shrinks to size 1 or 2, by direct read-off.
+        const stack: [number, number][] = [[0, n - 1]];
+
+        while (stack.length > 0) {
+            const [lo, hi] = stack.pop()!;
+
+            if (hi === lo) {
+                result[lo] = { re: H._get(lo, lo), im: 0 };
+                continue;
+            }
+            if (hi === lo + 1) {
+                const [e1, e2] = Matrix._solve2x2Eigs(H._get(lo, lo), H._get(lo, hi), H._get(hi, lo), H._get(hi, hi));
+                result[lo] = e1;
+                result[hi] = e2;
+                continue;
+            }
+
+            // Look for an interior subdiagonal entry small enough to treat
+            // as zero, splitting the block in two. If none is found, take
+            // one shifted QR step on the whole active block and check
+            // again. `its` counts iterations spent on *this* block since
+            // it was last split off, purely to trigger the exceptional
+            // shift below — it does not affect the shared `budget`.
+            let its = 0;
+            for (; ;) {
+                let splitAt = -1;
+                for (let k = hi; k > lo; k--) {
+                    const s = Math.abs(H._get(k - 1, k - 1)) + Math.abs(H._get(k, k));
+                    const threshold = tol * (s === 0 ? anorm : s);
+                    if (Math.abs(H._get(k, k - 1)) <= threshold) { splitAt = k; break; }
+                }
+                if (splitAt !== -1) {
+                    stack.push([lo, splitAt - 1]);
+                    stack.push([splitAt, hi]);
+                    break;
+                }
+
+                if (budget-- <= 0) {
+                    throw new Error(`Matrix eigenvalues: failed to converge within the iteration budget (${options?.maxIterations ?? 30 * n})`);
+                }
+
+                its++;
+                const size = hi - lo + 1;
+                let s: number, t: number;
+                if (its % 10 === 0) {
+                    // Exceptional shift: an ad hoc real value used twice
+                    // (equivalent to `M = (H - sigma*I)^2`) in place of the
+                    // usual trace/determinant pair, to break rare
+                    // stagnation cycles a fixed shift strategy can otherwise
+                    // get stuck in.
+                    const sigma = 0.75 * (Math.abs(H._get(hi, hi - 1)) + Math.abs(H._get(hi - 1, hi - 2)));
+                    s = 2 * sigma;
+                    t = sigma * sigma;
+                } else {
+                    const a = H._get(hi - 1, hi - 1), b = H._get(hi - 1, hi);
+                    const c = H._get(hi, hi - 1), d = H._get(hi, hi);
+                    s = a + d;
+                    t = a * d - b * c;
+                }
+
+                const S = new Matrix(size, size);
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) S._set(i, j, H._get(lo + i, lo + j));
+                }
+                // M = S^2 - s*S + t*I: the real quadratic shift polynomial.
+                const S2 = S.matmul(S);
+                const M = new Matrix(size, size);
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        let v = S2._get(i, j) - s * S._get(i, j);
+                        if (i === j) v += t;
+                        M._set(i, j, v);
+                    }
+                }
+                const { Q } = Matrix._householderQR(M);
+                // Similarity transform: S := Q^T * S * Q.
+                const next = Q.transpose().matmul(S).matmul(Q);
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) H._set(lo + i, lo + j, next._get(i, j));
+                }
+            }
+        }
+
+        return result;
     }
 
     // -----------------------------------------------------------------

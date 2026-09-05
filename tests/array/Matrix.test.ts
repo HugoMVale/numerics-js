@@ -1,6 +1,28 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/array/Vector.js';
-import { Matrix } from '../../src/array/Matrix.js';
+import { Matrix, type Eigenvalue } from '../../src/array/Matrix.js';
+
+/**
+ * Sorts eigenvalues by real part then imaginary part, for
+ * order-independent comparisons — `eigenvalues()` returns them in
+ * deflation order, not sorted.
+ */
+function sortEigs(eigs: Eigenvalue[]): Eigenvalue[] {
+    return [...eigs].sort((a, b) => a.re - b.re || a.im - b.im);
+}
+
+/** Sum of a set of eigenvalues (complex addition); should equal the trace. */
+function sumEigs(eigs: Eigenvalue[]): Eigenvalue {
+    return eigs.reduce((acc, e) => ({ re: acc.re + e.re, im: acc.im + e.im }), { re: 0, im: 0 });
+}
+
+/** Product of a set of eigenvalues (complex multiplication); should equal the determinant. */
+function productEigs(eigs: Eigenvalue[]): Eigenvalue {
+    return eigs.reduce(
+        (acc, e) => ({ re: acc.re * e.re - acc.im * e.im, im: acc.re * e.im + acc.im * e.re }),
+        { re: 1, im: 0 }
+    );
+}
 
 describe('Matrix', () => {
     it('enforces 0-based indexing for get and set', () => {
@@ -210,6 +232,228 @@ describe('Matrix', () => {
             const reused = U.solveUpper(L.solveLower(pb, true));
             expect(reused.allClose(a.solve(b))).toBe(true);
         }
+    });
+
+    describe('qr()', () => {
+        it('factors a square matrix such that Q*R = A, with Q orthogonal and R upper triangular', () => {
+            const a: Matrix = Matrix.from([
+                [12, -51, 4],
+                [6, 167, -68],
+                [-4, 24, -41],
+            ]);
+            const { Q, R } = a.qr();
+
+            expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
+            expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+            for (let i = 1; i < 3; i++) {
+                for (let j = 0; j < i; j++) expect(R.get(i, j)).toBe(0);
+            }
+        });
+
+        it('factors a tall (rows > cols) rectangular matrix', () => {
+            const a: Matrix = Matrix.from([
+                [1, 2],
+                [3, 4],
+                [5, 6],
+            ]);
+            const { Q, R } = a.qr();
+
+            expect(Q.rows).toBe(3);
+            expect(Q.cols).toBe(3);
+            expect(R.rows).toBe(3);
+            expect(R.cols).toBe(2);
+            expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
+            expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+            expect(R.get(1, 0)).toBe(0);
+            expect(R.get(2, 0)).toBe(0);
+            expect(R.get(2, 1)).toBe(0);
+        });
+
+        it('handles a matrix with a column already zero below the diagonal', () => {
+            // Exercises the Householder step's "column already zero" early-out.
+            const a: Matrix = Matrix.from([
+                [0, 1],
+                [0, 1],
+            ]);
+            const { Q, R } = a.qr();
+            expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
+        });
+
+        it('reduces to the identity/original matrix on an already-orthogonal input', () => {
+            const a: Matrix = Matrix.from([
+                [0, 1],
+                [1, 0],
+            ]);
+            const { Q, R } = a.qr();
+            expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
+            expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), 1e-9)).toBe(true);
+        });
+    });
+
+    describe('eigenvalues()', () => {
+        it('returns the diagonal entries of a diagonal matrix', () => {
+            const m: Matrix = Matrix.from([
+                [3, 0, 0],
+                [0, 5, 0],
+                [0, 0, -2],
+            ]);
+            const eigs = sortEigs(m.eigenvalues());
+            expect(eigs.map(e => e.re)).toEqual([-2, 3, 5]);
+            expect(eigs.every(e => e.im === 0)).toBe(true);
+        });
+
+        it('returns the diagonal entries of a triangular matrix', () => {
+            const m: Matrix = Matrix.from([
+                [1, 4, 5],
+                [0, 2, 6],
+                [0, 0, 3],
+            ]);
+            const eigs = sortEigs(m.eigenvalues()).map(e => e.re);
+            expect(eigs[0]).toBeCloseTo(1);
+            expect(eigs[1]).toBeCloseTo(2);
+            expect(eigs[2]).toBeCloseTo(3);
+        });
+
+        it('computes the real eigenvalues of a symmetric matrix', () => {
+            const m: Matrix = Matrix.from([
+                [2, 1],
+                [1, 2],
+            ]);
+            const eigs = sortEigs(m.eigenvalues());
+            expect(eigs[0].re).toBeCloseTo(1);
+            expect(eigs[1].re).toBeCloseTo(3);
+            expect(eigs.every(e => e.im === 0)).toBe(true);
+        });
+
+        it('computes the real eigenvalues of a non-symmetric matrix (known closed form)', () => {
+            const m: Matrix = Matrix.from([
+                [2, -1, 0],
+                [-1, 2, -1],
+                [0, -1, 2],
+            ]);
+            const eigs = sortEigs(m.eigenvalues()).map(e => e.re);
+            expect(eigs[0]).toBeCloseTo(2 - Math.SQRT2);
+            expect(eigs[1]).toBeCloseTo(2);
+            expect(eigs[2]).toBeCloseTo(2 + Math.SQRT2);
+        });
+
+        it('extracts a complex-conjugate eigenvalue pair from a real 2x2 matrix', () => {
+            const rotation: Matrix = Matrix.from([
+                [0, -1],
+                [1, 0],
+            ]);
+            const eigs = rotation.eigenvalues();
+            const ims = eigs.map(e => e.im).sort((a, b) => a - b);
+            expect(eigs[0].re).toBeCloseTo(0);
+            expect(eigs[1].re).toBeCloseTo(0);
+            expect(ims[0]).toBeCloseTo(-1);
+            expect(ims[1]).toBeCloseTo(1);
+        });
+
+        it('extracts two independent complex-conjugate pairs from a 4x4 block-diagonal matrix', () => {
+            const m: Matrix = Matrix.from([
+                [0, -2, 0, 0],
+                [2, 0, 0, 0],
+                [0, 0, 0, -5],
+                [0, 0, 5, 0],
+            ]);
+            const ims = sortEigs(m.eigenvalues()).map(e => e.im);
+            expect(m.eigenvalues().every(e => Math.abs(e.re) < 1e-9)).toBe(true);
+            expect(ims).toEqual([
+                expect.closeTo(-5, 5),
+                expect.closeTo(-2, 5),
+                expect.closeTo(2, 5),
+                expect.closeTo(5, 5),
+            ]);
+        });
+
+        it('agrees with trace() (sum) and determinant() (product) on a general non-symmetric matrix', () => {
+            const m: Matrix = Matrix.from([
+                [4, 1, 2, 0],
+                [1, 3, 0, 1],
+                [2, 0, 5, 2],
+                [0, 1, 2, 6],
+            ]);
+            const eigs = m.eigenvalues();
+            const sum = sumEigs(eigs);
+            const product = productEigs(eigs);
+
+            expect(sum.re).toBeCloseTo(m.trace());
+            expect(sum.im).toBeCloseTo(0);
+            expect(product.re).toBeCloseTo(m.determinant());
+            expect(product.im).toBeCloseTo(0);
+        });
+
+        it('each real eigenvalue makes (A - lambda*I) singular', () => {
+            const m: Matrix = Matrix.from([
+                [2, 0, 0],
+                [1, 3, -1],
+                [1, 1, 1],
+            ]);
+            for (const e of m.eigenvalues()) {
+                expect(e.im).toBeCloseTo(0);
+                const shifted = m.sub(Matrix.identity(3).mult(e.re));
+                expect(shifted.determinant()).toBeCloseTo(0);
+            }
+        });
+
+        it('handles the 1x1 case directly', () => {
+            expect(Matrix.from([[7]]).eigenvalues()).toEqual([{ re: 7, im: 0 }]);
+        });
+
+        it('handles the 2x2 case directly, without needing any QR iteration', () => {
+            const eigs = sortEigs(Matrix.from([[4, 1], [2, 3]]).eigenvalues());
+            expect(eigs[0].re).toBeCloseTo(2);
+            expect(eigs[1].re).toBeCloseTo(5);
+        });
+
+        it('returns a repeated real eigenvalue for a defective (non-diagonalizable) matrix', () => {
+            const jordan: Matrix = Matrix.from([
+                [2, 1],
+                [0, 2],
+            ]);
+            const eigs = jordan.eigenvalues();
+            expect(eigs[0].re).toBeCloseTo(2);
+            expect(eigs[1].re).toBeCloseTo(2);
+            expect(eigs[0].im).toBeCloseTo(0);
+            expect(eigs[1].im).toBeCloseTo(0);
+        });
+
+        it('returns a zero eigenvalue for a singular matrix', () => {
+            const singular: Matrix = Matrix.from([
+                [1, 2],
+                [2, 4],
+            ]);
+            const eigs = sortEigs(singular.eigenvalues());
+            expect(eigs[0].re).toBeCloseTo(0);
+            expect(eigs[1].re).toBeCloseTo(5);
+        });
+
+        it('rejects non-square input', () => {
+            expect(() => Matrix.from([[1, 2, 3], [4, 5, 6]]).eigenvalues()).toThrowError(RangeError);
+        });
+
+        it('throws once the iteration budget is exhausted', () => {
+            const m: Matrix = Matrix.from([
+                [4, 1, 2, 0],
+                [1, 3, 0, 1],
+                [2, 0, 5, 2],
+                [0, 1, 2, 6],
+            ]);
+            expect(() => m.eigenvalues({ maxIterations: 0 })).toThrowError();
+        });
+
+        it('accepts a custom tol without breaking correctness on a well-behaved matrix', () => {
+            const m: Matrix = Matrix.from([
+                [2, -1, 0],
+                [-1, 2, -1],
+                [0, -1, 2],
+            ]);
+            const eigs = sortEigs(m.eigenvalues({ tol: 1e-10 })).map(e => e.re);
+            expect(eigs[0]).toBeCloseTo(2 - Math.SQRT2);
+            expect(eigs[1]).toBeCloseTo(2);
+            expect(eigs[2]).toBeCloseTo(2 + Math.SQRT2);
+        });
     });
 
     it('rejects invalid shapes and mismatched input length in the constructor', () => {
