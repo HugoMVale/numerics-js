@@ -73,18 +73,14 @@ describe('brent', () => {
         expect(result.x).toBeCloseTo(-Math.sqrt(2), 4);
     });
 
-    it('warns and still returns a value when maxIter is exhausted', () => {
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+    it('returns a failure result when maxIter is exhausted', () => {
         const fn = (x: number) => (x - 2) ** 2;
 
         const result = brent(fn, -5, 5, { tolX: 1e-14, maxIter: 1 });
 
-        expect(warnSpy).toHaveBeenCalledOnce();
-        expect(warnSpy.mock.calls[0][0]).toContain('maxIter');
         expect(result.success).toBe(false);
+        expect(result.message).toContain('Maximum number of iterations');
         expect(result.x).toBeDefined();
-
-        warnSpy.mockRestore();
     });
 
     it('respects a custom maxIter without throwing', () => {
