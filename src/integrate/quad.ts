@@ -1,4 +1,3 @@
-import { ScalarFunction } from '../types.js';
 import { gaussKronrod } from './gaussKronrod.js';
 
 /** Result of a {@link quad} numerical integration. */
@@ -164,7 +163,7 @@ function getFullyInfiniteTransform(): Transformation {
  * ```
  */
 export function quad(
-    fn: ScalarFunction,
+    fn: (x: number) => number,
     a: number,
     b: number,
     options: QuadOptions = {}

@@ -1,4 +1,3 @@
-import type { ScalarFunction } from '../types.js';
 import { copysign } from '../math.js';
 import type { RootResult } from './types.js';
 
@@ -52,7 +51,7 @@ import type { RootResult } from './types.js';
  * ```
  */
 export function brent(
-    fn: ScalarFunction,
+    fn: (x: number) => number,
     xa: number,
     xb: number,
     options: {

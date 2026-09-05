@@ -1,5 +1,3 @@
-import { ScalarFunction } from '../types.js';
-
 /** Result of a {@link gaussKronrod} quadrature. */
 export interface GaussKronrodResult {
     /** Estimated value of the definite integral. */
@@ -71,7 +69,7 @@ interface Panel {
  * @returns Local quadrature estimates and estimated local error.
  */
 export function gaussKronrod15(
-    evalF: ScalarFunction,
+    evalF: (x: number) => number,
     a: number,
     b: number
 ): LocalGaussKronrodResult {
@@ -160,7 +158,7 @@ export function gaussKronrod15(
  * ```
  */
 export function gaussKronrod(
-    fn: ScalarFunction,
+    fn: (x: number) => number,
     a: number,
     b: number,
     options: {

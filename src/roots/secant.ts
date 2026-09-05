@@ -1,4 +1,3 @@
-import type { ScalarFunction } from '../types.js';
 import type { RootResult } from './types.js';
 
 /**
@@ -47,7 +46,7 @@ import type { RootResult } from './types.js';
  * ```
  */
 export function secant(
-    fn: ScalarFunction,
+    fn: (x: number) => number,
     x0: number,
     x1: number,
     options: {

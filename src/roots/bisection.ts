@@ -1,4 +1,3 @@
-import type { ScalarFunction } from '../types.js';
 import type { RootResult } from './types.js';
 
 /**
@@ -42,7 +41,7 @@ import type { RootResult } from './types.js';
  * ```
  */
 export function bisection(
-    fn: ScalarFunction,
+    fn: (x: number) => number,
     a: number,
     b: number,
     options: {
