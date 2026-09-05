@@ -1,5 +1,5 @@
 import { ScalarFunction } from '../types.js';
-import { gaussKronrod, GaussKronrodOptions } from './gaussKronrod.js';
+import { gaussKronrod } from './gaussKronrod.js';
 
 /** Result of a {@link quad} numerical integration. */
 export interface QuadResult {
@@ -16,7 +16,11 @@ export interface QuadResult {
 }
 
 /** Options for {@link quad}. */
-export interface QuadOptions extends GaussKronrodOptions {
+export interface QuadOptions {
+    /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
+    tol?: number;
+    /** Safety limit on panel count. Defaults to `200`. */
+    maxSubintervals?: number;
     /** 
      * Specific points within the integration interval where the function 
      * might have discontinuities or sharp features. The integration interval 

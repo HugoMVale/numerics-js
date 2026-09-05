@@ -20,14 +20,6 @@ interface LocalGaussKronrodResult {
     error: number;
 }
 
-/** Options for {@link gaussKronrod}. */
-export interface GaussKronrodOptions {
-    /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
-    tol?: number;
-    /** Safety limit on panel count. Defaults to `200`. */
-    maxSubintervals?: number;
-}
-
 const KRONROD_NODES: readonly number[] = [
     0.000000000000000000000000000000000,
     0.207784955007898467600689403773245,
@@ -153,7 +145,12 @@ export function gaussKronrod(
     fn: ScalarFunction,
     a: number,
     b: number,
-    options: GaussKronrodOptions = {}
+    options: {
+        /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
+        tol?: number;
+        /** Safety limit on panel count. Defaults to `200`. */
+        maxSubintervals?: number;
+    } = {}
 ): GaussKronrodResult {
     const { tol = 1e-8, maxSubintervals = 200 } = options;
 
