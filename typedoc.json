@@ -4,6 +4,7 @@
         "src/array.ts",
         "src/integrate.ts",
         "src/interpolate.ts",
+        "src/numdiff.ts",
         "src/roots.ts",
         "src/ode.ts",
         "src/optimize.ts",
