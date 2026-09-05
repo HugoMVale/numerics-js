@@ -1,14 +1,14 @@
 import type { RootResult } from './types.js';
 
 /**
- * Finds a root of fn using the secant method, starting from two initial guesses.
+ * Finds a root of f using the secant method, starting from two initial guesses.
  *
  * Unlike bisection, the secant method does not require a bracketing interval
- * (fn(x0) and fn(x1) need not have opposite signs), and typically converges
+ * (f(x0) and f(x1) need not have opposite signs), and typically converges
  * faster (superlinear, order ~1.618) when it converges. It is not guaranteed
  * to converge for all inputs.
  *
- * @param fn Function to find a root of.
+ * @param f Function to find a root of.
  * @param x0 First initial guess.
  * @param x1 Second initial guess (should differ from x0).
  * @param options Tuning options.
@@ -46,7 +46,7 @@ import type { RootResult } from './types.js';
  * ```
  */
 export function secant(
-    fn: (x: number) => number,
+    f: (x: number) => number,
     x0: number,
     x1: number,
     options: {
@@ -61,9 +61,9 @@ export function secant(
     }
 
     let evaluations = 0;
-    let f0 = fn(x0);
+    let f0 = f(x0);
     evaluations++;
-    let f1 = fn(x1);
+    let f1 = f(x1);
     evaluations++;
 
     if (f0 === 0) {
@@ -94,7 +94,7 @@ export function secant(
             return {
                 method: 'secant',
                 success: false,
-                message: `did not converge: zero denominator encountered (fn(x0)=${f0}, fn(x1)=${f1})`,
+                message: `did not converge: zero denominator encountered (f(x0)=${f0}, f(x1)=${f1})`,
                 evaluations,
                 x: x1,
                 fx: f1
@@ -104,7 +104,7 @@ export function secant(
         const x2 = x1 - (f1 * (x1 - x0)) / denom;
 
         if (Math.abs(x2 - x1) < tolX) {
-            const fx2 = fn(x2);
+            const fx2 = f(x2);
             evaluations++;
             return {
                 method: 'secant',
@@ -119,7 +119,7 @@ export function secant(
         x0 = x1;
         f0 = f1;
         x1 = x2;
-        f1 = fn(x1);
+        f1 = f(x1);
         evaluations++;
 
         if (f1 === 0) {

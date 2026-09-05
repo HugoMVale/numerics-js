@@ -2,25 +2,25 @@ import { copysign } from '../math.js';
 import type { RootResult } from './types.js';
 
 /**
- * Finds a root of fn using Brent's method, given a bracketing interval.
+ * Finds a root of f using Brent's method, given a bracketing interval.
  *
  * Brent's method combines bisection, the secant method, and inverse
  * quadratic interpolation. It is as robust as bisection (guaranteed to
  * converge, given a valid bracket) and typically converges as fast as
  * the secant method.
  *
- * Unlike the secant method, Brent's method requires fn(xa) and fn(xb) to
+ * Unlike the secant method, Brent's method requires f(xa) and f(xb) to
  * have opposite signs (i.e. the root must be bracketed by [xa, xb]).
  *
- * @param fn Function to find a root of.
+ * @param f Function to find a root of.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
  * @param options Tuning options.
  * @param options.tolX Stop when the bracket half-width is below this (absolute x tolerance). Defaults to `1e-8`.
- * @param options.tolF Stop when |fn(x)| is below this (absolute function-value tolerance). Defaults to `1e-8`.
+ * @param options.tolF Stop when |f(x)| is below this (absolute function-value tolerance). Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
- * @throws {Error} If fn(xa) and fn(xb) do not have opposite signs.
+ * @throws {Error} If f(xa) and f(xb) do not have opposite signs.
  *
  * @example
  * ```ts
@@ -37,7 +37,7 @@ import type { RootResult } from './types.js';
  * {
  *   method: 'brent',
  *   success: true,
- *   message: 'converged: |fn(x)| below tolF',
+ *   message: 'converged: |f(x)| below tolF',
  *   evaluations: 9,
  *   x: 0.5369737681040232,
  *   fx: 5.475264686083392e-11
@@ -51,7 +51,7 @@ import type { RootResult } from './types.js';
  * ```
  */
 export function brent(
-    fn: (x: number) => number,
+    f: (x: number) => number,
     xa: number,
     xb: number,
     options: {
@@ -66,26 +66,26 @@ export function brent(
 
     let evaluations = 0;
 
-    let fa = fn(xa);
+    let fa = f(xa);
     evaluations++;
     if (Math.abs(fa) <= tolF) {
         return {
             method: 'brent',
             success: true,
-            message: 'converged: |fn(xa)| below tolF',
+            message: 'converged: |f(xa)| below tolF',
             evaluations,
             x: xa,
             fx: fa
         };
     }
 
-    let fb = fn(xb);
+    let fb = f(xb);
     evaluations++;
     if (Math.abs(fb) <= tolF) {
         return {
             method: 'brent',
             success: true,
-            message: 'converged: |fn(xb)| below tolF',
+            message: 'converged: |f(xb)| below tolF',
             evaluations,
             x: xb,
             fx: fb
@@ -94,7 +94,7 @@ export function brent(
 
     if (fa * fb > 0) {
         throw new Error(
-            'brent: root is not bracketed (fn(xa) and fn(xb) must have opposite signs)'
+            'brent: root is not bracketed (f(xa) and f(xb) must have opposite signs)'
         );
     }
 
@@ -124,7 +124,7 @@ export function brent(
             return {
                 method: 'brent',
                 success: true,
-                message: 'converged: |fn(x)| below tolF',
+                message: 'converged: |f(x)| below tolF',
                 evaluations,
                 x: xb,
                 fx: fb
@@ -186,7 +186,7 @@ export function brent(
             xb += copysign(tol1, m);
         }
 
-        fb = fn(xb);
+        fb = f(xb);
         evaluations++;
     }
 

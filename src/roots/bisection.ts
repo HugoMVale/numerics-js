@@ -1,16 +1,16 @@
 import type { RootResult } from './types.js';
 
 /**
- * Finds a root of fn in the interval [a, b] using the bisection method.
+ * Finds a root of `f` in the interval [a, b] using the bisection method.
  *
- * @param fn Continuous function to find a root of.
+ * @param f Continuous function to find a root of.
  * @param a Left endpoint of the bracketing interval.
  * @param b Right endpoint of the bracketing interval.
  * @param options Tuning options.
  * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
- * @throws {Error} If a and b are equal, or if fn(a) and fn(b) don't bracket a root.
+ * @throws {Error} If a and b are equal, or if f(a) and f(b) don't bracket a root.
  *
  * @example
  * ```ts
@@ -41,7 +41,7 @@ import type { RootResult } from './types.js';
  * ```
  */
 export function bisection(
-    fn: (x: number) => number,
+    f: (x: number) => number,
     a: number,
     b: number,
     options: {
@@ -59,9 +59,9 @@ export function bisection(
     }
 
     let evaluations = 0;
-    let fa = fn(a);
+    let fa = f(a);
     evaluations++;
-    const fb = fn(b);
+    const fb = f(b);
     evaluations++;
 
     if (fa === 0) {
@@ -87,7 +87,7 @@ export function bisection(
 
     if (Math.sign(fa) === Math.sign(fb)) {
         throw new Error(
-            `bisection: fn(a) and fn(b) must have opposite signs (got fn(a)=${fa}, fn(b)=${fb})`
+            `bisection: f(a) and f(b) must have opposite signs (got f(a)=${fa}, f(b)=${fb})`
         );
     }
 
@@ -96,7 +96,7 @@ export function bisection(
 
     for (let k = 0; k < maxIter; k++) {
         mid = (a + b) / 2;
-        fmid = fn(mid);
+        fmid = f(mid);
         evaluations++;
 
         if (fmid === 0) {
