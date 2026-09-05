@@ -164,9 +164,7 @@ export function gaussKronrod(
     a: number,
     b: number,
     options: {
-        /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
         tol?: number;
-        /** Safety limit on panel count. Defaults to `200`. */
         maxSubintervals?: number;
     } = {}
 ): GaussKronrodResult {
