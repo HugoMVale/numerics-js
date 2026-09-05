@@ -43,7 +43,7 @@ describe('public API', () => {
             default: './dist/index.js',
         });
 
-        for (const moduleName of ['array', 'integrate', 'interpolate', 'math', 'numdiff', 'ode', 'optimize', 'roots', 'special']) {
+        for (const moduleName of ['linalg', 'integrate', 'interpolate', 'math', 'numdiff', 'ode', 'optimize', 'roots', 'special']) {
             expect(pkg.exports[`./${moduleName}`]).toMatchObject({
                 types: `./dist/${moduleName}.d.ts`,
                 browser: `./dist/${moduleName}.js`,

@@ -29,14 +29,14 @@ This example models cooling, samples the solution, interpolates between steps,
 and computes the accumulated temperature above ambient.
 
 ```ts
-import { array, integrate, interpolate, ode } from 'numerics-js';
+import { linalg, integrate, interpolate, ode } from 'numerics-js';
 
 const solution = ode.rungeKuttaAdaptive(
     'rk45',
     (_t, y, dydt) => dydt.set([-(y.data[0] - 20) * 0.4]),
     0,
     10,
-    new array.Vector([100]),
+    new linalg.Vector([100]),
 );
 
 const times = solution.t;
@@ -50,7 +50,7 @@ console.log(accumulatedHeat.value);
 
 ## What’s included
 
-- `array`: `Vector`, `Matrix`, and `Vec3` data structures and linear algebra.
+- `linalg`: `Vector`, `Matrix`, and `Vec3` data structures and linear algebra.
 - `integrate`: sampled-data rules and adaptive quadrature.
 - `interpolate`: linear and shape-preserving one-dimensional interpolation.
 - `numdiff`: finite-difference derivatives and Jacobians.
@@ -61,7 +61,7 @@ console.log(accumulatedHeat.value);
 - `math`: small numerical utilities.
 
 The package is native ESM and exposes both the package root and focused module
-subpaths such as `numerics-js/array` and `numerics-js/ode`.
+subpaths such as `numerics-js/linalg` and `numerics-js/ode`.
 
 ## Documentation
 

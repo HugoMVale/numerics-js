@@ -18,11 +18,11 @@
             "import": "./dist/index.js",
             "default": "./dist/index.js"
         },
-        "./array": {
-            "types": "./dist/array.d.ts",
-            "browser": "./dist/array.js",
-            "import": "./dist/array.js",
-            "default": "./dist/array.js"
+        "./linalg": {
+            "types": "./dist/linalg.d.ts",
+            "browser": "./dist/linalg.js",
+            "import": "./dist/linalg.js",
+            "default": "./dist/linalg.js"
         },
         "./special": {
             "types": "./dist/special.d.ts",

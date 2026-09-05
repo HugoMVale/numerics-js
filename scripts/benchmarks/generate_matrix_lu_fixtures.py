@@ -7,7 +7,7 @@
 Run with: uv run scripts/benchmarks/generate_matrix_lu_fixtures.py
 
 Each case here must have a matching matrix in
-tests/array/Matrix.lu.scipy.test.ts (same id and entries).
+tests/linalg/Matrix.lu.scipy.test.ts (same id and entries).
 """
 
 import json

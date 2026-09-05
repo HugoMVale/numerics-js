@@ -1,7 +1,7 @@
 {
     "$schema": "https://typedoc.org/schema.json",
     "entryPoints": [
-        "src/array.ts",
+        "src/linalg.ts",
         "src/integrate.ts",
         "src/interpolate.ts",
         "src/numdiff.ts",
