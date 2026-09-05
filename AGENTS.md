@@ -10,9 +10,11 @@
 ## Commands
 
 - `npm test` runs the complete Vitest suite.
+- `npm run lint` runs ESLint with zero warnings; this also runs from the pre-commit hook.
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run build` compiles to `dist/` and fixes emitted ESM imports.
 - `npm run docs` regenerates the TypeDoc site in `docs/`.
+- `npm run prepare` installs the Husky Git hooks; package installation runs this automatically.
 
 ## Independent numerical benchmarks
 
