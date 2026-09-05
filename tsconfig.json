@@ -6,6 +6,9 @@
         "lib": [
             "ESNext"
         ],
+        "types": [
+            "node"
+        ],
         "forceConsistentCasingInFileNames": true,
         "skipLibCheck": true,
         "strict": true,
