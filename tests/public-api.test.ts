@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { array, integrate, interpolate, math, numdiff, ode, optimize, roots, special } from '../src/index.js';
+import { linalg, integrate, interpolate, math, numdiff, ode, optimize, roots, special } from '../src/index.js';
 
 describe('public API', () => {
     it('exports the main numerical library modules', () => {
-        expect(array.Vec3).toBeTypeOf('function');
-        expect(array.Vector).toBeTypeOf('function');
-        expect(array.Matrix).toBeTypeOf('function');
+        expect(linalg.Vec3).toBeTypeOf('function');
+        expect(linalg.Vector).toBeTypeOf('function');
+        expect(linalg.Matrix).toBeTypeOf('function');
         expect(typeof integrate.trapezoid).toBe('function');
         expect(typeof integrate.simpson).toBe('function');
         expect(typeof integrate.gaussKronrod).toBe('function');

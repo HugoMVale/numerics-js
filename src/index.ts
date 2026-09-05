@@ -1,4 +1,4 @@
-export * as array from './array.js';
+export * as linalg from './linalg.js';
 export * as integrate from './integrate.js'
 export * as interpolate from './interpolate.js';
 export * as numdiff from './numdiff.js';
