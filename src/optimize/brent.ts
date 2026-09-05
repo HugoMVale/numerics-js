@@ -27,7 +27,7 @@ export interface BrentOptions {
 }
 
 /**
- * Finds a local minimum of f using Brent's method, given a bracketing interval.
+ * Finds a local minimum of `f` using Brent's method, given a bracketing interval.
  *
  * Brent's method is a derivative-free optimize algorithm that combines
  * golden-section search with inverse parabolic interpolation. It maintains a
