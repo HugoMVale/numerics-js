@@ -29,6 +29,21 @@ export interface QRDecomposition {
 }
 
 /**
+ * A single eigenvalue paired with its eigenvector, as returned by
+ * `Matrix.eig()`. A real matrix's eigenvector for a genuinely complex
+ * eigenvalue is itself genuinely complex, so it's split into real and
+ * imaginary parts rather than using a single real `Vector`; `vectorIm` is
+ * all-zero whenever `value.im` is `0`.
+ */
+export interface Eigenpair {
+    value: Eigenvalue;
+    /** Real part of the eigenvector. */
+    vectorRe: Vector;
+    /** Imaginary part of the eigenvector; all-zero for a real eigenvalue. */
+    vectorIm: Vector;
+}
+
+/**
  * Result of `Matrix.lu()`: a partial-pivoted LU factorization such that
  * `P * A = L * U`, where `P` is the row permutation implied by `perm`.
  */
@@ -754,21 +769,82 @@ export class Matrix extends ArrayND {
     }
 
     /**
+     * Applies an orthogonal similarity transform confined to rows/columns
+     * `[lo, hi]`, but correctly to the *whole* matrix: `H := Qfull^T * H *
+     * Qfull` where `Qfull` is the identity everywhere except the `[lo,
+     * hi] x [lo, hi]` block, which is `Qlocal`. Concretely this means
+     * left-multiplying rows `[lo, hi]` (across every column) by
+     * `Qlocal^T`, then right-multiplying columns `[lo, hi]` (across every
+     * row) by `Qlocal` — touching the coupling entries outside the block,
+     * not just the block itself. If `Q` is supplied, the same
+     * right-multiplication is applied to its columns `[lo, hi]`, so it
+     * keeps accumulating the overall change of basis.
+     *
+     * Shared by every step of `_schurForm()`'s QR iteration and by its
+     * final real-2x2-block cleanup pass — both are exactly this operation,
+     * just with a different (locally-derived) `Qlocal`.
+     */
+    private static _applySimilarity(H: Matrix, Q: Matrix | null, lo: number, hi: number, Qlocal: Matrix): void {
+        const n = H.rows;
+        const k = hi - lo + 1;
+
+        // H[lo:hi+1, :] := Qlocal^T * H[lo:hi+1, :]
+        const rowBuf = new Float64Array(k * n);
+        for (let i = 0; i < k; i++) for (let j = 0; j < n; j++) rowBuf[i * n + j] = H._get(lo + i, j);
+        for (let i = 0; i < k; i++) {
+            for (let j = 0; j < n; j++) {
+                let sum = 0;
+                for (let m = 0; m < k; m++) sum += Qlocal._get(m, i) * rowBuf[m * n + j];
+                H._set(lo + i, j, sum);
+            }
+        }
+
+        // H[:, lo:hi+1] := H[:, lo:hi+1] * Qlocal
+        const colBuf = new Float64Array(n * k);
+        for (let i = 0; i < n; i++) for (let j = 0; j < k; j++) colBuf[i * k + j] = H._get(i, lo + j);
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < k; j++) {
+                let sum = 0;
+                for (let m = 0; m < k; m++) sum += colBuf[i * k + m] * Qlocal._get(m, j);
+                H._set(i, lo + j, sum);
+            }
+        }
+
+        if (Q) {
+            const qBuf = new Float64Array(n * k);
+            for (let i = 0; i < n; i++) for (let j = 0; j < k; j++) qBuf[i * k + j] = Q._get(i, lo + j);
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < k; j++) {
+                    let sum = 0;
+                    for (let m = 0; m < k; m++) sum += qBuf[i * k + m] * Qlocal._get(m, j);
+                    Q._set(i, lo + j, sum);
+                }
+            }
+        }
+    }
+
+    /**
      * Reduces a copy of this (square) matrix to upper Hessenberg form via
      * orthogonal similarity transforms (Householder reflectors applied on
      * both sides), preserving eigenvalues. Used internally by
-     * `eigenvalues()` as a preprocessing step: it collapses each QR
+     * `_schurForm()` as a preprocessing step: it collapses each QR
      * iteration from O(n^3) to O(n^2) and gives shifted QR its usual fast
      * convergence behavior. Not exposed publicly since a Hessenberg-form
      * result isn't useful on its own without the rest of the eigenvalue
      * pipeline.
-     * @returns A new matrix, upper Hessenberg (zero below the subdiagonal),
-     * similar to this one.
+     * @param accumulateQ If true, also builds and returns the orthogonal
+     * matrix `Q` such that `H = Q^T * this * Q` (needed by `eig()`, which
+     * has to map eigenvectors back out of the Hessenberg/Schur basis; not
+     * needed by `eigenvalues()`, so it's skipped there to avoid the extra
+     * O(n^3) of accumulation work).
+     * @returns `H`, upper Hessenberg (zero below the subdiagonal) and
+     * similar to this matrix; and `Q` (or `null` if not requested).
      */
-    private _hessenberg(): Matrix {
+    private _hessenberg(accumulateQ = false): { H: Matrix; Q: Matrix | null } {
         const n = this.rows;
         const H = this.copy();
-        if (n < 3) return H;
+        const Q = accumulateQ ? Matrix.identity(n) : null;
+        if (n < 3) return { H, Q };
         const v = new Float64Array(n);
 
         for (let k = 0; k < n - 2; k++) {
@@ -806,24 +882,35 @@ export class Matrix extends ArrayND {
                 if (dot === 0) continue;
                 for (let j = k + 1; j < n; j++) H._set(i, j, H._get(i, j) - dot * v[j]);
             }
+            // Accumulate: Q := Q * Hk (same reflector, right-applied).
+            if (Q) {
+                for (let i = 0; i < n; i++) {
+                    let dot = 0;
+                    for (let j = k + 1; j < n; j++) dot += Q._get(i, j) * v[j];
+                    dot *= 2;
+                    if (dot === 0) continue;
+                    for (let j = k + 1; j < n; j++) Q._set(i, j, Q._get(i, j) - dot * v[j]);
+                }
+            }
         }
 
         // Explicit cleanup: force exact zeros below the subdiagonal.
         for (let i = 2; i < n; i++) {
             for (let j = 0; j < i - 1; j++) H._set(i, j, 0);
         }
-        return H;
+        return { H, Q };
     }
 
     /**
      * Solves the characteristic equation of a 2x2 block `[[a, b], [c,
-     * d]]` directly, in closed form. Used by `eigenvalues()` to finish off
+     * d]]` directly, in closed form. Used by `_schurForm()` to finish off
      * a trailing 2x2 block once the active submatrix has shrunk that far —
      * shifted QR alone never fully deflates a block whose eigenvalues are
      * a complex-conjugate pair, so those are extracted this way instead of
      * by further iteration.
-     * @returns The two eigenvalues (a complex-conjugate pair if the
-     * discriminant is negative, otherwise two reals).
+     * @returns The two eigenvalues. If the discriminant is negative, a
+     * complex-conjugate pair with the positive-imaginary-part root first;
+     * otherwise two reals, larger root first.
      */
     private static _solve2x2Eigs(a: number, b: number, c: number, d: number): [Eigenvalue, Eigenvalue] {
         const tr = a + d;
@@ -843,63 +930,136 @@ export class Matrix extends ArrayND {
         ];
     }
 
+    /** Complex multiplication, as a `[re, im]` pair. */
+    private static _cmul(aRe: number, aIm: number, bRe: number, bIm: number): [number, number] {
+        return [aRe * bRe - aIm * bIm, aRe * bIm + aIm * bRe];
+    }
+
     /**
-     * Computes the eigenvalues of this (square) matrix via shifted QR
-     * iteration: Householder reduction to upper Hessenberg form, then
-     * repeated double-shift QR steps with deflation as subdiagonal entries
-     * vanish. A block that shrinks to size 2 is closed out directly via
-     * the quadratic formula rather than by further iteration (which is
-     * also how complex-conjugate eigenvalue pairs, which a real matrix's
-     * Hessenberg form never fully deflates past a 2x2 block, get
-     * extracted).
+     * Complex division `a / b`, as a `[re, im]` pair. If `|b|` is smaller
+     * than `floor`, `b` is treated as `floor` (real) instead of dividing
+     * by (near-)zero — guards the eigenvector back-substitution below
+     * against (near-)repeated eigenvalues, the same role LAPACK's dtrevc
+     * safe-minimum plays.
+     */
+    private static _cdiv(aRe: number, aIm: number, bRe: number, bIm: number, floor: number): [number, number] {
+        let dRe = bRe, dIm = bIm;
+        if (dRe * dRe + dIm * dIm < floor * floor) { dRe = floor; dIm = 0; }
+        const dMagSq = dRe * dRe + dIm * dIm;
+        return [(aRe * dRe + aIm * dIm) / dMagSq, (aIm * dRe - aRe * dIm) / dMagSq];
+    }
+
+    /**
+     * Back-substitutes for the rows *above* an already-seeded eigenvector
+     * block, mutating `yRe`/`yIm` in place. `T` is only *quasi*-upper
+     * triangular (a 2x2 complex-conjugate block has a nonzero subdiagonal
+     * entry within itself), so this can't just solve one row at a time
+     * for every row above the target block: whenever it reaches an
+     * earlier block that is itself a 2x2 (i.e. some *other* eigenvalue of
+     * `T` also happens to be complex), that block's two rows are coupled
+     * and have to be solved as one 2x2 complex linear system rather than
+     * two independent rows. Every other row is an ordinary 1x1 solve.
+     * @param blocks The full, `lo`-ascending block list from
+     * `_schurForm()`.
+     * @param blockIdx Index of the target (already-seeded) block within
+     * `blocks`; only earlier entries (smaller index, smaller `lo`) are
+     * processed.
+     * @param hiTarget The target block's `hi` — the upper bound (inclusive)
+     * of every summation below, since `y` is zero past it by construction.
+     */
+    private static _backSubstitute(
+        T: Matrix, blocks: [number, number][], blockIdx: number, hiTarget: number,
+        lambdaRe: number, lambdaIm: number, yRe: Float64Array, yIm: Float64Array, floor: number
+    ): void {
+        for (let bi = blockIdx - 1; bi >= 0; bi--) {
+            const [p, q] = blocks[bi];
+
+            if (p === q) {
+                let sumRe = 0, sumIm = 0;
+                for (let j = p + 1; j <= hiTarget; j++) { sumRe += T._get(p, j) * yRe[j]; sumIm += T._get(p, j) * yIm[j]; }
+                const dRe = T._get(p, p) - lambdaRe, dIm = -lambdaIm;
+                const [yr, yi] = Matrix._cdiv(-sumRe, -sumIm, dRe, dIm, floor);
+                yRe[p] = yr; yIm[p] = yi;
+                continue;
+            }
+
+            // Coupled 2x2 solve for rows p and q = p+1:
+            //   [ (T[p,p]-lambda)   T[p,q]           ] [y_p]   [rhs_p]
+            //   [ T[q,p]            (T[q,q]-lambda)  ] [y_q] = [rhs_q]
+            let rpRe = 0, rpIm = 0, rqRe = 0, rqIm = 0;
+            for (let j = q + 1; j <= hiTarget; j++) {
+                rpRe -= T._get(p, j) * yRe[j]; rpIm -= T._get(p, j) * yIm[j];
+                rqRe -= T._get(q, j) * yRe[j]; rqIm -= T._get(q, j) * yIm[j];
+            }
+            const m00Re = T._get(p, p) - lambdaRe, m00Im = -lambdaIm;
+            const m01Re = T._get(p, q);
+            const m10Re = T._get(q, p);
+            const m11Re = T._get(q, q) - lambdaRe, m11Im = -lambdaIm;
+
+            const [detARe, detAIm] = Matrix._cmul(m00Re, m00Im, m11Re, m11Im);
+            const [detBRe, detBIm] = Matrix._cmul(m01Re, 0, m10Re, 0);
+            const detRe = detARe - detBRe, detIm = detAIm - detBIm;
+
+            const [numPARe, numPAIm] = Matrix._cmul(rpRe, rpIm, m11Re, m11Im);
+            const [numPBRe, numPBIm] = Matrix._cmul(m01Re, 0, rqRe, rqIm);
+            const [ypRe, ypIm] = Matrix._cdiv(numPARe - numPBRe, numPAIm - numPBIm, detRe, detIm, floor);
+
+            const [numQARe, numQAIm] = Matrix._cmul(m00Re, m00Im, rqRe, rqIm);
+            const [numQBRe, numQBIm] = Matrix._cmul(m10Re, 0, rpRe, rpIm);
+            const [yqRe, yqIm] = Matrix._cdiv(numQARe - numQBRe, numQAIm - numQBIm, detRe, detIm, floor);
+
+            yRe[p] = ypRe; yIm[p] = ypIm;
+            yRe[q] = yqRe; yIm[q] = yqIm;
+        }
+    }
+
+    /**
+     * Core of both `eigenvalues()` and `eig()`: reduces this (square)
+     * matrix to upper Hessenberg form, then runs double-shift QR iteration
+     * with deflation until every diagonal block has shrunk to size 1 (a
+     * real eigenvalue) or size 2 (necessarily a complex-conjugate pair —
+     * see below). The result is a genuine real Schur form: `this = Q * T *
+     * Q^T` with `Q` orthogonal and `T` quasi-upper-triangular.
      *
-     * Each iteration shifts by the trace `s` and determinant `t` of the
+     * Each QR iteration shifts by the trace `s` and determinant `t` of the
      * active block's trailing 2x2 submatrix — both always real, even when
-     * that 2x2's own eigenvalues are a complex-conjugate pair — via
-     * `M = H^2 - s*H + t*I`, `M = QR`, `H := Q^T * H * Q`. This is the
-     * *explicit* form of the real double-shift ("Francis") QR step LAPACK
-     * (`dhseqr`/`dlahqr`) implements *implicitly* via bulge-chasing:
-     * mathematically the same shift strategy and the same fast (locally
-     * cubic) convergence on both real and complex-conjugate eigenvalues,
-     * but computed by forming `H^2` explicitly each iteration rather than
-     * the implicit bulge-chase, trading some performance for a much
-     * simpler, easier-to-verify implementation. Every 10th iteration on a
-     * block that hasn't deflated, an ad hoc "exceptional shift" (a real
-     * value repeated twice, following EISPACK's/Numerical Recipes'
-     * `hqr`) is used in place of the trace/determinant pair, to break the
-     * rare stagnation cycles that can otherwise trap any fixed-shift
-     * strategy.
-     * @param options.tol Relative tolerance for the deflation test: a
-     * subdiagonal entry `H[k, k-1]` is treated as converged once
-     * `abs(H[k, k-1]) <= tol * (abs(H[k-1,k-1]) + abs(H[k,k]))` (falling
-     * back to `tol * norm` when that sum is `0`). Defaults to
-     * `Number.EPSILON`, i.e. one unit in the last place — the same
-     * machine-precision convention LAPACK (`dlamch('P')`) and EISPACK use
-     * for this test.
-     * @param options.maxIterations Total shifted-QR iteration budget
-     * across the whole computation (shared across all deflations, not
-     * per-eigenvalue). Defaults to `30 * this.rows`, matching EISPACK's
-     * `hqr` (`itn = 30*n`) and LAPACK's similar per-eigenvalue allowance.
-     * @returns The `rows` eigenvalues, in the order they were deflated out
-     * of the Hessenberg form (top-to-bottom for already-converged blocks,
-     * otherwise bottom-up) — not sorted by magnitude or otherwise.
-     * @throws {RangeError} If this matrix is not square.
+     * that 2x2's own eigenvalues are complex — via `M = S^2 - s*S + t*I`,
+     * `M = QR`, `S := Q^T * S * Q`. This is the *explicit* form of the
+     * real double-shift ("Francis") QR step LAPACK (`dhseqr`/`dlahqr`)
+     * implements *implicitly* via bulge-chasing: the same shift strategy
+     * and the same fast (locally cubic) convergence on both real and
+     * complex-conjugate eigenvalues, but computed by forming `S^2`
+     * explicitly each iteration rather than the implicit bulge-chase,
+     * trading some performance for a much simpler, easier-to-verify
+     * implementation. Every 10th iteration on a block that hasn't
+     * deflated, an ad hoc "exceptional shift" (a real value repeated
+     * twice, following EISPACK's/Numerical Recipes' `hqr`) is used in
+     * place of the trace/determinant pair, to break the rare stagnation
+     * cycles that can otherwise trap any fixed-shift strategy.
+     *
+     * When `accumulateQ` is true, an extra cleanup pass runs at the end:
+     * any size-2 block whose eigenvalues turn out to be real (rather than
+     * a complex-conjugate pair) gets one further 2x2 rotation applied,
+     * splitting it into two independent size-1 blocks. This isn't needed
+     * for eigenvalues alone (the 2x2 closed-form solve already handles
+     * real roots correctly either way), but it means `eig()` never has to
+     * special-case "a 2x2 block that happens to have real eigenvalues" —
+     * every returned block is either a real 1x1 or a genuinely
+     * irreducible complex 2x2.
+     * @param accumulateQ Whether to build and return `Q` (needed for
+     * eigenvectors; skipped for eigenvalues alone to save the O(n^3) of
+     * accumulation work, similarly to `_hessenberg()`'s same-named option).
+     * @returns `T` (the Schur form), `Q` (or `null`), and `blocks`: the
+     * final list of `[lo, hi]` diagonal block ranges, sorted by `lo`
+     * ascending — i.e. top-to-bottom position in `T`, *not* the order
+     * blocks happened to finish deflating in.
      * @throws {Error} If the iteration budget is exhausted before every
      * block deflates (e.g. for a pathologically slow-converging matrix).
      */
-    eigenvalues(options?: { maxIterations?: number; tol?: number }): Eigenvalue[] {
-        if (this.rows !== this.cols) throw new RangeError(`Matrix eigenvalues requires a square matrix, got ${this.rows}x${this.cols}`);
+    private _schurForm(accumulateQ: boolean, tol: number, maxIterations: number): { T: Matrix; Q: Matrix | null; blocks: [number, number][] } {
         const n = this.rows;
-        const tol = options?.tol ?? Number.EPSILON;
-        let budget = options?.maxIterations ?? 30 * n;
-
-        const result: Eigenvalue[] = new Array(n);
-        if (n === 1) {
-            result[0] = { re: this._get(0, 0), im: 0 };
-            return result;
-        }
-
-        const H = this._hessenberg();
+        const { H, Q } = this._hessenberg(accumulateQ);
+        if (n === 1) return { T: H, Q, blocks: [[0, 0]] };
 
         // Hessenberg-form norm (sum of magnitudes on/above the diagonal,
         // plus the subdiagonal): used as a floor for the deflation test
@@ -915,20 +1075,14 @@ export class Matrix extends ArrayND {
         // blocks (an interior subdiagonal entry vanishes) or, once it
         // shrinks to size 1 or 2, by direct read-off.
         const stack: [number, number][] = [[0, n - 1]];
+        const blocks: [number, number][] = [];
+        let budget = maxIterations;
 
         while (stack.length > 0) {
             const [lo, hi] = stack.pop()!;
 
-            if (hi === lo) {
-                result[lo] = { re: H._get(lo, lo), im: 0 };
-                continue;
-            }
-            if (hi === lo + 1) {
-                const [e1, e2] = Matrix._solve2x2Eigs(H._get(lo, lo), H._get(lo, hi), H._get(hi, lo), H._get(hi, hi));
-                result[lo] = e1;
-                result[hi] = e2;
-                continue;
-            }
+            if (hi === lo) { blocks.push([lo, hi]); continue; }
+            if (hi === lo + 1) { blocks.push([lo, hi]); continue; }
 
             // Look for an interior subdiagonal entry small enough to treat
             // as zero, splitting the block in two. If none is found, take
@@ -951,7 +1105,7 @@ export class Matrix extends ArrayND {
                 }
 
                 if (budget-- <= 0) {
-                    throw new Error(`Matrix eigenvalues: failed to converge within the iteration budget (${options?.maxIterations ?? 30 * n})`);
+                    throw new Error(`Matrix eigenvalues: failed to converge within the iteration budget (${maxIterations})`);
                 }
 
                 its++;
@@ -959,7 +1113,7 @@ export class Matrix extends ArrayND {
                 let s: number, t: number;
                 if (its % 10 === 0) {
                     // Exceptional shift: an ad hoc real value used twice
-                    // (equivalent to `M = (H - sigma*I)^2`) in place of the
+                    // (equivalent to `M = (S - sigma*I)^2`) in place of the
                     // usual trace/determinant pair, to break rare
                     // stagnation cycles a fixed shift strategy can otherwise
                     // get stuck in.
@@ -987,12 +1141,222 @@ export class Matrix extends ArrayND {
                         M._set(i, j, v);
                     }
                 }
-                const { Q } = Matrix._householderQR(M);
-                // Similarity transform: S := Q^T * S * Q.
-                const next = Q.transpose().matmul(S).matmul(Q);
-                for (let i = 0; i < size; i++) {
-                    for (let j = 0; j < size; j++) H._set(lo + i, lo + j, next._get(i, j));
+                const { Q: Qlocal } = Matrix._householderQR(M);
+                Matrix._applySimilarity(H, Q, lo, hi, Qlocal);
+            }
+        }
+
+        blocks.sort((x, y) => x[0] - y[0]);
+        if (!accumulateQ) return { T: H, Q, blocks };
+
+        // Cleanup pass: split any size-2 block with real eigenvalues into
+        // two size-1 blocks (see the doc comment above).
+        const finalBlocks: [number, number][] = [];
+        for (const [lo, hi] of blocks) {
+            if (hi === lo) { finalBlocks.push([lo, hi]); continue; }
+
+            const a = H._get(lo, lo), b = H._get(lo, hi), c = H._get(hi, lo), d = H._get(hi, hi);
+            const disc = (a - d) * (a - d) + 4 * b * c;
+            if (disc < 0) { finalBlocks.push([lo, hi]); continue; } // genuine complex pair: leave as-is
+
+            // Triangularize via the eigenvector for one root: solving
+            // (block - lambda*I)x = 0 gives x = [b, lambda - a] (or the
+            // symmetric [lambda - d, c] if b happens to be ~0); the
+            // rotation with x/|x| as its first column then triangularizes
+            // the block by construction.
+            const lambda = (a + d + Math.sqrt(disc)) / 2;
+            let x0 = b, x1 = lambda - a;
+            if (Math.abs(x0) < 1e-300 && Math.abs(x1) < 1e-300) { x0 = lambda - d; x1 = c; }
+            if (Math.abs(x0) < 1e-300 && Math.abs(x1) < 1e-300) { x0 = 1; x1 = 0; }
+            const norm = Math.hypot(x0, x1);
+            const q0 = x0 / norm, q1 = x1 / norm;
+            const Qlocal = Matrix.from([[q0, -q1], [q1, q0]]);
+
+            Matrix._applySimilarity(H, Q, lo, hi, Qlocal);
+            H._set(hi, lo, 0); // clean up floating-point noise below the diagonal
+            finalBlocks.push([lo, lo]);
+            finalBlocks.push([hi, hi]);
+        }
+        return { T: H, Q, blocks: finalBlocks };
+    }
+
+    /**
+     * Computes the eigenvalues of this (square) matrix, via `_schurForm()`
+     * (Hessenberg reduction + double-shift QR iteration with deflation —
+     * see that method's doc comment for the algorithm). If you also need
+     * eigenvectors, use `eig()` instead: it computes both together from
+     * the same Schur form, which is cheaper than computing eigenvalues
+     * and then eigenvectors separately.
+     * @param options.tol Relative tolerance for the deflation test: a
+     * subdiagonal entry `H[k, k-1]` is treated as converged once
+     * `abs(H[k, k-1]) <= tol * (abs(H[k-1,k-1]) + abs(H[k,k]))` (falling
+     * back to `tol * norm` when that sum is `0`). Defaults to
+     * `Number.EPSILON`, i.e. one unit in the last place — the same
+     * machine-precision convention LAPACK (`dlamch('P')`) and EISPACK use
+     * for this test.
+     * @param options.maxIterations Total shifted-QR iteration budget
+     * across the whole computation (shared across all deflations, not
+     * per-eigenvalue). Defaults to `30 * this.rows`, matching EISPACK's
+     * `hqr` (`itn = 30*n`) and LAPACK's similar per-eigenvalue allowance.
+     * @returns The `rows` eigenvalues, in top-to-bottom diagonal position
+     * within the underlying Schur form — *not* sorted by magnitude, and
+     * *not* deflation order (an early-finishing block and a
+     * later-finishing one can end up adjacent either way).
+     * @throws {RangeError} If this matrix is not square.
+     * @throws {Error} If the iteration budget is exhausted before every
+     * block deflates (e.g. for a pathologically slow-converging matrix).
+     */
+    eigenvalues(options?: { maxIterations?: number; tol?: number }): Eigenvalue[] {
+        if (this.rows !== this.cols) throw new RangeError(`Matrix eigenvalues requires a square matrix, got ${this.rows}x${this.cols}`);
+        const n = this.rows;
+        const tol = options?.tol ?? Number.EPSILON;
+        const maxIterations = options?.maxIterations ?? 30 * n;
+
+        const { T, blocks } = this._schurForm(false, tol, maxIterations);
+        const result: Eigenvalue[] = new Array(n);
+        for (const [lo, hi] of blocks) {
+            if (hi === lo) {
+                result[lo] = { re: T._get(lo, lo), im: 0 };
+            } else {
+                const [e1, e2] = Matrix._solve2x2Eigs(T._get(lo, lo), T._get(lo, hi), T._get(hi, lo), T._get(hi, hi));
+                result[lo] = e1;
+                result[hi] = e2;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Computes both the eigenvalues and eigenvectors of this (square)
+     * matrix: first the real Schur form via `_schurForm()`, then each
+     * eigenvector by back-substitution on the (quasi-)upper-triangular `T`
+     * followed by mapping back through `Q` (`A = Q * T * Q^T`, so a vector
+     * `y` with `T*y = lambda*y` gives `Q*y` with `A*(Q*y) = lambda*(Q*y)`).
+     *
+     * A real matrix's eigenvector for a genuinely complex eigenvalue is
+     * itself genuinely complex — that's unavoidable, not a limitation of
+     * this implementation — so each pair carries `vectorRe`/`vectorIm`
+     * rather than a single real `Vector`; `vectorIm` is all-zero whenever
+     * `value.im` is `0`. For a complex-conjugate pair of eigenvalues, the
+     * two eigenvectors are exact complex conjugates of one another, so
+     * only one is computed directly and the other is derived by negating
+     * `vectorIm` (and `value.im`).
+     *
+     * Normalization follows LAPACK's convention (`dgeev`): each
+     * eigenvector is scaled to Euclidean norm 1, with its largest-magnitude
+     * component rotated to be real and positive (a real eigenvector is
+     * already real, so only the norm applies; its sign is otherwise
+     * whatever the computation happens to produce).
+     * @param options See `eigenvalues()` — same meaning and defaults.
+     * @returns The `rows` eigenpairs, in the same order `eigenvalues()`
+     * would return the values alone.
+     * @throws {RangeError} If this matrix is not square.
+     * @throws {Error} If the iteration budget is exhausted before every
+     * block deflates.
+     */
+    eig(options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
+        if (this.rows !== this.cols) throw new RangeError(`Matrix eig requires a square matrix, got ${this.rows}x${this.cols}`);
+        const n = this.rows;
+        const tol = options?.tol ?? Number.EPSILON;
+        const maxIterations = options?.maxIterations ?? 30 * n;
+
+        if (n === 1) {
+            return [{ value: { re: this._get(0, 0), im: 0 }, vectorRe: new Vector([1]), vectorIm: new Vector([0]) }];
+        }
+
+        const { T, Q, blocks } = this._schurForm(true, tol, maxIterations);
+        const Qt = Q!; // accumulateQ was true, so Q is always populated here.
+
+        // Floor for the back-substitution denominator, guarding against
+        // (near-)repeated eigenvalues landing on the diagonal — the same
+        // role LAPACK's dtrevc safe-minimum plays.
+        let tnorm = 0;
+        for (let i = 0; i < n; i++) for (let j = i; j < n; j++) tnorm += Math.abs(T._get(i, j));
+        const floor = Number.EPSILON * Math.max(tnorm, 1);
+
+        const result: Eigenpair[] = new Array(n);
+
+        for (let blockIdx = 0; blockIdx < blocks.length; blockIdx++) {
+            const [lo, hi] = blocks[blockIdx];
+            if (hi === lo) {
+                // Real eigenvalue: back-substitute for a real eigenvector
+                // of T, supported only on indices [0, lo] (T is upper
+                // triangular, so the invariant subspace for the k-th
+                // diagonal eigenvalue is spanned by the first k+1 Schur
+                // basis vectors).
+                const lambda = T._get(lo, lo);
+                const yRe = new Float64Array(n), yIm = new Float64Array(n);
+                yRe[lo] = 1;
+                Matrix._backSubstitute(T, blocks, blockIdx, lo, lambda, 0, yRe, yIm, floor);
+
+                const vRe = new Array<number>(n).fill(0);
+                for (let i = 0; i < n; i++) {
+                    let sum = 0;
+                    for (let k = 0; k <= lo; k++) sum += Qt._get(i, k) * yRe[k];
+                    vRe[i] = sum;
                 }
+                let norm = 0;
+                for (let i = 0; i < n; i++) norm += vRe[i] * vRe[i];
+                norm = Math.sqrt(norm);
+                if (norm > 0) for (let i = 0; i < n; i++) vRe[i] /= norm;
+
+                result[lo] = {
+                    value: { re: lambda, im: 0 },
+                    vectorRe: new Vector(vRe),
+                    vectorIm: new Vector(new Array<number>(n).fill(0)),
+                };
+            } else {
+                // Complex-conjugate pair: same idea, but the local 2-entry
+                // "seed" of the eigenvector and every step of the
+                // back-substitution are complex.
+                const a = T._get(lo, lo), b = T._get(lo, hi), c = T._get(hi, lo), d = T._get(hi, hi);
+                const [e1] = Matrix._solve2x2Eigs(a, b, c, d); // e1.im > 0 by construction
+                const lamRe = e1.re, lamIm = e1.im;
+
+                // Local eigenvector of the 2x2 block: [b, lambda - a]
+                // solves (block - lambda*I)v = 0 directly (or the
+                // symmetric form if b happens to be ~0).
+                let v0re = b, v0im = 0;
+                let v1re = lamRe - a, v1im = lamIm;
+                if (Math.abs(b) < floor) { v0re = lamRe - d; v0im = lamIm; v1re = c; v1im = 0; }
+
+                const yRe = new Float64Array(n), yIm = new Float64Array(n);
+                yRe[lo] = v0re; yIm[lo] = v0im;
+                yRe[hi] = v1re; yIm[hi] = v1im;
+                Matrix._backSubstitute(T, blocks, blockIdx, hi, lamRe, lamIm, yRe, yIm, floor);
+
+                const vRe = new Array<number>(n).fill(0), vIm = new Array<number>(n).fill(0);
+                for (let i = 0; i < n; i++) {
+                    let sRe = 0, sIm = 0;
+                    for (let k = 0; k <= hi; k++) { const q = Qt._get(i, k); sRe += q * yRe[k]; sIm += q * yIm[k]; }
+                    vRe[i] = sRe; vIm[i] = sIm;
+                }
+
+                // LAPACK normalization: rotate phase so the
+                // largest-magnitude component is real and positive, then
+                // scale to unit Euclidean norm.
+                let maxMagSq = -1, maxIdx = 0;
+                for (let i = 0; i < n; i++) {
+                    const m = vRe[i] * vRe[i] + vIm[i] * vIm[i];
+                    if (m > maxMagSq) { maxMagSq = m; maxIdx = i; }
+                }
+                if (maxMagSq > 0) {
+                    const mag = Math.sqrt(maxMagSq);
+                    const cosT = vRe[maxIdx] / mag, sinT = vIm[maxIdx] / mag;
+                    for (let i = 0; i < n; i++) {
+                        const re = vRe[i], im = vIm[i];
+                        vRe[i] = re * cosT + im * sinT;
+                        vIm[i] = im * cosT - re * sinT;
+                    }
+                }
+                let norm = 0;
+                for (let i = 0; i < n; i++) norm += vRe[i] * vRe[i] + vIm[i] * vIm[i];
+                norm = Math.sqrt(norm);
+                if (norm > 0) for (let i = 0; i < n; i++) { vRe[i] /= norm; vIm[i] /= norm; }
+
+                const vImConj = vIm.map(x => -x);
+                result[lo] = { value: { re: lamRe, im: lamIm }, vectorRe: new Vector(vRe), vectorIm: new Vector(vIm) };
+                result[hi] = { value: { re: lamRe, im: -lamIm }, vectorRe: new Vector(vRe), vectorIm: new Vector(vImConj) };
             }
         }
 

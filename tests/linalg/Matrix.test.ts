@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
-import { Matrix, type Eigenvalue } from '../../src/linalg/Matrix.js';
+import { Matrix, type Eigenvalue, type Eigenpair } from '../../src/linalg/Matrix.js';
 
 /**
  * Sorts eigenvalues by real part then imaginary part, for
@@ -22,6 +22,43 @@ function productEigs(eigs: Eigenvalue[]): Eigenvalue {
         (acc, e) => ({ re: acc.re * e.re - acc.im * e.im, im: acc.re * e.im + acc.im * e.re }),
         { re: 1, im: 0 }
     );
+}
+
+/** Sorts eigenpairs by their eigenvalue's real part then imaginary part. */
+function sortPairs(pairs: Eigenpair[]): Eigenpair[] {
+    return [...pairs].sort((a, b) => a.value.re - b.value.re || a.value.im - b.value.im);
+}
+
+/**
+ * Max absolute error, across every entry and both real/imaginary parts, of
+ * `A * v - lambda * v` for a single eigenpair — should be ~0 for a correct
+ * one, regardless of whether the eigenvalue/eigenvector are real or complex.
+ */
+function eigResidual(a: Matrix, pair: Eigenpair): number {
+    const n = a.rows;
+    const vRe = pair.vectorRe.toArray();
+    const vIm = pair.vectorIm.toArray();
+    let maxErr = 0;
+    for (let i = 0; i < n; i++) {
+        let sumRe = 0, sumIm = 0;
+        for (let j = 0; j < n; j++) {
+            sumRe += a.get(i, j) * vRe[j];
+            sumIm += a.get(i, j) * vIm[j];
+        }
+        const lamRe = pair.value.re * vRe[i] - pair.value.im * vIm[i];
+        const lamIm = pair.value.re * vIm[i] + pair.value.im * vRe[i];
+        maxErr = Math.max(maxErr, Math.abs(sumRe - lamRe), Math.abs(sumIm - lamIm));
+    }
+    return maxErr;
+}
+
+/** Euclidean norm of a (possibly complex) eigenvector. */
+function eigNorm(pair: Eigenpair): number {
+    const vRe = pair.vectorRe.toArray();
+    const vIm = pair.vectorIm.toArray();
+    let sum = 0;
+    for (let i = 0; i < vRe.length; i++) sum += vRe[i] * vRe[i] + vIm[i] * vIm[i];
+    return Math.sqrt(sum);
 }
 
 describe('Matrix', () => {
@@ -453,6 +490,169 @@ describe('Matrix', () => {
             expect(eigs[0]).toBeCloseTo(2 - Math.SQRT2);
             expect(eigs[1]).toBeCloseTo(2);
             expect(eigs[2]).toBeCloseTo(2 + Math.SQRT2);
+        });
+    });
+
+    describe('eig()', () => {
+        it('returns eigenpairs satisfying A*v = lambda*v, each with unit norm', () => {
+            const m: Matrix = Matrix.from([
+                [4, 1, 2, 0],
+                [1, 3, 0, 1],
+                [2, 0, 5, 2],
+                [0, 1, 2, 6],
+            ]);
+            const pairs = m.eig();
+            expect(pairs).toHaveLength(4);
+            for (const pair of pairs) {
+                expect(eigResidual(m, pair)).toBeCloseTo(0, 9);
+                expect(eigNorm(pair)).toBeCloseTo(1, 9);
+            }
+        });
+
+        it('agrees with eigenvalues() on which eigenvalues are found', () => {
+            const m: Matrix = Matrix.from([
+                [2, -1, 0],
+                [-1, 2, -1],
+                [0, -1, 2],
+            ]);
+            const values = sortEigs(m.eigenvalues());
+            const pairValues = sortEigs(m.eig().map(p => p.value));
+            for (let i = 0; i < values.length; i++) {
+                expect(pairValues[i].re).toBeCloseTo(values[i].re);
+                expect(pairValues[i].im).toBeCloseTo(values[i].im);
+            }
+        });
+
+        it('returns a real eigenvector for a real eigenvalue, with an all-zero imaginary part', () => {
+            const m: Matrix = Matrix.from([
+                [2, 0, 0],
+                [1, 3, -1],
+                [1, 1, 1],
+            ]);
+            for (const pair of m.eig()) {
+                expect(pair.value.im).toBe(0);
+                expect(pair.vectorIm.toArray().every(x => x === 0)).toBe(true);
+                expect(eigResidual(m, pair)).toBeCloseTo(0, 9);
+            }
+        });
+
+        it('computes real eigenvectors for a symmetric matrix, orthogonal to one another', () => {
+            const m: Matrix = Matrix.from([
+                [2, 1],
+                [1, 2],
+            ]);
+            const pairs = sortPairs(m.eig());
+            expect(pairs[0].value.re).toBeCloseTo(1);
+            expect(pairs[1].value.re).toBeCloseTo(3);
+
+            const v0 = pairs[0].vectorRe, v1 = pairs[1].vectorRe;
+            const dot = v0.get(0) * v1.get(0) + v0.get(1) * v1.get(1);
+            expect(dot).toBeCloseTo(0);
+        });
+
+        it('extracts a complex-conjugate eigenvector pair from a rotation matrix', () => {
+            const rotation: Matrix = Matrix.from([
+                [0, -1],
+                [1, 0],
+            ]);
+            const pairs = [...rotation.eig()].sort((a, b) => a.value.im - b.value.im);
+            const [pMinus, pPlus] = pairs;
+            expect(pMinus.value.im).toBeCloseTo(-1);
+            expect(pPlus.value.im).toBeCloseTo(1);
+
+            // The two eigenvectors of a conjugate pair should themselves be
+            // exact complex conjugates of one another.
+            expect(pPlus.vectorRe.allClose(pMinus.vectorRe)).toBe(true);
+            const negatedIm = new Vector(pMinus.vectorIm.toArray().map(x => -x));
+            expect(pPlus.vectorIm.allClose(negatedIm)).toBe(true);
+
+            expect(eigResidual(rotation, pPlus)).toBeCloseTo(0, 9);
+            expect(eigResidual(rotation, pMinus)).toBeCloseTo(0, 9);
+        });
+
+        it('correctly back-substitutes through an earlier complex-conjugate block (two stacked complex pairs)', () => {
+            // Regression case: T ends up quasi-upper-triangular with TWO
+            // irreducible 2x2 blocks, so computing the eigenvector for the
+            // second (lower) pair requires back-substituting *through* the
+            // first pair's own 2x2 block above it — that block has its own
+            // nonzero subdiagonal entry, so it must be solved as a coupled
+            // 2x2 system rather than one row at a time.
+            const m: Matrix = Matrix.from([
+                [0, -6, -1, 0],
+                [6, 0, 0, -1],
+                [0, 0, 0, -6],
+                [0, 0, 6, 0],
+            ]);
+            const pairs = m.eig();
+            expect(pairs).toHaveLength(4);
+            for (const pair of pairs) {
+                expect(eigResidual(m, pair)).toBeCloseTo(0, 9);
+                expect(eigNorm(pair)).toBeCloseTo(1, 9);
+            }
+        });
+
+        it('normalizes a complex eigenvector so its largest-magnitude component is real and positive', () => {
+            const m: Matrix = Matrix.from([
+                [0, -6, -1, 0],
+                [6, 0, 0, -1],
+                [0, 0, 0, -6],
+                [0, 0, 6, 0],
+            ]);
+            for (const pair of m.eig()) {
+                if (pair.value.im === 0) continue;
+                const vRe = pair.vectorRe.toArray(), vIm = pair.vectorIm.toArray();
+                let maxIdx = 0, maxMag = -1;
+                for (let i = 0; i < vRe.length; i++) {
+                    const mag = vRe[i] * vRe[i] + vIm[i] * vIm[i];
+                    if (mag > maxMag) { maxMag = mag; maxIdx = i; }
+                }
+                expect(vIm[maxIdx]).toBeCloseTo(0);
+                expect(vRe[maxIdx]).toBeGreaterThan(0);
+            }
+        });
+
+        it('returns one eigenvector for a defective (non-diagonalizable) matrix without throwing', () => {
+            const jordan: Matrix = Matrix.from([
+                [2, 1],
+                [0, 2],
+            ]);
+            const pairs = jordan.eig();
+            expect(pairs).toHaveLength(2);
+            for (const pair of pairs) {
+                expect(pair.value.re).toBeCloseTo(2);
+                expect(eigResidual(jordan, pair)).toBeCloseTo(0, 6);
+                expect(eigNorm(pair)).toBeCloseTo(1, 9);
+            }
+        });
+
+        it('handles a singular matrix (zero eigenvalue)', () => {
+            const singular: Matrix = Matrix.from([
+                [1, 2],
+                [2, 4],
+            ]);
+            const pairs = sortPairs(singular.eig());
+            expect(pairs[0].value.re).toBeCloseTo(0);
+            expect(pairs[1].value.re).toBeCloseTo(5);
+            for (const pair of pairs) expect(eigResidual(singular, pair)).toBeCloseTo(0, 9);
+        });
+
+        it('handles the 1x1 case directly', () => {
+            const pairs = Matrix.from([[7]]).eig();
+            expect(pairs).toEqual([{ value: { re: 7, im: 0 }, vectorRe: new Vector([1]), vectorIm: new Vector([0]) }]);
+        });
+
+        it('rejects non-square input', () => {
+            expect(() => Matrix.from([[1, 2, 3], [4, 5, 6]]).eig()).toThrowError(RangeError);
+        });
+
+        it('throws once the iteration budget is exhausted', () => {
+            const m: Matrix = Matrix.from([
+                [4, 1, 2, 0],
+                [1, 3, 0, 1],
+                [2, 0, 5, 2],
+                [0, 1, 2, 6],
+            ]);
+            expect(() => m.eig({ maxIterations: 0 })).toThrowError();
         });
     });
 
