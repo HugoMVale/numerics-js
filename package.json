@@ -99,6 +99,7 @@
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/node": "^26.2.0",
+        "@vscode/markdown-it-katex": "^1.1.2",
         "eslint": "^10.10.0",
         "typedoc": "^0.28.20",
         "typedoc-material-theme": "^1.4.1",
