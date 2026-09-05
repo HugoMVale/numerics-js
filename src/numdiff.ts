@@ -1,5 +1,6 @@
 import { Vector } from './array/Vector.js';
 import { Matrix } from './array/Matrix.js';
+import { ScalarFunction } from './types.js'
 
 /**
  * Calculates scaling factors for a given vector.
@@ -70,22 +71,6 @@ export function scaleVector(x: Vector): Vector {
     return sclx;
 }
 
-export interface JacobianForwardOptions {
-    /** Function values at `x`, if available. */
-    fx?: Vector;
-    /** 
-     * Scaling factors for `x`. Ideally, `x[i]*sclx[i]` is close to 1. By
-     * default, the factors are set internally based on the magnitudes of `x`.
-     */
-    sclx?: Vector;
-    /** 
-     * Machine precision of the function values. If undefined, machine precision of 64-bit
-     * floating-point type is assumed. If the number of reliable base-10 digits in the
-     * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
-     */
-    epsf?: number;
-}
-
 /**
  * Calculate the numerical Jacobian of a vector function `f(x)` using the forward 
  * finite-difference scheme.
@@ -119,7 +104,21 @@ export interface JacobianForwardOptions {
 export function jacobianForward(
     f: (x: Vector) => Vector,
     x: Vector,
-    options: JacobianForwardOptions = {}
+    options: {
+        /** Function values at `x`, if available. */
+        fx?: Vector;
+        /**
+         * Scaling factors for `x`. Ideally, `x[i]*sclx[i]` is close to 1. By
+         * default, the factors are set internally based on the magnitudes of `x`.
+         */
+        sclx?: Vector;
+        /**
+         * Machine precision of the function values. If undefined, machine precision of 64-bit
+         * floating-point type is assumed. If the number of reliable base-10 digits in the
+         * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
+         */
+        epsf?: number;
+    } = {}
 ): Matrix {
     const fx = options.fx ?? f(x);
     const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
@@ -150,4 +149,56 @@ export function jacobianForward(
     }
 
     return jacobian;
+}
+/**
+ * Calculate the numerical derivative of a scalar function using the centered
+ * finite-difference scheme.
+ *
+ * The step size is optimally determined according to the machine precision of
+ * the function values.
+ *
+ * @param f Function to be differentiated.
+ * @param x Differentiation point.
+ * @param options Configuration options for the derivative calculation.
+ * @returns Tuple containing the derivative and mean function value, `(f'(x), f(x))`.
+ *
+ * @example
+ * ```ts
+ * // Evaluate the numerical derivative of f(x) = x**3 at x = 1.
+ * const f = (x: number) => x ** 3;
+ * const [df, fx] = derivativeCentered(f, 1.0);
+ * console.log(df, fx);
+ * ```
+ *
+ * Output:
+ * ```text
+ * 3.0000000000699174 1.0000000002288205
+ * ```
+ */
+export function derivativeCentered(
+    f: ScalarFunction,
+    x: number,
+    options: {
+        /** Machine precision of the function values. */
+        epsf?: number;
+        /** Finite-difference step. If 0, the theoretical optimum is used. */
+        h?: number;
+    } = {}
+): [number, number] {
+    const eps = Number.EPSILON;
+    const epsf = options.epsf !== undefined ? Math.max(options.epsf, eps) : eps;
+    const h0 = Math.cbrt(3 * epsf);
+    let h = options.h ?? 0;
+
+    h = h !== 0 ? Math.max(h, h0) : h0;
+    h *= Math.max(1.0, Math.abs(x));
+
+    const xp = x + h;
+    const xm = x - h;
+    const fp = f(xp);
+    const fm = f(xm);
+    const df = (fp - fm) / (xp - xm);
+    const fx = (fp + fm) / 2.0;
+
+    return [df, fx];
 }
