@@ -1,6 +1,5 @@
 import { Vector } from '../array/Vector.js';
 import { Matrix } from '../array/Matrix.js';
-import type { VectorFunction } from '../types.js';
 
 /**
  * Result of a {@link nelderMead} optimization.
@@ -169,7 +168,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * ```
  */
 export function nelderMead(
-    fn: VectorFunction,
+    fn: (x: Vector) => number,
     x0: number[] | Vector,
     options: NelderMeadOptions = {}
 ): NelderMeadResult {
