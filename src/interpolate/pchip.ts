@@ -111,10 +111,10 @@ export class PchipInterpolator {
     private readonly d: Float64Array; // Precomputed slopes at knots
 
     /**
-     * @param xp The x-coordinates of the data points. Must be
+    * @param xp The `x`-coordinates of the data points. Must be
      * strictly increasing and non-empty. A single point defines a constant
      * interpolant.
-     * @param fp The y-coordinates of the data points. Must have the same
+     * @param fp The `y`-coordinates of the data points. Must have the same
      * length as `xp`.
      * @param options Optional settings; see {@link InterpOptions}. Validation
      * (matching lengths, non-empty, and, unless `options.checkSorted` is
@@ -223,7 +223,7 @@ export class PchipInterpolator {
      * Evaluates the first derivative of the interpolant at `x`.
      * Values outside the data range return `0`, the derivative of the
      * constant clamping regions.
-     * @param x The x-coordinate(s) at which to evaluate. A single
+     * @param x The `x`-coordinate(s) at which to evaluate. A single
      * `number` returns a `number`; a plain array or `Vector` returns an `Vector`.
      * @returns The derivative value(s), matching the shape of `x`.
      */
@@ -243,8 +243,8 @@ export class PchipInterpolator {
      * with `left`/`right` clamp values forming constant rectangular areas
      * outside the `xp` range.
      *
-     * @param a Lower integration bound.
-     * @param b Upper integration bound.
+     * @param a Lower integration bound `a`.
+     * @param b Upper integration bound `b`.
      * @returns The integral of the interpolant over `[a, b]`.
      * @throws {RangeError} If either bound is `NaN`.
      */

@@ -119,9 +119,9 @@ export class LinearInterpolator {
     private readonly rightVal: number;
 
     /**
-     * @param xp The x-coordinates of the data points. Must be
+     * @param xp The `x`-coordinates of the data points. Must be
      * monotonically increasing (duplicates allowed) and non-empty.
-     * @param fp The y-coordinates of the data points. Must have the same
+     * @param fp The `y`-coordinates of the data points. Must have the same
      * length as `xp`.
      * @param options Optional settings; see {@link InterpOptions}. Validation
      * (matching lengths, non-empty, and, unless `options.checkSorted` is
@@ -174,8 +174,8 @@ export class LinearInterpolator {
      * interpolation knots is exact (up to floating-point rounding). Reversed
      * bounds return the negative of the integral with the bounds swapped.
      *
-     * @param a Lower integration bound.
-     * @param b Upper integration bound.
+     * @param a Lower integration bound `a`.
+     * @param b Upper integration bound `b`.
      * @returns The integral of the interpolant over `[a, b]`.
      * @throws {RangeError} If either bound is `NaN`.
      */
@@ -245,12 +245,12 @@ export class LinearInterpolator {
  * `(xp, fp)` pair more than once, construct a `LinearInterpolator` directly to
  * avoid re-validating `xp`/`fp` on every call.
  *
- * @param x The x-coordinate(s) at which to evaluate the interpolated
+ * @param x The `x`-coordinate(s) at which to evaluate the interpolated
  * value(s). A single `number` returns a `number`; a plain array or
  * `Vector` returns an `Vector`.
- * @param xp The x-coordinates of the data points. Must be monotonically
+ * @param xp The `x`-coordinates of the data points. Must be monotonically
  * increasing (duplicates allowed) and non-empty.
- * @param fp The y-coordinates of the data points. Must have the same
+ * @param fp The `y`-coordinates of the data points. Must have the same
  * length as `xp`.
  * @param options Optional settings; see {@link InterpOptions}.
  * @returns The interpolated value(s), matching the shape of `x`.
