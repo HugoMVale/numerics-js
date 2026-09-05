@@ -1,18 +1,18 @@
 import type { RootResult } from './types.js';
 
 /**
- * Finds a root of f using the secant method, starting from two initial guesses.
+ * Finds a root of `f` using the secant method, starting from two initial guesses.
  *
  * Unlike bisection, the secant method does not require a bracketing interval
- * (f(x0) and f(x1) need not have opposite signs), and typically converges
- * faster (superlinear, order ~1.618) when it converges. It is not guaranteed
+ * (`f(x0)` and `f(x1)` need not have opposite signs), and typically converges
+ * faster (superlinear, order `~1.618`) when it converges. It is not guaranteed
  * to converge for all inputs.
  *
  * @param f Function to find a root of.
  * @param x0 First initial guess.
- * @param x1 Second initial guess (should differ from x0).
+ * @param x1 Second initial guess (should differ from `x0`).
  * @param options Tuning options.
- * @param options.tolX Stop when |x1 - x0| (the step size) is below this. Defaults to `1e-8`.
+ * @param options.tolX Stop when `|x1 - x0|` (the step size) is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
  * @throws {Error} If x0 and x1 are equal.

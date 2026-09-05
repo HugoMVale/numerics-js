@@ -1,7 +1,7 @@
 import type { RootResult } from './types.js';
 
 /**
- * Finds a root of `f` in the interval [a, b] using the bisection method.
+ * Finds a root of `f` in the interval `[a, b]` using the bisection method.
  *
  * @param f Continuous function to find a root of.
  * @param a Left endpoint of the bracketing interval.
@@ -10,7 +10,7 @@ import type { RootResult } from './types.js';
  * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
- * @throws {Error} If a and b are equal, or if f(a) and f(b) don't bracket a root.
+ * @throws {Error} If `a` and `b` are equal, or if `f(a)` and `f(b)` don't bracket a root.
  *
  * @example
  * ```ts

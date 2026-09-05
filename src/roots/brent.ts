@@ -2,22 +2,22 @@ import { copysign } from '../math.js';
 import type { RootResult } from './types.js';
 
 /**
- * Finds a root of f using Brent's method, given a bracketing interval.
+ * Finds a root of `f` using Brent's method, given a bracketing interval.
  *
  * Brent's method combines bisection, the secant method, and inverse
  * quadratic interpolation. It is as robust as bisection (guaranteed to
  * converge, given a valid bracket) and typically converges as fast as
  * the secant method.
  *
- * Unlike the secant method, Brent's method requires f(xa) and f(xb) to
- * have opposite signs (i.e. the root must be bracketed by [xa, xb]).
+ * Unlike the secant method, Brent's method requires `f(xa)` and `f(xb)` to
+ * have opposite signs (i.e. the root must be bracketed by `[xa, xb]`).
  *
  * @param f Function to find a root of.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
  * @param options Tuning options.
- * @param options.tolX Stop when the bracket half-width is below this (absolute x tolerance). Defaults to `1e-8`.
- * @param options.tolF Stop when |f(x)| is below this (absolute function-value tolerance). Defaults to `1e-8`.
+ * @param options.tolX Stop when the bracket half-width is below this (absolute `x` tolerance). Defaults to `1e-8`.
+ * @param options.tolF Stop when `|f(x)|` is below this (absolute function-value tolerance). Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
  * @throws {Error} If f(xa) and f(xb) do not have opposite signs.
