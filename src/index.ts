@@ -1,11 +1,12 @@
 export * as array from './array.js';
 export * as integrate from './integrate.js'
 export * as interpolate from './interpolate.js';
+export * as numdiff from './numdiff.js';
 export * as ode from './ode.js';
 export * as optimize from './optimize.js'
 export * as roots from './roots.js';
 export * as special from './special.js';
 export * as math from './math.js';
-export type { ScalarFunction, VectorFunction } from './types.js';
+export type { ScalarFunction } from './types.js';
 
 export const version = '0.1.0';

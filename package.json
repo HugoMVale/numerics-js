@@ -77,6 +77,12 @@
             "browser": "./dist/interpolate.js",
             "import": "./dist/interpolate.js",
             "default": "./dist/interpolate.js"
+        },
+        "./numdiff": {
+            "types": "./dist/numdiff.d.ts",
+            "browser": "./dist/numdiff.js",
+            "import": "./dist/numdiff.js",
+            "default": "./dist/numdiff.js"
         }
     },
     "scripts": {
