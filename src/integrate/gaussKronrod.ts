@@ -140,6 +140,24 @@ export function gaussKronrod15(
  *   subintervals: 16
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * // Integrate a rapidly varying non-polynomial function with an absolute tolerance.
+ * const result = gaussKronrod(x => Math.exp(Math.sin(30 * x)), 0, 1, { tol: 1e-6 });
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   value: 1.2986250022948562,
+ *   error: 7.972504517256285e-7,
+ *   evaluations: 285,
+ *   converged: true,
+ *   subintervals: 10
+ * }
+ * ```
  */
 export function gaussKronrod(
     fn: ScalarFunction,
