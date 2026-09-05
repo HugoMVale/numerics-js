@@ -3,12 +3,6 @@ import { ArrayND } from './arraynd.js';
 /**
  * An N-component vector utilizing Float64Array for performance.
  *
- * Elementwise arithmetic (`add`/`sub`/`mult`/`div` + `Self` variants,
- * `abs`/`pow`/`sqrt`/`clip` + `Self` variants), tolerance comparisons
- * (`isClose`/`allClose`), `normSq`/`norm`/`dot`/`dist`, and `copy`/`fill`
- * are inherited from `ArrayND` unchanged; see that class for their docs.
- * `toArray` is not inherited (its natural shape differs per subclass) and
- * is defined here directly.
  */
 export class Vector extends ArrayND {
     public data: Float64Array;
