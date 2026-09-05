@@ -103,7 +103,7 @@ export function gaussKronrod15(
 }
 
 /**
- * Numerically integrate `fn` over `[a, b]` using adaptive Gauss-Kronrod
+ * Numerically integrate `f` over `[a, b]` using adaptive Gauss-Kronrod
  * (G7-K15) quadrature.
  *
  * This function is suitable for numerically integrating smooth functions over finite 
@@ -111,7 +111,7 @@ export function gaussKronrod15(
  * use {@link quad} instead.
  *
  *
- * @param fn Scalar function `fn` to integrate.
+ * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`.
  * @param b Upper bound of integration `b`.
  * @param options Optional settings.
