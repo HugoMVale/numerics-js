@@ -114,7 +114,7 @@
         "katex": "^0.16.47",
         "typedoc": "^0.28.20",
         "typedoc-material-theme": "^1.4.1",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
         "typescript-eslint": "^8.42.0",
         "vitest": "^3.2.6"
     }
