@@ -94,7 +94,7 @@ def main() -> None:
             }
         )
 
-    out_path = Path(__file__).resolve().parents[2] / "tests" / "array" / "fixtures" / "Matrix.lu.scipy.json"
+    out_path = Path(__file__).resolve().parents[2] / "tests" / "linalg" / "fixtures" / "Matrix.lu.scipy.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")
