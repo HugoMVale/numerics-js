@@ -92,7 +92,8 @@
         "test:watch": "vitest",
         "typecheck": "tsc --noEmit",
         "build": "npm run clean && tsc -p tsconfig.build.json",
-        "docs": "typedoc"
+        "docs": "typedoc",
+        "prepare": "husky"
     },
     "keywords": [
         "numerical-methods",
@@ -107,6 +108,7 @@
         "@types/node": "^26.2.0",
         "@vscode/markdown-it-katex": "^1.1.2",
         "eslint": "^10.10.0",
+        "husky": "^9.1.7",
         "katex": "^0.16.47",
         "typedoc": "^0.28.20",
         "typedoc-material-theme": "^1.4.1",
