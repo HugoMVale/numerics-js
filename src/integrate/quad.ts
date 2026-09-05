@@ -30,13 +30,13 @@ export interface QuadOptions {
 }
 
 /** 
- * Defines a variable substitution mapping t -> x to handle infinite domains. 
+ * Defines a variable substitution mapping `t -> x` to handle infinite domains.
  * @internal 
  */
 interface Transformation {
-    /** Maps integration variable t to the original variable x, returning x and dx/dt. */
+    /** Maps integration variable `t` to the original variable `x`, returning `x` and `dx/dt`. */
     mapTtoX: (t: number) => { x: number; dxDt: number };
-    /** Inverse mapping from x to t, used to translate user-provided breakpoints. */
+    /** Inverse mapping from `x` to `t`, used to translate user-provided breakpoints. */
     mapXtoT: (x: number) => number;
     tMin: number;
     tMax: number;
@@ -89,7 +89,7 @@ function getFullyInfiniteTransform(): Transformation {
 }
 
 /**
- * Numerically integrate `fn` over [`a`, `b`] using adaptive quadrature.
+ * Numerically integrate `fn` over `[a, b]` using adaptive quadrature.
  * 
  * This function serves as a general-purpose integrator. It natively supports
  * infinite integration limits (`Infinity` and `-Infinity`). It also 
@@ -99,9 +99,9 @@ function getFullyInfiniteTransform(): Transformation {
  * Within each interval, the integration is performed using the Gauss-Kronrod (G7-K15)
  * adaptive rule.
  *
- * @param fn Scalar function to integrate.
- * @param a Lower bound of integration. Can be `-Infinity`.
- * @param b Upper bound of integration. Can be `Infinity`.
+ * @param fn Scalar function `fn` to integrate.
+ * @param a Lower bound of integration `a`. Can be `-Infinity`.
+ * @param b Upper bound of integration `b`. Can be `Infinity`.
  * @param options Optional settings including error tolerance and breakpoints.
  * @returns Quadrature output including aggregated value, error, and diagnostics.
  * @throws {RangeError} If `a` or `b` are `NaN`.
@@ -163,7 +163,7 @@ function getFullyInfiniteTransform(): Transformation {
  * ```
  */
 export function quad(
-    fn: (x: number) => number,
+    f: (x: number) => number,
     a: number,
     b: number,
     options: QuadOptions = {}
@@ -192,7 +192,7 @@ export function quad(
 
     let tA = lo;
     let tB = hi;
-    let targetFn = fn;
+    let targetF = f;
 
     let validBreakpoints = breakpoints.filter(bp => Number.isFinite(bp) && bp > lo && bp < hi);
 
@@ -200,9 +200,9 @@ export function quad(
         tA = transform.tMin;
         tB = transform.tMax;
 
-        targetFn = (t: number) => {
+        targetF = (t: number) => {
             const { x, dxDt } = transform!.mapTtoX(t);
-            return fn(x) * dxDt;
+            return f(x) * dxDt;
         };
 
         validBreakpoints = validBreakpoints.map(transform.mapXtoT);
@@ -221,7 +221,7 @@ export function quad(
         const p1 = points[i];
         const p2 = points[i + 1];
 
-        const res = gaussKronrod(targetFn, p1, p2, gkOptions);
+        const res = gaussKronrod(targetF, p1, p2, gkOptions);
 
         totalValue += res.value;
         totalError += res.error;

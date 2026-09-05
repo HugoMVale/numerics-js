@@ -64,8 +64,8 @@ interface Panel {
  * @internal
  *
  * @param evalF Instrumented function evaluator.
- * @param a Lower limit of integration.
- * @param b Upper limit of integration.
+ * @param a Lower limit of integration `a`.
+ * @param b Upper limit of integration `b`.
  * @returns Local quadrature estimates and estimated local error.
  */
 export function gaussKronrod15(
@@ -103,7 +103,7 @@ export function gaussKronrod15(
 }
 
 /**
- * Numerically integrate `f` over [`a`, `b`] using adaptive Gauss-Kronrod
+ * Numerically integrate `fn` over `[a, b]` using adaptive Gauss-Kronrod
  * (G7-K15) quadrature.
  *
  * This function is suitable for numerically integrating smooth functions over finite 
@@ -111,9 +111,9 @@ export function gaussKronrod15(
  * use {@link quad} instead.
  *
  *
- * @param fn Scalar function to integrate.
- * @param a Lower bound of integration.
- * @param b Upper bound of integration.
+ * @param fn Scalar function `fn` to integrate.
+ * @param a Lower bound of integration `a`.
+ * @param b Upper bound of integration `b`.
  * @param options Optional settings.
  * @param options.tol Absolute error tolerance for the whole interval. Defaults to `1e-8`.
  * @param options.maxSubintervals Safety limit on panel count. Defaults to `200`.
@@ -158,7 +158,7 @@ export function gaussKronrod15(
  * ```
  */
 export function gaussKronrod(
-    fn: (x: number) => number,
+    f: (x: number) => number,
     a: number,
     b: number,
     options: {
@@ -182,7 +182,7 @@ export function gaussKronrod(
     let evaluations = 0;
     const evalF = (x: number): number => {
         evaluations++;
-        const y = fn(x);
+        const y = f(x);
         if (!Number.isFinite(y)) {
             throw new Error(`gaussKronrod: f(${x}) returned a non-finite value (${y}); cannot integrate.`);
         }

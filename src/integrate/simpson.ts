@@ -44,7 +44,7 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
  * (which need not be uniform). Otherwise, samples are assumed to be
  * spaced `dx` apart. 
  *
- * @param y Sample values to integrate. Must have `size >= 0`.
+ * @param y Sample values `y` to integrate. Must have `size >= 0`.
  * @param x Optional sample locations, same `size` as `y`. If omitted,
  * uniform spacing of `dx` is assumed.
  * @param dx Spacing between samples, used only when `x` is omitted.
