@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { interp, LinearInterpolator } from '../../src/interpolate/interp1.js';
-import { Vector } from '../../src/array/Vector.js';
+import { Vector } from '../../src/linalg/Vector.js';
 
 describe('interp', () => {
     const xp = [1, 2, 3];

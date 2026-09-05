@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Vector } from '../../src/array/Vector.js';
+import { Vector } from '../../src/linalg/Vector.js';
 import { trapezoid } from '../../src/integrate/trapezoid.js';
 
 describe('trapz', () => {

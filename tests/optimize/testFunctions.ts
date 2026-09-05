@@ -1,4 +1,4 @@
-import { Vector } from '../../src/array/Vector.js';
+import { Vector } from '../../src/linalg/Vector.js';
 
 /**
  * Multivariate test functions commonly used in optimize benchmarks.

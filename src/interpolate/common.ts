@@ -1,4 +1,4 @@
-import { Vector } from '../array/Vector.js';
+import { Vector } from '../linalg/Vector.js';
 
 /**
  * Options controlling out-of-range clamping and input validation for interpolation methods.

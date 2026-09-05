@@ -1,5 +1,5 @@
-import type { Vector } from '../array/Vector.js';
-import type { Matrix } from '../array/Matrix.js';
+import type { Vector } from '../linalg/Vector.js';
+import type { Matrix } from '../linalg/Matrix.js';
 
 /** Derivative function that writes its result into the provided `dydt` buffer to avoid allocation. */
 export type DerivativeFunction = (t: number, y: Vector, dydt: Vector) => Vector;

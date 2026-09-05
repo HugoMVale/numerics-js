@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Vec3 } from '../../src/array/vec3.js';
+import { Vec3 } from '../../src/linalg/vec3.js';
 
 describe('Vec3', () => {
     it('initializes with default values or provided components', () => {

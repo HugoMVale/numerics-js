@@ -1,5 +1,5 @@
-import { Vector } from '../array/Vector.js';
-import { Matrix } from '../array/Matrix.js';
+import { Vector } from '../linalg/Vector.js';
+import { Matrix } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
 

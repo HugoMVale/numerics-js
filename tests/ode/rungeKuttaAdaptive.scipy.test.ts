@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Vector } from '../../src/array/Vector.js';
+import { Vector } from '../../src/linalg/Vector.js';
 import { rungeKuttaAdaptive } from '../../src/ode/rungeKuttaAdaptive.js';
 import type { DerivativeFunction, RungeKuttaAdaptiveMethod } from '../../src/ode/types.js';
 import fixtures from './fixtures/rungeKuttaAdaptive.scipy.json' with { type: 'json' };

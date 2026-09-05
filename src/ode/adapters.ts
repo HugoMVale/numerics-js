@@ -1,4 +1,4 @@
-import type { Vector } from '../array/Vector.js';
+import type { Vector } from '../linalg/Vector.js';
 import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.js';
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Vector } from '../../src/array/Vector.js';
+import { Vector } from '../../src/linalg/Vector.js';
 
 describe('Vector', () => {
     it('initializes and handles Float64Array data', () => {

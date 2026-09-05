@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Vector } from '../../src/array/Vector.js';
+import { Vector } from '../../src/linalg/Vector.js';
 import { rungeKuttaFixed, rungeKuttaStep, type RungeKuttaMethod } from '../../src/ode/rungeKuttaFixed.js';
 import type { DerivativeFunction } from '../../src/ode/types.js';
 

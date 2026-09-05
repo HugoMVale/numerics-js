@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PchipInterpolator } from '../../src/interpolate/pchip.js';
-import { Vector } from '../../src/array/Vector.js';
+import { Vector } from '../../src/linalg/Vector.js';
 
 describe('PchipInterpolator', () => {
     it('produces the values shown in its documentation example', () => {

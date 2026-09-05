@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Vector } from '../../src/array/Vector.js';
-import { Matrix, type Eigenvalue } from '../../src/array/Matrix.js';
+import { Vector } from '../../src/linalg/Vector.js';
+import { Matrix, type Eigenvalue } from '../../src/linalg/Matrix.js';
 
 /**
  * Sorts eigenvalues by real part then imaginary part, for

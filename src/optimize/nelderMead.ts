@@ -1,5 +1,5 @@
-import { Vector } from '../array/Vector.js';
-import { Matrix } from '../array/Matrix.js';
+import { Vector } from '../linalg/Vector.js';
+import { Matrix } from '../linalg/Matrix.js';
 
 /**
  * Result of a {@link nelderMead} optimization.

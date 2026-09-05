@@ -1,4 +1,4 @@
-import { Vector } from '../array/Vector.js';
+import { Vector } from '../linalg/Vector.js';
 import { trapezoid } from './trapezoid.js';
 
 /**

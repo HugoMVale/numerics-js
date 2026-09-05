@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Vector } from '../../src/array/Vector.js';
-import { Matrix } from '../../src/array/Matrix.js';
+import { Vector } from '../../src/linalg/Vector.js';
+import { Matrix } from '../../src/linalg/Matrix.js';
 import { nelderMead } from '../../src/optimize/nelderMead.js';
 import { TEST_FUNCTIONS_MULTIVAR } from './testFunctions.js';
 

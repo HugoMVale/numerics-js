@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Vector } from '../src/array/Vector.js';
-import { Matrix } from '../src/array/Matrix.js';
+import { Vector } from '../src/linalg/Vector.js';
+import { Matrix } from '../src/linalg/Matrix.js';
 import { scaleVector, jacobianForward } from '../src/numdiff.js';
 
 describe('scaleX', () => {
