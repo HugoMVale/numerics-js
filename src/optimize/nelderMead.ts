@@ -140,7 +140,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  *   Adaptive Parameters. Comput. Optim. Appl. 2012, 51, 259-277.
  *
  *
- * @param fn Objective function to minimize.
+ * @param f Objective function to minimize.
  * @param x0 Initial guess for the optimum. If no user-defined `scale` is
  * provided, the scaling factors will be determined from this value.
  * @param options Optional settings; see {@link NelderMeadOptions}.
@@ -149,10 +149,10 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * @example
  * ```ts
  * // Find the minimum of f(x) = (x0-100)^2 + (x1-1e10)^2
- * const fn = (x: Vector): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
- * const result = nelderMead(fn, [1, 1e8]);
+ * const f = (x: Vector): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
+ * const result = nelderMead(f, [1, 1e8]);
  * // or, with explicit options:
- * // const result = nelderMead(fn, [1, 1e8], { tolX: 1e-10, adaptive: false });
+ * // const result = nelderMead(f, [1, 1e8], { tolX: 1e-10, adaptive: false });
  * console.log(result);
  * ```
  *
@@ -168,7 +168,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * ```
  */
 export function nelderMead(
-    fn: (x: Vector) => number,
+    f: (x: Vector) => number,
     x0: number[] | Vector,
     options: NelderMeadOptions = {}
 ): NelderMeadResult {
@@ -224,7 +224,7 @@ export function nelderMead(
     // Evaluate the function at the simplex vertices
     const fx = new Vector(n + 1);
     for (let k = 0; k <= n; k++) {
-        fx.data[k] = fn(x.row(k));
+        fx.data[k] = f(x.row(k));
     }
     let nFev = n + 1;
 
@@ -294,7 +294,7 @@ export function nelderMead(
 
         // Reflection
         const xr = xc.copy().multSelf(1 + a).addScaled(xWorst, -a);
-        const fr = fn(xr);
+        const fr = f(xr);
         nFev++;
 
         let doShrink = false;
@@ -303,7 +303,7 @@ export function nelderMead(
             fx.data[imax] = fr;
         } else if (fr < fmin) {
             const xe = xc.copy().multSelf(1 + a * b).addScaled(xWorst, -a * b);
-            const fe = fn(xe);
+            const fe = f(xe);
             nFev++;
             if (fe < fr) {
                 x.setRow(imax, xe);
@@ -314,7 +314,7 @@ export function nelderMead(
             }
         } else if (fmax2 <= fr && fr < fmax) {
             const xoc = xc.copy().multSelf(1 + a * c).addScaled(xWorst, -a * c);
-            const foc = fn(xoc);
+            const foc = f(xoc);
             nFev++;
             if (foc <= fr) {
                 x.setRow(imax, xoc);
@@ -324,7 +324,7 @@ export function nelderMead(
             }
         } else {
             const xic = xc.copy().multSelf(1 - a * c).addScaled(xWorst, a * c);
-            const fic = fn(xic);
+            const fic = f(xic);
             nFev++;
             if (fic < fmax) {
                 x.setRow(imax, xic);
@@ -339,7 +339,7 @@ export function nelderMead(
                 if (k === imin) continue;
                 const xs = x.row(k).multSelf(d).addScaled(xmin, 1 - d);
                 x.setRow(k, xs);
-                fx.data[k] = fn(xs);
+                fx.data[k] = f(xs);
                 nFev++;
             }
         }

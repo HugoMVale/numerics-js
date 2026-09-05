@@ -1,4 +1,3 @@
-import type { ScalarFunction } from '../types.js';
 import { copysign } from '../math.js';
 
 /**
@@ -28,7 +27,7 @@ export interface BrentOptions {
 }
 
 /**
- * Finds a local minimum of fn using Brent's method, given a bracketing interval.
+ * Finds a local minimum of f using Brent's method, given a bracketing interval.
  *
  * Brent's method is a derivative-free optimize algorithm that combines
  * golden-section search with inverse parabolic interpolation. It maintains a
@@ -43,7 +42,7 @@ export interface BrentOptions {
  * across the benchmark problems; see `tests/optimize/brent.scipy.benchmark.md`
  * for the comparison table.
  *
- * @param fn Function to minimize.
+ * @param f Function to minimize.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
  * @param options Optional settings.
@@ -70,7 +69,7 @@ export interface BrentOptions {
  * ```
  */
 export function brent(
-    fn: ScalarFunction,
+    f: (x: number) => number,
     xa: number,
     xb: number,
     options: BrentOptions = {}
@@ -88,7 +87,7 @@ export function brent(
     let v = x;
     let w = x;
 
-    let fx = fn(x);
+    let fx = f(x);
     let fv = fx;
     let fw = fx;
     let nFev = 1;
@@ -149,7 +148,7 @@ export function brent(
 
         // Numerical safety: ensure step is at least tol1
         const u = Math.abs(d) >= tol1 ? x + d : x + copysign(tol1, d);
-        const fu = fn(u);
+        const fu = f(u);
         nFev++;
 
         // Update points

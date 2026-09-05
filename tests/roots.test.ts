@@ -42,8 +42,8 @@ describe('bisection', () => {
         expect(() => bisection(f, 1, 1)).toThrow('bisection: a and b must be different');
     });
 
-    it('should throw an error if fn(a) and fn(b) have the same sign', () => {
-        expect(() => bisection(f, 3, 5)).toThrow('bisection: fn(a) and fn(b) must have opposite signs');
+    it('should throw an error if f(a) and f(b) have the same sign', () => {
+        expect(() => bisection(f, 3, 5)).toThrow('bisection: f(a) and f(b) must have opposite signs');
     });
 
     it('should return mid with success false if maxIter is reached without convergence', () => {
@@ -137,9 +137,9 @@ describe('brent', () => {
         expect(result.evaluations).toBe(2);
     });
 
-    it('should throw an error if fn(xa) and fn(xb) have the same sign', () => {
+    it('should throw an error if f(xa) and f(xb) have the same sign', () => {
         expect(() => brent(f, 3, 5)).toThrow(
-            'brent: root is not bracketed (fn(xa) and fn(xb) must have opposite signs)'
+            'brent: root is not bracketed (f(xa) and f(xb) must have opposite signs)'
         );
     });
 
