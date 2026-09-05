@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { array, integrate, interpolate, math, ode, optimize, roots, special } from '../src/index.js';
+import { array, integrate, interpolate, math, numdiff, ode, optimize, roots, special } from '../src/index.js';
 
 describe('public API', () => {
     it('exports the main numerical library modules', () => {
@@ -16,6 +16,9 @@ describe('public API', () => {
         expect(typeof math.clip).toBe('function');
         expect(typeof math.copysign).toBe('function');
         expect(typeof math.isClose).toBe('function');
+        expect(typeof numdiff.derivativeCentered).toBe('function');
+        expect(typeof numdiff.jacobianForward).toBe('function');
+        expect(typeof numdiff.scaleVector).toBe('function');
         expect(typeof special.bessel.J).toBe('function');
         expect(typeof special.bessel.getZero).toBe('function');
         expect(typeof roots.bisection).toBe('function');
@@ -40,7 +43,7 @@ describe('public API', () => {
             default: './dist/index.js',
         });
 
-        for (const moduleName of ['array', 'integrate', 'interpolate', 'math', 'ode', 'optimize', 'roots', 'special']) {
+        for (const moduleName of ['array', 'integrate', 'interpolate', 'math', 'numdiff', 'ode', 'optimize', 'roots', 'special']) {
             expect(pkg.exports[`./${moduleName}`]).toMatchObject({
                 types: `./dist/${moduleName}.d.ts`,
                 browser: `./dist/${moduleName}.js`,
