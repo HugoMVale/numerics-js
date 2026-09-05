@@ -5,29 +5,17 @@ import { Matrix } from "../linalg/Matrix.js";
  * Represents the results of a line search iteration.
  */
 export interface LineSearchResult {
-    /** 
-     * Indicates whether the line search successfully found a step satisfying the Armijo condition. 
-     */
+    /** Indicates whether the line search successfully found a step satisfying the Armijo condition. */
     success: boolean;
-    /** 
-     * True if the step taken was the maximum allowed step size (`maxLen`) on the first iteration. 
-     */
+    /** True if the step taken was the maximum allowed step size (`maxLen`) on the first iteration. */
     isMaxStep: boolean;
-    /** 
-     * The total number of objective function evaluations performed during the search. 
-     */
+    /** The total number of objective function evaluations performed during the search. */
     nfEval: number;
-    /** 
-     * The updated variable vector after taking the step. 
-     */
+    /** The updated variable vector after taking the step. */
     xp: Vector;
-    /** 
-     * The objective function value evaluated at the new vector `xp`. 
-     */
+    /** The objective function value evaluated at the new vector `xp`. */
     fp: number;
-    /** 
-     * The vector root function value at `xp` (only populated if the objective function returns a tuple). 
-     */
+    /** The vector root function value at `xp` (only populated if the objective function returns a tuple). */
     Fp: Vector;
 }
 
