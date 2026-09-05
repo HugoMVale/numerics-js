@@ -176,9 +176,6 @@ export function brent(
         }
     }
 
-    console.warn(
-        `brent: reached maxIter (${maxIter}) without converging to tolerance ${tolX}`
-    );
     return {
         success: false,
         message: `Maximum number of iterations (${maxIter}) reached.`,
