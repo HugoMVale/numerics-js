@@ -133,6 +133,79 @@ export class Matrix extends ArrayND {
         return this._cols;
     }
 
+    // -----------------------------------------------------------------
+    // Structural predicates. All default to `tol = 0` (exact), matching
+    // `lu()`/`determinant()`'s "exact zero only" convention — pass a
+    // small positive `tol` when checking a matrix built by floating-point
+    // computation (e.g. the `R` from `qr()`/`qrUpdate()`), whose
+    // off-triangle entries are typically tiny-but-nonzero rather than
+    // exactly `0`.
+    // -----------------------------------------------------------------
+
+    /**
+     * Checks whether this matrix is square (`rows === cols`).
+     * @returns `true` if `rows === cols`.
+     */
+    isSquare(): boolean {
+        return this.rows === this.cols;
+    }
+
+    /**
+     * Checks whether this matrix equals its own transpose, i.e.
+     * `this[i][j] === this[j][i]` for every `i`, `j`. Always `false` for a
+     * non-square matrix (transposing would change its shape, so it can
+     * never equal itself).
+     * @param tol Absolute tolerance: a pair `(i, j)`/`(j, i)` counts as
+     * equal if `|this[i][j] - this[j][i]| <= tol`. Defaults to `0` (exact).
+     * @returns `true` if this matrix is symmetric within `tol`.
+     */
+    isSymmetric(tol: number = 0): boolean {
+        if (!this.isSquare()) return false;
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = i + 1; j < this.cols; j++) {
+                if (Math.abs(this._get(i, j) - this._get(j, i)) > tol) return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether this matrix is lower triangular: every entry strictly
+     * above the main diagonal (`j > i`) is zero. Unlike `isSymmetric()`,
+     * this doesn't require a square matrix — a wide or tall matrix can
+     * still satisfy "zero above the diagonal" (a trapezoidal shape), the
+     * same generalization `qr()` relies on for `R` when `rows !== cols`.
+     * @param tol Absolute tolerance: an entry above the diagonal counts as
+     * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
+     * @returns `true` if every entry above the main diagonal is zero within `tol`.
+     */
+    isLowerTriangular(tol: number = 0): boolean {
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = i + 1; j < this.cols; j++) {
+                if (Math.abs(this._get(i, j)) > tol) return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether this matrix is upper triangular (or, for a
+     * non-square matrix, upper trapezoidal): every entry strictly below
+     * the main diagonal (`i > j`) is zero. This is the shape `qr()`
+     * guarantees for its `R` factor, including when `rows !== cols`.
+     * @param tol Absolute tolerance: an entry below the diagonal counts as
+     * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
+     * @returns `true` if every entry below the main diagonal is zero within `tol`.
+     */
+    isUpperTriangular(tol: number = 0): boolean {
+        for (let i = 1; i < this.rows; i++) {
+            for (let j = 0; j < Math.min(i, this.cols); j++) {
+                if (Math.abs(this._get(i, j)) > tol) return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Throws if `other` is not shape-compatible with this instance: for
      * Matrix, "compatible" means the same `rows` *and* `cols` — matching

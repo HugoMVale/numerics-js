@@ -61,13 +61,6 @@ function eigNorm(pair: Eigenpair): number {
     return Math.sqrt(sum);
 }
 
-/** Asserts that `R` is upper triangular/trapezoidal: all-zero strictly below the diagonal. */
-function expectUpperTriangular(R: Matrix): void {
-    for (let i = 1; i < R.rows; i++) {
-        for (let j = 0; j < Math.min(i, R.cols); j++) expect(R.get(i, j)).toBeCloseTo(0);
-    }
-}
-
 describe('Matrix', () => {
     it('enforces 0-based indexing for get and set', () => {
         const m: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
@@ -349,7 +342,7 @@ describe('Matrix', () => {
 
             expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
             expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
-            expectUpperTriangular(R);
+            expect(R.isUpperTriangular(1e-9)).toBe(true);
         });
 
         it('updates a tall (rows > cols) QR decomposition, keeping Q square and R trapezoidal', () => {
@@ -370,7 +363,7 @@ describe('Matrix', () => {
             expect(R.cols).toBe(2);
             expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
             expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
-            expectUpperTriangular(R);
+            expect(R.isUpperTriangular(1e-9)).toBe(true);
         });
 
         it('updates a wide (rows < cols) QR decomposition', () => {
@@ -390,7 +383,7 @@ describe('Matrix', () => {
             expect(R.cols).toBe(3);
             expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
             expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), 1e-9)).toBe(true);
-            expectUpperTriangular(R);
+            expect(R.isUpperTriangular(1e-9)).toBe(true);
         });
 
         it('qrUpdateSelf mutates Q and R in place and returns the same object, for chaining', () => {
@@ -451,7 +444,7 @@ describe('Matrix', () => {
 
             expect(qr.Q.matmul(qr.R).allClose(expected, 1e-9)).toBe(true);
             expect(qr.Q.transpose().matmul(qr.Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
-            expectUpperTriangular(qr.R);
+            expect(qr.R.isUpperTriangular(1e-9)).toBe(true);
         });
 
         it('leaves the factorization unchanged when updating with a zero vector', () => {
@@ -1448,6 +1441,120 @@ describe('Matrix', () => {
             const tall = Matrix.from([[1, 2], [3, 4], [5, 6]]);
             expect(tall.normInf()).toBe(11); // row sums: 3, 7, 11
             expect(tall.norm1()).toBe(12); // col sums: 9, 12
+        });
+    });
+
+    describe('isSquare()', () => {
+        it('is true for a square matrix and false for a rectangular one', () => {
+            expect(new Matrix(3, 3).isSquare()).toBe(true);
+            expect(new Matrix(3, 4).isSquare()).toBe(false);
+            expect(new Matrix(4, 3).isSquare()).toBe(false);
+        });
+
+        it('is true for the trivial 1x1 case', () => {
+            expect(new Matrix(1, 1).isSquare()).toBe(true);
+        });
+    });
+
+    describe('isSymmetric()', () => {
+        it('is true for a symmetric matrix', () => {
+            const m = Matrix.from([
+                [1, 2, 3],
+                [2, 5, 6],
+                [3, 6, 9],
+            ]);
+            expect(m.isSymmetric()).toBe(true);
+        });
+
+        it('is false when any off-diagonal pair differs', () => {
+            const m = Matrix.from([
+                [1, 2, 3],
+                [2, 5, 6],
+                [3, 7, 9], // (1,2)=6 vs (2,1)=7
+            ]);
+            expect(m.isSymmetric()).toBe(false);
+        });
+
+        it('is false for a non-square matrix, regardless of tol', () => {
+            const m = new Matrix(2, 3);
+            expect(m.isSymmetric()).toBe(false);
+            expect(m.isSymmetric(1e9)).toBe(false);
+        });
+
+        it('is true for the trivial 1x1 case', () => {
+            expect(Matrix.from([[5]]).isSymmetric()).toBe(true);
+        });
+
+        it('defaults to exact equality, but accepts a tolerance for near-symmetric matrices', () => {
+            const m = Matrix.from([
+                [1, 2],
+                [2 + 1e-6, 1],
+            ]);
+            expect(m.isSymmetric()).toBe(false);
+            expect(m.isSymmetric(1e-5)).toBe(true);
+        });
+    });
+
+    describe('isLowerTriangular() and isUpperTriangular()', () => {
+        it('isLowerTriangular() is true when every entry above the diagonal is zero', () => {
+            const m = Matrix.from([
+                [1, 0, 0],
+                [2, 3, 0],
+                [4, 5, 6],
+            ]);
+            expect(m.isLowerTriangular()).toBe(true);
+            expect(m.isUpperTriangular()).toBe(false);
+        });
+
+        it('isUpperTriangular() is true when every entry below the diagonal is zero', () => {
+            const m = Matrix.from([
+                [1, 2, 3],
+                [0, 4, 5],
+                [0, 0, 6],
+            ]);
+            expect(m.isUpperTriangular()).toBe(true);
+            expect(m.isLowerTriangular()).toBe(false);
+        });
+
+        it('a diagonal matrix is both lower and upper triangular', () => {
+            const m = Matrix.diag(Vector.from([1, 2, 3]));
+            expect(m.isLowerTriangular()).toBe(true);
+            expect(m.isUpperTriangular()).toBe(true);
+        });
+
+        it('generalizes to trapezoidal shapes on non-square matrices', () => {
+            const tall = Matrix.from([
+                [1, 2],
+                [0, 3],
+                [0, 0],
+            ]);
+            expect(tall.isUpperTriangular()).toBe(true);
+
+            const wide = Matrix.from([
+                [1, 0, 0],
+                [2, 3, 0],
+            ]);
+            expect(wide.isLowerTriangular()).toBe(true);
+        });
+
+        it('rejects a single nonzero entry on the wrong side of the diagonal', () => {
+            const m = Matrix.from([
+                [1, 0],
+                [0.001, 1],
+            ]);
+            expect(m.isUpperTriangular()).toBe(false);
+            expect(m.isUpperTriangular(0.001)).toBe(true);
+            expect(m.isUpperTriangular(0.0001)).toBe(false);
+        });
+
+        it('is upper/lower triangular for QR results, within floating-point tolerance', () => {
+            const a = Matrix.from([
+                [12, -51, 4],
+                [6, 167, -68],
+                [-4, 24, -41],
+            ]);
+            const { R } = a.qr();
+            expect(R.isUpperTriangular(1e-9)).toBe(true);
         });
     });
 });
