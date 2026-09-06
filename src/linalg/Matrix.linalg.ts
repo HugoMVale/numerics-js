@@ -4,26 +4,16 @@ import { Vector } from './Vector.js';
 // =======================================================================
 // Matrix.linalg.ts
 //
-// The "heavy" linear-algebra algorithms — factorizations, linear-system
-// solves, and eigendecomposition — split out of Matrix.ts so that class
-// file stays focused on Matrix as a container, and so a bundler can drop
-// this (comparatively large) code for consumers who only ever construct,
-// slice, and do elementwise arithmetic on matrices.
+// Linear-algebra algorithms for Matrix, including factorizations, linear
+// system solves, rank and determinant calculations, QR updates, and
+// eigendecomposition. Matrix instance and static methods delegate to the
+// exported functions in this module; the remaining helpers are private
+// implementation details.
 //
-// This module is implementation detail: `Matrix`'s instance methods
-// (`rank()`, `lu()`, `qr()`, `eig()`, etc.) are still the public API and
-// remain on the class as thin forwarders to the functions below, so
-// calling code is unaffected by this split — `a.qr()` still works exactly
-// as before. Only functions meant to back one of those public methods (or
-// `Matrix.qrUpdateSelf`/`Matrix.qrUpdate`, which are static rather than
-// instance methods) are exported; every other helper here is private to
-// this module.
-//
-// Because these functions operate on arbitrary `Matrix` instances (not
-// just "this"), they rely on `Matrix`'s unchecked `getUnchecked`/`setUnchecked`/`flatIndex`
-// accessors, which are `public` (not `private`) for exactly this reason —
-// see their docs on the class for the same "not really public API"
-// caveat that already applies to `Matrix.wrapUnchecked`.
+// The algorithms operate on arbitrary Matrix instances and use the
+// unchecked getUnchecked, setUnchecked, and flatIndex accessors in their
+// inner loops. These accessors are public for this internal cooperation,
+// but callers should use Matrix's checked API instead.
 // =======================================================================
 
 /**
