@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../src/linalg/Vector.js';
 import { Matrix } from '../src/linalg/Matrix.js';
-import { scaleVector, jacobianForward } from '../src/numdiff.js';
+import { scaleVector, jacobianForward, derivativeCentered } from '../src/numdiff.js';
 
 describe('scaleX', () => {
     it('generates an array of ones for a zero vector', () => {
@@ -47,5 +47,29 @@ describe('jacobianForward', () => {
 
         // Utilizing Matrix.allClose with a relative tolerance (rtol) of 1e-6
         expect(jacobian.allClose(expectedMatrix, 1e-6)).toBe(true);
+    });
+});
+
+describe('derivativeCentered', () => {
+    const square = (x: number): number => x * x;
+
+    it('uses the automatic step when h is omitted', () => {
+        const [derivative] = derivativeCentered(square, 2.0);
+
+        expect(derivative).toBeCloseTo(4.0, 8);
+    });
+
+    it('throws when h is explicitly zero', () => {
+        expect(() => derivativeCentered(square, 2.0, { h: 0 })).toThrow(RangeError);
+    });
+
+    it('uses a supplied nonzero step without replacing it', () => {
+        const evaluationPoints: number[] = [];
+        derivativeCentered((x) => {
+            evaluationPoints.push(x);
+            return square(x);
+        }, 0.0, { h: 1e-12 });
+
+        expect(evaluationPoints).toEqual([1e-12, -1e-12]);
     });
 });
