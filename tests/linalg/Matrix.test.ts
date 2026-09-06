@@ -1244,4 +1244,167 @@ describe('Matrix', () => {
         const rows = [...m].map(r => r.toArray());
         expect(rows).toEqual([[1, 2], [3, 4]]);
     });
+
+    describe('map()', () => {
+        it('applies a function elementwise, passing the value and (row, col) indices', () => {
+            const m: Matrix = new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+            const seen: Array<[number, number, number]> = [];
+            const doubled = m.map((v, i, j) => {
+                seen.push([v, i, j]);
+                return v * 2;
+            });
+            expect(doubled.toArray()).toEqual([
+                [2, 4, 6],
+                [8, 10, 12],
+            ]);
+            expect(seen).toEqual([
+                [1, 0, 0], [2, 0, 1], [3, 0, 2],
+                [4, 1, 0], [5, 1, 1], [6, 1, 2],
+            ]);
+        });
+
+        it('returns a new matrix, leaving the original untouched', () => {
+            const m: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
+            const mapped = m.map(v => v + 100);
+            expect(m.toArray()).toEqual([[1, 2], [3, 4]]);
+            expect(mapped.toArray()).toEqual([[101, 102], [103, 104]]);
+            expect(mapped).not.toBe(m);
+        });
+
+        it('can use the row/col indices to build position-dependent values', () => {
+            const m: Matrix = new Matrix(3, 3);
+            const idx = m.map((_v, i, j) => i * 10 + j);
+            expect(idx.toArray()).toEqual([
+                [0, 1, 2],
+                [10, 11, 12],
+                [20, 21, 22],
+            ]);
+        });
+    });
+
+    describe('diag()', () => {
+        it('extracts the main diagonal of a square matrix as a vector', () => {
+            const m: Matrix = new Matrix(3, 3, [
+                1, 2, 3,
+                4, 5, 6,
+                7, 8, 9,
+            ]);
+            expect(m.diag().toArray()).toEqual([1, 5, 9]);
+        });
+
+        it('extracts min(rows, cols) entries from a non-square matrix', () => {
+            const tall: Matrix = new Matrix(3, 2, [1, 2, 3, 4, 5, 6]);
+            expect(tall.diag().toArray()).toEqual([1, 4]);
+
+            const wide: Matrix = new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+            expect(wide.diag().toArray()).toEqual([1, 5]);
+        });
+
+        it('returns an independent copy, not a view into the matrix', () => {
+            const m: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
+            const d = m.diag();
+            d.set(0, 999);
+            expect(m.get(0, 0)).toBe(1);
+        });
+    });
+
+    describe('Matrix.diag()', () => {
+        it('builds a diagonal matrix from a vector', () => {
+            const v = Vector.from([1, 2, 3]);
+            expect(Matrix.diag(v).toArray()).toEqual([
+                [1, 0, 0],
+                [0, 2, 0],
+                [0, 0, 3],
+            ]);
+        });
+
+        it('is the inverse of the instance method diag() for a square matrix', () => {
+            const m: Matrix = new Matrix(3, 3, [
+                1, 2, 3,
+                4, 5, 6,
+                7, 8, 9,
+            ]);
+            expect(Matrix.diag(m.diag()).toArray()).toEqual([
+                [1, 0, 0],
+                [0, 5, 0],
+                [0, 0, 9],
+            ]);
+        });
+
+        it('matches identity(n) when built from a vector of ones', () => {
+            expect(Matrix.diag(Vector.ones(3)).toArray()).toEqual(Matrix.identity(3).toArray());
+        });
+
+        it('throws when given an empty vector', () => {
+            expect(() => Matrix.diag(new Vector(0))).toThrowError(RangeError);
+        });
+    });
+
+    describe('Matrix.hstack()', () => {
+        it('glues matrices side by side, growing the column count', () => {
+            const a = Matrix.from([[1, 2], [3, 4]]);
+            const b = Matrix.from([[5], [6]]);
+            expect(Matrix.hstack([a, b]).toArray()).toEqual([
+                [1, 2, 5],
+                [3, 4, 6],
+            ]);
+        });
+
+        it('concatenates more than two matrices, in order', () => {
+            const a = Matrix.from([[1], [2]]);
+            const b = Matrix.from([[3], [4]]);
+            const c = Matrix.from([[5], [6]]);
+            expect(Matrix.hstack([a, b, c]).toArray()).toEqual([
+                [1, 3, 5],
+                [2, 4, 6],
+            ]);
+        });
+
+        it('is the inverse of slicing out column ranges', () => {
+            const m = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+            const left = m.slice(undefined, undefined, 0, 1);
+            const right = m.slice(undefined, undefined, 1, 3);
+            expect(Matrix.hstack([left, right]).toArray()).toEqual(m.toArray());
+        });
+
+        it('throws on an empty input or a row-count mismatch', () => {
+            expect(() => Matrix.hstack([])).toThrowError(RangeError);
+            expect(() => Matrix.hstack([new Matrix(2, 2), new Matrix(3, 2)])).toThrowError(RangeError);
+        });
+    });
+
+    describe('Matrix.vstack()', () => {
+        it('stacks matrices top to bottom, growing the row count', () => {
+            const a = Matrix.from([[1, 2], [3, 4]]);
+            const b = Matrix.from([[5, 6]]);
+            expect(Matrix.vstack([a, b]).toArray()).toEqual([
+                [1, 2],
+                [3, 4],
+                [5, 6],
+            ]);
+        });
+
+        it('concatenates more than two matrices, in order', () => {
+            const a = Matrix.from([[1, 2]]);
+            const b = Matrix.from([[3, 4]]);
+            const c = Matrix.from([[5, 6]]);
+            expect(Matrix.vstack([a, b, c]).toArray()).toEqual([
+                [1, 2],
+                [3, 4],
+                [5, 6],
+            ]);
+        });
+
+        it('is the inverse of slicing out row ranges', () => {
+            const m = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+            const top = m.slice(0, 1);
+            const bottom = m.slice(1, 3);
+            expect(Matrix.vstack([top, bottom]).toArray()).toEqual(m.toArray());
+        });
+
+        it('throws on an empty input or a column-count mismatch', () => {
+            expect(() => Matrix.vstack([])).toThrowError(RangeError);
+            expect(() => Matrix.vstack([new Matrix(2, 2), new Matrix(2, 3)])).toThrowError(RangeError);
+        });
+    });
 });

@@ -287,6 +287,24 @@ export class Matrix extends ArrayND {
     }
 
     /**
+     * Extracts the main diagonal as a vector. Unlike `trace()`, this does
+     * not require a square matrix: following numpy's `diag()` convention,
+     * a non-square matrix yields `min(rows, cols)` entries, `(0,0),
+     * (1,1), ..., (k-1,k-1)`. The static counterpart, `Matrix.diag(v)`,
+     * builds a diagonal matrix from a vector — the same "extraction has a
+     * constructor counterpart" pairing `row`/`setRow` and `col`/`setCol`
+     * already follow.
+     * @returns A new vector of length `min(rows, cols)` holding the
+     * diagonal entries.
+     */
+    diag(): Vector {
+        const n = Math.min(this.rows, this.cols);
+        const res = new Vector(n);
+        for (let i = 0; i < n; i++) res.data[i] = this._get(i, i);
+        return res;
+    }
+
+    /**
      * Overwrites row `i` in place with the given values.
      * @param i Row index (0-based).
      * @param values Values to copy in; must have length `cols`.
@@ -324,6 +342,27 @@ export class Matrix extends ArrayND {
     // Matrix-specific operations: no Vector equivalent, or deliberately
     // not inherited from ArrayND (arity/shape differ too much to share).
     // -----------------------------------------------------------------
+
+    /**
+     * Applies a function to each element, elementwise. The general
+     * escape hatch for an arbitrary elementwise transform — not just a
+     * wrapper around `abs`/`pow`/`sqrt`/`clip` (inherited from
+     * `ArrayND`), which only cover fixed operations. This is `Matrix`'s
+     * counterpart to `Vector.map`; it isn't inherited from `ArrayND`
+     * because the callback's arity differs (two indices here vs one on
+     * `Vector`), same reason `get`/`set` aren't shared.
+     * @param fn Called with each element's value, row index, and column
+     * index; its return value becomes the corresponding element of the result.
+     * @returns A new matrix, the same shape as this one, holding the mapped values.
+     */
+    map(fn: (value: number, i: number, j: number) => number): Matrix {
+        const res = new Matrix(this.rows, this.cols);
+        for (let i = 0; i < this.rows; i++) {
+            const offset = this._idx(i, 0);
+            for (let j = 0; j < this.cols; j++) res.data[offset + j] = fn(this.data[offset + j], i, j);
+        }
+        return res;
+    }
 
     /**
      * Multiplies this matrix by another: `this * m` (matrix product). Not
@@ -1997,6 +2036,25 @@ export class Matrix extends ArrayND {
     }
 
     /**
+     * Creates a square diagonal matrix from a vector, with the vector's
+     * components on the main diagonal and zeros elsewhere. The general
+     * version of what `identity(n)` hand-rolls with a loop —
+     * `Matrix.diag(Vector.ones(n))` is equivalent to `Matrix.identity(n)`.
+     * Inverse of the instance method `diag()`.
+     * @param v The diagonal entries.
+     * @returns A new `v.size x v.size` matrix.
+     * @throws {RangeError} If `v` is empty (`size === 0`).
+     */
+    static diag(v: Vector): Matrix {
+        if (v.size === 0) {
+            throw new RangeError('Matrix.diag: cannot construct a matrix from an empty vector (need at least one element)');
+        }
+        const res = new Matrix(v.size, v.size);
+        for (let i = 0; i < v.size; i++) res._set(i, i, v.data[i]);
+        return res;
+    }
+
+    /**
      * Creates an Matrix from an array of row arrays.
      * @param rows Source data; each inner array must have the same length.
      * @returns A new matrix with shape `rows.length x rows[0].length`.
@@ -2012,6 +2070,75 @@ export class Matrix extends ArrayND {
         }
         const res = new Matrix(nRows, nCols);
         for (let i = 0; i < nRows; i++) res.setRow(i, rows[i]);
+        return res;
+    }
+
+    /**
+     * Horizontally concatenates matrices: glues them side by side, in
+     * order, growing the column count while keeping the row count fixed.
+     * The exact inverse of slicing out a column range with `slice()` (the
+     * same "reassemble/grow" relationship `dot` has with `outer`).
+     * @param matrices The matrices to concatenate, left to right. Must be
+     * non-empty, and every matrix must have the same `rows`.
+     * @returns A new matrix with `matrices[0].rows` rows and the sum of
+     * every input's `cols`.
+     * @throws {RangeError} If `matrices` is empty, or if any matrix's
+     * `rows` doesn't match the first matrix's.
+     */
+    static hstack(matrices: Matrix[]): Matrix {
+        if (matrices.length === 0) {
+            throw new RangeError('Matrix.hstack: need at least one matrix to concatenate');
+        }
+        const rows = matrices[0].rows;
+        let totalCols = 0;
+        for (const m of matrices) {
+            if (m.rows !== rows) {
+                throw new RangeError(`Matrix.hstack: row count mismatch: ${rows} vs ${m.rows}`);
+            }
+            totalCols += m.cols;
+        }
+        const res = new Matrix(rows, totalCols);
+        let colOffset = 0;
+        for (const m of matrices) {
+            for (let i = 0; i < rows; i++) {
+                const srcOffset = m._idx(i, 0);
+                res.data.set(m.data.subarray(srcOffset, srcOffset + m.cols), res._idx(i, colOffset));
+            }
+            colOffset += m.cols;
+        }
+        return res;
+    }
+
+    /**
+     * Vertically concatenates matrices: stacks them top to bottom, in
+     * order, growing the row count while keeping the column count fixed.
+     * The exact inverse of slicing out a row range with `slice()` (the
+     * same "reassemble/grow" relationship `dot` has with `outer`).
+     * @param matrices The matrices to concatenate, top to bottom. Must be
+     * non-empty, and every matrix must have the same `cols`.
+     * @returns A new matrix with the sum of every input's `rows` and
+     * `matrices[0].cols` columns.
+     * @throws {RangeError} If `matrices` is empty, or if any matrix's
+     * `cols` doesn't match the first matrix's.
+     */
+    static vstack(matrices: Matrix[]): Matrix {
+        if (matrices.length === 0) {
+            throw new RangeError('Matrix.vstack: need at least one matrix to concatenate');
+        }
+        const cols = matrices[0].cols;
+        let totalRows = 0;
+        for (const m of matrices) {
+            if (m.cols !== cols) {
+                throw new RangeError(`Matrix.vstack: column count mismatch: ${cols} vs ${m.cols}`);
+            }
+            totalRows += m.rows;
+        }
+        const res = new Matrix(totalRows, cols);
+        let rowOffset = 0;
+        for (const m of matrices) {
+            res.data.set(m.data, res._idx(rowOffset, 0));
+            rowOffset += m.rows;
+        }
         return res;
     }
 }
