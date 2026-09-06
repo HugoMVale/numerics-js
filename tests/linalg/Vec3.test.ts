@@ -22,6 +22,11 @@ describe('Vec3', () => {
 
         const dot: number = v1.dot(v2);
         expect(dot).toBe(1 * 4 + 2 * 5 + 3 * 6);
+
+        const cross: Vec3 = v1.cross(v2);
+        expect(cross.toArray()).toEqual([-3, 6, -3]);
+        expect(v1.toArray()).toEqual([1, 2, 3]);
+        expect(v2.toArray()).toEqual([4, 5, 6]);
     });
 
     it('performs mutating operations correctly', () => {

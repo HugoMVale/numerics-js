@@ -69,6 +69,19 @@ export class Vec3 {
     dot(v: Vec3): number { return this.x * v.x + this.y * v.y + this.z * v.z; }
 
     /**
+     * Computes the cross product of this vector with another.
+     * @param v The other vector.
+     * @returns A new vector equal to `this x v`.
+     */
+    cross(v: Vec3): Vec3 {
+        return new Vec3(
+            this.y * v.z - this.z * v.y,
+            this.z * v.x - this.x * v.z,
+            this.x * v.y - this.y * v.x,
+        );
+    }
+
+    /**
      * Computes the Euclidean distance between this vector and another.
      * @param v The other vector.
      * @returns The distance between `this` and `v`.
