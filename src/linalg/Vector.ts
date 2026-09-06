@@ -49,15 +49,17 @@ export class Vector extends ArrayND {
      * `_create()` (so `ArrayND`'s arithmetic doesn't pay for a second
      * allocation+copy on top of the buffer it already built) and by
      * `Matrix.row()` (which already owns a freshly sliced, independent
-     * buffer by the time it gets here). Not part of the public API —
-     * despite being a public static method (TypeScript has no
-     * package-private), treat the leading underscore as a hard "don't call
-     * this from outside the array module." Like `_create`'s `as this`
-     * cast, this assumes Vector is never itself subclassed.
+     * buffer by the time it gets here). `public` only because TypeScript
+     * has no package-private — the name (rather than a leading
+     * underscore) is the actual "don't call this unless you already hold
+     * a validated, freshly-built buffer" signal: skip it and you can
+     * construct a Vector whose declared size doesn't match its buffer's
+     * length. Like `_create`'s `as this` cast, this assumes Vector is
+     * never itself subclassed.
      * @param data The buffer to wrap directly. Not copied.
      * @returns A new Vector wrapping `data`.
      */
-    static _wrapUnchecked(data: Float64Array): Vector {
+    static wrapUnchecked(data: Float64Array): Vector {
         const v = Object.create(Vector.prototype) as Vector;
         v.data = data;
         return v;
@@ -69,7 +71,7 @@ export class Vector extends ArrayND {
      * @returns A new Vector of the same dimension as `data.length`.
      */
     protected _create(data: Float64Array): this {
-        return Vector._wrapUnchecked(data) as this;
+        return Vector.wrapUnchecked(data) as this;
     }
 
     /**
