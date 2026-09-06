@@ -1,4 +1,5 @@
 import { ArrayND } from './arraynd.js';
+import { Matrix } from './Matrix.js';
 
 /**
  * An N-component vector utilizing Float64Array for performance.
@@ -149,6 +150,30 @@ export class Vector extends ArrayND {
     normalize(): Vector {
         const m = this.norm();
         return m === 0 ? new Vector(this.size) : this.mult(1 / m);
+    }
+
+    /**
+     * Computes the outer product of this vector and another: a new
+     * `this.size x v.size` matrix `M` with `M[i][j] === this[i] * v[j]`.
+     * Unlike `dot` (inherited from `ArrayND`), the two vectors don't need
+     * matching sizes — `this` runs down the rows, `v` runs across the
+     * columns. Used, e.g., to build a rank-1 modification `u * v^T` for
+     * `Matrix.qrUpdate`/`qrUpdateSelf`.
+     * @param v The other vector. May have a different `size` than this one.
+     * @returns A new `this.size x v.size` matrix.
+     * @throws {RangeError} If this vector or `v` is empty (`size === 0`)
+     * — same restriction `Matrix` places on its own dimensions.
+     */
+    outer(v: Vector): Matrix {
+        const n = v.size;
+        const data = new Float64Array(this.size * n);
+        for (let i = 0; i < this.size; i++) {
+            const ui = this.data[i];
+            if (ui === 0) continue;
+            const offset = i * n;
+            for (let j = 0; j < n; j++) data[offset + j] = ui * v.data[j];
+        }
+        return new Matrix(this.size, n, data);
     }
 
     /**

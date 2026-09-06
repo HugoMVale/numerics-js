@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
+import { Matrix } from '../../src/linalg/Matrix.js';
 
 describe('Vector', () => {
     it('initializes and handles Float64Array data', () => {
@@ -452,5 +453,83 @@ describe('Vector', () => {
         expect(a.toArray()).toEqual([2, 3]);
         expect(p.toArray()).toEqual([4, 9]);
         expect(c.toArray()).toEqual([0, 2.5]);
+    });
+
+    it('computes the outer product, this running down rows and the argument across columns', () => {
+        const u: Vector = new Vector([1, 2, 3]);
+        const v: Vector = new Vector([4, 5]);
+        const m: Matrix = u.outer(v);
+
+        expect(m.rows).toBe(3);
+        expect(m.cols).toBe(2);
+        expect(m.toArray()).toEqual([
+            [4, 5],
+            [8, 10],
+            [12, 15],
+        ]);
+    });
+
+    it('does not require this and the argument to have the same size, unlike dot', () => {
+        const u: Vector = new Vector([1, 2]);
+        const v: Vector = new Vector([10, 20, 30]);
+        expect(() => u.dot(v)).toThrowError(RangeError);
+        expect(u.outer(v).toArray()).toEqual([
+            [10, 20, 30],
+            [20, 40, 60],
+        ]);
+    });
+
+    it('computes a symmetric matrix when a vector is outer-producted with itself', () => {
+        const v: Vector = new Vector([1, 2, 3]);
+        const m = v.outer(v);
+        expect(m.toArray()).toEqual([
+            [1, 2, 3],
+            [2, 4, 6],
+            [3, 6, 9],
+        ]);
+        expect(m.allClose(m.transpose())).toBe(true);
+    });
+
+    it('produces an all-zero row for a zero component, exercising the skip-on-zero fast path', () => {
+        const u: Vector = new Vector([1, 0, 2]);
+        const v: Vector = new Vector([5, -1]);
+        expect(u.outer(v).toArray()).toEqual([
+            [5, -1],
+            [0, 0],
+            [10, -2],
+        ]);
+    });
+
+    it('returns an all-zero matrix when either vector is entirely zero', () => {
+        const zero: Vector = new Vector(2);
+        const v: Vector = new Vector([1, 2, 3]);
+        expect(zero.outer(v).toArray()).toEqual([
+            [0, 0, 0],
+            [0, 0, 0],
+        ]);
+        expect(v.outer(zero).toArray()).toEqual([
+            [0, 0],
+            [0, 0],
+            [0, 0],
+        ]);
+    });
+
+    it('returns a matrix independent of both source vectors', () => {
+        const u: Vector = new Vector([1, 2]);
+        const v: Vector = new Vector([3, 4]);
+        const m = u.outer(v);
+        u.set(0, 99);
+        v.set(0, 99);
+        expect(m.toArray()).toEqual([
+            [3, 4],
+            [6, 8],
+        ]);
+    });
+
+    it('throws when either vector is empty, matching Matrix\'s own dimension constraints', () => {
+        const empty: Vector = new Vector(0);
+        const v: Vector = new Vector([1, 2]);
+        expect(() => empty.outer(v)).toThrowError(RangeError);
+        expect(() => v.outer(empty)).toThrowError(RangeError);
     });
 });

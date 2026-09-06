@@ -61,21 +61,6 @@ function eigNorm(pair: Eigenpair): number {
     return Math.sqrt(sum);
 }
 
-/**
- * Builds the rank-1 outer product `u * v^T` as a plain `u.size x
- * v.size` matrix. Not part of the library itself (there's no `outer()`
- * on `Vector`/`Matrix`); used only here to construct the "updated"
- * matrix `A + u*v^T` that `qrUpdate`/`qrUpdateSelf`'s result is checked
- * against.
- */
-function outer(u: Vector, v: Vector): Matrix {
-    const res = new Matrix(u.size, v.size);
-    for (let i = 0; i < u.size; i++) {
-        for (let j = 0; j < v.size; j++) res.set(i, j, u.get(i) * v.get(j));
-    }
-    return res;
-}
-
 /** Asserts that `R` is upper triangular/trapezoidal: all-zero strictly below the diagonal. */
 function expectUpperTriangular(R: Matrix): void {
     for (let i = 1; i < R.rows; i++) {
@@ -358,7 +343,7 @@ describe('Matrix', () => {
             ]);
             const u = new Vector([1, 2, 3]);
             const v = new Vector([-1, 0.5, 2]);
-            const expected = a.add(outer(u, v));
+            const expected = a.add(u.outer(v));
 
             const { Q, R } = Matrix.qrUpdate(a.qr(), u, v);
 
@@ -375,7 +360,7 @@ describe('Matrix', () => {
             ]);
             const u = new Vector([1, -1, 2]);
             const v = new Vector([0.5, -2]);
-            const expected = a.add(outer(u, v));
+            const expected = a.add(u.outer(v));
 
             const { Q, R } = Matrix.qrUpdate(a.qr(), u, v);
 
@@ -395,7 +380,7 @@ describe('Matrix', () => {
             ]);
             const u = new Vector([2, -1]);
             const v = new Vector([1, 0, -2]);
-            const expected = a.add(outer(u, v));
+            const expected = a.add(u.outer(v));
 
             const { Q, R } = Matrix.qrUpdate(a.qr(), u, v);
 
@@ -423,7 +408,7 @@ describe('Matrix', () => {
             expect(result).toBe(qr);
             expect(result.Q).toBe(origQ);
             expect(result.R).toBe(origR);
-            expect(result.Q.matmul(result.R).allClose(a.add(outer(u, v)), 1e-9)).toBe(true);
+            expect(result.Q.matmul(result.R).allClose(a.add(u.outer(v)), 1e-9)).toBe(true);
         });
 
         it('qrUpdate leaves the original factorization untouched (unlike qrUpdateSelf)', () => {
@@ -442,7 +427,7 @@ describe('Matrix', () => {
             expect(qr.Q.allClose(qBefore)).toBe(true);
             expect(qr.R.allClose(rBefore)).toBe(true);
             expect(updated).not.toBe(qr);
-            expect(updated.Q.matmul(updated.R).allClose(a.add(outer(u, v)), 1e-9)).toBe(true);
+            expect(updated.Q.matmul(updated.R).allClose(a.add(u.outer(v)), 1e-9)).toBe(true);
         });
 
         it('applies a rank-2 change as two sequential rank-1 updates', () => {
@@ -458,7 +443,7 @@ describe('Matrix', () => {
             const v1 = new Vector([1, 1, 1]);
             const u2 = new Vector([0, 2, 1]);
             const v2 = new Vector([-1, 0, 2]);
-            const expected = a.add(outer(u1, v1)).add(outer(u2, v2));
+            const expected = a.add(u1.outer(v1)).add(u2.outer(v2));
 
             const qr = a.qr();
             Matrix.qrUpdateSelf(qr, u1, v1);
