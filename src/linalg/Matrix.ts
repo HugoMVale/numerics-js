@@ -769,6 +769,196 @@ export class Matrix extends ArrayND {
     }
 
     /**
+     * Computes the stable Givens rotation `{ c, s }` (`c*c + s*s === 1`)
+     * that zeros the second component when applied to the pair `[a, b]`:
+     * `[c*a + s*b, -s*a + c*b] === [r, 0]`. The classic `drotg`-style
+     * formula (Golub & Van Loan, *Matrix Computations*, Algorithm 5.1.3):
+     * it divides by whichever of `a`/`b` is larger in magnitude rather
+     * than ever squaring-then-rooting the larger one directly, so it
+     * doesn't overflow for large inputs the way a naive
+     * `hypot`-then-divide computation could.
+     * @param a First component.
+     * @param b Second component — the one the rotation zeros.
+     * @returns The rotation coefficients.
+     */
+    private static _givens(a: number, b: number): { c: number; s: number } {
+        if (b === 0) return { c: 1, s: 0 };
+        if (a === 0) return { c: 0, s: 1 };
+        if (Math.abs(a) > Math.abs(b)) {
+            const t = b / a;
+            const u = Math.sign(a) * Math.sqrt(1 + t * t);
+            const c = 1 / u;
+            return { c, s: c * t };
+        } else {
+            const t = a / b;
+            const u = Math.sign(b) * Math.sqrt(1 + t * t);
+            const s = 1 / u;
+            return { c: s * t, s };
+        }
+    }
+
+    /**
+     * Left-multiplies `M` in place by a Givens rotation acting on rows
+     * `i`/`j`, across columns `[colStart, colEnd)`: the pair `(row_i,
+     * row_j)` becomes `(c*row_i + s*row_j, -s*row_i + c*row_j)`. Shared by
+     * both sweeps of `qrUpdateSelf`, which use it to chase a Hessenberg
+     * bulge up and then back down through `R`.
+     * @param M The matrix to rotate, mutated in place.
+     * @param i First row index.
+     * @param j Second row index — the one a `_givens(a, b)` pair computed
+     * from `(M[i][col], M[j][col])` would zero.
+     * @param c Rotation cosine.
+     * @param s Rotation sine.
+     * @param colStart First column to touch, inclusive.
+     * @param colEnd Last column to touch, exclusive.
+     */
+    private static _applyGivensRows(M: Matrix, i: number, j: number, c: number, s: number, colStart: number, colEnd: number): void {
+        for (let col = colStart; col < colEnd; col++) {
+            const a = M._get(i, col);
+            const b = M._get(j, col);
+            M._set(i, col, c * a + s * b);
+            M._set(j, col, -s * a + c * b);
+        }
+    }
+
+    /**
+     * Right-multiplies `M` in place by the same Givens rotation
+     * `_applyGivensRows` would apply on the left, but acting on columns
+     * `i`/`j` instead of rows: `(col_i, col_j)` becomes `(c*col_i +
+     * s*col_j, -s*col_i + c*col_j)`. Used to accumulate each rotation
+     * from `qrUpdateSelf`'s two sweeps into `Q`, the same way
+     * `_householderQR` accumulates its reflectors into `Q` via
+     * right-multiplication.
+     * @param M The matrix to rotate, mutated in place.
+     * @param i First column index.
+     * @param j Second column index.
+     * @param c Rotation cosine.
+     * @param s Rotation sine.
+     */
+    private static _applyGivensCols(M: Matrix, i: number, j: number, c: number, s: number): void {
+        for (let row = 0; row < M.rows; row++) {
+            const a = M._get(row, i);
+            const b = M._get(row, j);
+            M._set(row, i, c * a + s * b);
+            M._set(row, j, -s * a + c * b);
+        }
+    }
+
+    /**
+     * Updates a QR decomposition **in place** for the rank-1 modification
+     * `A' = A + u * v^T`, without refactoring `A'` from scratch —
+     * TypeScript/JS analogue of `scipy.linalg.qr_update`.
+     *
+     * Algorithm (Gill, Golub, Murray & Saunders 1974; written up as
+     * Algorithm 12.5.1 in Golub & Van Loan's *Matrix Computations*; the
+     * same approach underlies LINPACK's `dchud`/`dqrup` and, ultimately,
+     * `scipy.linalg.qr_update` — the standard, most-used way to do this,
+     * because unlike a fresh `qr()` it doesn't cost an extra factor of
+     * `min(m, n)` in the flop count):
+     *
+     * 1. Since `A = Q * R`, `A' = Q * (R + w * v^T)` where `w = Q^T * u`.
+     * 2. A sweep of Givens rotations, applied to adjacent rows from the
+     *    bottom up, collapses `w` to a multiple of `e_1` — and, applied to
+     *    the same row pairs of `R`, simultaneously turns `R` into upper
+     *    Hessenberg form (one nonzero sub-diagonal).
+     * 3. The now-scalar leftover from `w` is folded into `R`'s first row
+     *    as `+= w[0] * v^T`, which doesn't disturb the Hessenberg shape.
+     * 4. A second sweep of Givens rotations, applied top-down, chases the
+     *    sub-diagonal bulge off the bottom, restoring upper-triangular form.
+     *
+     * Both sweeps are accumulated into `Q` via right-multiplication (the
+     * same trick `_householderQR` uses for its reflectors), so `Q * R`
+     * keeps equaling `A'` throughout. Total cost is `O(m*n)`, versus
+     * `O(m*n*min(m,n))` for `A.add(u.outer(v)).qr()` from scratch — worth
+     * it whenever updates are applied repeatedly, e.g. recursive least
+     * squares, online/Kalman-filter-style estimation, or a quasi-Newton
+     * solver refactoring its Jacobian after every step.
+     *
+     * For a rank-`k` update, call this `k` times in a loop, once per
+     * column of `U`/`V` — the same strategy LINPACK's rank-`k` routines
+     * use internally, since a rank-`k` update is just `k` rank-1 updates
+     * applied in sequence.
+     * @param qr An existing `{ Q, R }` factorization, as returned by
+     * `qr()` (or a previous `qrUpdateSelf`/`qrUpdate` call) — `Q` must be
+     * square (`m x m`) and `R` must be `m x n`. **Both `Q` and `R` are
+     * mutated in place**; pass `qr()`'s freshly-created result (or your
+     * own copies) if you need to keep the pre-update factorization around.
+     * @param u The rank-1 update's left vector. Must have `u.size === qr.Q.rows`.
+     * @param v The rank-1 update's right vector. Must have `v.size === qr.R.cols`.
+     * @returns `qr` itself, mutated in place, for chaining.
+     * @throws {RangeError} If `Q` isn't square, or `Q`/`R`/`u`/`v`'s shapes
+     * are inconsistent with each other.
+     */
+    static qrUpdateSelf(qr: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
+        const { Q, R } = qr;
+        const m = Q.rows;
+        const n = R.cols;
+        if (Q.rows !== Q.cols) throw new RangeError(`Matrix.qrUpdateSelf: Q must be square, got ${Q.rows}x${Q.cols}`);
+        if (R.rows !== m) throw new RangeError(`Matrix.qrUpdateSelf: shape mismatch: Q is ${m}x${m} but R has ${R.rows} rows`);
+        if (u.size !== m) throw new RangeError(`Matrix.qrUpdateSelf: u must have size ${m} (Q.rows), got ${u.size}`);
+        if (v.size !== n) throw new RangeError(`Matrix.qrUpdateSelf: v must have size ${n} (R.cols), got ${v.size}`);
+
+        // w = Q^T * u
+        const w = new Float64Array(m);
+        for (let i = 0; i < m; i++) {
+            let sum = 0;
+            for (let k = 0; k < m; k++) sum += Q._get(k, i) * u.data[k];
+            w[i] = sum;
+        }
+
+        // Phase 1: sweep bottom-to-top, collapsing w to w[0]*e_1 while
+        // simultaneously reducing R to upper Hessenberg form.
+        for (let k = m - 1; k >= 1; k--) {
+            if (w[k] === 0) continue;
+            const { c, s } = Matrix._givens(w[k - 1], w[k]);
+            const a = w[k - 1], b = w[k];
+            w[k - 1] = c * a + s * b;
+            w[k] = -s * a + c * b;
+            Matrix._applyGivensRows(R, k - 1, k, c, s, 0, n);
+            Matrix._applyGivensCols(Q, k - 1, k, c, s);
+        }
+
+        // Fold the (now scalar) update into R's first row.
+        const tau = w[0];
+        if (tau !== 0) {
+            for (let j = 0; j < n; j++) R._set(0, j, R._get(0, j) + tau * v.data[j]);
+        }
+
+        // Phase 2: sweep top-to-bottom, eliminating the sub-diagonal
+        // bulge introduced above and restoring upper-triangular form.
+        const kMax = Math.min(m - 1, n);
+        for (let k = 0; k < kMax; k++) {
+            const sub = R._get(k + 1, k);
+            if (sub === 0) continue;
+            const { c, s } = Matrix._givens(R._get(k, k), sub);
+            Matrix._applyGivensRows(R, k, k + 1, c, s, k, n);
+            Matrix._applyGivensCols(Q, k, k + 1, c, s);
+        }
+
+        // Explicit cleanup: force exact zeros below the diagonal, the same
+        // guarantee `_householderQR` provides (see its own cleanup pass).
+        for (let i = 1; i < m; i++) {
+            for (let j = 0; j < Math.min(i, n); j++) R._set(i, j, 0);
+        }
+        return qr;
+    }
+
+    /**
+     * Non-mutating counterpart to `qrUpdateSelf`: copies `Q` and `R`
+     * first, so the factorization passed in is left untouched.
+     * @param qr An existing `{ Q, R }` factorization, as returned by `qr()`.
+     * @param u The rank-1 update's left vector. Must have `u.size === qr.Q.rows`.
+     * @param v The rank-1 update's right vector. Must have `v.size === qr.R.cols`.
+     * @returns A new `{ Q, R }` factorization such that `Q * R` equals
+     * (up to floating-point error) `qr.Q.matmul(qr.R)`'s value plus the
+     * outer product of `u` and `v`.
+     * @throws {RangeError} Same conditions as `qrUpdateSelf`.
+     */
+    static qrUpdate(qr: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
+        return Matrix.qrUpdateSelf({ Q: qr.Q.copy(), R: qr.R.copy() }, u, v);
+    }
+
+    /**
      * Applies an orthogonal similarity transform confined to rows/columns
      * `[lo, hi]`, but correctly to the *whole* matrix: `H := Qfull^T * H *
      * Qfull` where `Qfull` is the identity everywhere except the `[lo,

@@ -61,6 +61,28 @@ function eigNorm(pair: Eigenpair): number {
     return Math.sqrt(sum);
 }
 
+/**
+ * Builds the rank-1 outer product `u * v^T` as a plain `u.size x
+ * v.size` matrix. Not part of the library itself (there's no `outer()`
+ * on `Vector`/`Matrix`); used only here to construct the "updated"
+ * matrix `A + u*v^T` that `qrUpdate`/`qrUpdateSelf`'s result is checked
+ * against.
+ */
+function outer(u: Vector, v: Vector): Matrix {
+    const res = new Matrix(u.size, v.size);
+    for (let i = 0; i < u.size; i++) {
+        for (let j = 0; j < v.size; j++) res.set(i, j, u.get(i) * v.get(j));
+    }
+    return res;
+}
+
+/** Asserts that `R` is upper triangular/trapezoidal: all-zero strictly below the diagonal. */
+function expectUpperTriangular(R: Matrix): void {
+    for (let i = 1; i < R.rows; i++) {
+        for (let j = 0; j < Math.min(i, R.cols); j++) expect(R.get(i, j)).toBeCloseTo(0);
+    }
+}
+
 describe('Matrix', () => {
     it('enforces 0-based indexing for get and set', () => {
         const m: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
@@ -324,6 +346,164 @@ describe('Matrix', () => {
             const { Q, R } = a.qr();
             expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
             expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), 1e-9)).toBe(true);
+        });
+    });
+
+    describe('qrUpdate() and qrUpdateSelf()', () => {
+        it('updates a square QR decomposition to match a from-scratch refactor of A + u*v^T', () => {
+            const a: Matrix = Matrix.from([
+                [12, -51, 4],
+                [6, 167, -68],
+                [-4, 24, -41],
+            ]);
+            const u = new Vector([1, 2, 3]);
+            const v = new Vector([-1, 0.5, 2]);
+            const expected = a.add(outer(u, v));
+
+            const { Q, R } = Matrix.qrUpdate(a.qr(), u, v);
+
+            expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
+            expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+            expectUpperTriangular(R);
+        });
+
+        it('updates a tall (rows > cols) QR decomposition, keeping Q square and R trapezoidal', () => {
+            const a: Matrix = Matrix.from([
+                [1, 2],
+                [3, 4],
+                [5, 6],
+            ]);
+            const u = new Vector([1, -1, 2]);
+            const v = new Vector([0.5, -2]);
+            const expected = a.add(outer(u, v));
+
+            const { Q, R } = Matrix.qrUpdate(a.qr(), u, v);
+
+            expect(Q.rows).toBe(3);
+            expect(Q.cols).toBe(3);
+            expect(R.rows).toBe(3);
+            expect(R.cols).toBe(2);
+            expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
+            expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+            expectUpperTriangular(R);
+        });
+
+        it('updates a wide (rows < cols) QR decomposition', () => {
+            const a: Matrix = Matrix.from([
+                [1, 2, 3],
+                [4, 5, 6],
+            ]);
+            const u = new Vector([2, -1]);
+            const v = new Vector([1, 0, -2]);
+            const expected = a.add(outer(u, v));
+
+            const { Q, R } = Matrix.qrUpdate(a.qr(), u, v);
+
+            expect(Q.rows).toBe(2);
+            expect(Q.cols).toBe(2);
+            expect(R.rows).toBe(2);
+            expect(R.cols).toBe(3);
+            expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
+            expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), 1e-9)).toBe(true);
+            expectUpperTriangular(R);
+        });
+
+        it('qrUpdateSelf mutates Q and R in place and returns the same object, for chaining', () => {
+            const a: Matrix = Matrix.from([
+                [4, 1],
+                [2, 3],
+            ]);
+            const qr = a.qr();
+            const { Q: origQ, R: origR } = qr;
+            const u = new Vector([1, 1]);
+            const v = new Vector([2, -1]);
+
+            const result = Matrix.qrUpdateSelf(qr, u, v);
+
+            expect(result).toBe(qr);
+            expect(result.Q).toBe(origQ);
+            expect(result.R).toBe(origR);
+            expect(result.Q.matmul(result.R).allClose(a.add(outer(u, v)), 1e-9)).toBe(true);
+        });
+
+        it('qrUpdate leaves the original factorization untouched (unlike qrUpdateSelf)', () => {
+            const a: Matrix = Matrix.from([
+                [4, 1],
+                [2, 3],
+            ]);
+            const qr = a.qr();
+            const qBefore = qr.Q.copy();
+            const rBefore = qr.R.copy();
+            const u = new Vector([1, 1]);
+            const v = new Vector([2, -1]);
+
+            const updated = Matrix.qrUpdate(qr, u, v);
+
+            expect(qr.Q.allClose(qBefore)).toBe(true);
+            expect(qr.R.allClose(rBefore)).toBe(true);
+            expect(updated).not.toBe(qr);
+            expect(updated.Q.matmul(updated.R).allClose(a.add(outer(u, v)), 1e-9)).toBe(true);
+        });
+
+        it('applies a rank-2 change as two sequential rank-1 updates', () => {
+            // A composite update A + U*V^T for 2-column U, V, applied as
+            // two rank-1 calls in a row — the strategy the docs recommend
+            // for rank-k updates.
+            const a: Matrix = Matrix.from([
+                [2, 0, 1],
+                [0, 3, 0],
+                [1, 0, 4],
+            ]);
+            const u1 = new Vector([1, 0, -1]);
+            const v1 = new Vector([1, 1, 1]);
+            const u2 = new Vector([0, 2, 1]);
+            const v2 = new Vector([-1, 0, 2]);
+            const expected = a.add(outer(u1, v1)).add(outer(u2, v2));
+
+            const qr = a.qr();
+            Matrix.qrUpdateSelf(qr, u1, v1);
+            Matrix.qrUpdateSelf(qr, u2, v2);
+
+            expect(qr.Q.matmul(qr.R).allClose(expected, 1e-9)).toBe(true);
+            expect(qr.Q.transpose().matmul(qr.Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+            expectUpperTriangular(qr.R);
+        });
+
+        it('leaves the factorization unchanged when updating with a zero vector', () => {
+            const a: Matrix = Matrix.from([
+                [4, 1],
+                [2, 3],
+            ]);
+            const qr = a.qr();
+            const qBefore = qr.Q.copy();
+            const rBefore = qr.R.copy();
+
+            Matrix.qrUpdateSelf(qr, new Vector([0, 0]), new Vector([5, -3]));
+
+            expect(qr.Q.allClose(qBefore, 1e-9)).toBe(true);
+            expect(qr.R.allClose(rBefore, 1e-9)).toBe(true);
+        });
+
+        it('throws if Q is not square', () => {
+            const notSquareQ = new Matrix(2, 3);
+            const r = new Matrix(2, 2);
+            expect(() => Matrix.qrUpdateSelf({ Q: notSquareQ, R: r }, new Vector(2), new Vector(2))).toThrowError(RangeError);
+        });
+
+        it('throws on a Q/R row-count mismatch', () => {
+            const q = Matrix.identity(3);
+            const r = new Matrix(2, 2);
+            expect(() => Matrix.qrUpdateSelf({ Q: q, R: r }, new Vector(3), new Vector(2))).toThrowError(RangeError);
+        });
+
+        it('throws when u or v has the wrong size', () => {
+            const a: Matrix = Matrix.from([
+                [4, 1],
+                [2, 3],
+            ]);
+            const qr = a.qr();
+            expect(() => Matrix.qrUpdateSelf(qr, new Vector(3), new Vector([1, 1]))).toThrowError(RangeError);
+            expect(() => Matrix.qrUpdateSelf(qr, new Vector([1, 1]), new Vector(3))).toThrowError(RangeError);
         });
     });
 
