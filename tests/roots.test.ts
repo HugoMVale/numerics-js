@@ -38,6 +38,14 @@ describe('bisection', () => {
         expect(result.evaluations).toBe(2);
     });
 
+    it('should return the midpoint when it is an exact root', () => {
+        const result = bisection(f, 0, 4);
+        expect(result.x).toBe(2);
+        expect(result.fx).toBe(0);
+        expect(result.message).toBe('converged: exact root found');
+        expect(result.evaluations).toBe(3);
+    });
+
     it('should throw an error if a and b are the same', () => {
         expect(() => bisection(f, 1, 1)).toThrow('bisection: a and b must be different');
     });
@@ -84,6 +92,14 @@ describe('secant', () => {
         expect(result.evaluations).toBe(2);
     });
 
+    it('should return the updated estimate when it is an exact root', () => {
+        const result = secant((x) => x - 2, 0, 5);
+        expect(result.x).toBe(2);
+        expect(result.fx).toBe(0);
+        expect(result.message).toBe('converged: exact root found');
+        expect(result.evaluations).toBe(3);
+    });
+
     it('should throw an error if x0 and x1 are the same', () => {
         expect(() => secant(f, 1, 1)).toThrow('secant: x0 and x1 must be different');
     });
@@ -123,6 +139,12 @@ describe('brent', () => {
         expect(result.x).toBeCloseTo(-2, 5);
     });
 
+    it('should use inverse quadratic interpolation for a nonlinear root', () => {
+        const result = brent((x) => 2 * x ** 3 + 4 * x ** 2 + x - 2, 0, 1);
+        expect(result.success).toBe(true);
+        expect(result.x).toBeCloseTo(0.5369737681, 8);
+    });
+
     it('should return exactly xa if f(xa) is 0', () => {
         const result = brent(f, 2, 5);
         expect(result.x).toBe(2);
@@ -158,5 +180,12 @@ describe('brent', () => {
         // function-value stop criterion trigger before the x-tolerance would.
         const result = brent(f, 0, 5, { tolX: 1e-15, tolF: 1e-1 });
         expect(f(result.x)).toBeLessThanOrEqual(1e-1);
+    });
+
+    it('should converge by bracket width when function-value tolerance is disabled', () => {
+        const result = brent((x) => x * x - 2, 0, 2, { tolF: 0 });
+        expect(result.success).toBe(true);
+        expect(result.message).toBe('converged: bracket half-width below tolX');
+        expect(result.x).toBeCloseTo(Math.SQRT2, 8);
     });
 });
