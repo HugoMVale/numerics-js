@@ -180,16 +180,23 @@ export function derivativeCentered(
     options: {
         /** Machine precision of the function values. */
         epsf?: number;
-        /** Finite-difference step. If `0`, the theoretical optimum is used. */
+        /** Finite-difference step. If omitted, the theoretical optimum is used. */
         h?: number;
     } = {}
 ): [number, number] {
     const eps = Number.EPSILON;
     const epsf = options.epsf !== undefined ? Math.max(options.epsf, eps) : eps;
     const h0 = Math.cbrt(3 * epsf);
-    let h = options.h ?? 0;
+    let h: number;
 
-    h = h !== 0 ? Math.max(h, h0) : h0;
+    if (options.h === undefined) {
+        h = h0;
+    } else {
+        if (options.h === 0) {
+            throw new RangeError('derivativeCentered: h must be nonzero');
+        }
+        h = options.h;
+    }
     h *= Math.max(1.0, Math.abs(x));
 
     const xp = x + h;
