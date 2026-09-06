@@ -496,14 +496,16 @@ export class Matrix extends ArrayND {
     private static readonly _RANK_TOL_SCALE = 10;
 
     /**
-     * Computes the matrix infinity norm: the largest absolute row sum.
-     * Used only to auto-scale `rank()`'s default tolerance to this
-     * matrix's magnitude — this is a private implementation detail, not a
-     * general-purpose norm method (unlike `ArrayND`'s `norm()`, which is
-     * the Frobenius norm and applies to the whole flat buffer regardless
-     * of shape).
+     * Computes the matrix infinity norm: the largest absolute row sum,
+     * `max_i sum_j |this[i][j]|`. Besides being used internally to
+     * auto-scale `rank()`'s default tolerance to this matrix's magnitude,
+     * this is a general-purpose norm in its own right (unlike `ArrayND`'s
+     * `norm()`, which is the Frobenius norm over the whole flat buffer
+     * regardless of shape). See `norm1()` for its column-sum counterpart;
+     * `this.norm1() === this.transpose().normInf()` always holds.
+     * @returns The largest absolute row sum, or `0` for a matrix of all zeros.
      */
-    private _normInf(): number {
+    normInf(): number {
         let maxRowSum = 0;
         for (let i = 0; i < this.rows; i++) {
             const offset = this._idx(i, 0);
@@ -512,6 +514,27 @@ export class Matrix extends ArrayND {
             if (rowSum > maxRowSum) maxRowSum = rowSum;
         }
         return maxRowSum;
+    }
+
+    /**
+     * Computes the matrix 1-norm: the largest absolute column sum,
+     * `max_j sum_i |this[i][j]|`. The column-sum counterpart to
+     * `normInf()`'s row-sum; `this.norm1() === this.transpose().normInf()`
+     * always holds. Accumulates all column sums in a single pass over the
+     * buffer, rather than summing each column separately.
+     * @returns The largest absolute column sum, or `0` for a matrix of all zeros.
+     */
+    norm1(): number {
+        const colSums = new Float64Array(this.cols);
+        for (let i = 0; i < this.rows; i++) {
+            const offset = this._idx(i, 0);
+            for (let j = 0; j < this.cols; j++) colSums[j] += Math.abs(this.data[offset + j]);
+        }
+        let maxColSum = 0;
+        for (let j = 0; j < this.cols; j++) {
+            if (colSums[j] > maxColSum) maxColSum = colSums[j];
+        }
+        return maxColSum;
     }
 
     /**
@@ -535,7 +558,7 @@ export class Matrix extends ArrayND {
      * @returns The rank, between `0` and `min(rows, cols)`.
      */
     rank(tol?: number): number {
-        const effectiveTol = tol ?? Matrix._RANK_TOL_SCALE * Math.max(this.rows, this.cols) * Number.EPSILON * this._normInf();
+        const effectiveTol = tol ?? Matrix._RANK_TOL_SCALE * Math.max(this.rows, this.cols) * Number.EPSILON * this.normInf();
         return this._forwardEliminate(effectiveTol).rank;
     }
 

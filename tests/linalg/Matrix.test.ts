@@ -1407,4 +1407,47 @@ describe('Matrix', () => {
             expect(() => Matrix.vstack([new Matrix(2, 2), new Matrix(2, 3)])).toThrowError(RangeError);
         });
     });
+
+    describe('normInf() and norm1()', () => {
+        it('normInf() computes the largest absolute row sum', () => {
+            const m = Matrix.from([
+                [1, -2, 3],
+                [-4, 5, -6],
+                [0, 0, 1],
+            ]);
+            // row sums: 6, 15, 1
+            expect(m.normInf()).toBe(15);
+        });
+
+        it('norm1() computes the largest absolute column sum', () => {
+            const m = Matrix.from([
+                [1, -2, 3],
+                [-4, 5, -6],
+                [0, 0, 1],
+            ]);
+            // col sums: 5, 7, 10
+            expect(m.norm1()).toBe(10);
+        });
+
+        it('norm1() of a matrix equals normInf() of its transpose, and vice versa', () => {
+            const m = Matrix.from([
+                [1, 2, 3],
+                [4, 5, 6],
+            ]);
+            expect(m.norm1()).toBe(m.transpose().normInf());
+            expect(m.normInf()).toBe(m.transpose().norm1());
+        });
+
+        it('returns 0 for a matrix of all zeros', () => {
+            const m = new Matrix(3, 4);
+            expect(m.normInf()).toBe(0);
+            expect(m.norm1()).toBe(0);
+        });
+
+        it('handles non-square matrices', () => {
+            const tall = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+            expect(tall.normInf()).toBe(11); // row sums: 3, 7, 11
+            expect(tall.norm1()).toBe(12); // col sums: 9, 12
+        });
+    });
 });
