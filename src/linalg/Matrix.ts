@@ -607,6 +607,42 @@ export class Matrix extends ArrayND {
     }
 
     // -----------------------------------------------------------------
+    // Cholesky decomposition. Implementation lives in Matrix.linalg.ts;
+    // see that file for the algorithm.
+    // -----------------------------------------------------------------
+
+    /**
+     * Computes the Cholesky factorization of this matrix: `this = L *
+     * L^T`, with `L` lower triangular and positive on the diagonal: see
+     * `linalg.cholesky()` for the algorithm, and why it only reads the
+     * lower triangle and has no tolerance parameter.
+     * @returns The lower-triangular factor `L` such that `this = L * L^T`.
+     * @throws {RangeError} If this matrix is not square.
+     * @throws {Error} If this matrix is not positive definite (some
+     * leading principal minor is not strictly positive).
+     */
+    cholesky(): Matrix {
+        return linalg.cholesky(this);
+    }
+
+    /**
+     * Solves `this * x = b` for `x`, treating this matrix as the Cholesky
+     * factor `L` of a symmetric positive-definite matrix (as returned by
+     * `cholesky()`): see `linalg.choleskySolve()`. If you need to solve
+     * against the same matrix with several right-hand sides, call
+     * `cholesky()` once and reuse this instead of refactoring each time.
+     * @param b The right-hand side vector. Must have `b.size === this.rows`.
+     * @returns The solution vector `x` such that
+     * `this.matmul(this.transpose()).mulVec(x)` is (up to floating-point
+     * error) equal to `b`.
+     * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
+     * @throws {Error} If this matrix has a zero diagonal entry.
+     */
+    choleskySolve(b: Vector): Vector {
+        return linalg.choleskySolve(this, b);
+    }
+
+    // -----------------------------------------------------------------
     // QR factorization and eigenvalues. Implementations live in
     // Matrix.linalg.ts; see that file for the algorithms.
     // -----------------------------------------------------------------

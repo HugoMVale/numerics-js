@@ -271,6 +271,103 @@ describe('Matrix', () => {
         }
     });
 
+    describe('cholesky()', () => {
+        it('factors a symmetric positive-definite matrix such that A = L * L^T', () => {
+            // Classic textbook example.
+            const a: Matrix = Matrix.from([
+                [4, 12, -16],
+                [12, 37, -43],
+                [-16, -43, 98],
+            ]);
+            const l: Matrix = a.cholesky();
+            expect(l.allClose(Matrix.from([
+                [2, 0, 0],
+                [6, 1, 0],
+                [-8, 5, 3],
+            ]))).toBe(true);
+            expect(l.matmul(l.transpose()).allClose(a)).toBe(true);
+        });
+
+        it('returns a lower-triangular factor with a positive diagonal', () => {
+            const a: Matrix = Matrix.from([
+                [6, 3, 4],
+                [3, 6, 5],
+                [4, 5, 10],
+            ]);
+            const l: Matrix = a.cholesky();
+            expect(l.isLowerTriangular()).toBe(true);
+            for (let i = 0; i < 3; i++) expect(l.get(i, i)).toBeGreaterThan(0);
+        });
+
+        it('ignores the upper triangle rather than validating symmetry', () => {
+            // cholesky only reads j <= i; entries above the diagonal are
+            // simply never consulted, even if the matrix isn't actually
+            // symmetric, same convention as solveLower/solveUpper.
+            const asymmetric: Matrix = Matrix.from([
+                [4, 999],
+                [2, 5],
+            ]);
+            const symmetric: Matrix = Matrix.from([
+                [4, 2],
+                [2, 5],
+            ]);
+            expect(asymmetric.cholesky().allClose(symmetric.cholesky())).toBe(true);
+        });
+
+        it('throws when a leading minor is not positive definite', () => {
+            const notPD: Matrix = Matrix.from([
+                [1, 2],
+                [2, 1],
+            ]); // eigenvalues 3, -1
+            expect(() => notPD.cholesky()).toThrowError();
+        });
+
+        it('rejects non-square input', () => {
+            expect(() => new Matrix(2, 3).cholesky()).toThrowError(RangeError);
+        });
+
+        it('handles the 1x1 case', () => {
+            const a: Matrix = Matrix.from([[9]]);
+            const l: Matrix = a.cholesky();
+            expect(l.get(0, 0)).toBeCloseTo(3);
+        });
+    });
+
+    describe('choleskySolve()', () => {
+        it('solves A * x = b given the Cholesky factor of A', () => {
+            const a: Matrix = Matrix.from([
+                [4, 12, -16],
+                [12, 37, -43],
+                [-16, -43, 98],
+            ]);
+            const l: Matrix = a.cholesky();
+            const b: Vector = new Vector([1, 2, 3]);
+            const x = l.choleskySolve(b);
+            expect(a.mulVec(x).allClose(b)).toBe(true);
+        });
+
+        it('agrees with solve() across several right-hand sides, factoring only once', () => {
+            const a: Matrix = Matrix.from([
+                [6, 3, 4],
+                [3, 6, 5],
+                [4, 5, 10],
+            ]);
+            const l: Matrix = a.cholesky();
+
+            for (const raw of [[1, 2, 3], [0, 1, 0], [-1, -2, -3]]) {
+                const b = new Vector(raw);
+                expect(l.choleskySolve(b).allClose(a.solve(b))).toBe(true);
+            }
+        });
+
+        it('rejects non-square input and shape-mismatched vectors', () => {
+            expect(() => new Matrix(2, 3).choleskySolve(new Vector(2))).toThrowError(RangeError);
+
+            const square: Matrix = new Matrix(2, 2, [1, 0, 1, 1]);
+            expect(() => square.choleskySolve(new Vector(3))).toThrowError(RangeError);
+        });
+    });
+
     describe('qr()', () => {
         it('factors a square matrix such that Q*R = A, with Q orthogonal and R upper triangular', () => {
             const a: Matrix = Matrix.from([

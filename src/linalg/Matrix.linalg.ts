@@ -366,6 +366,79 @@ export function solve(A: Matrix, b: Vector): Vector {
 }
 
 // -----------------------------------------------------------------
+// Cholesky decomposition: for symmetric positive-definite matrices.
+// -----------------------------------------------------------------
+
+/**
+ * Computes the Cholesky factorization of `A`, via the Cholesky–Banachiewicz
+ * algorithm: `A = L * L^T`, with `L` lower triangular and positive on the
+ * diagonal. `A` must be symmetric positive definite.
+ *
+ * Only the lower triangle of `A` is ever read; the upper triangle is
+ * ignored rather than checked against it — the same "just one triangle"
+ * convention `solveLower`/`solveUpper` use for their input, and the same
+ * convention LAPACK's `dpotrf` uses via its `UPLO` argument. If `A` isn't
+ * actually symmetric, you silently get the factorization implied by its
+ * lower triangle, not an error.
+ *
+ * There is no tolerance parameter, matching `lu()`'s LAPACK-aligned
+ * convention: a diagonal entry only counts as failing if the running sum
+ * is not strictly positive, exactly as `dpotrf` checks it. This means a
+ * positive-*semidefinite* matrix (e.g. `A^T * A` for rank-deficient `A`)
+ * that is only barely non-positive-definite due to rounding will still be
+ * rejected here; there's no fuzzy fallback, by design.
+ * @param A The matrix to factor. Must be square.
+ * @returns The lower-triangular factor `L` such that `A = L * L^T`.
+ * @throws {RangeError} If `A` is not square.
+ * @throws {Error} If `A` is not positive definite (some leading principal
+ * minor is not strictly positive).
+ */
+export function cholesky(A: Matrix): Matrix {
+    if (A.rows !== A.cols) throw new RangeError(`Matrix cholesky requires a square matrix, got ${A.rows}x${A.cols}`);
+    const n = A.rows;
+    const L = new Matrix(n, n);
+    for (let i = 0; i < n; i++) {
+        const rowOffsetA = A.flatIndex(i, 0);
+        const rowOffsetL = L.flatIndex(i, 0);
+        for (let j = 0; j <= i; j++) {
+            const colOffsetL = L.flatIndex(j, 0);
+            let sum = A.data[rowOffsetA + j];
+            for (let k = 0; k < j; k++) sum -= L.data[rowOffsetL + k] * L.data[colOffsetL + k];
+            if (i === j) {
+                if (sum <= 0) throw new Error(`Matrix cholesky: matrix is not positive definite (leading minor of order ${i + 1} is not positive)`);
+                L.data[rowOffsetL + j] = Math.sqrt(sum);
+            } else {
+                L.data[rowOffsetL + j] = sum / L.data[colOffsetL + j];
+            }
+        }
+    }
+    return L;
+}
+
+/**
+ * Solves `A * x = b` for `x`, given the Cholesky factor `L` of `A` (i.e.
+ * `A = L * L^T`, as returned by `cholesky()`), via forward substitution
+ * against `L` followed by back substitution against `L^T` — reusing
+ * `solveLower`/`solveUpper` rather than duplicating their loops. As with
+ * `solve()` vs. `lu()`: if you need to solve against the same matrix with
+ * several right-hand sides, call `cholesky()` once and reuse this instead
+ * of refactoring each time.
+ * @param L The lower-triangular Cholesky factor of the coefficient
+ * matrix, as returned by `cholesky()`.
+ * @param b The right-hand side vector. Must have `b.size === L.rows`.
+ * @returns The solution vector `x` such that `L.matmul(L.transpose()).mulVec(x)`
+ * is (up to floating-point error) equal to `b`.
+ * @throws {RangeError} If `L` is not square, or `b.size !== L.rows`.
+ * @throws {Error} If `L` has a zero diagonal entry.
+ */
+export function choleskySolve(L: Matrix, b: Vector): Vector {
+    if (L.rows !== L.cols) throw new RangeError(`Matrix choleskySolve requires a square matrix, got ${L.rows}x${L.cols}`);
+    if (b.size !== L.rows) throw new RangeError(`Matrix choleskySolve shape mismatch: ${L.rows}x${L.cols} vs vec(${b.size})`);
+    const y = solveLower(L, b, false);
+    return solveUpper(L.transpose(), y);
+}
+
+// -----------------------------------------------------------------
 // QR factorization and rank-1 updates.
 // -----------------------------------------------------------------
 
