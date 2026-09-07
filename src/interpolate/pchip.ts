@@ -286,7 +286,7 @@ function computeMonotonicDerivativesND(xp: Vector, fp: Matrix): Matrix {
  * smooth, shape-preserving interpolation is needed.
  *
  * For interpolating a vector-valued function (`number -> Vector`) against
- * the same shared `xp` knots, see `PchipInterpolatorND`.
+ * the same shared `xp` knots, see {@link PchipInterpolatorND}.
  *
  * @example
  * ```ts

@@ -181,7 +181,7 @@ function linearDerivativeManyND(x: number[] | Vector, xp: Vector, fp: Matrix, ca
  * when resampling many points against one curve.
  *
  * For interpolating a vector-valued function (`number -> Vector`) against
- * the same shared `xp` knots, see `LinearInterpolatorND`.
+ * the same shared `xp` knots, see {@link LinearInterpolatorND}.
  *
  * @example
  * ```ts
@@ -464,7 +464,7 @@ export class LinearInterpolatorND {
  *
  * A one-shot convenience function. If you need to evaluate the same
  * `(xp, fp)` pair more than once, construct a `LinearInterpolator1D` directly to
- * avoid re-validating `xp`/`fp` on every call. For a vector-valued `fp`, see `interpND`.
+ * avoid re-validating `xp`/`fp` on every call. For a vector-valued `fp`, see {@linkinterpND}.
  *
  * @param x The `x`-coordinate(s) at which to evaluate the interpolated
  * value(s). A single `number` returns a `number`; a plain array or
