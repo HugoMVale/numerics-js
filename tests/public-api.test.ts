@@ -10,9 +10,12 @@ describe('public API', () => {
         expect(typeof integrate.trapezoid).toBe('function');
         expect(typeof integrate.simpson).toBe('function');
         expect(typeof integrate.gaussKronrod).toBe('function');
-        expect(typeof interpolate.interp).toBe('function');
-        expect(interpolate.LinearInterpolator).toBeTypeOf('function');
-        expect(interpolate.PchipInterpolator).toBeTypeOf('function');
+        expect(typeof interpolate.interp1D).toBe('function');
+        expect(typeof interpolate.interpND).toBe('function');
+        expect(interpolate.LinearInterpolator1D).toBeTypeOf('function');
+        expect(interpolate.LinearInterpolatorND).toBeTypeOf('function');
+        expect(interpolate.PchipInterpolator1D).toBeTypeOf('function');
+        expect(interpolate.PchipInterpolatorND).toBeTypeOf('function');
         expect(typeof math.clip).toBe('function');
         expect(typeof math.copysign).toBe('function');
         expect(typeof math.isClose).toBe('function');
