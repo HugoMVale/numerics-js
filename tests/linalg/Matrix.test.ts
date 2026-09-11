@@ -2,6 +2,39 @@ import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix, type Eigenvalue, type Eigenpair } from '../../src/linalg/Matrix.js';
 
+/** Exact 1-norm condition number via an explicit inverse, used as ground truth. */
+function exactCond1(M: Matrix): number {
+    return M.norm1() * M.inverse().norm1();
+}
+
+/** Deterministic pseudo-random generator (mulberry32), for reproducible test matrices. */
+function mulberry32(seed: number): () => number {
+    let a = seed;
+    return function (): number {
+        a |= 0;
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/** Builds a random n x n triangular matrix with a well-scaled diagonal (bounded condition number). */
+function randomTriangular(n: number, upper: boolean, seed: number): Matrix {
+    const rnd = mulberry32(seed);
+    const M = new Matrix(n, n);
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            if ((upper && j >= i) || (!upper && j <= i)) {
+                M.set(i, j, i === j ? 1 + rnd() * 2 : (rnd() * 2 - 1) * 2);
+            } else {
+                M.set(i, j, 0);
+            }
+        }
+    }
+    return M;
+}
+
 /**
  * Sorts eigenvalues by real part then imaginary part, for
  * order-independent comparisons — `eigenvalues()` returns them in
@@ -1680,6 +1713,155 @@ describe('Matrix', () => {
                 [-4, 5, -6],
             ]);
             expect(m.norm1()).toBeCloseTo(m.transpose().normInf(), 12);
+        });
+    });
+
+    describe('cond1() (general, exact)', () => {
+        it('is 1 for the identity matrix', () => {
+            expect(Matrix.identity(5).cond1()).toBeCloseTo(1, 10);
+        });
+
+        it('equals max(|d_i|) / min(|d_i|) for a diagonal matrix (exact, closed form)', () => {
+            const M = Matrix.diag(Vector.from([4, -1, 2, 8]));
+            expect(M.cond1()).toBeCloseTo(8 / 1, 10);
+        });
+
+        it('is Infinity for a singular matrix', () => {
+            const M = Matrix.from([
+                [1, 2],
+                [2, 4],
+            ]); // rank-deficient
+            expect(M.cond1()).toBe(Infinity);
+        });
+
+        it('is Infinity for a 1x1 zero matrix', () => {
+            expect(Matrix.zero(1, 1).cond1()).toBe(Infinity);
+        });
+
+        it('throws RangeError for a non-square matrix', () => {
+            expect(() => new Matrix(2, 3).cond1()).toThrow(RangeError);
+        });
+    });
+
+    describe('cond1Upper() / cond1Lower() (O(n^2) estimate)', () => {
+        it('is exactly 1 for the identity matrix (upper and lower)', () => {
+            expect(Matrix.identity(6).cond1Upper()).toBeCloseTo(1, 10);
+            expect(Matrix.identity(6).cond1Lower()).toBeCloseTo(1, 10);
+        });
+
+        it('is a valid (non-tight) lower bound for a diagonal matrix', () => {
+            // The classic CMSW/LINPACK estimator is a heuristic: even for a
+            // diagonal matrix it doesn't always find the worst-conditioned
+            // direction (the adaptive sign choice never gets data to react to,
+            // since off-diagonal coupling is exactly zero). For diag(4,-1,2),
+            // the true condition number is 4/1 = 4; hand-tracing the algorithm
+            // gives exactly 3 — a valid but non-tight lower bound. This is
+            // expected estimator behavior, not a bug (see the lower-bound
+            // property test below for the general guarantee).
+            const M = Matrix.from([
+                [4, 0, 0],
+                [0, -1, 0],
+                [0, 0, 2],
+            ]);
+            expect(M.cond1Upper()).toBeCloseTo(3, 10);
+            expect(M.cond1Lower()).toBeCloseTo(3, 10);
+        });
+
+        it('returns Infinity when the triangular matrix has a zero diagonal entry (exactly singular)', () => {
+            const U = Matrix.from([
+                [1, 2, 3],
+                [0, 0, 5],
+                [0, 0, 6],
+            ]);
+            expect(U.cond1Upper()).toBe(Infinity);
+
+            const L = Matrix.from([
+                [1, 0, 0],
+                [2, 0, 0],
+                [3, 5, 6],
+            ]);
+            expect(L.cond1Lower()).toBe(Infinity);
+        });
+
+        it('returns Infinity for a zero matrix', () => {
+            expect(Matrix.zero(3, 3).cond1Upper()).toBe(Infinity);
+            expect(Matrix.zero(3, 3).cond1Lower()).toBe(Infinity);
+        });
+
+        it('handles the 1x1 case', () => {
+            expect(Matrix.from([[7]]).cond1Upper()).toBeCloseTo(1, 10);
+            expect(Matrix.from([[0]]).cond1Upper()).toBe(Infinity);
+        });
+
+        it('respects unitDiagonal on cond1Lower (stored diagonal values are ignored, not just the divide skipped)', () => {
+            // Same off-diagonal structure, deliberately different (garbage)
+            // stored diagonals. With unitDiagonal=true, both must produce the
+            // exact same estimate, since the diagonal must never actually be
+            // read (matching solveLower's documented contract).
+            const L1 = Matrix.from([
+                [999, 0, 0],
+                [2, -777, 0],
+                [3, 5, 42],
+            ]);
+            const L2 = Matrix.from([
+                [-3, 0, 0],
+                [2, 0.5, 0],
+                [3, 5, 1e6],
+            ]);
+            expect(L1.cond1Lower(true)).toBe(L2.cond1Lower(true));
+
+            // And, for the realistic case where the diagonal genuinely is all
+            // 1s (as lu()'s L always is), the estimate should still be a valid
+            // lower bound on the true condition number.
+            const Lunit = Matrix.from([
+                [1, 0, 0],
+                [2, 1, 0],
+                [3, 5, 1],
+            ]);
+            expect(L1.cond1Lower(true)).toBeLessThanOrEqual(exactCond1(Lunit) * (1 + 1e-9));
+        });
+
+        it('exactly matches the true condition number for a clearly ill-conditioned (near-singular) matrix', () => {
+            const U = randomTriangular(6, true, 999);
+            U.set(5, 5, 1e-12); // force a near-singular direction that dominates the estimate
+            const exact = exactCond1(U);
+            const est = U.cond1Upper();
+            expect(est / exact).toBeCloseTo(1, 2);
+        });
+
+        it('never overestimates the true condition number (lower-bound property), across many random triangular matrices', () => {
+            for (let n = 1; n <= 10; n++) {
+                for (let trial = 0; trial < 20; trial++) {
+                    const seedBase = n * 1000 + trial;
+                    const U = randomTriangular(n, true, seedBase);
+                    const L = randomTriangular(n, false, seedBase + 500);
+
+                    const exactU = exactCond1(U);
+                    const estU = U.cond1Upper();
+                    expect(estU).toBeLessThanOrEqual(exactU * (1 + 1e-9));
+
+                    const exactL = exactCond1(L);
+                    const estL = L.cond1Lower();
+                    expect(estL).toBeLessThanOrEqual(exactL * (1 + 1e-9));
+                }
+            }
+        });
+
+        it('stays within a reasonable factor of the true condition number for well-conditioned random matrices', () => {
+            for (let n = 2; n <= 8; n++) {
+                const U = randomTriangular(n, true, n * 37 + 1);
+                const exact = exactCond1(U);
+                const est = U.cond1Upper();
+                // The classic CMSW/LINPACK estimator is a heuristic, not exact, but
+                // should stay within an order of magnitude for well-conditioned matrices.
+                expect(est / exact).toBeGreaterThan(0.1);
+                expect(est / exact).toBeLessThanOrEqual(1 + 1e-9);
+            }
+        });
+
+        it('throws RangeError for a non-square matrix', () => {
+            expect(() => new Matrix(2, 3).cond1Upper()).toThrow(RangeError);
+            expect(() => new Matrix(3, 2).cond1Lower()).toThrow(RangeError);
         });
     });
 });

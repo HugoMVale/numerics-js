@@ -366,8 +366,199 @@ export function solve(A: Matrix, b: Vector): Vector {
 }
 
 // -----------------------------------------------------------------
+// Condition number estimation.
+// -----------------------------------------------------------------
+
+/**
+ * Computes the exact 1-norm condition number of `A`, `‖A‖₁ · ‖A⁻¹‖₁`, via
+ * `inverse()`. General-purpose (works for any square matrix), but O(n³) —
+ * dominated by the explicit inverse. If `A` is triangular, `cond1Upper()`/
+ * `cond1Lower()` compute a reliable O(n²) estimate instead, without ever
+ * forming `A⁻¹`; prefer those when applicable.
+ * @param A The matrix to evaluate. Must be square.
+ * @returns The 1-norm condition number, or `Infinity` if `A` is (numerically) singular.
+ * @throws {RangeError} If `A` is not square.
+ */
+export function cond1(A: Matrix): number {
+    if (A.rows !== A.cols) throw new RangeError(`Matrix cond1 requires a square matrix, got ${A.rows}x${A.cols}`);
+    try {
+        return A.norm1() * A.inverse().norm1();
+    } catch {
+        return Infinity;
+    }
+}
+
+/**
+ * The 1-norm (largest absolute column sum) of `T`, treating it as
+ * triangular and honoring `unitDiagonal` exactly like `solveLower`/
+ * `solveUpper` do: only the selected triangle is read, and if
+ * `unitDiagonal` is `true` the actual stored diagonal is never read either
+ * — it's treated as 1. (`Matrix.norm1()` can't be reused here for the
+ * `unitDiagonal` case, since it always reads whatever is actually stored.)
+ */
+function normTriangular1(T: Matrix, lower: boolean, unitDiagonal: boolean): number {
+    const n = T.rows;
+    let m = 0;
+    for (let j = 0; j < n; j++) {
+        const iStart = lower ? j : 0;
+        const iEnd = lower ? n - 1 : j;
+        let colSum = 0;
+        for (let i = iStart; i <= iEnd; i++) {
+            colSum += i === j && unitDiagonal ? 1 : Math.abs(T.getUnchecked(i, j));
+        }
+        if (colSum > m) m = colSum;
+    }
+    return m;
+}
+
+/**
+ * Shared O(n²) engine behind `cond1Upper()`/`cond1Lower()`: the classic
+ * Cline–Moler–Stewart–Wilkinson (1979) condition estimator, as used by
+ * LINPACK's `dtrco`/`dgeco` and described in Dennis & Schnabel, "Numerical
+ * Methods for Unconstrained Optimization and Nonlinear Equations" (SIAM,
+ * 1996), Algorithm A3.3.1. `lower` selects which triangle of `T` is
+ * read/solved against; the two exported wrappers just fix that flag.
+ *
+ * The algorithm estimates `‖T⁻¹‖₁` (never forming `T⁻¹`) in two triangular
+ * solves: first `Tᵀ y = e`, choosing each `±1` component of `e` on the fly
+ * to provoke maximal growth in `y` (a heuristic search for the direction
+ * `T` shrinks the most); then a plain solve `T z = y`. `‖T⁻¹‖₁` is then
+ * `‖T‖₁` divided by the final scale factor accumulated while normalizing
+ * `y`/`z` to unit 1-norm along the way (with intermittent rescaling to
+ * avoid overflow) — see `dtrco`'s source (netlib.org/linpack/dtrco.f) for
+ * the derivation; this is a direct 0-indexed transliteration of it.
+ * @param T The triangular matrix (only the selected triangle is read). Must be square.
+ * @param lower `true` to read/solve the lower triangle, `false` for the upper triangle.
+ * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s and is never read.
+ * @returns The 1-norm condition number estimate, or `Infinity` if `T` has a zero 1-norm.
+ */
+function cond1Triangular(T: Matrix, lower: boolean, unitDiagonal: boolean): number {
+    const n = T.rows;
+    const tnorm = normTriangular1(T, lower, unitDiagonal);
+    if (tnorm === 0) return Infinity;
+    const diag = (k: number): number => (unitDiagonal ? 1 : T.getUnchecked(k, k));
+
+    // Stage 1: adaptively solve T^T * y = e (right-looking / column-update
+    // triangular solve, choosing e's sign at each step to promote growth).
+    const z = new Float64Array(n);
+    let ek = 1.0;
+    for (let kk = 0; kk < n; kk++) {
+        const k = lower ? n - 1 - kk : kk;
+        const tkk = diag(k);
+
+        if (z[k] !== 0) ek = z[k] > 0 ? -Math.abs(ek) : Math.abs(ek); // dsign(ek, -z[k])
+        if (Math.abs(ek - z[k]) > Math.abs(tkk)) {
+            const s = Math.abs(tkk) / Math.abs(ek - z[k]);
+            for (let i = 0; i < n; i++) z[i] *= s;
+            ek *= s;
+        }
+        let wk = ek - z[k];
+        let wkm = -ek - z[k];
+        let s = Math.abs(wk);
+        let sm = Math.abs(wkm);
+        if (tkk === 0) {
+            wk = 1;
+            wkm = 1;
+        } else {
+            wk /= tkk;
+            wkm /= tkk;
+        }
+
+        if (kk !== n - 1) {
+            const jStart = lower ? 0 : k + 1;
+            const jEnd = lower ? k - 1 : n - 1;
+            for (let j = jStart; j <= jEnd; j++) {
+                const tkj = T.getUnchecked(k, j);
+                sm += Math.abs(z[j] + wkm * tkj);
+                z[j] += wk * tkj;
+                s += Math.abs(z[j]);
+            }
+            if (s < sm) {
+                const w = wkm - wk;
+                wk = wkm;
+                for (let j = jStart; j <= jEnd; j++) z[j] += w * T.getUnchecked(k, j);
+            }
+        }
+        z[k] = wk;
+    }
+
+    // Normalize y (== z so far) to unit 1-norm.
+    {
+        let sum = 0;
+        for (let i = 0; i < n; i++) sum += Math.abs(z[i]);
+        const s = 1 / sum;
+        for (let i = 0; i < n; i++) z[i] *= s;
+    }
+    let ynorm = 1.0;
+
+    // Stage 2: plain solve T * z = y, with intermittent rescaling to avoid overflow.
+    for (let kk = 0; kk < n; kk++) {
+        const k = lower ? kk : n - 1 - kk;
+        const tkk = diag(k);
+
+        if (Math.abs(z[k]) > Math.abs(tkk)) {
+            const s = Math.abs(tkk) / Math.abs(z[k]);
+            for (let i = 0; i < n; i++) z[i] *= s;
+            ynorm *= s;
+        }
+        z[k] = tkk !== 0 ? z[k] / tkk : 1;
+
+        const iStart = lower ? k + 1 : 0;
+        const iEnd = lower ? n - 1 : k - 1;
+        for (let i = iStart; i <= iEnd; i++) z[i] -= T.getUnchecked(i, k) * z[k];
+    }
+
+    // Normalize z to unit 1-norm, folding the scale factor into `ynorm`.
+    {
+        let sum = 0;
+        for (let i = 0; i < n; i++) sum += Math.abs(z[i]);
+        const s = 1 / sum;
+        ynorm *= s;
+    }
+
+    return tnorm / ynorm;
+}
+
+/**
+ * Estimates the 1-norm condition number of `T`, treating it as upper
+ * triangular (only entries on and above the diagonal are read, as with
+ * `solveUpper`), in O(n²) without ever forming `T⁻¹` — see
+ * `cond1Triangular`'s docstring for the algorithm. Reliable in practice,
+ * though (like any O(n²) estimator) it is a heuristic, not an exact value:
+ * pathological matrices exist for which it underestimates the true
+ * condition number.
+ * @param T The (conceptually upper-triangular) matrix to evaluate. Must be square.
+ * @returns The 1-norm condition number estimate, or `Infinity` if `T` has a zero 1-norm.
+ * @throws {RangeError} If `T` is not square.
+ */
+export function cond1Upper(T: Matrix): number {
+    if (T.rows !== T.cols) throw new RangeError(`Matrix cond1Upper requires a square matrix, got ${T.rows}x${T.cols}`);
+    return cond1Triangular(T, false, false);
+}
+
+/**
+ * Estimates the 1-norm condition number of `T`, treating it as lower
+ * triangular (only entries on and below the diagonal are read, as with
+ * `solveLower`), in O(n²) without ever forming `T⁻¹` — see
+ * `cond1Triangular`'s docstring for the algorithm. Reliable in practice,
+ * though (like any O(n²) estimator) it is a heuristic, not an exact value:
+ * pathological matrices exist for which it underestimates the true
+ * condition number.
+ * @param T The (conceptually lower-triangular) matrix to evaluate. Must be square.
+ * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s (as
+ *   `lu()`'s `L` always is) and is never read.
+ * @returns The 1-norm condition number estimate, or `Infinity` if `T` has a zero 1-norm.
+ * @throws {RangeError} If `T` is not square.
+ */
+export function cond1Lower(T: Matrix, unitDiagonal = false): number {
+    if (T.rows !== T.cols) throw new RangeError(`Matrix cond1Lower requires a square matrix, got ${T.rows}x${T.cols}`);
+    return cond1Triangular(T, true, unitDiagonal);
+}
+
+// -----------------------------------------------------------------
 // Cholesky decomposition: for symmetric positive-definite matrices.
 // -----------------------------------------------------------------
+
 
 /**
  * Computes the Cholesky factorization of `A`, via the Cholesky–Banachiewicz

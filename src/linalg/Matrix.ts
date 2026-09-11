@@ -612,6 +612,60 @@ export class Matrix extends ArrayND {
     }
 
     // -----------------------------------------------------------------
+    // Condition number estimation. Implementation lives in
+    // Matrix.linalg.ts; see that file for the algorithms.
+    // -----------------------------------------------------------------
+
+    /**
+     * Computes the exact 1-norm condition number of this matrix, `‖this‖₁ ·
+     * ‖this⁻¹‖₁`, via `inverse()`: see `linalg.cond1()`. General-purpose,
+     * but O(n³) — dominated by the explicit inverse. If this matrix is
+     * triangular, `cond1Upper()`/`cond1Lower()` compute a reliable O(n²)
+     * estimate instead, without ever forming the inverse; prefer those
+     * when applicable.
+     * @returns The 1-norm condition number, or `Infinity` if this matrix
+     *   is (numerically) singular.
+     * @throws {RangeError} If this matrix is not square.
+     */
+    cond1(): number {
+        return linalg.cond1(this);
+    }
+
+    /**
+     * Estimates the 1-norm condition number of this matrix, treating it as
+     * upper triangular (only entries on and above the diagonal are read,
+     * as with `solveUpper`), in O(n²) without ever forming the inverse:
+     * see `linalg.cond1Upper()` for the algorithm (Cline–Moler–Stewart–
+     * Wilkinson, 1979, as used by LINPACK's `dtrco` and described in
+     * Dennis & Schnabel's Algorithm A3.3.1). Reliable in practice, though
+     * (like any O(n²) estimator) it is a heuristic, not an exact value.
+     * @returns The 1-norm condition number estimate, or `Infinity` if this
+     *   matrix has a zero 1-norm.
+     * @throws {RangeError} If this matrix is not square.
+     */
+    cond1Upper(): number {
+        return linalg.cond1Upper(this);
+    }
+
+    /**
+     * Estimates the 1-norm condition number of this matrix, treating it as
+     * lower triangular (only entries on and below the diagonal are read,
+     * as with `solveLower`), in O(n²) without ever forming the inverse:
+     * see `linalg.cond1Lower()` for the algorithm (Cline–Moler–Stewart–
+     * Wilkinson, 1979, as used by LINPACK's `dtrco` and described in
+     * Dennis & Schnabel's Algorithm A3.3.1). Reliable in practice, though
+     * (like any O(n²) estimator) it is a heuristic, not an exact value.
+     * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s
+     *   (as `lu()`'s `L` always is) and is never read.
+     * @returns The 1-norm condition number estimate, or `Infinity` if this
+     *   matrix has a zero 1-norm.
+     * @throws {RangeError} If this matrix is not square.
+     */
+    cond1Lower(unitDiagonal = false): number {
+        return linalg.cond1Lower(this, unitDiagonal);
+    }
+
+    // -----------------------------------------------------------------
     // Cholesky decomposition. Implementation lives in Matrix.linalg.ts;
     // see that file for the algorithm.
     // -----------------------------------------------------------------
