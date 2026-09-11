@@ -479,6 +479,11 @@ export class Matrix extends ArrayND {
      * `norm()`, which is the Frobenius norm over the whole flat buffer
      * regardless of shape). See `norm1()` for its column-sum counterpart;
      * `this.norm1() === this.transpose().normInf()` always holds.
+     *
+     * This overrides `ArrayND.normInf()`'s entrywise "largest absolute
+     * value" meaning (the correct one for `Vector`) with the induced/
+     * operator norm above, which is the conventional meaning of "infinity
+     * norm" for a matrix.
      * @returns The largest absolute row sum, or `0` for a matrix of all zeros.
      */
     normInf(): number {

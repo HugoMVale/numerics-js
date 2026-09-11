@@ -447,6 +447,24 @@ export abstract class ArrayND {
     }
 
     /**
+     * Computes the entrywise infinity norm: the largest absolute value
+     * among the flat buffer's entries, `max_i |data[i]|`. For a `Vector`,
+     * this is the standard vector infinity norm. `Matrix` overrides this
+     * with the induced/operator infinity norm (the largest absolute row
+     * sum) instead, which is the conventional meaning for matrices — see
+     * `Matrix.normInf()`.
+     * @returns The largest absolute entry, or `0` for an all-zero array.
+     */
+    normInf(): number {
+        let m = 0;
+        for (let i = 0; i < this.data.length; i++) {
+            const v = Math.abs(this.data[i]);
+            if (v > m) m = v;
+        }
+        return m;
+    }
+
+    /**
      * Computes the elementwise (Frobenius, for `Matrix`) inner product of
      * this instance with another.
      * @param x The other instance. Must be shape-compatible with this one.

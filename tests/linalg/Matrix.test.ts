@@ -1654,4 +1654,32 @@ describe('Matrix', () => {
             expect(R.isUpperTriangular(1e-9)).toBe(true);
         });
     });
+
+    describe('normInf()', () => {
+        it('overrides the base entrywise meaning with the induced (max row-sum) operator norm', () => {
+            // [[1, -2], [3, 4]]: row sums of abs values are 3 and 7.
+            const m = Matrix.from([
+                [1, -2],
+                [3, 4],
+            ]);
+            expect(m.normInf()).toBe(7); // NOT 4, which would be the entrywise max.
+        });
+
+        it('returns 0 for the zero matrix', () => {
+            expect(Matrix.zero(3, 3).normInf()).toBe(0);
+        });
+
+        it('equals the single entry for a 1x1 matrix', () => {
+            const m = Matrix.from([[-9]]);
+            expect(m.normInf()).toBe(9);
+        });
+
+        it('satisfies norm1(A) === normInf(A^T) for a non-symmetric matrix', () => {
+            const m = Matrix.from([
+                [1, 2, 3],
+                [-4, 5, -6],
+            ]);
+            expect(m.norm1()).toBeCloseTo(m.transpose().normInf(), 12);
+        });
+    });
 });

@@ -38,6 +38,35 @@ describe('Vector', () => {
         expect(v.max()).toBe(10);
     });
 
+    describe('Vector.normInf()', () => {
+        it('returns the largest absolute component', () => {
+            const v = Vector.from([-3, 1, 2]);
+            expect(v.normInf()).toBe(3);
+        });
+
+        it('is insensitive to the sign of the maximal component', () => {
+            expect(Vector.from([1, -5, 4]).normInf()).toBe(5);
+            expect(Vector.from([1, 5, -4]).normInf()).toBe(5);
+        });
+
+        it('returns 0 for the zero vector', () => {
+            expect(Vector.zero(4).normInf()).toBe(0);
+        });
+
+        it('returns 0 for an empty vector', () => {
+            expect(new Vector(0).normInf()).toBe(0);
+        });
+
+        it('handles a single-element vector', () => {
+            expect(Vector.from([-7]).normInf()).toBe(7);
+        });
+
+        it('matches norm() for a vector with a single nonzero component', () => {
+            const v = Vector.from([0, 0, -6, 0]);
+            expect(v.normInf()).toBe(v.norm());
+        });
+    });
+
     it('isClose: rtol scales the argument, not `this` (asymmetric)', () => {
         // |0.5 - 1| = 0.5. atol=0, rtol=0.5.
         // smaller.isClose(larger): threshold = 0.5 * |1|   = 0.5 -> close.
