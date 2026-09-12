@@ -1,6 +1,8 @@
 import { copysign } from '../math.js';
 import type { RootResult } from './types.js';
 
+const METHOD = 'brent';
+
 /**
  * Finds a root of `f` using Brent's method, given a bracketing interval.
  *
@@ -70,7 +72,7 @@ export function brent(
     evaluations++;
     if (Math.abs(fa) <= tolF) {
         return {
-            method: 'brent',
+            method: METHOD,
             success: true,
             message: 'converged: |f(xa)| below tolF',
             evaluations,
@@ -83,7 +85,7 @@ export function brent(
     evaluations++;
     if (Math.abs(fb) <= tolF) {
         return {
-            method: 'brent',
+            method: METHOD,
             success: true,
             message: 'converged: |f(xb)| below tolF',
             evaluations,
@@ -94,7 +96,7 @@ export function brent(
 
     if (fa * fb > 0) {
         throw new Error(
-            'brent: root is not bracketed (f(xa) and f(xb) must have opposite signs)'
+            `${METHOD}: root is not bracketed (f(xa) and f(xb) must have opposite signs)`
         );
     }
 
@@ -122,7 +124,7 @@ export function brent(
 
         if (Math.abs(fb) <= tolF) {
             return {
-                method: 'brent',
+                method: METHOD,
                 success: true,
                 message: 'converged: |f(x)| below tolF',
                 evaluations,
@@ -133,7 +135,7 @@ export function brent(
 
         if (Math.abs(m) <= tol1) {
             return {
-                method: 'brent',
+                method: METHOD,
                 success: true,
                 message: 'converged: bracket half-width below tolX',
                 evaluations,
@@ -191,7 +193,7 @@ export function brent(
     }
 
     return {
-        method: 'brent',
+        method: METHOD,
         success: false,
         message: `did not converge: reached maxIter (${maxIter}) without meeting tolX/tolF`,
         evaluations,

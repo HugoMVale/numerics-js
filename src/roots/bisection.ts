@@ -1,5 +1,7 @@
 import type { RootResult } from './types.js';
 
+const METHOD = 'bisection';
+
 /**
  * Finds a root of `f` in the interval `[a, b]` using the bisection method.
  *
@@ -52,7 +54,7 @@ export function bisection(
     const { tolX = 1e-8, maxIter = 50 } = options;
 
     if (a === b) {
-        throw new Error('bisection: a and b must be different');
+        throw new Error(`${METHOD}: a and b must be different`);
     }
     if (a > b) {
         [a, b] = [b, a];
@@ -66,7 +68,7 @@ export function bisection(
 
     if (fa === 0) {
         return {
-            method: 'bisection',
+            method: METHOD,
             success: true,
             message: 'converged: exact root at a',
             evaluations,
@@ -76,7 +78,7 @@ export function bisection(
     }
     if (fb === 0) {
         return {
-            method: 'bisection',
+            method: METHOD,
             success: true,
             message: 'converged: exact root at b',
             evaluations,
@@ -87,7 +89,7 @@ export function bisection(
 
     if (Math.sign(fa) === Math.sign(fb)) {
         throw new Error(
-            `bisection: f(a) and f(b) must have opposite signs (got f(a)=${fa}, f(b)=${fb})`
+            `${METHOD}: f(a) and f(b) must have opposite signs (got f(a)=${fa}, f(b)=${fb})`
         );
     }
 
@@ -101,7 +103,7 @@ export function bisection(
 
         if (fmid === 0) {
             return {
-                method: 'bisection',
+                method: METHOD,
                 success: true,
                 message: 'converged: exact root found',
                 evaluations,
@@ -111,7 +113,7 @@ export function bisection(
         }
         if ((b - a) / 2 < tolX) {
             return {
-                method: 'bisection',
+                method: METHOD,
                 success: true,
                 message: 'converged: interval half-width below tolX',
                 evaluations,
@@ -129,7 +131,7 @@ export function bisection(
     }
 
     return {
-        method: 'bisection',
+        method: METHOD,
         success: false,
         message: `did not converge: reached maxIter (${maxIter}) without meeting tolX`,
         evaluations,

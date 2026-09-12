@@ -1,5 +1,7 @@
 import type { RootResult } from './types.js';
 
+const METHOD = 'secant';
+
 /**
  * Finds a root of `f` using the secant method, starting from two initial guesses.
  *
@@ -57,7 +59,7 @@ export function secant(
     const { tolX = 1e-8, maxIter = 50 } = options;
 
     if (x0 === x1) {
-        throw new Error('secant: x0 and x1 must be different');
+        throw new Error(`${METHOD}: x0 and x1 must be different`);
     }
 
     let evaluations = 0;
@@ -68,7 +70,7 @@ export function secant(
 
     if (f0 === 0) {
         return {
-            method: 'secant',
+            method: METHOD,
             success: true,
             message: 'converged: exact root at x0',
             evaluations,
@@ -78,7 +80,7 @@ export function secant(
     }
     if (f1 === 0) {
         return {
-            method: 'secant',
+            method: METHOD,
             success: true,
             message: 'converged: exact root at x1',
             evaluations,
@@ -92,7 +94,7 @@ export function secant(
 
         if (denom === 0) {
             return {
-                method: 'secant',
+                method: METHOD,
                 success: false,
                 message: `did not converge: zero denominator encountered (f(x0)=${f0}, f(x1)=${f1})`,
                 evaluations,
@@ -107,7 +109,7 @@ export function secant(
             const fx2 = f(x2);
             evaluations++;
             return {
-                method: 'secant',
+                method: METHOD,
                 success: true,
                 message: 'converged: step size below tolX',
                 evaluations,
@@ -124,7 +126,7 @@ export function secant(
 
         if (f1 === 0) {
             return {
-                method: 'secant',
+                method: METHOD,
                 success: true,
                 message: 'converged: exact root found',
                 evaluations,
@@ -135,7 +137,7 @@ export function secant(
     }
 
     return {
-        method: 'secant',
+        method: METHOD,
         success: false,
         message: `did not converge: reached maxIter (${maxIter}) without meeting tolX`,
         evaluations,
