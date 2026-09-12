@@ -1,5 +1,5 @@
 import { copysign } from '../math.js';
-import type { RootResult } from './types.js';
+import type { ScalarRootResult } from './types.js';
 
 const METHOD = 'brent';
 
@@ -61,7 +61,7 @@ export function brent(
         tolF?: number;
         maxIter?: number;
     } = {}
-): RootResult {
+): ScalarRootResult {
     const { tolX = 1e-8, tolF = 1e-8, maxIter = 50 } = options;
 
     const eps = Number.EPSILON;

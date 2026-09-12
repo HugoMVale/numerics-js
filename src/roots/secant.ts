@@ -1,4 +1,4 @@
-import type { RootResult } from './types.js';
+import type { ScalarRootResult } from './types.js';
 
 const METHOD = 'secant';
 
@@ -55,7 +55,7 @@ export function secant(
         tolX?: number;
         maxIter?: number;
     } = {}
-): RootResult {
+): ScalarRootResult {
     const { tolX = 1e-8, maxIter = 50 } = options;
 
     if (x0 === x1) {

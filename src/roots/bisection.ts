@@ -1,4 +1,4 @@
-import type { RootResult } from './types.js';
+import type { ScalarRootResult } from './types.js';
 
 const METHOD = 'bisection';
 
@@ -50,7 +50,7 @@ export function bisection(
         tolX?: number;
         maxIter?: number;
     } = {}
-): RootResult {
+): ScalarRootResult {
     const { tolX = 1e-8, maxIter = 50 } = options;
 
     if (a === b) {

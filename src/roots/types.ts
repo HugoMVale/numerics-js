@@ -1,7 +1,7 @@
 /**
  * Result of a scalar root-finding routine.
  */
-export interface RootResult {
+export interface ScalarRootResult {
     /** Name of the method that produced this result (e.g. `'bisection'`). */
     method: string;
     /** Whether the root-finding was successful. */
