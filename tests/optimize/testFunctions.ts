@@ -2,13 +2,6 @@ import { Vector } from '../../src/linalg/Vector.js';
 
 /**
  * Multivariate test functions commonly used in optimize benchmarks.
- * Ported from PolyKin's `_tester.py` (`TEST_FUNCTIONS_MULTIVAR`).
- *
- * Only `fn` (the objective), `initialPoint`, and `globalMinimum` are
- * included, since these are the pieces needed by derivative-free methods
- * like `fminNelderMead`. Gradients/Hessians and the `properties` tags from
- * the Python source are omitted; add them back here if a gradient-based
- * method needs them later, so all optimizer tests keep sharing one table.
  */
 export interface TestFunctionData {
     /** The objective function to minimize. */
