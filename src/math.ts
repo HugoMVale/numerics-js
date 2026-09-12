@@ -1,4 +1,10 @@
 /**
+ * Basic scalar mathematical utility functions.
+ *
+ * @module math
+ */
+
+/**
  * Restricts a number to the inclusive range between `lo` and `hi`.
  *
  * @param x The number to clip.
