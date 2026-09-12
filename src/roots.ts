@@ -15,4 +15,4 @@
 export { bisection } from './roots/bisection.js';
 export { brent } from './roots/brent.js';
 export { secant } from './roots/secant.js';
-export type { ScalarRootResult } from './roots/types.js';
+export type { ScalarRootResult, VectorRootResult } from './roots/types.js';
