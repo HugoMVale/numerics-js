@@ -1,3 +1,9 @@
+/**
+ * Numerical differentiation methods using finite differences.
+ *
+ * @module numdiff
+ */
+
 import { Vector } from './linalg/Vector.js';
 import { Matrix } from './linalg/Matrix.js';
 
