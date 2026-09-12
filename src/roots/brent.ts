@@ -17,7 +17,7 @@ const METHOD = 'brent';
  * @param f Function to find a root of.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
- * @param options Tuning options.
+ * @param options Optional settings.
  * @param options.tolX Stop when the bracket half-width is below this (absolute `x` tolerance). Defaults to `1e-8`.
  * @param options.tolF Stop when `|f(x)|` is below this (absolute function-value tolerance). Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.

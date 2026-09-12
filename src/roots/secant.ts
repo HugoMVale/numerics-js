@@ -13,7 +13,7 @@ const METHOD = 'secant';
  * @param f Function to find a root of.
  * @param x0 First initial guess.
  * @param x1 Second initial guess (should differ from `x0`).
- * @param options Tuning options.
+ * @param options Optional settings.
  * @param options.tolX Stop when `|x1 - x0|` (the step size) is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.

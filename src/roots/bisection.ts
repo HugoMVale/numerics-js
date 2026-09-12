@@ -8,7 +8,7 @@ const METHOD = 'bisection';
  * @param f Continuous function to find a root of.
  * @param a Left endpoint of the bracketing interval.
  * @param b Right endpoint of the bracketing interval.
- * @param options Tuning options.
+ * @param options Optional settings.
  * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
