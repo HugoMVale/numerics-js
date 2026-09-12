@@ -21,7 +21,7 @@ describe('nelderMead vs scipy.optimize.minimize Nelder-Mead reference values', (
             const x0 = data.initialPoint(N);
             expect(Array.from(x0.data)).toEqual(fixture.x0);
 
-            const result = nelderMead(data.fn, x0, { tolX: fixture.tolX, tolF: fixture.tolF });
+            const result = nelderMead(data.fn, x0, { tolx: fixture.tolx, tolf: fixture.tolf });
 
             expect(result.success, result.message).toBe(true);
             for (let i = 0; i < N; i++) {
@@ -30,7 +30,7 @@ describe('nelderMead vs scipy.optimize.minimize Nelder-Mead reference values', (
                 );
             }
             expect(Math.abs(result.fx - fixture.scipyFx)).toBeLessThanOrEqual(
-                F_TOLERANCE_FACTOR * fixture.tolF
+                F_TOLERANCE_FACTOR * fixture.tolf
             );
             expect(result.evaluations).toBeLessThanOrEqual(
                 fixture.scipyEvaluations * EVALUATION_FACTOR

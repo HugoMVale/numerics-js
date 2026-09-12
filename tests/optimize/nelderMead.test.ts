@@ -10,7 +10,7 @@ describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('fminNelderMead — %s', 
 
     it('converges to the known global minimum', () => {
         const x0 = data.initialPoint(N);
-        const res = nelderMead(data.fn, x0, { tolX: tolx });
+        const res = nelderMead(data.fn, x0, { tolx: tolx });
 
         expect(res.success, res.message).toBe(true);
         expect(Math.abs(res.fx - data.globalMinimum)).toBeLessThanOrEqual(2 * tolx);
@@ -19,7 +19,7 @@ describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('fminNelderMead — %s', 
     it('stops early and reports success when the callback requests it', () => {
         const x0 = data.initialPoint(N);
         const res = nelderMead(data.fn, x0, {
-            tolX: tolx,
+            tolx: tolx,
             callback: (nIter) => ({ stop: nIter >= 3, success: true }),
         });
 

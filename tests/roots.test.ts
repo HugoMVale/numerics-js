@@ -175,17 +175,17 @@ describe('brent', () => {
         expect(result.x).toBeLessThan(5);
     });
 
-    it('should converge early when |f(x)| is within tolF', () => {
+    it('should converge early when |f(x)| is within tolf', () => {
         // A wide bracket but a loose function-value tolerance should let the
         // function-value stop criterion trigger before the x-tolerance would.
-        const result = brent(f, 0, 5, { tolX: 1e-15, tolF: 1e-1 });
+        const result = brent(f, 0, 5, { tolx: 1e-15, tolf: 1e-1 });
         expect(f(result.x)).toBeLessThanOrEqual(1e-1);
     });
 
     it('should converge by bracket width when function-value tolerance is disabled', () => {
-        const result = brent((x) => x * x - 2, 0, 2, { tolF: 0 });
+        const result = brent((x) => x * x - 2, 0, 2, { tolf: 0 });
         expect(result.success).toBe(true);
-        expect(result.message).toBe('converged: bracket half-width below tolX');
+        expect(result.message).toBe('converged: bracket half-width below tolx');
         expect(result.x).toBeCloseTo(Math.SQRT2, 8);
     });
 });

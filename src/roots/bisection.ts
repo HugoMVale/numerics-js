@@ -10,7 +10,7 @@ const METHOD = 'bisection';
  * @param xa Left endpoint of the bracketing interval.
  * @param xb Right endpoint of the bracketing interval.
  * @param options Optional settings.
- * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
+ * @param options.tolx Stop when the interval half-width is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
  * @throws {Error} If `xa` and `xb` are equal, or if `f(xa)` and `f(xb)` don't bracket a root.
@@ -30,7 +30,7 @@ const METHOD = 'bisection';
  * {
  *   method: 'bisection',
  *   success: true,
- *   message: 'converged: interval half-width below tolX',
+ *   message: 'converged: interval half-width below tolx',
  *   evaluations: 29,
  *   x: 0.5369737669825554,
  *   fx: -7.824495273922594e-9
@@ -48,11 +48,11 @@ export function bisection(
     xa: number,
     xb: number,
     options: {
-        tolX?: number;
+        tolx?: number;
         maxIter?: number;
     } = {}
 ): ScalarRootResult {
-    const { tolX = 1e-8, maxIter = 50 } = options;
+    const { tolx = 1e-8, maxIter = 50 } = options;
 
     if (xa === xb) {
         throw new Error(`${METHOD}: xa and xb must be different`);
@@ -112,11 +112,11 @@ export function bisection(
                 fx: fmid
             };
         }
-        if ((xb - xa) / 2 < tolX) {
+        if ((xb - xa) / 2 < tolx) {
             return {
                 method: METHOD,
                 success: true,
-                message: 'converged: interval half-width below tolX',
+                message: 'converged: interval half-width below tolx',
                 evaluations,
                 x: mid,
                 fx: fmid
@@ -134,7 +134,7 @@ export function bisection(
     return {
         method: METHOD,
         success: false,
-        message: `did not converge: reached maxIter (${maxIter}) without meeting tolX`,
+        message: `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
         evaluations,
         x: mid,
         fx: fmid

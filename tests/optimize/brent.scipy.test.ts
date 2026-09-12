@@ -21,14 +21,14 @@ describe('brent vs scipy.optimize.minimize_scalar Brent reference values', () =>
             const fn = OBJECTIVES[fixture.id];
             expect(fn, `no matching objective registered for id "${fixture.id}"`).toBeDefined();
 
-            const result = brent(fn, fixture.xa, fixture.xb, { tolX: fixture.tolX });
+            const result = brent(fn, fixture.xa, fixture.xb, { tolx: fixture.tolx });
 
             expect(result.success).toBe(true);
             expect(Math.abs(result.x - fixture.scipyX)).toBeLessThanOrEqual(
-                RESULT_TOLERANCE_FACTOR * fixture.tolX
+                RESULT_TOLERANCE_FACTOR * fixture.tolx
             );
             expect(Math.abs(result.fx - fixture.scipyFx)).toBeLessThanOrEqual(
-                RESULT_TOLERANCE_FACTOR * fixture.tolX
+                RESULT_TOLERANCE_FACTOR * fixture.tolx
             );
             expect(result.evaluations).toBeLessThanOrEqual(
                 fixture.scipyEvaluations * EVALUATION_FACTOR

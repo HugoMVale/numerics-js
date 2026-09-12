@@ -23,16 +23,16 @@ export interface NelderMeadResult {
 export interface NelderMeadOptions {
     /**
      * Absolute tolerance for `x`. The algorithm terminates when the maximum
-     * scaled distance between the simplex vertices is less than `tolX`.
+     * scaled distance between the simplex vertices is less than `tolx`.
      * Defaults to `1e-8`.
      */
-    tolX?: number;
+    tolx?: number;
     /**
      * Absolute tolerance for `f`. The algorithm terminates when the maximum
      * difference between the function values at the simplex vertices is less
-     * than `tolF`. Defaults to `1e-8`.
+     * than `tolf`. Defaults to `1e-8`.
      */
-    tolF?: number;
+    tolf?: number;
     /**
      * Positive scaling factors for the components of `x`, as a plain array
      * or an `Vector`. Ideally, these should be chosen so that `scale*x` is
@@ -152,7 +152,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * const f = (x: Vector): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
  * const result = nelderMead(f, [1, 1e8]);
  * // or, with explicit options:
- * // const result = nelderMead(f, [1, 1e8], { tolX: 1e-10, adaptive: false });
+ * // const result = nelderMead(f, [1, 1e8], { tolx: 1e-10, adaptive: false });
  * console.log(result);
  * ```
  *
@@ -160,7 +160,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * ```text
  * {
  *   success: true,
- *   message: 'Function value spread is less than `tolF`.',
+ *   message: 'Function value spread is less than `tolf`.',
  *   evaluations: 225,
  *   x: Vector [ 99.99998642148125, 9999999999.999956 ],
  *   fx: 2.1088669603067145e-9
@@ -173,8 +173,8 @@ export function nelderMead(
     options: NelderMeadOptions = {}
 ): NelderMeadResult {
     const {
-        tolX = 1e-8,
-        tolF = 1e-8,
+        tolx = 1e-8,
+        tolf = 1e-8,
         scale,
         maxIter,
         maxFunEvals,
@@ -260,15 +260,15 @@ export function nelderMead(
                 if (dj > maxDist) maxDist = dj;
             }
         }
-        if (maxDist < tolX) {
+        if (maxDist < tolx) {
             success = true;
-            message = 'Maximum distance between simplex vertices is less than `tolX`.';
+            message = 'Maximum distance between simplex vertices is less than `tolx`.';
             break;
         }
 
-        if (fmax - fmin < tolF) {
+        if (fmax - fmin < tolf) {
             success = true;
-            message = 'Function value spread is less than `tolF`.';
+            message = 'Function value spread is less than `tolf`.';
             break;
         }
 

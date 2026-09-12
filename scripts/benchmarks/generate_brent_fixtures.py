@@ -76,7 +76,7 @@ def main() -> None:
                 "description": case["description"],
                 "xa": case["xa"],
                 "xb": case["xb"],
-                "tolX": TOL_X,
+                "tolx": TOL_X,
                 "scipyX": result.x,
                 "scipyFx": result.fun,
                 "scipyEvaluations": result.nfev,

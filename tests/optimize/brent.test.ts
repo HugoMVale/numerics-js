@@ -15,7 +15,7 @@ describe('brent', () => {
         const result = brent(fn, -3, 3);
         expect(result).toMatchObject({
             success: true,
-            message: '|dx| <= tolX',
+            message: '|dx| <= tolx',
             evaluations: 19,
         });
         expect(result.x).toBeCloseTo(0.6299605249, 6);
@@ -42,13 +42,13 @@ describe('brent', () => {
         expect(reversed.x).toBeCloseTo(1.234, 6);
     });
 
-    it('converges at least as tightly when tolX is smaller', () => {
+    it('converges at least as tightly when tolx is smaller', () => {
         // A pure quadratic is fit exactly by the parabolic step, so use a quartic
         // (as in the x^4 - x + 1 case) where the tolerance genuinely gates how many
         // refinement steps are taken.
         const fn = (x: number) => (x - Math.PI) ** 4;
-        const loose = brent(fn, 0, 10, { tolX: 1e-1 });
-        const tight = brent(fn, 0, 10, { tolX: 1e-12 });
+        const loose = brent(fn, 0, 10, { tolx: 1e-1 });
+        const tight = brent(fn, 0, 10, { tolx: 1e-12 });
         expect(Math.abs(tight.x - Math.PI)).toBeLessThanOrEqual(Math.abs(loose.x - Math.PI));
         expect(tight.x).toBeCloseTo(Math.PI, 8);
     });
@@ -76,7 +76,7 @@ describe('brent', () => {
     it('returns a failure result when maxIter is exhausted', () => {
         const fn = (x: number) => (x - 2) ** 2;
 
-        const result = brent(fn, -5, 5, { tolX: 1e-14, maxIter: 1 });
+        const result = brent(fn, -5, 5, { tolx: 1e-14, maxIter: 1 });
 
         expect(result.success).toBe(false);
         expect(result.message).toContain('Maximum number of iterations');
@@ -85,7 +85,7 @@ describe('brent', () => {
 
     it('respects a custom maxIter without throwing', () => {
         const fn = (x: number) => (x - 2) ** 2;
-        expect(() => brent(fn, -5, 5, { tolX: 1e-8, maxIter: 5 })).not.toThrow();
+        expect(() => brent(fn, -5, 5, { tolx: 1e-8, maxIter: 5 })).not.toThrow();
     });
 
     it('handles a flat (constant) function without infinite looping', () => {
@@ -172,13 +172,13 @@ const TEST_FUNCTIONS: Record<string, BrentTestCase> = {
 };
 
 describe('brent (test problems ported from polykin test_brent.py)', () => {
-    const tolX = 1e-6;
+    const tolx = 1e-6;
 
     for (const [name, { f, xa, xb, xmin }] of Object.entries(TEST_FUNCTIONS)) {
         it(`finds the minimum for "${name}"`, () => {
-            const result = brent(f, xa, xb, { tolX });
+            const result = brent(f, xa, xb, { tolx });
             expect(
-                isClose(result.x, xmin, 2 * tolX),
+                isClose(result.x, xmin, 2 * tolx),
                 `Incorrect minimum for ${name}: x=${result.x}, expected ${xmin}`
             ).toBe(true);
         });

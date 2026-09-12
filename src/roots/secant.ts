@@ -15,7 +15,7 @@ const METHOD = 'secant';
  * @param x0 First initial guess.
  * @param x1 Second initial guess (should differ from `x0`).
  * @param options Optional settings.
- * @param options.tolX Stop when `|x1 - x0|` (the step size) is below this. Defaults to `1e-8`.
+ * @param options.tolx Stop when `|x1 - x0|` (the step size) is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
  * @throws {Error} If x0 and x1 are equal.
@@ -35,7 +35,7 @@ const METHOD = 'secant';
  * {
  *   method: 'secant',
  *   success: true,
- *   message: 'converged: step size below tolX',
+ *   message: 'converged: step size below tolx',
  *   evaluations: 10,
  *   x: 0.5369737680962301,
  *   fx: -2.220446049250313e-16
@@ -53,11 +53,11 @@ export function secant(
     x0: number,
     x1: number,
     options: {
-        tolX?: number;
+        tolx?: number;
         maxIter?: number;
     } = {}
 ): ScalarRootResult {
-    const { tolX = 1e-8, maxIter = 50 } = options;
+    const { tolx = 1e-8, maxIter = 50 } = options;
 
     if (x0 === x1) {
         throw new Error(`${METHOD}: x0 and x1 must be different`);
@@ -106,13 +106,13 @@ export function secant(
 
         const x2 = x1 - (f1 * (x1 - x0)) / denom;
 
-        if (Math.abs(x2 - x1) < tolX) {
+        if (Math.abs(x2 - x1) < tolx) {
             const fx2 = f(x2);
             evaluations++;
             return {
                 method: METHOD,
                 success: true,
-                message: 'converged: step size below tolX',
+                message: 'converged: step size below tolx',
                 evaluations,
                 x: x2,
                 fx: fx2
@@ -140,7 +140,7 @@ export function secant(
     return {
         method: METHOD,
         success: false,
-        message: `did not converge: reached maxIter (${maxIter}) without meeting tolX`,
+        message: `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
         evaluations,
         x: x1,
         fx: f1

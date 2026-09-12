@@ -29,7 +29,7 @@ export interface BrentResult {
  *
  * Results are validated against `scipy.optimize.minimize_scalar` with
  * `method="brent"` (see `tests/optimize/brent.scipy.test.ts`).
- * With the same `tolX`, the number of function calls is essentially identical to SciPy's 
+ * With the same `tolx`, the number of function calls is essentially identical to SciPy's 
  * across the benchmark problems; see `tests/optimize/brent.scipy.benchmark.md`
  * for the comparison table.
  *
@@ -37,7 +37,7 @@ export interface BrentResult {
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
  * @param options Optional settings.
- * @param options.tolX Stop when the search interval shrinks to approximately this width. Defaults to `1e-8`.
+ * @param options.tolx Stop when the search interval shrinks to approximately this width. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Optimization result containing the minimum, function value, and convergence information.
  *
@@ -52,7 +52,7 @@ export interface BrentResult {
  * ```text
  * {
  *   success: true,
- *   message: '|dx| <= tolX',
+ *   message: '|dx| <= tolx',
  *   evaluations: 19,
  *   x: 0.62996052,
  *   fx: 0.52752961
@@ -64,11 +64,11 @@ export function brent(
     xa: number,
     xb: number,
     options: {
-        tolX?: number;
+        tolx?: number;
         maxIter?: number;
     } = {}
 ): BrentResult {
-    const { tolX = 1e-8, maxIter = 50 } = options;
+    const { tolx = 1e-8, maxIter = 50 } = options;
 
     // Golden ratio constant: (3 - sqrt(5)) / 2
     const GOLDEN = 0.38196601125010515179;
@@ -91,13 +91,13 @@ export function brent(
 
     for (let k = 0; k < maxIter; k++) {
         const xm = 0.5 * (a + b);
-        const tol1 = EPS * Math.abs(x) + tolX / 3.0;
+        const tol1 = EPS * Math.abs(x) + tolx / 3.0;
         const tol2 = 2.0 * tol1;
 
         if (Math.abs(x - xm) <= tol2 - 0.5 * (b - a)) {
             return {
                 success: true,
-                message: '|dx| <= tolX',
+                message: '|dx| <= tolx',
                 evaluations: nFev,
                 x,
                 fx: fx,

@@ -19,8 +19,8 @@ const METHOD = 'brent';
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
  * @param options Optional settings.
- * @param options.tolX Stop when the bracket half-width is below this (absolute `x` tolerance). Defaults to `1e-8`.
- * @param options.tolF Stop when `|f(x)|` is below this (absolute function-value tolerance). Defaults to `1e-8`.
+ * @param options.tolx Stop when the bracket half-width is below this (absolute `x` tolerance). Defaults to `1e-8`.
+ * @param options.tolf Stop when `|f(x)|` is below this (absolute function-value tolerance). Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
  * @throws {Error} If f(xa) and f(xb) do not have opposite signs.
@@ -40,7 +40,7 @@ const METHOD = 'brent';
  * {
  *   method: 'brent',
  *   success: true,
- *   message: 'converged: |f(x)| below tolF',
+ *   message: 'converged: |f(x)| below tolf',
  *   evaluations: 9,
  *   x: 0.5369737681040232,
  *   fx: 5.475264686083392e-11
@@ -58,12 +58,12 @@ export function brent(
     xa: number,
     xb: number,
     options: {
-        tolX?: number;
-        tolF?: number;
+        tolx?: number;
+        tolf?: number;
         maxIter?: number;
     } = {}
 ): ScalarRootResult {
-    const { tolX = 1e-8, tolF = 1e-8, maxIter = 50 } = options;
+    const { tolx = 1e-8, tolf = 1e-8, maxIter = 50 } = options;
 
     const eps = Number.EPSILON;
 
@@ -71,11 +71,11 @@ export function brent(
 
     let fa = f(xa);
     evaluations++;
-    if (Math.abs(fa) <= tolF) {
+    if (Math.abs(fa) <= tolf) {
         return {
             method: METHOD,
             success: true,
-            message: 'converged: |f(xa)| below tolF',
+            message: 'converged: |f(xa)| below tolf',
             evaluations,
             x: xa,
             fx: fa
@@ -84,11 +84,11 @@ export function brent(
 
     let fb = f(xb);
     evaluations++;
-    if (Math.abs(fb) <= tolF) {
+    if (Math.abs(fb) <= tolf) {
         return {
             method: METHOD,
             success: true,
-            message: 'converged: |f(xb)| below tolF',
+            message: 'converged: |f(xb)| below tolf',
             evaluations,
             x: xb,
             fx: fb
@@ -120,14 +120,14 @@ export function brent(
             xc = xa; fc = fa;
         }
 
-        const tol1 = 2 * eps * Math.abs(xb) + 0.5 * tolX;
+        const tol1 = 2 * eps * Math.abs(xb) + 0.5 * tolx;
         const m = 0.5 * (xc - xb);
 
-        if (Math.abs(fb) <= tolF) {
+        if (Math.abs(fb) <= tolf) {
             return {
                 method: METHOD,
                 success: true,
-                message: 'converged: |f(x)| below tolF',
+                message: 'converged: |f(x)| below tolf',
                 evaluations,
                 x: xb,
                 fx: fb
@@ -138,7 +138,7 @@ export function brent(
             return {
                 method: METHOD,
                 success: true,
-                message: 'converged: bracket half-width below tolX',
+                message: 'converged: bracket half-width below tolx',
                 evaluations,
                 x: xb,
                 fx: fb
@@ -196,7 +196,7 @@ export function brent(
     return {
         method: METHOD,
         success: false,
-        message: `did not converge: reached maxIter (${maxIter}) without meeting tolX/tolF`,
+        message: `did not converge: reached maxIter (${maxIter}) without meeting tolx/tolf`,
         evaluations,
         x: xb,
         fx: fb

@@ -20,7 +20,7 @@ from scipy.optimize import minimize
 # Shared with tests/optimize/nelderMead.scipy.test.ts so both solvers use the
 # same requested tolerances and their evaluation counts are comparable.
 # fatol is set far below xatol so both solvers terminate on the x-tolerance
-# criterion, avoiding any need to reconcile xatol with nelderMead's tolF.
+# criterion, avoiding any need to reconcile xatol with nelderMead's tolf.
 TOL_X = 1e-8
 TOL_F = 1e-14
 
@@ -82,8 +82,8 @@ def main() -> None:
                 "id": case["id"],
                 "description": case["description"],
                 "x0": case["x0"].tolist(),
-                "tolX": TOL_X,
-                "tolF": TOL_F,
+                "tolx": TOL_X,
+                "tolf": TOL_F,
                 "scipyX": result.x.tolist(),
                 "scipyFx": result.fun,
                 "scipyEvaluations": result.nfev,
