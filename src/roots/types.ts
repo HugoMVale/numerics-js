@@ -30,11 +30,11 @@ export interface VectorRootResult {
     /** Message describing the result or error. */
     message: string;
     /** Number of function evaluations. */
-    nfEval: number;
+    evaluationsFunction: number;
     /** Number of user-supplied Jacobian evaluations. */
-    njEval: number;
+    evaluationsJacobian: number;
     /** Number of outer quasi-Newton iterations performed. */
-    niter: number;
+    iterations: number;
     /** The solution vector (or best estimate, if not converged). */
     x: Vector;
     /** Function (residual) at the returned solution. */
