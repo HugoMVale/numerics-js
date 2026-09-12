@@ -4,7 +4,8 @@ import type { ScalarRootResult } from './types.js';
 const METHOD = 'brent';
 
 /**
- * Finds a root of `f` using Brent's method, given a bracketing interval.
+ * Finds a root of a scalar function `f(x)` using Brent's method, 
+ * given a bracketing interval.
  *
  * Brent's method combines bisection, the secant method, and inverse
  * quadratic interpolation. It is as robust as bisection (guaranteed to

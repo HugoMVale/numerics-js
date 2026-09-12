@@ -3,7 +3,8 @@ import type { ScalarRootResult } from './types.js';
 const METHOD = 'secant';
 
 /**
- * Finds a root of `f` using the secant method, starting from two initial guesses.
+ * Finds a root of a scalar function `f(x)` using the secant method, 
+ * starting from two initial guesses.
  *
  * Unlike bisection, the secant method does not require a bracketing interval
  * (`f(x0)` and `f(x1)` need not have opposite signs), and typically converges
