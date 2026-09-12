@@ -34,10 +34,9 @@ export interface NelderMeadOptions {
      */
     tolf?: number;
     /**
-     * Positive scaling factors for the components of `x`, as a plain array
-     * or an `Vector`. Ideally, these should be chosen so that `sclx[i]*x[i]` is
-     * of order 1 near the solution for all components. If omitted, scaling
-     * is inferred from `x0` as `1 / max(|x0_i|, 1)`.
+     * Positive scaling factors for the components of `x`. Ideally, these should be
+     * chosen so that `sclx[i]*x[i]` is of order 1 near the solution for all 
+     * components. If omitted, scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
      */
     sclx?: number[] | Vector;
     /** Maximum number of iterations. Defaults to `200*N`. */
