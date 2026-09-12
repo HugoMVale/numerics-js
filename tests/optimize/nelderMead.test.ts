@@ -53,7 +53,7 @@ describe('fminNelderMead — options and edge cases', () => {
     });
 
     it('honors a user-supplied sclx', () => {
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [1, 1], { scale: [1, 1] });
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [1, 1], { sclx: [1, 1] });
         expect(res.success).toBe(true);
         expect(res.fx).toBeCloseTo(0, 5);
     });

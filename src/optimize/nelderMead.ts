@@ -35,11 +35,11 @@ export interface NelderMeadOptions {
     tolf?: number;
     /**
      * Positive scaling factors for the components of `x`, as a plain array
-     * or an `Vector`. Ideally, these should be chosen so that `scale*x` is
+     * or an `Vector`. Ideally, these should be chosen so that `sclx[i]*x[i]` is
      * of order 1 near the solution for all components. If omitted, scaling
      * is inferred from `x0` as `1 / max(|x0_i|, 1)`.
      */
-    scale?: number[] | Vector;
+    sclx?: number[] | Vector;
     /** Maximum number of iterations. Defaults to `200*N`. */
     maxIter?: number;
     /** Maximum number of function evaluations. Defaults to `200*N`. */
@@ -125,7 +125,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  *
  * where `x0` is the initial guess and `scale_i` is the scaling factor
  * associated with variable `x_i`. Therefore, it is important that `x0`
- * and/or `scale` reflect the expected scale of the variables. If `scale` is
+ * and/or `sclx` reflect the expected scale of the variables. If `sclx` is
  * not provided, the variable scaling is inferred from `x0`.
  *
  * Results are validated against `scipy.optimize.minimize` with
@@ -141,7 +141,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  *
  *
  * @param f Objective function to minimize.
- * @param x0 Initial guess for the optimum. If no user-defined `scale` is
+ * @param x0 Initial guess for the optimum. If no user-defined `sclx` is
  * provided, the scaling factors will be determined from this value.
  * @param options Optional settings; see {@link NelderMeadOptions}.
  * @returns The optimize result.
@@ -175,7 +175,7 @@ export function nelderMead(
     const {
         tolx = 1e-8,
         tolf = 1e-8,
-        scale,
+        sclx,
         maxIter,
         maxFunEvals,
         adaptive = true,
@@ -189,8 +189,8 @@ export function nelderMead(
     }
 
     const xScale =
-        scale !== undefined
-            ? Vector.from(Array.from(scale instanceof Vector ? scale.data : scale, Math.abs))
+        sclx !== undefined
+            ? Vector.from(Array.from(sclx instanceof Vector ? sclx.data : sclx, Math.abs))
             : defaultScale(x0v);
 
     const iterLimit = maxIter ?? 200 * n;
