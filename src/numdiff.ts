@@ -156,7 +156,7 @@ export function jacobianForward(
     return jacobian;
 }
 /**
- * Calculate the numerical derivative of a scalar function using the centered
+ * Calculate the numerical derivative of a scalar function `f(x)` using the centered
  * finite-difference scheme.
  *
  * The step size is optimally determined according to the machine precision of
