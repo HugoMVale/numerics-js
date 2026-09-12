@@ -17,16 +17,6 @@ export interface BrentResult {
 }
 
 /**
- * Options for {@link brent}.
- */
-export interface BrentOptions {
-    /** Stop when the search interval shrinks to approximately this width. Defaults to `1e-8`. */
-    tolX?: number;
-    /** Maximum number of iterations. Defaults to `100`. */
-    maxIter?: number;
-}
-
-/**
  * Finds a local minimum of `f` using Brent's method, given a bracketing interval.
  *
  * Brent's method is a derivative-free optimize algorithm that combines
@@ -72,7 +62,10 @@ export function brent(
     f: (x: number) => number,
     xa: number,
     xb: number,
-    options: BrentOptions = {}
+    options: {
+        tolX?: number;
+        maxIter?: number;
+    } = {}
 ): BrentResult {
     const { tolX = 1e-8, maxIter = 50 } = options;
 
