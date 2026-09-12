@@ -271,7 +271,8 @@ function computeMonotonicDerivativesND(xp: Vector, fp: Matrix): Matrix {
 }
 
 /**
- * A one-dimensional Piecewise Cubic Hermite Interpolating Polynomial (PCHIP).
+ * A shape-preserving cubic Hermite interpolant (PCHIP) for a
+ * scalar-valued function (`number -> number`).
  *
  * Given the discrete data points `(xp[i], fp[i])`, with `xp` strictly increasing,
  * `eval(x)` returns a shape-preserving cubic interpolation at `x`. Unlike a
@@ -280,19 +281,14 @@ function computeMonotonicDerivativesND(xp: Vector, fp: Matrix): Matrix {
  * of `xp`, the result is clamped to the boundary value of `fp` unless
  * `options.left`/`options.right` are given.
  *
- * Validation (matching lengths, non-empty, sorted) happens once, in the
- * constructor, rather than on every evaluation. This makes `PchipInterpolator1D`
- * the better choice when the same `(xp, fp)` pair is evaluated repeatedly and
- * smooth, shape-preserving interpolation is needed.
- *
  * For interpolating a vector-valued function (`number -> Vector`) against
  * the same shared `xp` knots, see {@link PchipInterpolatorND}.
  *
  * @example
  * ```ts
  * const f = new PchipInterpolator1D([1, 2, 3], [3, 2, 0]);
- * f.eval(2.5); // 1.1458333333333333
- * f.eval([0, 1.5, 3.14]); // Vector(3, 3, 2.6041666666666665, 0)
+ * f.eval(2.5); // 1.1458333333333335
+ * f.eval([0, 1.5, 3.14]); // Vector(3, 2.6041666666666665, 0)
  * ```
  */
 export class PchipInterpolator1D {
@@ -340,7 +336,7 @@ export class PchipInterpolator1D {
     /**
      * Evaluates the shape-preserving cubic interpolant at `x`.
      * @param x The x-coordinate(s) at which to evaluate. A single `number` returns a `number`;
-     * a plain array or `Vector` returns an `Vector`.
+     * a plain array or `Vector` returns a `Vector`.
      * @returns The interpolated or clamped value(s), matching the shape of `x`.
      */
     eval(x: number): number;
@@ -457,7 +453,8 @@ export class PchipInterpolator1D {
  * outside the range of `xp`, the result is clamped to the boundary row of
  * `fp` unless `options.left`/`options.right` are given.
  *
- * The vector-valued counterpart of `PchipInterpolator1D`.
+ * For interpolating a scalar-valued function (`number -> number`),
+ * see {@link PchipInterpolator1D}.
  *
  * @example
  * ```ts

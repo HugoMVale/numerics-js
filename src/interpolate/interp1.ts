@@ -167,7 +167,7 @@ function linearDerivativeManyND(x: number[] | Vector, xp: Vector, fp: Matrix, ca
 }
 
 /**
- * A reusable one-dimensional linear interpolant.
+ * A linear interpolant for a scalar-valued function (`number -> number`).
  *
  * Given the discrete data points `(xp[i], fp[i])`, with `xp` increasing,
  * `eval(x)` returns the linearly interpolated value(s) at `x`. For `x`
@@ -310,8 +310,7 @@ export class LinearInterpolator1D {
 }
 
 /**
- * A reusable linear interpolant for a vector-valued function
- * (`number -> Vector`).
+ * A linear interpolant for a vector-valued function (`number -> Vector`).
  *
  * Given the discrete data points `(xp[i], fp.row(i))`, with `xp`
  * increasing, `eval(x)` returns the linearly interpolated vector at `x` --
@@ -319,10 +318,9 @@ export class LinearInterpolator1D {
  * knots. For `x` outside the range of `xp`, the result is clamped to the
  * boundary row of `fp` unless `options.left`/`options.right` are given.
  *
- * The vector-valued counterpart of `LinearInterpolator1D`: use this when
- * interpolating trajectories, multi-channel signals, or any `Vector`-valued
- * curve, rather than calling `LinearInterpolator1D` once per component.
- *
+ * For interpolating a scalar-valued function (`number -> number`),
+ * see {@link LinearInterpolator1D}.
+ * 
  * @example
  * ```ts
  * const f = new LinearInterpolatorND([0, 1, 2], Matrix.from([[0, 0], [1, 2], [4, 2]]));
@@ -453,7 +451,7 @@ export class LinearInterpolatorND {
 }
 
 /**
- * One-dimensional linear interpolation.
+ * Linear interpolation of a scalar-valued function (`number -> number`).
  *
  * The algorithm is similar to, and inspired by, `numpy.interp`.
  *
@@ -464,11 +462,13 @@ export class LinearInterpolatorND {
  *
  * A one-shot convenience function. If you need to evaluate the same
  * `(xp, fp)` pair more than once, construct a `LinearInterpolator1D` directly to
- * avoid re-validating `xp`/`fp` on every call. For a vector-valued `fp`, see {@link interpND}.
+ * avoid re-validating `xp`/`fp` on every call. 
+ * 
+ * For a vector-valued `fp`, see {@link interpND}.
  *
  * @param x The `x`-coordinate(s) at which to evaluate the interpolated
  * value(s). A single `number` returns a `number`; a plain array or
- * `Vector` returns an `Vector`.
+ * `Vector` returns a `Vector`.
  * @param xp The `x`-coordinates of the data points. Must be monotonically
  * increasing (duplicates allowed) and non-empty.
  * @param fp The `y`-coordinates of the data points. Must have the same
@@ -516,9 +516,10 @@ export function interp1D(
 }
 
 /**
- * One-dimensional linear interpolation of a vector-valued function
- * (`number -> Vector`).
+ * Linear interpolation of a vector-valued function (`number -> Vector`).
  *
+ * The algorithm is similar to, and inspired by, `numpy.interp`.
+ * 
  * The vector-valued counterpart of `interp1D`: given the discrete data
  * points `(xp[i], fp.row(i))`, with `xp` increasing, returns the linearly
  * interpolated vector(s) at `x`. For `x` outside the range of `xp`, the
@@ -528,6 +529,8 @@ export function interp1D(
  * A one-shot convenience function. If you need to evaluate the same
  * `(xp, fp)` pair more than once, construct a `LinearInterpolatorND`
  * directly to avoid re-validating `xp`/`fp` on every call.
+ *
+ * For a scalar-valued `fp`, see {@link interp1D}.
  *
  * @param x The `x`-coordinate(s) at which to evaluate. A single `number`
  * returns a `Vector`; a plain array or `Vector` returns a `Matrix`.
