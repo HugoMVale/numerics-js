@@ -19,19 +19,19 @@ describe('bisection', () => {
         expect(result.evaluations).toBeGreaterThan(0);
     });
 
-    it('should swap bounds if a > b', () => {
+    it('should swap bounds if xa > xb', () => {
         const result = bisection(f, 5, 0);
         expect(result.x).toBeCloseTo(2, 5);
     });
 
-    it('should return exactly a if f(a) is 0', () => {
+    it('should return exactly xa if f(xa) is 0', () => {
         const result = bisection(f, 2, 5);
         expect(result.x).toBe(2);
         expect(result.fx).toBe(0);
         expect(result.evaluations).toBe(2);
     });
 
-    it('should return exactly b if f(b) is 0', () => {
+    it('should return exactly xb if f(xb) is 0', () => {
         const result = bisection(f, 0, 2);
         expect(result.x).toBe(2);
         expect(result.fx).toBe(0);
@@ -46,12 +46,12 @@ describe('bisection', () => {
         expect(result.evaluations).toBe(3);
     });
 
-    it('should throw an error if a and b are the same', () => {
-        expect(() => bisection(f, 1, 1)).toThrow('bisection: a and b must be different');
+    it('should throw an error if xa and xb are the same', () => {
+        expect(() => bisection(f, 1, 1)).toThrow('bisection: xa and xb must be different');
     });
 
-    it('should throw an error if f(a) and f(b) have the same sign', () => {
-        expect(() => bisection(f, 3, 5)).toThrow('bisection: f(a) and f(b) must have opposite signs');
+    it('should throw an error if f(xa) and f(xb) have the same sign', () => {
+        expect(() => bisection(f, 3, 5)).toThrow('bisection: f(xa) and f(xb) must have opposite signs');
     });
 
     it('should return mid with success false if maxIter is reached without convergence', () => {

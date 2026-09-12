@@ -3,16 +3,17 @@ import type { ScalarRootResult } from './types.js';
 const METHOD = 'bisection';
 
 /**
- * Finds a root of `f` in the interval `[a, b]` using the bisection method.
+ * Finds a root of a scalar function `f(x)` using the bisection method,
+ * given a bracketing interval.
  *
  * @param f Continuous function to find a root of.
- * @param a Left endpoint of the bracketing interval.
- * @param b Right endpoint of the bracketing interval.
+ * @param xa Left endpoint of the bracketing interval.
+ * @param xb Right endpoint of the bracketing interval.
  * @param options Optional settings.
  * @param options.tolX Stop when the interval half-width is below this. Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
- * @throws {Error} If `a` and `b` are equal, or if `f(a)` and `f(b)` don't bracket a root.
+ * @throws {Error} If `xa` and `xb` are equal, or if `f(xa)` and `f(xb)` don't bracket a root.
  *
  * @example
  * ```ts
@@ -44,8 +45,8 @@ const METHOD = 'bisection';
  */
 export function bisection(
     f: (x: number) => number,
-    a: number,
-    b: number,
+    xa: number,
+    xb: number,
     options: {
         tolX?: number;
         maxIter?: number;
@@ -53,26 +54,26 @@ export function bisection(
 ): ScalarRootResult {
     const { tolX = 1e-8, maxIter = 50 } = options;
 
-    if (a === b) {
-        throw new Error(`${METHOD}: a and b must be different`);
+    if (xa === xb) {
+        throw new Error(`${METHOD}: xa and xb must be different`);
     }
-    if (a > b) {
-        [a, b] = [b, a];
+    if (xa > xb) {
+        [xa, xb] = [xb, xa];
     }
 
     let evaluations = 0;
-    let fa = f(a);
+    let fa = f(xa);
     evaluations++;
-    const fb = f(b);
+    const fb = f(xb);
     evaluations++;
 
     if (fa === 0) {
         return {
             method: METHOD,
             success: true,
-            message: 'converged: exact root at a',
+            message: 'converged: exact root at xa',
             evaluations,
-            x: a,
+            x: xa,
             fx: fa
         };
     }
@@ -80,24 +81,24 @@ export function bisection(
         return {
             method: METHOD,
             success: true,
-            message: 'converged: exact root at b',
+            message: 'converged: exact root at xb',
             evaluations,
-            x: b,
+            x: xb,
             fx: fb
         };
     }
 
     if (Math.sign(fa) === Math.sign(fb)) {
         throw new Error(
-            `${METHOD}: f(a) and f(b) must have opposite signs (got f(a)=${fa}, f(b)=${fb})`
+            `${METHOD}: f(xa) and f(xb) must have opposite signs (got f(xa)=${fa}, f(xb)=${fb})`
         );
     }
 
-    let mid = (a + b) / 2;
+    let mid = (xa + xb) / 2;
     let fmid = fa;
 
     for (let k = 0; k < maxIter; k++) {
-        mid = (a + b) / 2;
+        mid = (xa + xb) / 2;
         fmid = f(mid);
         evaluations++;
 
@@ -111,7 +112,7 @@ export function bisection(
                 fx: fmid
             };
         }
-        if ((b - a) / 2 < tolX) {
+        if ((xb - xa) / 2 < tolX) {
             return {
                 method: METHOD,
                 success: true,
@@ -123,10 +124,10 @@ export function bisection(
         }
 
         if (Math.sign(fmid) === Math.sign(fa)) {
-            a = mid;
+            xa = mid;
             fa = fmid;
         } else {
-            b = mid;
+            xb = mid;
         }
     }
 
