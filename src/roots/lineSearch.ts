@@ -1,23 +1,8 @@
 import { Vector } from "../linalg/Vector.js";
 import { Matrix } from "../linalg/Matrix.js";
+import type { GlobalStepContext, GlobalStepResult } from "./types.js";
 
-/**
- * Represents the results of a line search iteration.
- */
-export interface LineSearchResult {
-    /** Indicates whether the line search successfully found a step satisfying the Armijo condition. */
-    success: boolean;
-    /** True if the step taken was the maximum allowed step size (`maxLen`) on the first iteration. */
-    isMaxStep: boolean;
-    /** The total number of objective function evaluations performed during the search. */
-    nfEval: number;
-    /** The updated variable vector after taking the step. */
-    xp: Vector;
-    /** The objective function value evaluated at the new vector `xp`. */
-    fp: number;
-    /** The vector root function value at `xp` (only populated if the objective function returns a tuple). */
-    Fp: Vector;
-}
+const SQRT_EPS = Math.sqrt(Number.EPSILON);
 
 /**
  * Perform a line search.
@@ -30,34 +15,18 @@ export interface LineSearchResult {
  * *   J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
  *     Optimization and Nonlinear Equations", SIAM, 1996.
  *
- * @param f Objective function. For compatibility with optimization and root-finding algorithms, `f` can return either a scalar objective function value or a tuple including the scaled norm of the vector root function and the vector root function itself.
- * @param p Quasi-Newton step.
- * @param xc Current value of the variable vector.
- * @param fc Current objective function value, `f(xc)`.
- * @param gc Current gradient of the objective function, `∇f(xc)`.
- * @param tolx Tolerance for the step size.
- * @param sclx Scaling factors for `x`.
- * @param maxLen Maximum step length.
- * @returns A `LineSearchResult` object containing the updated state and evaluation metrics.
+ * @param ctx Global-step context containing the objective, current iterate, search direction, and scaling information.
+ * @returns A `GlobalStepResult` object containing the updated state and evaluation metrics.
  */
-export function lineSearch(
-    f: (x: Vector) => number | [number, Vector],
-    p: Vector,
-    xc: Vector,
-    fc: number,
-    gc: Vector,
-    tolx: number,
-    sclx: Vector,
-    maxLen: number,
-): LineSearchResult {
-    let nfEval = 0;
+export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
+    const { fN, p, xc, fc, gc, tolx, sclx, maxLen } = ctx;
+    let nFev = 0;
     let success = false;
-    let isMaxStep = false;
-    const sqrtEps = Math.sqrt(Number.EPSILON);
+    let wasMaxStep = false;
 
     let newtLen = sclx.mult(p).norm();
     if (newtLen > maxLen) {
-        p = p.mult(maxLen / newtLen);
+        p.multSelf(maxLen / newtLen);
         newtLen = maxLen;
     }
 
@@ -84,8 +53,8 @@ export function lineSearch(
     while (true) {
         xp = xc.add(p.mult(lambda));
 
-        const res = f(xp);
-        nfEval += 1;
+        const res = fN(xp);
+        nFev += 1;
 
         if (Array.isArray(res)) {
             fp = res[0];
@@ -97,7 +66,7 @@ export function lineSearch(
         if (fp <= fc + alpha * lambda * slope) {
             success = true;
             if (first && newtLen > 0.99 * maxLen) {
-                isMaxStep = true;
+                wasMaxStep = true;
             }
             break;
         } else if (lambda < lambdaMin) {
@@ -124,7 +93,7 @@ export function lineSearch(
                 const a = coef.get(0);
                 const b = coef.get(1);
 
-                if (Math.abs(a) < sqrtEps) {
+                if (Math.abs(a) < SQRT_EPS) {
                     lambdaTemp = -slope / (2 * b);
                 } else {
                     lambdaTemp = (-b + Math.sqrt(b * b - 3 * a * slope)) / (3 * a);
@@ -137,5 +106,5 @@ export function lineSearch(
         }
     }
 
-    return { success, isMaxStep, nfEval, xp, fp, Fp };
+    return { success, wasMaxStep, nFev, xp, fp, Fp };
 }
