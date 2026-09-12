@@ -110,7 +110,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
 }
 
 /**
- * Finds the minimum of a multivariate function using the Nelder-Mead simplex
+ * Finds the minimum of a multivariate function `f(x)` using the Nelder-Mead simplex
  * algorithm.
  *
  * The Nelder-Mead simplex algorithm is a derivative-free optimize method

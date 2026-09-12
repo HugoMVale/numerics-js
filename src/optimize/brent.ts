@@ -17,7 +17,7 @@ export interface BrentResult {
 }
 
 /**
- * Finds a local minimum of a scalar function `f` using Brent's method, given
+ * Finds a local minimum of a scalar function `f(x)` using Brent's method, given
  * a bracketing interval.
  *
  * Brent's method is a derivative-free optimize algorithm that combines
