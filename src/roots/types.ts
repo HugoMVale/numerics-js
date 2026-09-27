@@ -56,9 +56,14 @@ export interface VectorRootResult {
  *
  * - `'line-search'`: the search direction is the quasi-Newton step; the step
  *   length is determined by backtracking until the Armijo condition holds.
+ * - `'dogleg'`: a trust-region strategy that interpolates between the
+ *   Cauchy (steepest-descent) point and the quasi-Newton step, subject to
+ *   a trust-region radius that is adapted from iteration to iteration.
+ *   Stateful across calls — see `GlobalStepContext.trustLen` and
+ *   `GlobalStepResult.trustLen`.
  * - `null`: no global strategy; the full quasi-Newton step is taken as-is.
  */
-export type GlobalMethod = 'line-search' | null;
+export type GlobalMethod = 'line-search' | 'dogleg' | null;
 
 /** 
  * Everything a global-step strategy needs to compute the next iterate. 
@@ -89,6 +94,16 @@ export interface GlobalStepContext {
     sclx: Vector;
     /** Maximum allowed step length. */
     maxLen: number;
+    /**
+     * Current trust-region radius. Only used by `dogleg`; ignored by
+     * `line-search`. `dogleg` is stateful across outer iterations: the
+     * caller must persist this value between calls, seeding each call's
+     * `trustLen` with the previous call's `GlobalStepResult.trustLen`.
+     * Omit (or pass `0`/a non-positive value) on the very first call —
+     * `dogleg` treats that as "not yet initialized" and picks an initial
+     * radius itself.
+     */
+    trustLen?: number;
 }
 
 
@@ -106,6 +121,13 @@ export interface GlobalStepResult {
     fp: number;
     /** The vector root function value at `xp` (only populated if the objective function returns a tuple). */
     Fp: Vector;
+    /**
+     * The (possibly updated) trust-region radius. For `line-search` this
+     * simply echoes back `ctx.trustLen` unchanged (or `0` if it wasn't
+     * set); for `dogleg` this is the radius to feed into `trustLen` on the
+     * next call.
+     */
+    trustLen: number;
 }
 
 export type GlobalStepStrategy = (ctx: GlobalStepContext) => GlobalStepResult;
