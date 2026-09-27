@@ -1,4 +1,4 @@
-import { ArrayND } from './arraynd.js';
+import { ArrayND } from './ArrayND.js';
 import { Vector } from './Vector.js';
 import * as linalg from './Matrix.linalg.js';
 

@@ -1,4 +1,4 @@
-import { ArrayND } from './arraynd.js';
+import { ArrayND } from './ArrayND.js';
 import { Matrix } from './Matrix.js';
 
 /**
