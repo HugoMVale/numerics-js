@@ -59,8 +59,6 @@ export interface VectorRootResult {
  * - `'dogleg'`: a trust-region strategy that interpolates between the
  *   Cauchy (steepest-descent) point and the quasi-Newton step, subject to
  *   a trust-region radius that is adapted from iteration to iteration.
- *   Stateful across calls — see `GlobalStepContext.trustLen` and
- *   `GlobalStepResult.trustLen`.
  * - `null`: no global strategy; the full quasi-Newton step is taken as-is.
  */
 export type GlobalMethod = 'line-search' | 'dogleg' | null;
