@@ -19,7 +19,7 @@ const SQRT_EPS = Math.sqrt(Number.EPSILON);
  * @returns A `GlobalStepResult` object containing the updated state and evaluation metrics.
  */
 export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
-    const { fN, p, xc, fc, gc, tolx, sclx, maxLen } = ctx;
+    const { fN, p, xc, fc, gc, tolx, sclx, maxLen, trustLen } = ctx;
     let nFev = 0;
     let success = false;
     let wasMaxStep = false;
@@ -106,5 +106,5 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
         }
     }
 
-    return { success, wasMaxStep, nFev, xp, fp, Fp };
+    return { success, wasMaxStep, nFev, xp, fp, Fp, trustLen: trustLen ?? 0 };
 }
