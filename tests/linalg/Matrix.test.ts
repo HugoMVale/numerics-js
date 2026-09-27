@@ -997,15 +997,19 @@ describe('Matrix', () => {
         expect(unchanged.toArray()).toEqual([[1, 2], [3, 4]]);
     });
 
-    it('scales a row and adds a scaled row in place', () => {
+    it('scales rows and columns and adds a scaled row in place', () => {
         const m: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
         m.scaleRow(0, 10);
         expect(m.row(0).toArray()).toEqual([10, 20]);
 
+        expect(m.scaleCol(1, 3)).toBe(m);
+        expect(m.col(1).toArray()).toEqual([60, 12]);
+
         m.addScaledRow(1, 0, 2); // row1 += row0 * 2
-        expect(m.row(1).toArray()).toEqual([23, 44]);
+        expect(m.row(1).toArray()).toEqual([23, 132]);
 
         expect(() => m.scaleRow(5, 1)).toThrowError(RangeError);
+        expect(() => m.scaleCol(5, 1)).toThrowError(RangeError);
         expect(() => m.addScaledRow(5, 0, 1)).toThrowError(RangeError);
         expect(() => m.addScaledRow(0, 5, 1)).toThrowError(RangeError);
     });

@@ -1197,6 +1197,19 @@ export class Matrix extends ArrayND {
     }
 
     /**
+     * Scales column `j` in place by a scalar: `col[j] *= s`.
+     * @param j Column index (0-based).
+     * @param s The scale factor.
+     * @returns `this`, for chaining.
+     * @throws {RangeError} If `j` is out of bounds.
+     */
+    scaleCol(j: number, s: number): this {
+        if (j < 0 || j >= this.cols) throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
+        for (let i = 0; i < this.rows; i++) this.data[this.flatIndex(i, j)] *= s;
+        return this;
+    }
+
+    /**
      * Adds a scaled row to another row in place, in a single pass:
      * `row[i] += row[j] * s`. Useful when implementing Gaussian elimination.
      * @param i Row index to modify (0-based).
