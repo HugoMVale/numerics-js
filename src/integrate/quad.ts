@@ -14,6 +14,40 @@ export interface QuadResult {
     subintervals: number;
 }
 
+/**
+ * A user-defined change of variables `x = map(t)` for {@link quad}.
+ *
+ * `quad(f, a, b, { transform })` still integrates `f` over `[a, b]` in the
+ * original variable `x`; the transform only changes the variable in which the
+ * adaptive quadrature is carried out:
+ *
+ * `∫ f(x) dx = ∫ f(map(t).x) · |map(t).dxDt| dt`, over `t` between
+ * `inverse(a)` and `inverse(b)`.
+ *
+ * Requirements (documented, not verified at run time):
+ * - `map` is a strictly monotone bijection from the `t`-interval onto `[a, b]`
+ *   (it may be increasing or decreasing).
+ * - `inverse` is consistent with `map`, i.e. `inverse(map(t).x) === t`.
+ * - `inverse(a)` and `inverse(b)` are finite and distinct. If `a` or `b` is
+ *   infinite, `inverse` must accept `±Infinity` and return the matching finite
+ *   `t`-limit.
+ * - `map(t).x` and `map(t).dxDt` are finite for `t` strictly inside the
+ *   `t`-interval. The endpoints themselves are never evaluated.
+ */
+export interface QuadTransform {
+    /**
+     * Maps the integration variable `t` to the original variable `x` and
+     * returns `dx/dt`. Only the magnitude of `dxDt` is used; the orientation
+     * of the mapping is handled internally, so its sign does not matter.
+     */
+    map: (t: number) => { x: number; dxDt: number };
+    /**
+     * Inverse mapping `x -> t`. Used to derive the `t`-interval from the
+     * integration limits and to translate breakpoints.
+     */
+    inverse: (x: number) => number;
+}
+
 /** Options for {@link quad}. */
 export interface QuadOptions {
     /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
@@ -27,51 +61,41 @@ export interface QuadOptions {
      * are ignored.
      */
     breakpoints?: number[];
-}
-
-/** 
- * Defines a variable substitution mapping `t -> x` to handle infinite domains.
- * @internal 
- */
-interface Transformation {
-    /** Maps integration variable `t` to the original variable `x`, returning `x` and `dx/dt`. */
-    mapTtoX: (t: number) => { x: number; dxDt: number };
-    /** Inverse mapping from `x` to `t`, used to translate user-provided breakpoints. */
-    mapXtoT: (x: number) => number;
-    tMin: number;
-    tMax: number;
+    /**
+     * Optional user-defined change of variables (see {@link QuadTransform}),
+     * e.g. to remove an endpoint singularity or to handle an infinite domain
+     * differently. When provided, it takes precedence over the automatic
+     * handling of infinite limits.
+     */
+    transform?: QuadTransform;
 }
 
 /** @internal */
-function getPositiveInfiniteTransform(a: number): Transformation {
+function getPositiveInfiniteTransform(a: number): QuadTransform {
     return {
-        mapTtoX: (t: number) => ({
+        map: (t: number) => ({
             x: a + (1 - t) / t,
             dxDt: 1 / (t * t)
         }),
-        mapXtoT: (x: number) => 1 / (1 + x - a),
-        tMin: 0,
-        tMax: 1
+        inverse: (x: number) => 1 / (1 + x - a)
     };
 }
 
 /** @internal */
-function getNegativeInfiniteTransform(b: number): Transformation {
+function getNegativeInfiniteTransform(b: number): QuadTransform {
     return {
-        mapTtoX: (t: number) => ({
+        map: (t: number) => ({
             x: b - (1 - t) / t,
             dxDt: 1 / (t * t)
         }),
-        mapXtoT: (x: number) => 1 / (1 + b - x),
-        tMin: 0,
-        tMax: 1
+        inverse: (x: number) => 1 / (1 + b - x)
     };
 }
 
 /** @internal */
-function getFullyInfiniteTransform(): Transformation {
+function getFullyInfiniteTransform(): QuadTransform {
     return {
-        mapTtoX: (t: number) => {
+        map: (t: number) => {
             const t2 = t * t;
             const denom = 1 - t2;
             return {
@@ -79,12 +103,12 @@ function getFullyInfiniteTransform(): Transformation {
                 dxDt: (1 + t2) / (denom * denom)
             };
         },
-        mapXtoT: (x: number) => {
+        inverse: (x: number) => {
             if (x === 0) return 0;
+            // The closed form below is ∞/∞ for infinite x.
+            if (!Number.isFinite(x)) return Math.sign(x);
             return (Math.sqrt(1 + 4 * x * x) - 1) / (2 * x);
-        },
-        tMin: -1,
-        tMax: 1
+        }
     };
 }
 
@@ -94,7 +118,9 @@ function getFullyInfiniteTransform(): Transformation {
  * This function serves as a general-purpose integrator. It natively supports
  * infinite integration limits (`Infinity` and `-Infinity`). It also 
  * supports splitting the integration range at known `breakpoints` to handle 
- * piecewise functions or sharp features.
+ * piecewise functions or sharp features. Finally, a user-defined change of
+ * variables (`transform`) can be supplied, e.g. to remove an endpoint
+ * singularity; see {@link QuadTransform}.
  * 
  * Within each interval, the integration is performed using the Gauss-Kronrod (G7-K15)
  * adaptive rule.
@@ -102,9 +128,13 @@ function getFullyInfiniteTransform(): Transformation {
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`. Can be `-Infinity`.
  * @param b Upper bound of integration `b`. Can be `Infinity`.
- * @param options Optional settings including error tolerance and breakpoints.
+ * @param options Optional settings including error tolerance, breakpoints and
+ * a user-defined `transform`. A user-defined transform takes precedence over
+ * the automatic handling of infinite limits.
  * @returns Quadrature output including aggregated value, error, and diagnostics.
- * @throws {RangeError} If `a` or `b` are `NaN`.
+ * @throws {RangeError} If `a` or `b` are `NaN`, or if `transform.inverse`
+ * returns non-finite or equal values for the integration limits.
+ * @throws {TypeError} If `transform` is given but `map` or `inverse` is not a function.
  * 
  * @example
  * ```ts
@@ -161,6 +191,56 @@ function getFullyInfiniteTransform(): Transformation {
  *   subintervals: 5
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * // Remove the endpoint singularity of 1/sqrt(x) with the substitution x = t^2.
+ * // The transformed integrand f(t^2) * 2t is the constant 2.
+ * const result = quad(x => 1 / Math.sqrt(x), 0, 1, {
+ *     transform: {
+ *         map: t => ({ x: t * t, dxDt: 2 * t }),
+ *         inverse: Math.sqrt
+ *     }
+ * });
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   value: 2,
+ *   error: 0,
+ *   evaluations: 15,
+ *   converged: true,
+ *   subintervals: 1
+ * }
+ * ```
+ * Without the transform the same call needs 1395 evaluations and 47
+ * subintervals, and is only accurate to about 1e-9.
+ *
+ * @example
+ * ```ts
+ * // A decreasing map (x = 1/t) is fine; only the magnitude of dxDt is used.
+ * // Infinite limits are passed to `inverse` as `Infinity` (1 / Infinity = 0).
+ * const result = quad(x => 1 / (x * x), 1, Infinity, {
+ *     transform: {
+ *         map: t => ({ x: 1 / t, dxDt: -1 / (t * t) }),
+ *         inverse: x => 1 / x
+ *     }
+ * });
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   value: 1,
+ *   error: 0,
+ *   evaluations: 15,
+ *   converged: true,
+ *   subintervals: 1
+ * }
+ * ```
  */
 export function quad(
     f: (x: number) => number,
@@ -168,10 +248,14 @@ export function quad(
     b: number,
     options: QuadOptions = {}
 ): QuadResult {
-    const { breakpoints = [], ...gkOptions } = options;
+    const { breakpoints = [], transform: userTransform, ...gkOptions } = options;
 
     if (Number.isNaN(a) || Number.isNaN(b)) {
         throw new RangeError('quad: a and b must not be NaN');
+    }
+    if (userTransform !== undefined
+        && (typeof userTransform?.map !== 'function' || typeof userTransform?.inverse !== 'function')) {
+        throw new TypeError('quad: transform.map and transform.inverse must be functions');
     }
     if (a === b) {
         return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
@@ -181,13 +265,16 @@ export function quad(
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
 
-    let transform: Transformation | null = null;
-    if (lo === -Infinity && hi === Infinity) {
-        transform = getFullyInfiniteTransform();
-    } else if (lo === -Infinity) {
-        transform = getNegativeInfiniteTransform(hi);
-    } else if (hi === Infinity) {
-        transform = getPositiveInfiniteTransform(lo);
+    // A user-defined transform takes precedence over the automatic one.
+    let transform: QuadTransform | null = userTransform ?? null;
+    if (!transform) {
+        if (lo === -Infinity && hi === Infinity) {
+            transform = getFullyInfiniteTransform();
+        } else if (lo === -Infinity) {
+            transform = getNegativeInfiniteTransform(hi);
+        } else if (hi === Infinity) {
+            transform = getPositiveInfiniteTransform(lo);
+        }
     }
 
     let tA = lo;
@@ -197,15 +284,30 @@ export function quad(
     let validBreakpoints = breakpoints.filter(bp => Number.isFinite(bp) && bp > lo && bp < hi);
 
     if (transform) {
-        tA = transform.tMin;
-        tB = transform.tMax;
+        const { map, inverse } = transform;
 
+        // The map may be increasing or decreasing, so order the t-limits.
+        const t1 = inverse(lo);
+        const t2 = inverse(hi);
+        if (!Number.isFinite(t1) || !Number.isFinite(t2) || t1 === t2) {
+            throw new RangeError(
+                `quad: transform.inverse must return finite, distinct values for the integration limits (got ${t1} and ${t2})`
+            );
+        }
+        tA = Math.min(t1, t2);
+        tB = Math.max(t1, t2);
+
+        // Only the magnitude of dx/dt matters: the t-range is always ascending.
         targetF = (t: number) => {
-            const { x, dxDt } = transform!.mapTtoX(t);
-            return f(x) * dxDt;
+            const { x, dxDt } = map(t);
+            return f(x) * Math.abs(dxDt);
         };
 
-        validBreakpoints = validBreakpoints.map(transform.mapXtoT);
+        // Keep only breakpoints that map strictly inside the t-interval. The
+        // comparison also rejects NaN/Infinity images and rounding overshoot.
+        validBreakpoints = validBreakpoints
+            .map(inverse)
+            .filter(t => t > tA && t < tB);
     }
 
     validBreakpoints.sort((x, y) => x - y);
