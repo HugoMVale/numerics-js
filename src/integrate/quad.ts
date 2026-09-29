@@ -135,6 +135,8 @@ function getFullyInfiniteTransform(): QuadTransform {
  * @throws {RangeError} If `a` or `b` are `NaN`, or if `transform.inverse`
  * returns non-finite or equal values for the integration limits.
  * @throws {TypeError} If `transform` is given but `map` or `inverse` is not a function.
+ * @throws {Error} If `f` evaluates to a non-finite value. When a transform is
+ * active, the message reports the untransformed `x`, not the internal `t`.
  * 
  * @example
  * ```ts
@@ -300,7 +302,15 @@ export function quad(
         // Only the magnitude of dx/dt matters: the t-range is always ascending.
         targetF = (t: number) => {
             const { x, dxDt } = map(t);
-            return f(x) * Math.abs(dxDt);
+            const y = f(x) * Math.abs(dxDt);
+            // Checked here, in x-space, so the error names the real x rather
+            // than the transformed t that gaussKronrod's own check would see.
+            if (!Number.isFinite(y)) {
+                throw new Error(
+                    `quad: f(${x}) returned a non-finite value (${y}) after applying the transform (t=${t}); cannot integrate.`
+                );
+            }
+            return y;
         };
 
         // Keep only breakpoints that map strictly inside the t-interval. The

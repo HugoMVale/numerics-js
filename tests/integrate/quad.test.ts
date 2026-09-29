@@ -209,6 +209,16 @@ describe('quad - user-defined transform', () => {
             .toThrow('finite, distinct');
     });
 
+    it('reports the real x, not the internal t, when f is non-finite', () => {
+        // x = 2t maps t in [0, 0.5] onto x in [0, 1]; f blows up everywhere,
+        // so the very first evaluation (t = 0.25, x = 0.5) triggers it.
+        const badTransform = { map: (t: number) => ({ x: 2 * t, dxDt: 2 }), inverse: (x: number) => x / 2 };
+        expect(() => quad(() => Infinity, 0, 1, { transform: badTransform }))
+            .toThrow('f(0.5)');
+        expect(() => quad(() => Infinity, 0, 1, { transform: badTransform }))
+            .not.toThrow('f(0.25)');
+    });
+
     it('returns 0 for a === b without touching the transform', () => {
         const res = quad(fSin, 1, 1, { transform: sqrtTransform });
         expect(res).toEqual({ value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 });
