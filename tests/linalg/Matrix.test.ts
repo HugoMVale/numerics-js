@@ -1316,6 +1316,219 @@ describe('Matrix', () => {
         expect(a.sub(1).toArray()).toEqual([[0, 1], [2, 3]]);
     });
 
+    describe('row-vector broadcasting in add/sub/mult/div (and the Self variants)', () => {
+        type Op = 'add' | 'sub' | 'mult' | 'div';
+        type SelfOp = 'addSelf' | 'subSelf' | 'multSelf' | 'divSelf';
+        const ops: Op[] = ['add', 'sub', 'mult', 'div'];
+        const selfOf = (op: Op): SelfOp => `${op}Self` as SelfOp;
+        const scalarFns: Record<Op, (a: number, b: number) => number> = {
+            add: (a, b) => a + b,
+            sub: (a, b) => a - b,
+            mult: (a, b) => a * b,
+            div: (a, b) => a / b,
+        };
+
+        // Golden values below were generated with numpy 2.4 (np.add/subtract/multiply/divide
+        // of a 2-D array with a 1-D array), not derived from this implementation.
+        const A23 = (): Matrix => new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+        const v3 = (): Vector => new Vector([10, 20, 30]);
+
+        it('matches numpy for a non-square matrix, for all four operations', () => {
+            expect(A23().add(v3()).toArray()).toEqual([[11, 22, 33], [14, 25, 36]]);
+            expect(A23().sub(v3()).toArray()).toEqual([[-9, -18, -27], [-6, -15, -24]]);
+            expect(A23().mult(v3()).toArray()).toEqual([[10, 40, 90], [40, 100, 180]]);
+            expect(A23().div(v3()).toArray()).toEqual([[1 / 10, 2 / 20, 3 / 30], [4 / 10, 5 / 20, 6 / 30]]);
+            // numpy prints these as [[0.1, 0.1, 0.1], [0.4, 0.25, 0.2]]
+            const q = A23().div(v3());
+            expect(q.get(0, 0)).toBeCloseTo(0.1, 15);
+            expect(q.get(1, 1)).toBe(0.25);
+            expect(q.get(1, 2)).toBeCloseTo(0.2, 15);
+        });
+
+        it('treats the vector as a ROW on a square matrix (numpy default), not as a column', () => {
+            // On a square matrix both orientations are shape-valid, so only the
+            // values can tell them apart: v[j] must go to column j.
+            const B = (): Matrix => new Matrix(3, 3, [1, 2, 3, 4, 5, 6, 7, 8, 10]);
+            const w = (): Vector => new Vector([1, 10, 100]);
+            expect(B().add(w()).toArray()).toEqual([[2, 12, 103], [5, 15, 106], [8, 18, 110]]);
+            expect(B().sub(w()).toArray()).toEqual([[0, -8, -97], [3, -5, -94], [6, -2, -90]]);
+            expect(B().mult(w()).toArray()).toEqual([[1, 20, 300], [4, 50, 600], [7, 80, 1000]]);
+            const q = B().div(w()).toArray();
+            expect(q[0]).toEqual([1, 0.2, 0.03]);
+            expect(q[1]).toEqual([4, 0.5, 0.06]);
+            expect(q[2]).toEqual([7, 0.8, 0.1]);
+        });
+
+        it('keeps operand order: the vector is always the right-hand side of sub/div', () => {
+            // numpy: [[10,20],[30,40]] - [1,2] = [[9,18],[29,38]]; / [1,2] = [[10,10],[30,20]]
+            const C = (): Matrix => new Matrix(2, 2, [10, 20, 30, 40]);
+            const u = (): Vector => new Vector([1, 2]);
+            expect(C().sub(u()).toArray()).toEqual([[9, 18], [29, 38]]);
+            expect(C().div(u()).toArray()).toEqual([[10, 10], [30, 20]]);
+        });
+
+        it('acts as a scalar when the vector has size 1, for every operation (numpy)', () => {
+            const s = new Vector([5]);
+            expect(A23().add(s).toArray()).toEqual([[6, 7, 8], [9, 10, 11]]);
+            expect(A23().sub(s).toArray()).toEqual([[-4, -3, -2], [-1, 0, 1]]);
+            expect(A23().mult(s).toArray()).toEqual([[5, 10, 15], [20, 25, 30]]);
+            expect(A23().div(s).toArray()).toEqual([[0.2, 0.4, 0.6], [0.8, 1, 1.2]]);
+        });
+
+        it('acts as a scalar for size-1 vectors on 1x1 and n x 1 matrices too (result shape unchanged)', () => {
+            const s = new Vector([3]);
+            const one = new Matrix(1, 1, [4]);
+            expect(one.add(s).toArray()).toEqual([[7]]);
+            const col = new Matrix(3, 1, [1, 2, 3]);
+            const r = col.mult(s);
+            expect(r.rows).toBe(3);
+            expect(r.cols).toBe(1);
+            expect(r.toArray()).toEqual([[3], [6], [9]]);
+            expect(col.copy().subSelf(s).toArray()).toEqual([[-2], [-1], [0]]);
+        });
+
+        it('broadcasts against a single-row matrix', () => {
+            // numpy: [[1,2,3]] + [10,20,30] = [[11,22,33]]
+            const row = new Matrix(1, 3, [1, 2, 3]);
+            expect(row.add(v3()).toArray()).toEqual([[11, 22, 33]]);
+        });
+
+        it('returns a new Matrix of this matrix\'s shape and leaves both operands untouched', () => {
+            for (const op of ops) {
+                const a = A23();
+                const v = v3();
+                const r = a[op](v);
+                expect(r).toBeInstanceOf(Matrix);
+                expect(r).not.toBe(a);
+                expect(r.data).not.toBe(a.data);
+                expect(r.rows).toBe(2);
+                expect(r.cols).toBe(3);
+                expect(a.toArray()).toEqual([[1, 2, 3], [4, 5, 6]]);
+                expect(v.toArray()).toEqual([10, 20, 30]);
+            }
+        });
+
+        it('Self variants mutate in place, return `this`, leave the vector untouched, and equal the immutable result', () => {
+            for (const op of ops) {
+                const expected = A23()[op](v3());
+                const a = A23();
+                const buffer = a.data;
+                const v = v3();
+                const r = a[selfOf(op)](v);
+                expect(r).toBe(a);
+                expect(a.data).toBe(buffer);
+                expect(a.toArray()).toEqual(expected.toArray());
+                expect(v.toArray()).toEqual([10, 20, 30]);
+            }
+        });
+
+        it('chains with other operations', () => {
+            const r = A23().subSelf(new Vector([1, 2, 3])).multSelf(new Vector([2, 2, 2])).add(1);
+            // ([[1,2,3],[4,5,6]] - [1,2,3]) * 2 + 1
+            expect(r.toArray()).toEqual([[1, 1, 1], [7, 7, 7]]);
+        });
+
+        it('does not change the existing matrix/scalar paths', () => {
+            const a = new Matrix(2, 2, [1, 2, 3, 4]);
+            const b = new Matrix(2, 2, [10, 20, 30, 40]);
+            expect(a.add(b).toArray()).toEqual([[11, 22], [33, 44]]);
+            expect(a.copy().addSelf(b).toArray()).toEqual([[11, 22], [33, 44]]);
+            expect(a.mult(2).toArray()).toEqual([[2, 4], [6, 8]]);
+            expect(a.copy().divSelf(2).toArray()).toEqual([[0.5, 1], [1.5, 2]]);
+        });
+
+        it('still rejects matrix-with-matrix shape mismatches, including numpy-broadcastable ones', () => {
+            // Broadcasting is limited to a Vector operand: a 1x3 *Matrix* is not broadcast.
+            const a = new Matrix(2, 3);
+            for (const op of ops) {
+                expect(() => a[op](new Matrix(1, 3))).toThrowError(RangeError);
+                expect(() => a[op](new Matrix(2, 1))).toThrowError(RangeError);
+                expect(() => a[selfOf(op)](new Matrix(1, 3))).toThrowError(RangeError);
+            }
+        });
+
+        it('propagates NaN/Infinity and divides by zero following float semantics (numpy)', () => {
+            // numpy: [[1,-1,0],[2,0,-3]] / [0,0,0] = [[inf,-inf,nan],[inf,nan,-inf]]
+            const d = new Matrix(2, 3, [1, -1, 0, 2, 0, -3]).div(new Vector(3));
+            expect(d.get(0, 0)).toBe(Infinity);
+            expect(d.get(0, 1)).toBe(-Infinity);
+            expect(Number.isNaN(d.get(0, 2))).toBe(true);
+            expect(d.get(1, 0)).toBe(Infinity);
+            expect(Number.isNaN(d.get(1, 1))).toBe(true);
+            expect(d.get(1, 2)).toBe(-Infinity);
+
+            const n = new Matrix(2, 2, [1, 2, 3, 4]).add(new Vector([NaN, Infinity]));
+            expect(Number.isNaN(n.get(0, 0))).toBe(true);
+            expect(Number.isNaN(n.get(1, 0))).toBe(true);
+            expect(n.get(0, 1)).toBe(Infinity);
+            expect(n.get(1, 1)).toBe(Infinity);
+        });
+
+        it('throws RangeError, with both shapes in the message, when the vector size is neither 1 nor cols', () => {
+            for (const op of ops) {
+                expect(() => A23()[op](new Vector(2))).toThrowError(RangeError);
+                expect(() => A23()[op](new Vector(2))).toThrowError(new RegExp(`Matrix\\.${op}:.*\\(2,3\\) \\(2\\)`));
+                expect(() => A23()[op](new Vector(4))).toThrowError(RangeError);
+                expect(() => A23()[selfOf(op)](new Vector(2))).toThrowError(
+                    new RegExp(`Matrix\\.${op}Self:.*\\(2,3\\) \\(2\\)`)
+                );
+            }
+        });
+
+        it('rejects an empty vector', () => {
+            for (const op of ops) {
+                expect(() => A23()[op](new Vector(0))).toThrowError(RangeError);
+                expect(() => A23()[selfOf(op)](new Vector(0))).toThrowError(RangeError);
+                // Also for an n x 1 matrix (numpy would return an empty n x 0 result; Matrix can't hold that).
+                expect(() => new Matrix(3, 1)[op](new Vector(0))).toThrowError(RangeError);
+            }
+        });
+
+        it('rejects the numpy-valid case that would change the result shape (n x 1 matrix, vector of size k > 1)', () => {
+            // numpy: ones((3,1)) + [1,2] has shape (3,2). Matrix.add would have to return a
+            // different shape than `this`, so it is rejected instead of silently diverging.
+            for (const op of ops) {
+                const col = (): Matrix => new Matrix(3, 1, [1, 2, 3]);
+                expect(() => col()[op](new Vector([1, 2]))).toThrowError(RangeError);
+                expect(() => col()[op](new Vector([1, 2]))).toThrowError(/would change the result shape to 3x2/);
+                expect(() => col()[selfOf(op)](new Vector([1, 2]))).toThrowError(RangeError);
+            }
+        });
+
+        it('leaves the matrix unmodified when a Self variant throws', () => {
+            for (const op of ops) {
+                const a = A23();
+                expect(() => a[selfOf(op)](new Vector(2))).toThrowError(RangeError);
+                expect(a.toArray()).toEqual([[1, 2, 3], [4, 5, 6]]);
+            }
+        });
+
+        it('agrees bit-for-bit with the same-shape matrix path on tiled vectors (randomized cross-check)', () => {
+            // Independent reference: tile the vector into a full matrix and use the
+            // long-standing same-shape elementwise path. Each element undergoes the
+            // exact same single floating-point operation, so results must be identical.
+            const rnd = mulberry32(12345);
+            const shapes: Array<[number, number]> = [[1, 1], [1, 5], [4, 1], [3, 3], [2, 7], [6, 4], [17, 13]];
+            for (const [m, n] of shapes) {
+                const a = new Matrix(m, n, Array.from({ length: m * n }, () => rnd() * 20 - 10));
+                const vec = new Vector(Array.from({ length: n }, () => rnd() * 20 - 10));
+                const tiled = new Matrix(m, n);
+                for (let i = 0; i < m; i++) tiled.setRow(i, vec);
+                for (const op of ops) {
+                    expect(a[op](vec).toArray()).toEqual(a[op](tiled).toArray());
+                    expect(a.copy()[selfOf(op)](vec).toArray()).toEqual(a.copy()[selfOf(op)](tiled).toArray());
+                    // ...and against a plain scalar loop, guarding against the two paths sharing a bug
+                    const r = a[op](vec);
+                    for (let i = 0; i < m; i++) {
+                        for (let j = 0; j < n; j++) {
+                            expect(r.get(i, j)).toBe(scalarFns[op](a.get(i, j), vec.get(j)));
+                        }
+                    }
+                }
+            }
+        });
+    });
+
     it('divides by zero following standard float semantics', () => {
         const a: Matrix = new Matrix(1, 3, [1, -1, 0]);
         const zero: Matrix = new Matrix(1, 3);

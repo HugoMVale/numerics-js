@@ -20,14 +20,20 @@ import type { Eigenvalue, QRDecomposition, Eigenpair, LUDecomposition } from './
  * usual 0-based indexing convention.
  *
  * Elementwise arithmetic (`add`/`sub`/`mult`/`div` + `Self` variants,
- * `abs`/`pow`/`sqrt`/`clip` + `Self` variants — `mult`/`div` accept either
- * another `Matrix` of the same shape, elementwise, or a scalar), tolerance
- * comparisons (`isClose`/`allClose`), `normSq`/`norm`/`dot`/`dist`
- * (Frobenius), and `copy`/`fill` are inherited from `ArrayND` unchanged;
- * see that class for their docs. There is currently no broadcasting
- * against an `Vector` (row/column vector) — both operands must be the
- * same shape, or a plain scalar. `toArray` is not inherited (its natural
- * shape differs per subclass) and is defined here directly, as an array of row arrays.
+ * `abs`/`pow`/`sqrt`/`clip` + `Self` variants), tolerance comparisons
+ * (`isClose`/`allClose`), `normSq`/`norm`/`dot`/`dist` (Frobenius), and
+ * `copy`/`fill` come from `ArrayND`; see that class for their docs.
+ * `add`/`sub`/`mult`/`div` and their `Self` variants accept another
+ * `Matrix` of the same shape (elementwise), a scalar, or — declared
+ * here, on top of `ArrayND`'s overloads — a `Vector`, which is
+ * broadcast across the rows following numpy's rules: a plain `Vector` is
+ * a *row* vector (numpy shape `(cols,)`), so `A.add(v)` adds `v[j]` to
+ * every element of column `j`. Broadcasting is deliberately limited to
+ * this case: a `Vector` of size `1` (a scalar) or of size `cols`, and
+ * only when the result keeps this matrix's shape. Matrix-with-matrix
+ * operands must still match exactly (no `1 x n` / `m x 1` broadcasting).
+ * `toArray` is not inherited (its natural shape differs per subclass)
+ * and is defined here directly, as an array of row arrays.
  */
 export class Matrix extends ArrayND {
     private _rows: number;
@@ -373,6 +379,351 @@ export class Matrix extends ArrayND {
         }
         for (let i = 0; i < this.rows; i++) this.setUnchecked(i, j, src[i]);
         return this;
+    }
+
+    // -----------------------------------------------------------------
+    // Elementwise arithmetic: `ArrayND`'s matrix/scalar overloads,
+    // re-declared here so a `Vector` overload (row broadcasting) can be
+    // added — a subclass override replaces the inherited signature set,
+    // it doesn't extend it. The matrix/scalar paths just forward to
+    // `ArrayND`; only the `Vector` path is new (`_broadcastRow`).
+    // -----------------------------------------------------------------
+
+    /**
+     * Adds a matrix of the same shape, elementwise.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns A new matrix equal to `this + x`.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    add(x: this): this;
+
+    /**
+     * Adds a scalar, applied to every element.
+     * @param s The scalar.
+     * @returns A new matrix equal to `this + s`.
+     */
+    add(s: number): this;
+
+    /**
+     * Adds a row vector, broadcast across the rows (numpy: `A + v`
+     * with `v` of shape `(cols,)`): `R[i][j] = this[i][j] + v[j]`.
+     * Operand order is preserved, so for `sub`/`div` the vector is always
+     * the right-hand side.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns A new matrix with this matrix's shape.
+     * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
+     * if `this.cols === 1` and `v.size > 1` (numpy would return a
+     * `rows x v.size` matrix; that shape change is not supported here).
+     */
+    add(v: Vector): this;
+
+    add(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'add', false);
+        return typeof x === 'number' ? super.add(x) : super.add(x);
+    }
+
+    /**
+     * Adds a matrix of the same shape in place, elementwise: `this += x`.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns `this`, for chaining.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    addSelf(x: this): this;
+
+    /**
+     * Adds a scalar in place, applied to every element: `this += s`.
+     * @param s The scalar.
+     * @returns `this`, for chaining.
+     */
+    addSelf(s: number): this;
+
+    /**
+     * Adds a row vector in place, broadcast across the rows (numpy:
+     * `A += v` with `v` of shape `(cols,)`): `this[i][j] += v[j]`. The
+     * shape never changes, so every supported case can run in place.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns `this`, for chaining. Left unmodified if an error is thrown.
+     * @throws {RangeError} Under the same conditions as `add(v)`.
+     */
+    addSelf(v: Vector): this;
+
+    addSelf(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'add', true);
+        return typeof x === 'number' ? super.addSelf(x) : super.addSelf(x);
+    }
+
+    /**
+     * Subtracts a matrix of the same shape, elementwise.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns A new matrix equal to `this - x`.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    sub(x: this): this;
+
+    /**
+     * Subtracts a scalar, applied to every element.
+     * @param s The scalar.
+     * @returns A new matrix equal to `this - s`.
+     */
+    sub(s: number): this;
+
+    /**
+     * Subtracts a row vector, broadcast across the rows (numpy: `A - v`
+     * with `v` of shape `(cols,)`): `R[i][j] = this[i][j] - v[j]`.
+     * Operand order is preserved, so for `sub`/`div` the vector is always
+     * the right-hand side.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns A new matrix with this matrix's shape.
+     * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
+     * if `this.cols === 1` and `v.size > 1` (numpy would return a
+     * `rows x v.size` matrix; that shape change is not supported here).
+     */
+    sub(v: Vector): this;
+
+    sub(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'sub', false);
+        return typeof x === 'number' ? super.sub(x) : super.sub(x);
+    }
+
+    /**
+     * Subtracts a matrix of the same shape in place, elementwise: `this -= x`.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns `this`, for chaining.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    subSelf(x: this): this;
+
+    /**
+     * Subtracts a scalar in place, applied to every element: `this -= s`.
+     * @param s The scalar.
+     * @returns `this`, for chaining.
+     */
+    subSelf(s: number): this;
+
+    /**
+     * Subtracts a row vector in place, broadcast across the rows (numpy:
+     * `A -= v` with `v` of shape `(cols,)`): `this[i][j] -= v[j]`. The
+     * shape never changes, so every supported case can run in place.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns `this`, for chaining. Left unmodified if an error is thrown.
+     * @throws {RangeError} Under the same conditions as `sub(v)`.
+     */
+    subSelf(v: Vector): this;
+
+    subSelf(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'sub', true);
+        return typeof x === 'number' ? super.subSelf(x) : super.subSelf(x);
+    }
+
+    /**
+     * Multiplies this matrix with a matrix of the same shape, elementwise.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns A new matrix equal to `this * x`.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    mult(x: this): this;
+
+    /**
+     * Multiplies this matrix with a scalar, applied to every element.
+     * @param s The scalar.
+     * @returns A new matrix equal to `this * s`.
+     */
+    mult(s: number): this;
+
+    /**
+     * Multiplies this matrix with a row vector, broadcast across the rows (numpy: `A * v`
+     * with `v` of shape `(cols,)`): `R[i][j] = this[i][j] * v[j]`.
+     * Operand order is preserved, so for `sub`/`div` the vector is always
+     * the right-hand side.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns A new matrix with this matrix's shape.
+     * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
+     * if `this.cols === 1` and `v.size > 1` (numpy would return a
+     * `rows x v.size` matrix; that shape change is not supported here).
+     */
+    mult(v: Vector): this;
+
+    mult(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'mult', false);
+        return typeof x === 'number' ? super.mult(x) : super.mult(x);
+    }
+
+    /**
+     * Multiplies this matrix with a matrix of the same shape in place, elementwise: `this *= x`.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns `this`, for chaining.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    multSelf(x: this): this;
+
+    /**
+     * Multiplies this matrix with a scalar in place, applied to every element: `this *= s`.
+     * @param s The scalar.
+     * @returns `this`, for chaining.
+     */
+    multSelf(s: number): this;
+
+    /**
+     * Multiplies this matrix with a row vector in place, broadcast across the rows (numpy:
+     * `A *= v` with `v` of shape `(cols,)`): `this[i][j] *= v[j]`. The
+     * shape never changes, so every supported case can run in place.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns `this`, for chaining. Left unmodified if an error is thrown.
+     * @throws {RangeError} Under the same conditions as `mult(v)`.
+     */
+    multSelf(v: Vector): this;
+
+    multSelf(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'mult', true);
+        return typeof x === 'number' ? super.multSelf(x) : super.multSelf(x);
+    }
+
+    /**
+     * Divides this matrix by a matrix of the same shape, elementwise.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns A new matrix equal to `this / x`.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    div(x: this): this;
+
+    /**
+     * Divides this matrix by a scalar, applied to every element.
+     * @param s The scalar.
+     * @returns A new matrix equal to `this / s`.
+     */
+    div(s: number): this;
+
+    /**
+     * Divides this matrix by a row vector, broadcast across the rows (numpy: `A / v`
+     * with `v` of shape `(cols,)`): `R[i][j] = this[i][j] / v[j]`.
+     * Operand order is preserved, so for `sub`/`div` the vector is always
+     * the right-hand side.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns A new matrix with this matrix's shape.
+     * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
+     * if `this.cols === 1` and `v.size > 1` (numpy would return a
+     * `rows x v.size` matrix; that shape change is not supported here).
+     */
+    div(v: Vector): this;
+
+    div(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'div', false);
+        return typeof x === 'number' ? super.div(x) : super.div(x);
+    }
+
+    /**
+     * Divides this matrix by a matrix of the same shape in place, elementwise: `this /= x`.
+     * @param x The matrix. Must have the same shape as this one.
+     * @returns `this`, for chaining.
+     * @throws {RangeError} If `x`'s shape differs from this matrix's.
+     */
+    divSelf(x: this): this;
+
+    /**
+     * Divides this matrix by a scalar in place, applied to every element: `this /= s`.
+     * @param s The scalar.
+     * @returns `this`, for chaining.
+     */
+    divSelf(s: number): this;
+
+    /**
+     * Divides this matrix by a row vector in place, broadcast across the rows (numpy:
+     * `A /= v` with `v` of shape `(cols,)`): `this[i][j] /= v[j]`. The
+     * shape never changes, so every supported case can run in place.
+     * @param v The row vector. Must have `v.size === this.cols`, or
+     * `v.size === 1`, in which case it acts as a scalar (as in numpy).
+     * @returns `this`, for chaining. Left unmodified if an error is thrown.
+     * @throws {RangeError} Under the same conditions as `div(v)`.
+     */
+    divSelf(v: Vector): this;
+
+    divSelf(x: this | number | Vector): this {
+        if (x instanceof Vector) return this._broadcastRow(x, 'div', true);
+        return typeof x === 'number' ? super.divSelf(x) : super.divSelf(x);
+    }
+
+    /**
+     * Shared implementation of `add`/`sub`/`mult`/`div` and their `Self`
+     * variants for a `Vector` operand, broadcast as a row (see the class
+     * header for the supported subset). Validates everything before
+     * writing anything, so an error never leaves `this` half-modified.
+     * `v.size === 1` forwards to the inherited scalar path; otherwise the
+     * loop is specialised per operation, with the `switch` hoisted out of
+     * the loops (an indirect per-element callback measured ~3-5x slower).
+     * In-place is safe because each output element is written at the
+     * exact index it was just read from, and `v` has its own buffer.
+     * @param v The row vector.
+     * @param op Which operation to apply, with `this` as the left operand.
+     * @param inPlace If `true`, write the result into `this` and return it;
+     * otherwise into a fresh matrix.
+     * @returns `this` (in place) or a new matrix of the same shape.
+     * @throws {RangeError} As documented on the public overloads.
+     */
+    private _broadcastRow(v: Vector, op: 'add' | 'sub' | 'mult' | 'div', inPlace: boolean): this {
+        const m = this.rows;
+        const n = this.cols;
+        const k = v.size;
+
+        if (k === 1) {
+            const s = v.data[0];
+            switch (op) {
+                case 'add': return inPlace ? super.addSelf(s) : super.add(s);
+                case 'sub': return inPlace ? super.subSelf(s) : super.sub(s);
+                case 'mult': return inPlace ? super.multSelf(s) : super.mult(s);
+                case 'div': return inPlace ? super.divSelf(s) : super.div(s);
+            }
+        }
+
+        if (k !== n) {
+            const caller = inPlace ? `${op}Self` : op;
+            if (n === 1) {
+                throw new RangeError(
+                    `Matrix.${caller}: broadcasting a vector of size ${k} against a ${m}x1 matrix would ` +
+                    `change the result shape to ${m}x${k}, which is not supported`
+                );
+            }
+            throw new RangeError(
+                `Matrix.${caller}: operands could not be broadcast together with shapes (${m},${n}) (${k})`
+            );
+        }
+
+        const a = this.data;
+        const b = v.data;
+        const out = inPlace ? a : new Float64Array(a.length);
+        switch (op) {
+            case 'add':
+                for (let i = 0; i < m; i++) {
+                    const o = i * n;
+                    for (let j = 0; j < n; j++) out[o + j] = a[o + j] + b[j];
+                }
+                break;
+            case 'sub':
+                for (let i = 0; i < m; i++) {
+                    const o = i * n;
+                    for (let j = 0; j < n; j++) out[o + j] = a[o + j] - b[j];
+                }
+                break;
+            case 'mult':
+                for (let i = 0; i < m; i++) {
+                    const o = i * n;
+                    for (let j = 0; j < n; j++) out[o + j] = a[o + j] * b[j];
+                }
+                break;
+            case 'div':
+                for (let i = 0; i < m; i++) {
+                    const o = i * n;
+                    for (let j = 0; j < n; j++) out[o + j] = a[o + j] / b[j];
+                }
+                break;
+        }
+        return inPlace ? this : this._create(out);
     }
 
     // -----------------------------------------------------------------
