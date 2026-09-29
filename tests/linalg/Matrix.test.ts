@@ -1,27 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix, type Eigenvalue, type Eigenpair } from '../../src/linalg/Matrix.js';
+import { rand } from '../../src/math.js';
 
 /** Exact 1-norm condition number via an explicit inverse, used as ground truth. */
 function exactCond1(M: Matrix): number {
     return M.norm1() * M.inverse().norm1();
 }
 
-/** Deterministic pseudo-random generator (mulberry32), for reproducible test matrices. */
-function mulberry32(seed: number): () => number {
-    let a = seed;
-    return function (): number {
-        a |= 0;
-        a = (a + 0x6d2b79f5) | 0;
-        let t = Math.imul(a ^ (a >>> 15), 1 | a);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
-
 /** Builds a random n x n triangular matrix with a well-scaled diagonal (bounded condition number). */
 function randomTriangular(n: number, upper: boolean, seed: number): Matrix {
-    const rnd = mulberry32(seed);
+    const rnd = rand(seed);
     const M = new Matrix(n, n);
     for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
@@ -1507,7 +1496,7 @@ describe('Matrix', () => {
             // Independent reference: tile the vector into a full matrix and use the
             // long-standing same-shape elementwise path. Each element undergoes the
             // exact same single floating-point operation, so results must be identical.
-            const rnd = mulberry32(12345);
+            const rnd = rand(12345);
             const shapes: Array<[number, number]> = [[1, 1], [1, 5], [4, 1], [3, 3], [2, 7], [6, 4], [17, 13]];
             for (const [m, n] of shapes) {
                 const a = new Matrix(m, n, Array.from({ length: m * n }, () => rnd() * 20 - 10));
