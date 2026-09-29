@@ -1,5 +1,41 @@
 import { describe, it, expect } from 'vitest';
-import { rand, type RandMethod } from '../src/math.js';
+import { clip, copysign, isClose, rand, type RandMethod } from '../src/math.js';
+
+describe('clip()', () => {
+    it('restricts values to the inclusive range', () => {
+        expect(clip(-1, 0, 10)).toBe(0);
+        expect(clip(5, 0, 10)).toBe(5);
+        expect(clip(11, 0, 10)).toBe(10);
+    });
+
+    it('keeps values on the bounds unchanged', () => {
+        expect(clip(0, 0, 10)).toBe(0);
+        expect(clip(10, 0, 10)).toBe(10);
+    });
+});
+
+describe('copysign()', () => {
+    it('uses the magnitude of the first value and sign of the second', () => {
+        expect(copysign(-3.5, 1)).toBe(3.5);
+        expect(copysign(3.5, -1)).toBe(-3.5);
+    });
+
+    it('treats zero as a positive sign', () => {
+        expect(copysign(-3.5, 0)).toBe(3.5);
+    });
+});
+
+describe('isClose()', () => {
+    it('checks absolute tolerance and rejects values outside it', () => {
+        expect(isClose(1, 1.001, 0.001)).toBe(true);
+        expect(isClose(1, 1.002, 0.001)).toBe(false);
+    });
+
+    it('includes the relative tolerance term', () => {
+        expect(isClose(100, 101, 0, 0.01)).toBe(true);
+        expect(isClose(100, 101.1, 0, 0.01)).toBe(false);
+    });
+});
 
 describe('rand()', () => {
     it('reproduces known mulberry32 values for a fixed seed', () => {
