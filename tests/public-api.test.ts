@@ -19,6 +19,7 @@ describe('public API', () => {
         expect(typeof math.clip).toBe('function');
         expect(typeof math.copysign).toBe('function');
         expect(typeof math.isClose).toBe('function');
+        expect(typeof math.rand).toBe('function');
         expect(typeof numdiff.derivativeCentered).toBe('function');
         expect(typeof numdiff.jacobianForward).toBe('function');
         expect(typeof numdiff.scaleVector).toBe('function');
