@@ -106,7 +106,18 @@ describe('rungeKuttaAdaptive additional coverage', () => {
         expect(result.success).toBe(false);
         expect(result.message).toBe('rungeKuttaAdaptive: exceeded maxSteps (1) without reaching tEnd.');
         expect(result.t.size).toBe(result.y.rows);
-        expect(result.t.data[result.t.size - 1]).toBeCloseTo(0.2, 12);
+        expect(result.t.data[result.t.size - 1]).toBeCloseTo(0.1, 12);
+    });
+
+    it('succeeds when the final allowed attempt reaches tEnd', () => {
+        const f: DerivativeFunction = (_t, _y, out) => out.fill(0);
+        const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]), {
+            h0: 1,
+            maxSteps: 1,
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.t.data[result.t.size - 1]).toBe(1);
     });
 
     describe('input validation', () => {
@@ -140,6 +151,10 @@ describe('rungeKuttaAdaptive additional coverage', () => {
 
         it('rejects non-positive maxSteps', () => {
             expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, maxSteps: 0 })).toThrow(RangeError);
+        });
+
+        it('rejects non-integer maxSteps', () => {
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { maxSteps: 1.5 })).toThrow(RangeError);
         });
 
         it('rejects safety outside (0, 1]', () => {

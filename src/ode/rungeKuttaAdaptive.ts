@@ -374,7 +374,9 @@ export function rungeKuttaAdaptive(
     if (!(hMin > 0)) throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must be positive.`);
     if (!(hMax > 0)) throw new RangeError(`rungeKuttaAdaptive: hMax (${hMax}) must be positive.`);
     if (hMin > hMax) throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must not exceed hMax (${hMax}).`);
-    if (!(maxSteps > 0)) throw new RangeError(`rungeKuttaAdaptive: maxSteps (${maxSteps}) must be positive.`);
+    if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
+        throw new RangeError(`rungeKuttaAdaptive: maxSteps (${maxSteps}) must be a positive integer.`);
+    }
     if (!(safety > 0 && safety <= 1)) throw new RangeError(`rungeKuttaAdaptive: safety (${safety}) must be in (0, 1].`);
     if (!(minScale > 0) || minScale > maxScale) {
         throw new RangeError(`rungeKuttaAdaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`);
@@ -487,7 +489,7 @@ export function rungeKuttaAdaptive(
         }
 
         steps++;
-        if (steps > maxSteps) {
+        if (t !== tEnd && steps >= maxSteps) {
             return makeResult(false, `rungeKuttaAdaptive: exceeded maxSteps (${maxSteps}) without reaching tEnd.`);
         }
     }
