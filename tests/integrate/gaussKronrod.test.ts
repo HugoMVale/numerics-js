@@ -55,6 +55,30 @@ describe('gaussKronrod', () => {
         expect(res.subintervals).toBe(3);
     });
 
+    it('rejects invalid tolerances and panel limits before evaluating the integrand', () => {
+        let evaluations = 0;
+        const f = (x: number) => {
+            evaluations++;
+            return x;
+        };
+
+        for (const tol of [NaN, Infinity, -Infinity, -1]) {
+            expect(() => gaussKronrod(f, 0, 1, { tol })).toThrow(RangeError);
+        }
+        for (const maxSubintervals of [NaN, Infinity, -Infinity, 0, -1, 1.5]) {
+            expect(() => gaussKronrod(f, 0, 1, { maxSubintervals })).toThrow(RangeError);
+        }
+
+        expect(evaluations).toBe(0);
+    });
+
+    it('accepts zero tolerance when the embedded estimates agree exactly', () => {
+        const res = gaussKronrod(fPolynomial, 0, 1, { tol: 0 });
+
+        expect(res.error).toBe(0);
+        expect(res.converged).toBe(true);
+    });
+
     it('throws TypeError for invalid integrand input', () => {
         expect(() => gaussKronrod('not a function' as any, 0, 1)).toThrow(TypeError);
     });

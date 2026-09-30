@@ -118,7 +118,8 @@ export function gaussKronrod15(
  * @param options.tol Absolute error tolerance for the whole interval. Defaults to `1e-8`.
  * @param options.maxSubintervals Safety limit on panel count. Defaults to `200`.
  * @returns Quadrature output including final value, estimated error, and diagnostics.
- * @throws {RangeError} If `a` or `b` are non-finite numbers.
+ * @throws {RangeError} If `a` or `b` are non-finite numbers, `tol` is not a finite
+ * non-negative number, or `maxSubintervals` is not a finite positive integer.
  * @throws {Error} If `f` evaluates to a non-finite value.
  *
  * @example
@@ -170,6 +171,12 @@ export function gaussKronrod(
 
     if (!Number.isFinite(a) || !Number.isFinite(b)) {
         throw new RangeError('gaussKronrod: a and b must be finite numbers');
+    }
+    if (!Number.isFinite(tol) || tol < 0) {
+        throw new RangeError('gaussKronrod: tol must be a finite non-negative number');
+    }
+    if (!Number.isFinite(maxSubintervals) || !Number.isInteger(maxSubintervals) || maxSubintervals < 1) {
+        throw new RangeError('gaussKronrod: maxSubintervals must be a finite positive integer');
     }
     if (a === b) {
         return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
