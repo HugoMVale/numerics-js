@@ -58,6 +58,17 @@ interface Panel {
     error: number;
 }
 
+function midpoint(a: number, b: number): number {
+    return (a < 0 && b > 0) || (a > 0 && b < 0)
+        ? (a + b) / 2
+        : a + (b - a) / 2;
+}
+
+function halfLength(a: number, b: number): number {
+    const length = b - a;
+    return Number.isFinite(length) ? length / 2 : b / 2 - a / 2;
+}
+
 /**
  * Applies the 7-15 Gauss-Kronrod rule to one panel and returns the
  * embedded Gauss and Kronrod estimates.
@@ -73,14 +84,14 @@ export function gaussKronrod15(
     a: number,
     b: number
 ): LocalGaussKronrodResult {
-    const halfLength = (b - a) / 2;
-    const center = (a + b) / 2;
+    const panelHalfLength = halfLength(a, b);
+    const center = midpoint(a, b);
 
     let kronrodSum = 0;
     let gaussSum = 0;
 
     for (let i = 0; i < KRONROD_NODES.length; i++) {
-        const dx = halfLength * KRONROD_NODES[i];
+        const dx = panelHalfLength * KRONROD_NODES[i];
         const kw = KRONROD_WEIGHTS[i];
         const gw = GAUSS_WEIGHTS[i];
 
@@ -96,8 +107,8 @@ export function gaussKronrod15(
         }
     }
 
-    const kronrod = halfLength * kronrodSum;
-    const gauss = halfLength * gaussSum;
+    const kronrod = panelHalfLength * kronrodSum;
+    const gauss = panelHalfLength * gaussSum;
 
     return { kronrod, gauss, error: Math.abs(kronrod - gauss) };
 }
@@ -215,7 +226,7 @@ export function gaussKronrod(
         }
         const worst = panels[worstIdx];
 
-        const mid = (worst.a + worst.b) / 2;
+        const mid = midpoint(worst.a, worst.b);
         const left = gaussKronrod15(evalF, worst.a, mid);
         const right = gaussKronrod15(evalF, mid, worst.b);
 

@@ -48,6 +48,34 @@ describe('gaussKronrod', () => {
         expect(reverse.evaluations).toBe(forward.evaluations);
     });
 
+    it('integrates over large finite bounds without overflowing panel centers', () => {
+        const scale = 1e308;
+        const result = gaussKronrod(
+            x => Math.exp(-Math.pow((x / scale - 1.05) / 0.01, 2)),
+            scale,
+            1.1 * scale,
+            { tol: 1e294 }
+        );
+        const expected = Math.sqrt(Math.PI) * 1e306;
+
+        expect(result.converged).toBe(true);
+        expect(Math.abs(result.value - expected) / expected).toBeLessThan(1e-8);
+    });
+
+    it('handles finite bounds whose difference overflows', () => {
+        const scale = 1e308;
+        const result = gaussKronrod(
+            x => Math.exp(-Math.pow(x / scale, 2)),
+            -scale,
+            scale,
+            { tol: 1e295 }
+        );
+
+        expect(result.converged).toBe(true);
+        expect(Number.isFinite(result.value)).toBe(true);
+        expect(result.value).toBeGreaterThan(0);
+    });
+
     it('respects maxSubintervals and sets converged to false when exceeded', () => {
         const res = gaussKronrod(fOscillatory, 0, Math.PI, { tol: 1e-15, maxSubintervals: 3 });
 
