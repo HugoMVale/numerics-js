@@ -233,16 +233,18 @@ export function rungeKuttaFixed(
     yMat.setRow(0, y.data);
 
     for (let i = 1; i <= nFull; i++) {
-        rungeKuttaStep(method, f, t, y, h, next, scratch);
+        const isFinalStep = !hasPartialStep && i === nFull;
+        const stepSize = isFinalStep ? tEnd - t : h;
+        rungeKuttaStep(method, f, t, y, stepSize, next, scratch);
         evaluations += evaluationsPerStep;
-        t = t0 + i * h;
+        t = isFinalStep ? tEnd : t0 + i * h;
         tVec.data[i] = t;
         yMat.setRow(i, next.data);
         [y, next] = [next, y];
     }
 
     if (hasPartialStep) {
-        rungeKuttaStep(method, f, t, y, remainder, next, scratch);
+        rungeKuttaStep(method, f, t, y, tEnd - t, next, scratch);
         evaluations += evaluationsPerStep;
         tVec.data[nRecorded] = tEnd;
         yMat.setRow(nRecorded, next.data);

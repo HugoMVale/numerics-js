@@ -162,6 +162,22 @@ describe('rungeKuttaFixed', () => {
         expect(result.t.data[result.t.size - 1]).toBe(1);
     });
 
+    it.each(methods)('%s: clamps near-integral final steps to tEnd in either direction', (method) => {
+        const f: DerivativeFunction = (_t, _y, out) => out.fill(1);
+        const cases = [
+            [0, 1, 1 + 5e-10],
+            [0, 1, 1 - 5e-10],
+            [1, 0, -1 - 5e-10],
+            [1, 0, -1 + 5e-10],
+        ] as const;
+
+        for (const [t0, tEnd, h] of cases) {
+            const result = rungeKuttaFixed(method, f, t0, tEnd, new Vector([0]), h);
+            expect(result.t.data[result.t.size - 1]).toBe(tEnd);
+            expect(result.y.get(result.y.rows - 1, 0)).toBeCloseTo(tEnd - t0, 14);
+        }
+    });
+
     it.each(methods)('%s: converges at the theoretically expected order for dy/dt = y', (method) => {
         const errorAt = (h: number) => {
             const result = rungeKuttaFixed(method, exponential, 0, 1, new Vector([1]), h);
