@@ -366,7 +366,9 @@ export function rungeKuttaAdaptive(
     } = options;
     const dim = y0.size;
     if (dim <= 0) throw new RangeError(`rungeKuttaAdaptive: y0 must have at least one component, got dimension ${dim}.`);
-    if (atol < 0 || rtol < 0) throw new RangeError(`rungeKuttaAdaptive: atol (${atol}) and rtol (${rtol}) must be non-negative.`);
+    if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
+        throw new RangeError(`rungeKuttaAdaptive: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`);
+    }
     if (atol === 0 && rtol === 0) throw new RangeError('rungeKuttaAdaptive: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.');
     if (h0 !== undefined && h0 === 0) throw new RangeError('rungeKuttaAdaptive: h0 must be nonzero.');
     if (!(hMin > 0)) throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must be positive.`);

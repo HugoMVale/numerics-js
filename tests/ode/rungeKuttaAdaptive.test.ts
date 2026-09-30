@@ -117,6 +117,15 @@ describe('rungeKuttaAdaptive additional coverage', () => {
             expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, h0: 0 })).toThrow(RangeError);
         });
 
+        it.each([
+            { atol: Number.NaN, rtol: 1e-6 },
+            { atol: 1e-6, rtol: Number.NaN },
+            { atol: Number.POSITIVE_INFINITY, rtol: 1e-6 },
+            { atol: 1e-6, rtol: Number.POSITIVE_INFINITY },
+        ])('rejects non-finite tolerances ($atol, $rtol)', (options) => {
+            expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, options)).toThrow(RangeError);
+        });
+
         it('rejects non-positive hMin', () => {
             expect(() => rungeKuttaAdaptive('rk45', f, 0, 1, y0, { atol: 1e-6, rtol: 1e-6, hMin: 0 })).toThrow(RangeError);
         });
