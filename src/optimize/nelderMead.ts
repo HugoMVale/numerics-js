@@ -41,7 +41,11 @@ export interface NelderMeadOptions {
     sclx?: number[] | Vector;
     /** Maximum number of iterations. Defaults to `200*N`. */
     maxIter?: number;
-    /** Maximum number of function evaluations. Defaults to `200*N`. */
+    /**
+     * Soft limit for function evaluations. Checked between iterations, so
+     * simplex initialization or an iteration already in progress may exceed it.
+     * Defaults to `200*N`.
+     */
     maxFunEvals?: number;
     /**
      * Whether to use the adaptive parameter scheme proposed by Gao (2012).
