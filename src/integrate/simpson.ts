@@ -5,8 +5,8 @@ import { trapezoid } from './trapezoid.js';
  * Integrates a parabola through 3 points, `y0, y1, y2`, spaced `h0` and
  * `h1` apart respectively, over the full span `[0, h0 + h1]`. Reduces to
  * the classic `(h/3)(y0 + 4y1 + y2)` rule when `h0 === h1`; exact for
- * uneven spacing too, and exact for cubics as well as quadratics (the
- * symmetric 2-interval span cancels odd-degree error terms).
+ * quadratics for uneven spacing, and exact for cubics only when `h0 === h1`
+ * (the symmetric 2-interval span then cancels odd-degree error terms).
  */
 function simpsonPair(y0: number, y1: number, y2: number, h0: number, h1: number): number {
     return ((h0 + h1) / 6) * ((2 - h1 / h0) * y0 + ((h0 + h1) * (h0 + h1)) / (h0 * h1) * y1 + (2 - h0 / h1) * y2);
@@ -20,9 +20,9 @@ function simpsonPair(y0: number, y1: number, y2: number, h0: number, h1: number)
  *
  * Fits a quadratic through the last 3 points and integrates it only over
  * the final sub-interval `[x_{N-1}, x_N]`, rather than the full
- * symmetric 2-interval span `simpsonPair` uses. Because that span is
- * asymmetric, this correction is exact for quadratics but, unlike
- * `simpsonPair`, not for cubics.
+ * 2-interval span `simpsonPair` uses. This correction is exact for
+ * quadratics but generally not for cubics; `simpsonPair` is cubic-exact only
+ * when its two interval widths are equal.
  *
  * @param fN2 Value 2 points before the end (`f_{N-2}`).
  * @param fN1 Value 1 point before the end (`f_{N-1}`).
