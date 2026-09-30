@@ -39,7 +39,11 @@ export interface NelderMeadOptions {
      * components. If omitted, scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
      */
     sclx?: number[] | Vector;
-    /** Maximum number of iterations. Defaults to `200*N`. */
+    /**
+     * Maximum number of simplex updates, as a non-negative integer. If zero,
+     * the initial simplex is checked for convergence but not updated. Defaults
+     * to `200*N`.
+     */
     maxIter?: number;
     /**
      * Soft limit for function evaluations. Checked between iterations, so
@@ -148,6 +152,8 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * provided, the scaling factors will be determined from this value.
  * @param options Optional settings; see {@link NelderMeadOptions}.
  * @returns The optimize result.
+ * @throws {RangeError} If `x0` has no components or `maxIter` is not a
+ * non-negative integer.
  *
  * @example
  * ```ts
@@ -198,6 +204,9 @@ export function nelderMead(
 
     const iterLimit = maxIter ?? 200 * n;
     const fevalLimit = maxFunEvals ?? 200 * n;
+    if (!Number.isInteger(iterLimit) || iterLimit < 0) {
+        throw new RangeError(`nelderMead: maxIter must be a non-negative integer, got ${iterLimit}`);
+    }
 
     // Algorithm parameters
     let a: number, b: number, c: number, d: number;
@@ -239,8 +248,6 @@ export function nelderMead(
     let fmin = fx.data[0];
 
     while (true) {
-        nIter++;
-
         const { imin, imax, imax2 } = simplexExtremes(fx);
         xmin = x.row(imin);
         fmin = fx.data[imin];
@@ -248,7 +255,7 @@ export function nelderMead(
         const fmax = fx.data[imax];
 
         if (callback !== undefined) {
-            const { stop, success: cbSuccess } = callback(nIter, x, fx);
+            const { stop, success: cbSuccess } = callback(nIter + 1, x, fx);
             if (stop) {
                 success = cbSuccess;
                 message = 'Terminated by user callback.';
@@ -275,7 +282,7 @@ export function nelderMead(
             break;
         }
 
-        if (nIter === iterLimit) {
+        if (nIter >= iterLimit) {
             message = `Maximum number of iterations (${iterLimit}) reached.`;
             break;
         }
@@ -346,6 +353,8 @@ export function nelderMead(
                 nFev++;
             }
         }
+
+        nIter++;
     }
 
     return {

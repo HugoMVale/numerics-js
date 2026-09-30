@@ -45,6 +45,42 @@ describe('fminNelderMead — options and edge cases', () => {
         expect(res.message).toMatch(/maximum number of iterations/i);
     });
 
+    it('allows zero simplex updates when maxIter is zero', () => {
+        const iterations: number[] = [];
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], {
+            maxIter: 0,
+            callback: (nIter) => {
+                iterations.push(nIter);
+                return { stop: false, success: false };
+            },
+        });
+
+        expect(res.success).toBe(false);
+        expect(res.message).toMatch(/maximum number of iterations/i);
+        expect(res.evaluations).toBe(3);
+        expect(iterations).toEqual([1]);
+    });
+
+    it('allows one simplex update when maxIter is one', () => {
+        const iterations: number[] = [];
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], {
+            maxIter: 1,
+            callback: (nIter) => {
+                iterations.push(nIter);
+                return { stop: false, success: false };
+            },
+        });
+
+        expect(res.success).toBe(false);
+        expect(res.message).toMatch(/maximum number of iterations/i);
+        expect(res.evaluations).toBeGreaterThan(3);
+        expect(iterations).toEqual([1, 2]);
+    });
+
+    it.each([-1, 1.5])('rejects invalid maxIter values (%s)', (maxIter) => {
+        expect(() => nelderMead(() => 0, [1], { maxIter })).toThrow(RangeError);
+    });
+
     it('respects a custom maxfeval and reports failure without throwing', () => {
         const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], { maxFunEvals: 5 });
         expect(res.success).toBe(false);
