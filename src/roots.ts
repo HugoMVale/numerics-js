@@ -1,7 +1,8 @@
 /**
- * Scalar root-finding methods.
+ * Scalar and vector root-finding methods.
  *
- * Choose a method based on whether a root can be bracketed:
+ * For scalar equations, choose a method based on whether a root can be
+ * bracketed:
  *
  * - Use {@link brent} as the general default when the endpoints have opposite
  *   signs; it combines bracketing reliability with fast convergence.
@@ -9,6 +10,8 @@
  *   predictable convergence guarantee is more important than speed.
  * - Use {@link secant} with good initial guesses when no bracket is available
  *   and faster convergence is worth the risk of non-convergence.
+ *
+ * Use {@link quasiNewton} to find a root of a system of nonlinear equations.
  *
  * @module roots
  */
