@@ -130,6 +130,28 @@ describe('rootVecQNewton', () => {
         }
     });
 
+    it('rejects an analytic Jacobian with the wrong dimensions', () => {
+        expect(() => quasiNewton(fExample65.f, fExample65.x0, {
+            jac: () => Matrix.from([[1]]),
+        })).toThrow('quasiNewton: jac(x0) must have dimensions 2x2, got 1x1');
+    });
+
+    it('returns a failure result when the analytic Jacobian fails the finite-difference check', () => {
+        const J0 = Matrix.from([
+            [1, 0],
+            [0, 1],
+        ]);
+        const result = quasiNewton(fExample65.f, fExample65.x0, {
+            jac: () => J0,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.iterations).toBe(0);
+        expect(result.message).toBe('User-provided Jacobian `jac` does not match finite-difference approximation.');
+        expect(result.x.allClose(fExample65.x0)).toBe(true);
+        expect(result.Jx?.allClose(J0)).toBe(true);
+    });
+
     it('returns immediately when the initial guess is a solution', () => {
         const result = quasiNewton(fExample65.f, fExample65.xs);
 
