@@ -161,21 +161,29 @@ export function quasiNewton(
     x0: Vector,
     options: QuasiNewtonOptions = {}
 ): VectorRootResult {
+
     const tolx = options.tolx ?? 1e-10;
     const tolf = options.tolf ?? 1e-5;
     const maxIter = options.maxIter ?? 100;
     const maxLenFactor = options.maxLenFactor ?? 1e3;
     const broydenUpdate = options.broydenUpdate ?? false;
     const jacCheck = options.jacCheck ?? true;
-    // Distinguish "omitted" (defaults to 'line-search') from an explicit
-    // `null` (no global strategy) — `??` would collapse both to the default.
     const globalMethod: GlobalMethod = options.globalMethod === undefined ? 'line-search' : options.globalMethod;
 
-    // Construct method name for result.
     let method = 'Quasi-Newton';
     const methodOptions: string[] = [`Global: ${titleCase(globalMethod ?? 'none')}`];
     if (broydenUpdate) methodOptions.push('Broyden update');
     method += ' (' + methodOptions.join(', ') + ')';
+
+    options.sclx?.map((value) => {
+        if (!(value > 0)) throw new Error('quasiNewton: sclx must contain strictly positive values');
+        return value;
+    });
+    options.sclf?.map((value) => {
+        if (!(value > 0)) throw new Error('quasiNewton: sclf must contain strictly positive values');
+        return value;
+    });
+    const sclx = options.sclx ? options.sclx.abs() : scaleVector(x0);
 
     let nFev = 0;
     let nJev = 0;
@@ -184,9 +192,6 @@ export function quasiNewton(
     let xc = x0.copy();
     let fc = f(xc);
     nFev += 1;
-
-    // Set x scaling factors.
-    const sclx = options.sclx ? options.sclx.abs() : scaleVector(x0);
 
     // Evaluate Jacobian at x0.
     let Jc: Matrix;
