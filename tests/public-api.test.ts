@@ -28,6 +28,7 @@ describe('public API', () => {
         expect(typeof roots.bisection).toBe('function');
         expect(typeof roots.brent).toBe('function');
         expect(typeof roots.secant).toBe('function');
+        expect(typeof roots.quasiNewton).toBe('function');
         expect(typeof ode.rungeKuttaFixed).toBe('function');
         expect(typeof ode.rungeKuttaAdaptive).toBe('function');
         expect(typeof ode.createVelocityVerlet).toBe('function');
