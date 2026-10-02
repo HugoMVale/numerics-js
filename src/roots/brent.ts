@@ -95,7 +95,7 @@ export function brent(
         };
     }
 
-    if (fa * fb > 0) {
+    if (Math.sign(fa) === Math.sign(fb)) {
         throw new Error(
             `${METHOD}: root is not bracketed (f(xa) and f(xb) must have opposite signs)`
         );
@@ -107,7 +107,7 @@ export function brent(
     let e = d;
 
     for (let k = 0; k < maxIter; k++) {
-        if (fb * fc > 0) {
+        if (Math.sign(fb) === Math.sign(fc)) {
             xc = xa;
             fc = fa;
             d = xb - xa;

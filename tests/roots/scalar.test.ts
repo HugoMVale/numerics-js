@@ -19,6 +19,17 @@ describe('bisection', () => {
         expect(result.evaluations).toBeGreaterThan(0);
     });
 
+    it('should avoid midpoint overflow for large finite endpoints', () => {
+        const result = bisection((x) => x - 1.05e308, 1e308, 1.1e308, {
+            tolx: 1e294
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.x).toBeGreaterThan(1e308);
+        expect(result.x).toBeLessThan(1.1e308);
+        expect(Math.abs(result.fx)).toBeLessThan(1e294);
+    });
+
     it('should swap bounds if xa > xb', () => {
         const result = bisection(f, 5, 0);
         expect(result.x).toBeCloseTo(2, 5);
@@ -161,6 +172,12 @@ describe('brent', () => {
 
     it('should throw an error if f(xa) and f(xb) have the same sign', () => {
         expect(() => brent(f, 3, 5)).toThrow(
+            'brent: root is not bracketed (f(xa) and f(xb) must have opposite signs)'
+        );
+    });
+
+    it('should reject same-sign endpoint values when their product underflows', () => {
+        expect(() => brent(() => 1e-200, 0, 1, { tolf: 0 })).toThrow(
             'brent: root is not bracketed (f(xa) and f(xb) must have opposite signs)'
         );
     });

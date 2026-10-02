@@ -2,6 +2,10 @@ import type { ScalarRootResult } from './types.js';
 
 const METHOD = 'bisection';
 
+function stableMidpoint(xa: number, xb: number): number {
+    return (xa < 0) !== (xb < 0) ? (xa + xb) / 2 : xa + (xb - xa) / 2;
+}
+
 /**
  * Finds a root of a scalar function `f(x)` using the bisection method,
  * given a bracketing interval.
@@ -94,11 +98,11 @@ export function bisection(
         );
     }
 
-    let mid = (xa + xb) / 2;
+    let mid = stableMidpoint(xa, xb);
     let fmid = fa;
 
     for (let k = 0; k < maxIter; k++) {
-        mid = (xa + xb) / 2;
+        mid = stableMidpoint(xa, xb);
         fmid = f(mid);
         evaluations++;
 
