@@ -138,6 +138,11 @@ export interface QuasiNewtonOptions {
  * provided, the scaling factors are determined from this value.
  * @param options Configuration options for the solver.
  * @returns A `VectorRootResult` with the root solution and diagnostics.
+ * @throws {RangeError} If `x0` has no components or `f(x0)` has a different
+ * dimension than `x0`, or if `jac(x0)` does not return an `n`×`n` matrix.
+ * @throws {Error} If `sclx` or `sclf` contains a value that is not strictly
+ * positive, or if `globalMethod` is not `'line-search'`, `'dogleg'`, or
+ * `null`.
  *
  * @example
  * ```ts
@@ -155,6 +160,11 @@ export interface QuasiNewtonOptions {
  * const sol = quasiNewton(f, Vector.from([0.5, 1.0, 0.5]));
  * console.log(sol.x.toString());
  * ```
+ *
+ * Output:
+ * ```text
+ * Vector(0.4142135642138721, 1.4142135642135265, 0.34314574906501627)
+ * ```
  */
 export function quasiNewton(
     f: (x: Vector) => Vector,
@@ -162,6 +172,21 @@ export function quasiNewton(
     options: QuasiNewtonOptions = {}
 ): VectorRootResult {
 
+    const n = x0.size;
+    if (n === 0) {
+        throw new RangeError('quasiNewton: x0 must have at least one component');
+    }
+
+    options.sclx?.map((value) => {
+        if (!(value > 0)) throw new Error('quasiNewton: sclx must contain strictly positive values');
+        return value;
+    });
+    options.sclf?.map((value) => {
+        if (!(value > 0)) throw new Error('quasiNewton: sclf must contain strictly positive values');
+        return value;
+    });
+
+    const sclx = options.sclx ? options.sclx.abs() : scaleVector(x0);
     const tolx = options.tolx ?? 1e-10;
     const tolf = options.tolf ?? 1e-5;
     const maxIter = options.maxIter ?? 100;
@@ -175,23 +200,16 @@ export function quasiNewton(
     if (broydenUpdate) methodOptions.push('Broyden update');
     method += ' (' + methodOptions.join(', ') + ')';
 
-    options.sclx?.map((value) => {
-        if (!(value > 0)) throw new Error('quasiNewton: sclx must contain strictly positive values');
-        return value;
-    });
-    options.sclf?.map((value) => {
-        if (!(value > 0)) throw new Error('quasiNewton: sclf must contain strictly positive values');
-        return value;
-    });
-    const sclx = options.sclx ? options.sclx.abs() : scaleVector(x0);
-
     let nFev = 0;
     let nJev = 0;
 
-    const n = x0.size;
     let xc = x0.copy();
     let fc = f(xc);
     nFev += 1;
+
+    if (fc.size !== n) {
+        throw new RangeError(`quasiNewton: f(x0) must have dimension ${n}, got ${fc.size}`);
+    }
 
     // Evaluate Jacobian at x0.
     let Jc: Matrix;
@@ -199,6 +217,9 @@ export function quasiNewton(
         Jc = options.J0.copy();
     } else if (options.jac) {
         Jc = options.jac(xc);
+        if (Jc.rows !== n || Jc.cols !== n) {
+            throw new RangeError(`quasiNewton: jac(x0) must have dimensions ${n}x${n}, got ${Jc.rows}x${Jc.cols}`);
+        }
         nJev += 1;
     } else {
         Jc = jacobianForward(f, xc, { fx: fc, sclx, epsf: options.epsf });
@@ -277,7 +298,8 @@ export function quasiNewton(
     for (nIter = 1; nIter <= maxIter; nIter++) {
         // QR decomposition of the scaled Jacobian.
         if (!broydenUpdate || restart) {
-            const scaledJ = Matrix.diag(sclf).matmul(Jc);
+            const scaledJ = Jc.copy();
+            for (let i = 0; i < sclf.size; i++) scaledJ.scaleRow(i, sclf.get(i));
             ({ Q, R } = scaledJ.qr());
         }
 
@@ -287,26 +309,27 @@ export function quasiNewton(
         // Solve (Q*R)*p = -sclf*fc.
         let p: Vector;
         let Rstep = R;
+        const sclf_fc = sclf.mult(fc);
         if (Rcond < 1 / SQRT_EPS) {
-            const rhs = Q.transpose().mulVec(sclf.mult(fc));
+            const rhs = Q.transpose().mulVec(sclf_fc);
             p = R.solveUpper(rhs).mult(-1);
             if (globalMethod) {
-                gc = R.transpose().mulVec(Q.transpose().mulVec(sclf.mult(fc)));
+                gc = R.transpose().mulVec(rhs);
             }
         } else {
             const H = R.transpose().matmul(R);
-            const Hnorm = H.div(sclx.outer(sclx)).norm1();
+            const Hnorm = H.div(sclx.outer(sclx)).norm1(); // could be made more efficient, but probably not worth it.
             for (let i = 0; i < n; i++) {
                 H.set(i, i, H.get(i, i) + Math.sqrt(n * EPS) * Hnorm * sclx.get(i) ** 2);
             }
-            gc = R.transpose().mulVec(Q.transpose().mulVec(sclf.mult(fc)));
+            gc = R.transpose().mulVec(Q.transpose().mulVec(sclf_fc));
             const L = H.cholesky();
             p = L.choleskySolve(gc).mult(-1);
             Rstep = L.transpose();
         }
 
         // Current value of the global-method objective, 1/2*||sclf*f(xc)||².
-        fNc = 0.5 * sclf.mult(fc).normSq();
+        fNc = 0.5 * sclf_fc.normSq();
 
         // Compute the actual x step.
         const ctx: GlobalStepContext = { fN, p, xc, fc: fNc, gc, R: Rstep, tolx, sclx, maxLen, trustLen };
@@ -333,7 +356,7 @@ export function quasiNewton(
         fp = step.Fp;
 
         // If the global-method step failed, restart once with a fresh Jacobian.
-        if (!step.success && !restart) {
+        if (broydenUpdate && !step.success && !restart) {
             if (options.jac) {
                 Jc = options.jac(xc);
                 nJev += 1;
@@ -349,7 +372,7 @@ export function quasiNewton(
         let stop: boolean;
         if (!step.success) {
             message =
-                'Last global step failed to decrease ||sclx*f(x)||₂ sufficiently. Either `x` is ' +
+                'Last global step failed to decrease ||sclf*f(x)||₂ sufficiently. Either `x` is ' +
                 'close to a root and no more accuracy is possible, or the secant approximation to ' +
                 'the Jacobian is inaccurate, or `tolx` is too large.';
             stop = true;

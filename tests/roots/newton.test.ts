@@ -10,6 +10,42 @@ import {
 } from './testFunctions.js';
 
 describe('rootVecQNewton', () => {
+    it('rejects an initial guess with no components before evaluating f', () => {
+        let evaluated = false;
+
+        expect(() => quasiNewton(() => {
+            evaluated = true;
+            return Vector.from([]);
+        }, Vector.from([]))).toThrow(
+            'quasiNewton: x0 must have at least one component',
+        );
+        expect(evaluated).toBe(false);
+    });
+
+    it('rejects an initial function value with a different dimension before evaluating the Jacobian', () => {
+        let jacobianEvaluated = false;
+
+        expect(() => quasiNewton(() => Vector.from([1]), Vector.from([1, 2]), {
+            jac: () => {
+                jacobianEvaluated = true;
+                return Matrix.from([[1, 0], [0, 1]]);
+            },
+        })).toThrow('quasiNewton: f(x0) must have dimension 2, got 1');
+        expect(jacobianEvaluated).toBe(false);
+    });
+
+    it.each(['sclx', 'sclf'] as const)('requires strictly positive %s values before evaluating f', (name) => {
+        let evaluated = false;
+
+        expect(() => quasiNewton(() => {
+            evaluated = true;
+            return Vector.from([0]);
+        }, Vector.from([1]), { [name]: Vector.from([1, 0]) })).toThrow(
+            `quasiNewton: ${name} must contain strictly positive values`,
+        );
+        expect(evaluated).toBe(false);
+    });
+
     it.each([
         { trustLen: 1, maxLenFactor: 1e3, expectedStepLen: 1 },
         { trustLen: 100, maxLenFactor: 0.2, expectedStepLen: Math.sqrt(50) * 0.2 },
