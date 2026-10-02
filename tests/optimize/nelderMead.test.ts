@@ -39,6 +39,33 @@ describe('fminNelderMead — options and edge cases', () => {
         expect(res.fx).toBeCloseTo(0, 5);
     });
 
+    it('shrinks the simplex when reflection and inside contraction both fail', () => {
+        const objective = (x: Vector): number => {
+            const u = x.get(0) / 0.05;
+            const v = x.get(1) / 0.05;
+            return u ** 2 + 16 * u ** 2 * (u - 1) ** 2 + v ** 2;
+        };
+        let shrunkenVertices: number[] = [];
+
+        const res = nelderMead(objective, [0, 0], {
+            maxIter: 1,
+            callback: (nIter, simplex) => {
+                if (nIter === 2) {
+                    shrunkenVertices = [
+                        simplex.get(1, 0),
+                        simplex.get(1, 1),
+                        simplex.get(2, 0),
+                        simplex.get(2, 1),
+                    ];
+                }
+                return { stop: false, success: false };
+            },
+        });
+
+        expect(shrunkenVertices).toEqual([0.025, 0, 0, 0.025]);
+        expect(res.evaluations).toBe(7);
+    });
+
     it('respects a custom maxiter and reports failure without throwing', () => {
         const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], { maxIter: 2 });
         expect(res.success).toBe(false);
