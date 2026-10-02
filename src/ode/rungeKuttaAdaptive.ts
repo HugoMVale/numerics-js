@@ -246,9 +246,15 @@ function estimateInitialStep(
  * Optional tuning parameters for {@link rungeKuttaAdaptive}.
  */
 export interface RungeKuttaAdaptiveOptions {
-    /** Absolute error tolerance per state component. Defaults to `1e-6`. */
+    /**
+     * Absolute error tolerance per state component.
+     * @default 1e-6
+     */
     atol?: number;
-    /** Relative error tolerance per state component. Defaults to `1e-3`. */
+    /**
+     * Relative error tolerance per state component.
+     * @default 1e-3
+     */
     rtol?: number;
     /**
      * Optional initial step-size magnitude. Its sign is ignored because the
@@ -256,26 +262,36 @@ export interface RungeKuttaAdaptiveOptions {
      * omitted.
      */
     h0?: number;
-    /** Maximum permitted step-size magnitude. Defaults to `Infinity`. */
+    /**
+     * Maximum permitted step-size magnitude.
+     * @default Infinity
+     */
     hMax?: number;
     /**
-     * Minimum permitted step-size magnitude after a rejected step. Defaults
-     * to `1e-12`.
+     * Minimum permitted step-size magnitude after a rejected step.
+     * @default 1e-12
      */
     hMin?: number;
     /**
-     * Maximum number of attempted steps, including rejected steps. Defaults
-     * to `1e5`.
+     * Maximum number of attempted steps, including rejected steps.
+     * @default 1e5
      */
     maxSteps?: number;
     /**
      * Safety factor applied when scaling a step after error estimation. Must
-     * be in `(0, 1]`; defaults to `0.9`.
+     * be in `(0, 1]`.
+     * @default 0.9
      */
     safety?: number;
-    /** Smallest allowed multiplier for the next step size. Defaults to `0.2`. */
+    /**
+     * Smallest allowed multiplier for the next step size.
+     * @default 0.2
+     */
     minScale?: number;
-    /** Largest allowed multiplier for the next step size. Defaults to `10`. */
+    /**
+     * Largest allowed multiplier for the next step size.
+     * @default 10
+     */
     maxScale?: number;
 }
 

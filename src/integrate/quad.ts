@@ -50,9 +50,15 @@ export interface QuadTransform {
 
 /** Options for {@link quad}. */
 export interface QuadOptions {
-    /** Absolute error tolerance for the whole interval. Defaults to `1e-8`. */
+    /**
+     * Absolute error tolerance for the whole interval.
+     * @default 1e-8
+     */
     tol?: number;
-    /** Safety limit on panel count. Defaults to `200`. */
+    /**
+     * Safety limit on panel count.
+     * @default 200
+     */
     maxSubintervals?: number;
     /** 
      * Specific points within the integration interval where the function 

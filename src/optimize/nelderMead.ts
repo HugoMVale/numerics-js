@@ -24,13 +24,14 @@ export interface NelderMeadOptions {
     /**
      * Absolute tolerance for `x`. The algorithm terminates when the maximum
      * scaled distance between the simplex vertices is less than `tolx`.
-     * Defaults to `1e-8`.
+     * @default 1e-8
      */
     tolx?: number;
     /**
      * Absolute tolerance for `f`. The algorithm terminates when the maximum
      * difference between the function values at the simplex vertices is less
-     * than `tolf`. Defaults to `1e-8`.
+     * than `tolf`.
+     * @default 1e-8
      */
     tolf?: number;
     /**
@@ -41,20 +42,20 @@ export interface NelderMeadOptions {
     sclx?: number[] | Vector;
     /**
      * Maximum number of simplex updates, as a non-negative integer. If zero,
-     * the initial simplex is checked for convergence but not updated. Defaults
-     * to `200*N`.
+     * the initial simplex is checked for convergence but not updated.
+     * @default 200*N
      */
     maxIter?: number;
     /**
      * Soft limit for function evaluations. Checked between iterations, so
      * simplex initialization or an iteration already in progress may exceed it.
-     * Defaults to `200*N`.
+     * @default 200*N
      */
     maxFunEvals?: number;
     /**
      * Whether to use the adaptive parameter scheme proposed by Gao (2012).
-     * If `false`, the standard Nelder-Mead parameters are used. Defaults to
-     * `true`.
+     * If `false`, the standard Nelder-Mead parameters are used.
+     * @default true
      */
     adaptive?: boolean;
     /**
