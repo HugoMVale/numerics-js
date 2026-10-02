@@ -66,6 +66,33 @@ describe('nelderMead — options and edge cases', () => {
         expect(res.evaluations).toBe(7);
     });
 
+    it('shrinks the simplex when outside contraction fails on Rosenbrock', () => {
+        const objective = (x: Vector): number =>
+            (1 - x.get(0)) ** 2 + 100 * (x.get(1) - x.get(0) ** 2) ** 2;
+        let shrunkenVertices: number[][] = [];
+
+        const res = nelderMead(objective, [-4, 0.5], {
+            callback: (nIter, simplex) => {
+                if (nIter === 9) {
+                    shrunkenVertices = Array.from({ length: simplex.rows }, (_, i) => [
+                        simplex.get(i, 0),
+                        simplex.get(i, 1),
+                    ]);
+                }
+                return { stop: nIter >= 9, success: false };
+            },
+        });
+
+        expect(shrunkenVertices).toHaveLength(3);
+        expect(shrunkenVertices[0][0]).toBeCloseTo(0.0375, 8);
+        expect(shrunkenVertices[0][1]).toBeCloseTo(0.678125, 8);
+        expect(shrunkenVertices[1][0]).toBeCloseTo(0.80625, 8);
+        expect(shrunkenVertices[1][1]).toBeCloseTo(0.7046875, 8);
+        expect(shrunkenVertices[2][0]).toBeCloseTo(0.25, 8);
+        expect(shrunkenVertices[2][1]).toBeCloseTo(0.7375, 8);
+        expect(res.evaluations).toBe(21);
+    });
+
     it('respects a custom maxiter and reports failure without throwing', () => {
         const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], { maxIter: 2 });
         expect(res.success).toBe(false);
