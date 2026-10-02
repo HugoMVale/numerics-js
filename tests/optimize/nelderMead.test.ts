@@ -4,7 +4,7 @@ import { Matrix } from '../../src/linalg/Matrix.js';
 import { nelderMead } from '../../src/optimize/nelderMead.js';
 import { TEST_FUNCTIONS_MULTIVAR } from './testFunctions.js';
 
-describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('fminNelderMead — %s', (_name, data) => {
+describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('nelderMead — %s', (_name, data) => {
     const N = 2; // test in 2D for simplicity, but should work in any dimension
     const tolx = 1e-6;
 
@@ -28,7 +28,7 @@ describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('fminNelderMead — %s', 
     });
 });
 
-describe('fminNelderMead — options and edge cases', () => {
+describe('nelderMead — options and edge cases', () => {
     it('throws for a zero-dimensional initial guess', () => {
         expect(() => nelderMead(() => 0, [])).toThrow(RangeError);
     });
