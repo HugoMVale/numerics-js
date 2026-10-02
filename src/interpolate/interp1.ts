@@ -264,9 +264,9 @@ export class LinearInterpolator1D {
         if (a === b) return 0;
         if (b < a) return -this.integrate(b, a);
 
+        const n = this.xp.size;
         const xpd = this.xp.data;
         const fpd = this.fp.data;
-        const n = xpd.length;
 
         // Integrate over the intervals formed by the requested bounds and
         // every xp knot inside them. For a piecewise-linear interpolant, the
@@ -405,9 +405,9 @@ export class LinearInterpolatorND {
         if (a === b) return new Vector(m);
         if (b < a) return this.integrate(b, a).mult(-1);
 
+        const n = this.xp.size;
         const xpd = this.xp.data;
         const fp = this.fp;
-        const n = xpd.length;
 
         const total = new Vector(m);
         let x0 = a;
