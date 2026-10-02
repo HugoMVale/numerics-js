@@ -121,6 +121,21 @@ describe('nelderMead — options and edge cases', () => {
         expect(res.fx).toBeCloseTo(0, 5);
     });
 
+    it('accepts a Vector for user-supplied sclx', () => {
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [1, 1], {
+            sclx: Vector.from([1, 1]),
+        });
+        expect(res.success).toBe(true);
+        expect(res.fx).toBeCloseTo(0, 5);
+    });
+
+    it('terminates when the scaled simplex distance is below tolx', () => {
+        const res = nelderMead((x) => x.get(0) ** 2, [0], { tolx: 0.1, tolf: 0 });
+
+        expect(res.success).toBe(true);
+        expect(res.message).toMatch(/maximum distance between simplex vertices/i);
+    });
+
     it('supports the non-adaptive parameter scheme', () => {
         const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [5, -3], { adaptive: false });
         expect(res.success).toBe(true);
