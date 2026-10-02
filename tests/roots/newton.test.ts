@@ -72,18 +72,20 @@ describe('rootVecQNewton', () => {
         expect(evaluatedXs[1].sub(x0).norm()).toBeCloseTo(expectedStepLen, 12);
     });
 
-    it('solves benchmark functions with line search', () => {
-        for (const testFunction of [fRosenbrock, fPowellSingular, fTrigonometric, fExample65]) {
+    it('solves benchmark functions with line search and dogleg', () => {
+        for (const globalMethod of ['line-search', 'dogleg'] as const) {
             for (const broydenUpdate of [false, true]) {
-                const result = quasiNewton(testFunction.f, testFunction.x0, {
-                    tolf: 1e-8,
-                    globalMethod: 'line-search',
-                    broydenUpdate,
-                });
+                for (const testFunction of [fRosenbrock, fPowellSingular, fTrigonometric, fExample65]) {
+                    const result = quasiNewton(testFunction.f, testFunction.x0, {
+                        tolf: 1e-8,
+                        globalMethod,
+                        broydenUpdate,
+                    });
 
-                expect(result.success, `${testFunction.f.name}, ${broydenUpdate}`).toBe(true);
-                if (testFunction !== fPowellSingular) {
-                    expect(result.x.allClose(testFunction.xs, 1e-7, 1e-7)).toBe(true);
+                    expect(result.success, `${globalMethod}, ${testFunction.f.name}, ${broydenUpdate}`).toBe(true);
+                    if (testFunction !== fPowellSingular) {
+                        expect(result.x.allClose(testFunction.xs, 1e-7, 1e-7)).toBe(true);
+                    }
                 }
             }
         }
