@@ -47,6 +47,7 @@ Use the narrowest relevant test while iterating, then run `npm run typecheck` an
 
 - Use TypeDoc-compatible JSDoc (`/** ... */`) for exported functions, classes, interfaces, constants, and public methods or accessors.
 - Start with a concise description of the operation or mathematical method and its observable behavior. For numerical algorithms, explain important guarantees, limitations, special cases, and fallback behavior that callers need to know.
+- For properties of exported option interfaces, state defaults with a `@default` tag (plain value or expression, no backticks) instead of "Defaults to ..." prose; keep any explanation of how the default is derived in the description.
 - Document every parameter with `@param`, including accepted shapes, constraints, defaults, and meaningful units or conventions. Use `@returns` for non-void results and describe the result's shape or semantics.
 - Add `@throws {ErrorType}` for documented validation or failure paths. Keep the documented errors aligned with the implementation.
 - Include a compact, runnable `@example` for new exported user-facing algorithms or types when one clarifies normal use. Run the example before documenting it; show the actual observed output in an `Output:` block, preserving the presentation produced by the code (for example, a scalar, `toString()` text, a formatted template string, or the runtime's object/array representation). Never invent numeric output or rely on hand calculation. Omit the output block only when the example intentionally produces no output.
