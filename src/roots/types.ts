@@ -43,7 +43,7 @@ export interface VectorRootResult {
     x: Vector;
     /** Function (residual) at the returned solution. */
     fx: Vector;
-    /** Last evaluated or estimated Jacobian matrix. */
+    /** Last evaluated or estimated Jacobian matrix (may be one interation behind `x` and `fx`). */
     Jx: Matrix | null;
 }
 
