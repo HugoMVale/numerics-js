@@ -256,10 +256,6 @@ export function quasiNewton(
     };
 
     let consecutiveMaxSteps = 0;
-    // Trust-region radius, carried across outer iterations for `dogleg`
-    // (unused when `globalMethod` is `'line-search'` or `null`, which
-    // simply echo it back unchanged). `0` signals "not yet initialized"
-    // to `dogleg`.
     let trustLen = options.trustLen === undefined ? 0 : Math.min(options.trustLen, maxLen);
     let restart = true;
     let nIter = 0;
@@ -285,12 +281,12 @@ export function quasiNewton(
 
         // Solve (Q*R)*p = -sclf*fc.
         let p: Vector;
+        let Rstep = R;
         if (Rcond < 1 / SQRT_EPS) {
             const rhs = Q.transpose().mulVec(sclf.mult(fc));
             p = R.solveUpper(rhs).mult(-1);
             if (globalMethod) {
                 gc = R.transpose().mulVec(Q.transpose().mulVec(sclf.mult(fc)));
-                fNc = 0.5 * sclf.mult(fc).normSq();
             }
         } else {
             const H = R.transpose().matmul(R);
@@ -301,16 +297,14 @@ export function quasiNewton(
             gc = R.transpose().mulVec(Q.transpose().mulVec(sclf.mult(fc)));
             const L = H.cholesky();
             p = L.choleskySolve(gc).mult(-1);
-            // From here on, `R` refers to the upper-triangular factor of this
-            // regularized Cholesky solve (H = R^T*R), not the Jacobian's QR
-            // factor. This mirrors the reference Python implementation and
-            // keeps `R` meaningful for any global-step strategy that
-            // consumes it via `GlobalStepContext.R`.
-            R = L.transpose();
+            Rstep = L.transpose();
         }
 
+        // Current value of the global-method objective, 1/2*||sclf*f(xc)||².
+        fNc = 0.5 * sclf.mult(fc).normSq();
+
         // Compute the actual x step.
-        const ctx: GlobalStepContext = { fN, p, xc, fc: fNc, gc, R, tolx, sclx, maxLen, trustLen };
+        const ctx: GlobalStepContext = { fN, p, xc, fc: fNc, gc, R: Rstep, tolx, sclx, maxLen, trustLen };
         let step: GlobalStepResult;
         if (globalMethod === null) {
             // No global strategy: take the full quasi-Newton step as-is.
