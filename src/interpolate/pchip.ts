@@ -1,6 +1,15 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
-import { prepareInterp1D, prepareInterpND, checkStrictlyIncreasing, findBracket, Interp1DOptions, InterpNDOptions } from './common.js';
+import {
+    prepareInterp1D,
+    prepareInterpND,
+    checkStrictlyIncreasing,
+    findBracket,
+    integrateConstant,
+    addConstantIntegral,
+    Interp1DOptions,
+    InterpNDOptions
+} from './common.js';
 
 /**
  * Precomputes PCHIP gradients (`d[i]`, the slope at knot `i`) ensuring
@@ -274,7 +283,7 @@ function computeMonotonicDerivativesND(xp: Vector, fp: Matrix): Matrix {
  * A shape-preserving cubic Hermite interpolant (PCHIP) for a
  * scalar-valued function (`number -> number`).
  *
- * Given the discrete data points `(xp[i], fp[i])`, with `xp` strictly increasing,
+ * Given the discrete data points `(xp[i], fp[i])`, with finite, strictly increasing `xp`,
  * `eval(x)` returns a shape-preserving cubic interpolation at `x`. Unlike a
  * standard cubic spline, PCHIP does not introduce overshoots between monotonic
  * data points and has a continuous first derivative. For `x` outside the range
@@ -300,7 +309,7 @@ export class PchipInterpolator1D {
 
     /**
     * @param xp The `x`-coordinates of the data points. Must be
-     * strictly increasing and non-empty. A single point defines a constant
+    * strictly increasing, finite, and non-empty. A single point defines a constant
      * interpolant.
      * @param fp The `y`-coordinates of the data points. Must have the same
      * length as `xp`.
@@ -310,8 +319,8 @@ export class PchipInterpolator1D {
      * If `options.checkSorted` is `false` and `xp` is not actually sorted,
      * `eval`, `derivative`, and `integrate` results are unspecified.
      * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
-     * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
-     * strictly increasing.
+    * lengths, if `xp` contains non-finite values, or (when
+    * `options.checkSorted` is `true`) if `xp` is not strictly increasing.
      */
     constructor(xp: number[] | Vector, fp: number[] | Vector, options: Interp1DOptions = {}) {
         const { left, right, checkSorted = true } = options;
@@ -394,13 +403,13 @@ export class PchipInterpolator1D {
         // 1. Left clamp region (constant area)
         if (a < xpd[0]) {
             const end = Math.min(b, xpd[0]);
-            total += (end - a) * this.leftVal;
+            total += integrateConstant(end - a, this.leftVal);
         }
 
         // 2. Right clamp region (constant area)
         if (b > xpd[n - 1]) {
             const start = Math.max(a, xpd[n - 1]);
-            total += (b - start) * this.rightVal;
+            total += integrateConstant(b - start, this.rightVal);
         }
 
         // 3. Interior cubic regions
@@ -446,8 +455,8 @@ export class PchipInterpolator1D {
  * A shape-preserving cubic Hermite interpolant (PCHIP) for a
  * vector-valued function (`number -> Vector`).
  *
- * Given the discrete data points `(xp[i], fp.row(i))`, with `xp` strictly
- * increasing, `eval(x)` returns the shape-preserving cubic interpolation
+ * Given the discrete data points `(xp[i], fp.row(i))`, with finite, strictly
+ * increasing `xp`, `eval(x)` returns the shape-preserving cubic interpolation
  * at `x`, applied independently to each output component (each column of
  * `fp` gets its own PCHIP fit, all sharing the same `xp` knots). For `x`
  * outside the range of `xp`, the result is clamped to the boundary row of
@@ -471,14 +480,14 @@ export class PchipInterpolatorND {
 
     /**
      * @param xp The `x`-coordinates of the data points, shared by every
-     * output component. Must be strictly increasing and non-empty. A
+    * output component. Must be strictly increasing, finite, and non-empty. A
      * single point defines a constant interpolant.
      * @param fp The vector-valued data points: row `i` is the value at
      * `xp[i]`. Must have `fp.rows === xp.length`.
      * @param options Optional settings; see {@link InterpNDOptions}.
      * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
-     * or (when `options.checkSorted` is `true`) if `xp` is not strictly
-     * increasing.
+    * if `xp` contains non-finite values, or (when `options.checkSorted` is
+    * `true`) if `xp` is not strictly increasing.
      */
     constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
         const { left, right, checkSorted = true } = options;
@@ -571,13 +580,13 @@ export class PchipInterpolatorND {
         // 1. Left clamp region (constant area)
         if (a < xpd[0]) {
             const end = Math.min(b, xpd[0]);
-            total.addScaled(this.leftVal, end - a);
+            addConstantIntegral(total, this.leftVal, end - a);
         }
 
         // 2. Right clamp region (constant area)
         if (b > xpd[n - 1]) {
             const start = Math.max(a, xpd[n - 1]);
-            total.addScaled(this.rightVal, b - start);
+            addConstantIntegral(total, this.rightVal, b - start);
         }
 
         // 3. Interior cubic regions

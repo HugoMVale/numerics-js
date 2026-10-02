@@ -5,6 +5,7 @@ import { Matrix } from '../linalg/Matrix.js';
  * Options controlling out-of-range clamping and input validation for
  * scalar-valued (1D) interpolation methods: `interp1D`, `LinearInterpolator1D`,
  * `PchipInterpolator1D`.
+ * All interpolation knot coordinates `xp` must be finite.
  */
 export interface Interp1DOptions {
     /** Value to return for `x < xp[0]`. Defaults to `fp[0]`. */
@@ -26,6 +27,7 @@ export interface Interp1DOptions {
  * Options controlling out-of-range clamping and input validation for
  * vector-valued (ND) interpolation methods: `interpND`, `LinearInterpolatorND`,
  * `PchipInterpolatorND`. The vector counterpart of {@link Interp1DOptions}:
+ * all interpolation knot coordinates `xp` must be finite.
  * `left`/`right` are per-component here (one value per column of `fp`)
  * rather than a single scalar, but a bare `number` is still accepted and
  * broadcasts to every component.
@@ -71,23 +73,37 @@ interface PreparedInterpND {
     rightVal: Vector;
 }
 
-/**
- * Checks that `xpv` contains no `NaN` and is monotonically increasing
- * (duplicates allowed). Shared by `prepareInterp` and `prepareInterpND` —
- * the two entry points have different `fp` shapes but identical
- * requirements on `xp` itself.
- * @throws {RangeError} If `xpv` contains `NaN` or is not monotonically increasing.
- */
-function checkMonotonic(xpv: Vector, caller: string): void {
+/** Rejects non-finite knots; sortedness is controlled separately by `checkSorted`. */
+function checkFiniteKnots(xpv: Vector, caller: string): void {
     for (let i = 0; i < xpv.size; i++) {
-        if (Number.isNaN(xpv.data[i])) {
-            throw new RangeError(`${caller}: xp must not contain NaN`);
+        if (!Number.isFinite(xpv.data[i])) {
+            throw new RangeError(`${caller}: xp must contain only finite values`);
         }
     }
+}
+
+/**
+ * Checks that `xpv` is monotonically increasing (duplicates allowed).
+ * Knots must already have passed `checkFiniteKnots`.
+ * @throws {RangeError} If `xpv` is not monotonically increasing.
+ */
+function checkMonotonic(xpv: Vector, caller: string): void {
     for (let i = 1; i < xpv.size; i++) {
         if (xpv.data[i] < xpv.data[i - 1]) {
             throw new RangeError(`${caller}: xp must be monotonically increasing`);
         }
+    }
+}
+
+/** Integrates one constant-valued interval without producing `0 * Infinity`. */
+export function integrateConstant(width: number, value: number): number {
+    return width === Infinity && value === 0 ? 0 : width * value;
+}
+
+/** Adds a constant-valued interval component-wise without producing `0 * Infinity`. */
+export function addConstantIntegral(total: Vector, values: Vector, width: number): void {
+    for (let i = 0; i < total.size; i++) {
+        total.data[i] += integrateConstant(width, values.data[i]);
     }
 }
 
@@ -151,8 +167,8 @@ export function findBracket(xi: number, xpData: Float64Array): [number, number] 
  * to produce a precise error message (e.g. `"interp1D"` or `"LinearInterpolator1D"`).
  * @returns The validated `xp`/`fp` as `Vector`, plus resolved clamp values.
  * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
- * lengths, or (when `checkSorted` is `true`) if `xp` is not monotonically
- * increasing.
+ * lengths, if `xp` contains a non-finite value, or (when `checkSorted` is
+ * `true`) if `xp` is not monotonically increasing.
  */
 export function prepareInterp1D(
     xp: number[] | Vector,
@@ -171,6 +187,7 @@ export function prepareInterp1D(
     if (xpv.size !== fpv.size) {
         throw new RangeError(`${caller}: xp and fp must have the same length: ${xpv.size} vs ${fpv.size}`);
     }
+    checkFiniteKnots(xpv, caller);
     if (checkSorted) {
         checkMonotonic(xpv, caller);
     }
@@ -222,8 +239,9 @@ function resolveClampVector(
  * @param caller Name of the public entry point invoking this check.
  * @returns The validated `xp` (`Vector`) and `fp` (`Matrix`), plus resolved clamp vectors.
  * @throws {RangeError} If `xp` is empty, if `xp.size !== fp.rows`, if an
- * explicit `left`/`right` doesn't have length `fp.cols`, or (when
- * `checkSorted` is `true`) if `xp` is not monotonically increasing.
+ * explicit `left`/`right` doesn't have length `fp.cols`, if `xp` contains
+ * a non-finite value, or (when `checkSorted` is `true`) if `xp` is not
+ * monotonically increasing.
  */
 export function prepareInterpND(
     xp: number[] | Vector,
@@ -241,6 +259,7 @@ export function prepareInterpND(
     if (xpv.size !== fp.rows) {
         throw new RangeError(`${caller}: xp and fp must have the same length: ${xpv.size} vs ${fp.rows} (fp.rows)`);
     }
+    checkFiniteKnots(xpv, caller);
     if (checkSorted) {
         checkMonotonic(xpv, caller);
     }

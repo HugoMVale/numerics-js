@@ -112,6 +112,13 @@ describe('interp1D', () => {
             expect(() => interp1D(1, [3, 2, 1], [1, 2, 3], { checkSorted: false })).not.toThrow();
             expect(typeof interp1D(1, [3, 2, 1], [1, 2, 3], { checkSorted: false })).toBe('number');
         });
+
+        it('rejects non-finite knots even when checkSorted is false', () => {
+            for (const knot of [NaN, Infinity, -Infinity]) {
+                expect(() => interp1D(1, [0, knot], [0, 1], { checkSorted: false })).toThrow(RangeError);
+                expect(() => interpND(1, [0, knot], Matrix.from([[0], [1]]), { checkSorted: false })).toThrow(RangeError);
+            }
+        });
     });
 });
 
@@ -225,6 +232,17 @@ describe('LinearInterpolator1D', () => {
             expect(f.integrate(3, 5)).toBeCloseTo(0);
         });
 
+        it('integrates infinite clamp tails and finite interior separately', () => {
+            const f = new LinearInterpolator1D([0, 1], [0, 1], { right: 0 });
+            expect(f.integrate(-Infinity, 0)).toBe(0);
+            expect(f.integrate(1, Infinity)).toBe(0);
+            expect(f.integrate(-Infinity, Infinity)).toBeCloseTo(0.5);
+
+            const divergent = new LinearInterpolator1D([0, 1], [0, 1]);
+            expect(divergent.integrate(1, Infinity)).toBe(Infinity);
+            expect(divergent.integrate(Infinity, 1)).toBe(-Infinity);
+        });
+
         it('handles unevenly-spaced intervals correctly', () => {
             const f = new LinearInterpolator1D([0, 1, 5], [0, 10, 10]);
             // [0,1]: triangle area 5; [1,5]: flat rectangle area 40
@@ -314,6 +332,12 @@ describe('interpND', () => {
         it('throws by default if xp is not monotonically increasing', () => {
             expect(() => interpND(1, [3, 2, 1], fp)).toThrow(RangeError);
         });
+
+        it('rejects non-finite knots even when checkSorted is false', () => {
+            for (const knot of [NaN, Infinity, -Infinity]) {
+                expect(() => interpND(1, [0, knot], Matrix.from([[0], [1]]), { checkSorted: false })).toThrow(RangeError);
+            }
+        });
     });
 });
 
@@ -383,6 +407,17 @@ describe('LinearInterpolatorND', () => {
             const result = f.integrate(1, 3);
             expect(result.toArray()[0]).toBeCloseTo(fA.integrate(1, 3));
             expect(result.toArray()[1]).toBeCloseTo(fB.integrate(1, 3));
+        });
+
+        it('integrates infinite clamp tails component-wise', () => {
+            const f = new LinearInterpolatorND(
+                [0, 1],
+                Matrix.from([[0, 1], [1, 1]]),
+                { left: [0, 1], right: [0, -1] }
+            );
+            const result = f.integrate(-Infinity, Infinity);
+            expect(result.data[0]).toBeCloseTo(0.5);
+            expect(result.data[1]).toBeNaN();
         });
 
         it('negates and swaps bounds when b < a', () => {

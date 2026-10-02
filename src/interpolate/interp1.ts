@@ -1,6 +1,6 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
-import { prepareInterp1D, prepareInterpND, findBracket, Interp1DOptions, InterpNDOptions } from './common.js';
+import { prepareInterp1D, prepareInterpND, findBracket, integrateConstant, addConstantIntegral, Interp1DOptions, InterpNDOptions } from './common.js';
 
 /**
  * Interpolates a single scalar value, locating the bracketing interval in
@@ -198,15 +198,15 @@ export class LinearInterpolator1D {
 
     /**
      * @param xp The `x`-coordinates of the data points. Must be
-     * monotonically increasing (duplicates allowed) and non-empty.
+    * monotonically increasing (duplicates allowed), finite, and non-empty.
      * @param fp The `y`-coordinates of the data points. Must have the same
      * length as `xp`.
      * @param options Optional settings; see {@link Interp1DOptions}. Validation
      * (matching lengths, non-empty, and, unless `options.checkSorted` is
      * `false`, sorted) happens once, here in the constructor.
      * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
-     * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
-     * monotonically increasing.
+    * lengths, if `xp` contains non-finite values, or (when
+    * `options.checkSorted` is `true`) if `xp` is not monotonically increasing.
      */
     constructor(xp: number[] | Vector, fp: number[] | Vector, options: Interp1DOptions = {}) {
         const { left, right, checkSorted = true } = options;
@@ -268,27 +268,39 @@ export class LinearInterpolator1D {
         const xpd = this.xp.data;
         const fpd = this.fp.data;
 
-        // Integrate over the intervals formed by the requested bounds and
-        // every xp knot inside them. For a piecewise-linear interpolant, the
-        // trapezoid rule over these intervals is exact.
         let total = 0;
-        let x0 = a;
-        let y0 = interpOne1D(a, this.xp, this.fp, this.leftVal, this.rightVal);
 
-        // Skip duplicate knots naturally; zero-width trapezoids contribute 0.
-        for (let i = 0; i < n; i++) {
-            const x1 = xpd[i];
-            if (x1 <= a) continue;
-            if (x1 >= b) break;
-
-            const y1 = fpd[i];
-            total += (x1 - x0) * (y0 + y1) * 0.5;
-            x0 = x1;
-            y0 = y1;
+        if (a < xpd[0]) {
+            const end = Math.min(b, xpd[0]);
+            total += integrateConstant(end - a, this.leftVal);
         }
 
-        const y1 = interpOne1D(b, this.xp, this.fp, this.leftVal, this.rightVal);
-        total += (b - x0) * (y0 + y1) * 0.5;
+        const startX = Math.max(a, xpd[0]);
+        const endX = Math.min(b, xpd[n - 1]);
+        if (startX < endX) {
+            for (let i = 0; i < n - 1; i++) {
+                const x0 = xpd[i];
+                const xNext = xpd[i + 1];
+                if (xNext <= startX) continue;
+                if (x0 >= endX) break;
+
+                const current = Math.max(startX, x0);
+                const next = Math.min(endX, xNext);
+                const h = xNext - x0;
+                if (h <= 0 || current >= next) continue;
+
+                const t0 = (current - x0) / h;
+                const t1 = (next - x0) / h;
+                const y0 = fpd[i] + t0 * (fpd[i + 1] - fpd[i]);
+                const y1 = fpd[i] + t1 * (fpd[i + 1] - fpd[i]);
+                total += (next - current) * (y0 + y1) * 0.5;
+            }
+        }
+
+        if (b > xpd[n - 1]) {
+            const start = Math.max(a, xpd[n - 1]);
+            total += integrateConstant(b - start, this.rightVal);
+        }
         return total;
     }
 
@@ -336,14 +348,14 @@ export class LinearInterpolatorND {
 
     /**
      * @param xp The `x`-coordinates of the data points, shared by every
-     * output component. Must be monotonically increasing (duplicates
-     * allowed) and non-empty.
+    * output component. Must be monotonically increasing (duplicates
+    * allowed), finite, and non-empty.
      * @param fp The vector-valued data points: row `i` is the value at
      * `xp[i]`. Must have `fp.rows === xp.length`.
      * @param options Optional settings; see {@link InterpNDOptions}.
      * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
-     * or (when `options.checkSorted` is `true`) if `xp` is not
-     * monotonically increasing.
+    * if `xp` contains non-finite values, or (when `options.checkSorted`
+    * is `true`) if `xp` is not monotonically increasing.
      */
     constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
         const { left, right, checkSorted = true } = options;
@@ -410,24 +422,45 @@ export class LinearInterpolatorND {
         const fp = this.fp;
 
         const total = new Vector(m);
-        let x0 = a;
-        let y0 = interpOneND(a, this.xp, this.fp, this.leftVal, this.rightVal);
 
-        for (let i = 0; i < n; i++) {
-            const x1 = xpd[i];
-            if (x1 <= a) continue;
-            if (x1 >= b) break;
-
-            const y1 = fp.row(i);
-            const w = (x1 - x0) * 0.5;
-            total.addScaled(y0, w).addScaled(y1, w);
-            x0 = x1;
-            y0 = y1;
+        if (a < xpd[0]) {
+            const end = Math.min(b, xpd[0]);
+            addConstantIntegral(total, this.leftVal, end - a);
         }
 
-        const y1 = interpOneND(b, this.xp, this.fp, this.leftVal, this.rightVal);
-        const wLast = (b - x0) * 0.5;
-        total.addScaled(y0, wLast).addScaled(y1, wLast);
+        const startX = Math.max(a, xpd[0]);
+        const endX = Math.min(b, xpd[n - 1]);
+        if (startX < endX) {
+            for (let i = 0; i < n - 1; i++) {
+                const x0 = xpd[i];
+                const x1 = xpd[i + 1];
+                if (x1 <= startX) continue;
+                if (x0 >= endX) break;
+
+                const current = Math.max(startX, x0);
+                const next = Math.min(endX, x1);
+                const h = x1 - x0;
+                if (h <= 0 || current >= next) continue;
+
+                const t0 = (current - x0) / h;
+                const t1 = (next - x0) / h;
+                const row0 = fp.flatIndex(i, 0);
+                const row1 = fp.flatIndex(i + 1, 0);
+                const width = next - current;
+                for (let j = 0; j < m; j++) {
+                    const y0 = fp.data[row0 + j];
+                    const y1 = fp.data[row1 + j];
+                    const value0 = y0 + t0 * (y1 - y0);
+                    const value1 = y0 + t1 * (y1 - y0);
+                    total.data[j] += width * (value0 + value1) * 0.5;
+                }
+            }
+        }
+
+        if (b > xpd[n - 1]) {
+            const start = Math.max(a, xpd[n - 1]);
+            addConstantIntegral(total, this.rightVal, b - start);
+        }
         return total;
     }
 
@@ -470,14 +503,14 @@ export class LinearInterpolatorND {
  * value(s). A single `number` returns a `number`; a plain array or
  * `Vector` returns a `Vector`.
  * @param xp The `x`-coordinates of the data points. Must be monotonically
- * increasing (duplicates allowed) and non-empty.
+ * increasing (duplicates allowed), finite, and non-empty.
  * @param fp The `y`-coordinates of the data points. Must have the same
  * length as `xp`.
  * @param options Optional settings; see {@link Interp1DOptions}.
  * @returns The interpolated value(s), matching the shape of `x`.
  * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
- * lengths, or (when `options.checkSorted` is `true`) if `xp` is not
- * monotonically increasing.
+ * lengths, if `xp` contains non-finite values, or (when
+ * `options.checkSorted` is `true`) if `xp` is not monotonically increasing.
  *
  * @example
  * ```ts
@@ -536,14 +569,15 @@ export function interp1D(
  * returns a `Vector`; a plain array or `Vector` returns a `Matrix`.
  * @param xp The `x`-coordinates of the data points, shared by every
  * output component. Must be monotonically increasing (duplicates
- * allowed) and non-empty.
+ * allowed), finite, and non-empty.
  * @param fp The vector-valued data points: row `i` is the value at `xp[i]`.
  * Must have `fp.rows === xp.length`.
  * @param options Optional settings; see {@link InterpNDOptions}.
  * @returns The interpolated value(s), matching the shape of `x`.
  * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`, if
  * `x` is an array/`Vector` of length `0`, or (when
- * `options.checkSorted` is `true`) if `xp` is not monotonically increasing.
+ * `xp` contains non-finite values, or (when `options.checkSorted` is
+ * `true`) if `xp` is not monotonically increasing.
  *
  * @example
  * ```ts

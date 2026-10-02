@@ -114,6 +114,12 @@ describe('PchipInterpolator1D', () => {
         expect(() => new PchipInterpolator1D([0, 1, 1], [0, 1, 2])).toThrow(RangeError);
     });
 
+    it('rejects non-finite knots even when checkSorted is false', () => {
+        for (const knot of [NaN, Infinity, -Infinity]) {
+            expect(() => new PchipInterpolator1D([0, knot], [0, 1], { checkSorted: false })).toThrow(RangeError);
+        }
+    });
+
     it('integrates exact cubic segments over bounds', () => {
         const xp = [0, 1, 2];
         const fp = [0, 1, 0]; // Triangular-shaped data
@@ -148,6 +154,13 @@ describe('PchipInterpolator1D', () => {
 
         // Spanning across everything: [-1, 3] = total width 4 * height 10 = 40
         expect(pchip.integrate(-1, 3)).toBeCloseTo(40);
+    });
+
+    it('integrates infinite clamp tails without zero-times-infinity NaNs', () => {
+        const pchip = new PchipInterpolator1D([0, 1], [0, 1], { right: 0 });
+        expect(pchip.integrate(-Infinity, 0)).toBe(0);
+        expect(pchip.integrate(1, Infinity)).toBe(0);
+        expect(pchip.integrate(-Infinity, Infinity)).toBeCloseTo(0.5);
     });
 
     it('returns 0 for zero-width integration intervals', () => {
@@ -259,6 +272,12 @@ describe('PchipInterpolatorND', () => {
         expect(() => new PchipInterpolatorND([0, 1, 1], Matrix.from([[0, 0], [1, 1], [2, 2]]))).toThrow(RangeError);
     });
 
+    it('rejects non-finite knots even when checkSorted is false', () => {
+        for (const knot of [NaN, Infinity, -Infinity]) {
+            expect(() => new PchipInterpolatorND([0, knot], Matrix.from([[0], [1]]), { checkSorted: false })).toThrow(RangeError);
+        }
+    });
+
     describe('integrate', () => {
         it('matches componentwise PchipInterpolator1D integrals', () => {
             const f = new PchipInterpolatorND(xp, fp);
@@ -288,6 +307,17 @@ describe('PchipInterpolatorND', () => {
             const f = new PchipInterpolatorND([0, 2], Matrix.from([[10, 1], [10, 1]]), { left: [10, 1], right: [10, 1] });
             expect(f.integrate(-2, 0).toArray()).toEqual([20, 2]);
             expect(f.integrate(2, 5).toArray()).toEqual([30, 3]);
+        });
+
+        it('integrates infinite clamp tails component-wise', () => {
+            const f = new PchipInterpolatorND(
+                [0, 1],
+                Matrix.from([[0, 1], [1, 1]]),
+                { left: [0, 1], right: [0, -1] }
+            );
+            const result = f.integrate(-Infinity, Infinity);
+            expect(result.data[0]).toBeCloseTo(0.5);
+            expect(result.data[1]).toBeNaN();
         });
 
         it('returns the zero vector for zero-width integration intervals', () => {
