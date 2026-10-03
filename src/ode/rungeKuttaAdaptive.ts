@@ -327,7 +327,8 @@ export interface RungeKuttaAdaptiveOptions {
  * and `method` echoes `method`. The `success` flag indicates whether `tEnd` was
  * reached, and `message` provides additional status information.
  * @throws {RangeError} If the state has no components, tolerances are invalid,
- * a step-size or controller limit is invalid, or `method` is not recognized.
+ * a step-size or controller limit is invalid, or `method` is not recognized
+ * when `t0 !== tEnd`.
  * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
  * with the reason in `message`.
  *
