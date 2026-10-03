@@ -138,8 +138,10 @@ function getFullyInfiniteTransform(): QuadTransform {
  * a user-defined `transform`. A user-defined transform takes precedence over
  * the automatic handling of infinite limits.
  * @returns Quadrature output including aggregated value, error, and diagnostics.
- * @throws {RangeError} If `a` or `b` are `NaN`, or if `transform.inverse`
- * returns non-finite or equal values for the integration limits.
+ * @throws {RangeError} If `a` or `b` are `NaN`, if `transform.inverse`
+ * returns non-finite or equal values for the integration limits, or, when
+ * `a !== b`, if `tol` is not finite and non-negative or `maxSubintervals`
+ * is not a finite positive integer.
  * @throws {TypeError} If `transform` is given but `map` or `inverse` is not a function.
  * @throws {Error} If `f` evaluates to a non-finite value. When a transform is
  * active, the message reports the untransformed `x`, not the internal `t`.
