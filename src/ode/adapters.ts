@@ -14,6 +14,7 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
  * `Vector`. Its result must have the same dimension as `y`.
  * @returns A {@link DerivativeFunction} that copies `f`'s result into the
  * supplied `dydt` buffer and returns that buffer.
+ * @throws {RangeError} If `f` returns a vector whose size differs from `dydt.size`.
  *
  * @example
  * ```ts
