@@ -354,8 +354,10 @@ export class LinearInterpolatorND {
      * `xp[i]`. Must have `fp.rows === xp.length`.
      * @param options Optional settings; see {@link InterpNDOptions}.
      * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
-    * if `xp` contains non-finite values, or (when `options.checkSorted`
-    * is `true`) if `xp` is not monotonically increasing.
+     * if an explicit `options.left` or `options.right` array/`Vector` does
+     * not have length `fp.cols`, if `xp` contains non-finite values, or
+     * (when `options.checkSorted` is `true`) if `xp` is not monotonically
+     * increasing.
      */
     constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
         const { left, right, checkSorted = true } = options;
@@ -575,7 +577,8 @@ export function interp1D(
  * @param options Optional settings; see {@link InterpNDOptions}.
  * @returns The interpolated value(s), matching the shape of `x`.
  * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`, if
- * `x` is an array/`Vector` of length `0`, or (when
+ * an explicit `options.left` or `options.right` array/`Vector` does not
+ * have length `fp.cols`, if `x` is an array/`Vector` of length `0`, if
  * `xp` contains non-finite values, or (when `options.checkSorted` is
  * `true`) if `xp` is not monotonically increasing.
  *
