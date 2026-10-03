@@ -46,6 +46,40 @@ describe('rootVecQNewton', () => {
         expect(evaluated).toBe(false);
     });
 
+    it('uses the provided function scaling for the initial convergence check', () => {
+        const x0 = Vector.from([0.005]);
+        const result = quasiNewton((x) => x, x0, {
+            jac: () => Matrix.from([[1]]),
+            jacCheck: false,
+            sclf: Vector.from([1e-5]),
+            tolf: 1e-5,
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.iterations).toBe(0);
+        expect(result.x.allClose(x0)).toBe(true);
+    });
+
+    it('handles a zero Jacobian row when deriving default function scaling', () => {
+        const f = (x: Vector) => Vector.from([
+            x.get(0) - 1,
+            x.get(0) ** 2 + x.get(1) ** 2 - 1,
+        ]);
+        const jac = (x: Vector) => Matrix.from([
+            [1, 0],
+            [2 * x.get(0), 2 * x.get(1)],
+        ]);
+
+        const result = quasiNewton(f, Vector.from([0, 0]), {
+            globalMethod: null,
+            jac,
+            jacCheck: false,
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.x.allClose(Vector.from([1, 0]), 1e-6, 1e-6)).toBe(true);
+    });
+
     it.each([
         { trustLen: 1, maxLenFactor: 1e3, expectedStepLen: 1 },
         { trustLen: 100, maxLenFactor: 0.2, expectedStepLen: Math.sqrt(50) * 0.2 },
