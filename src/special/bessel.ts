@@ -3,8 +3,19 @@ import { brent } from '../roots/brent.js';
 export interface BesselUtility {
     _integralJ(n: number, x: number): number;
     _besselMiller(n: number, x: number): number;
+    /**
+     * Computes the Bessel function of the first kind for a non-negative
+     * integer order.
+     * @throws {RangeError} If `n` is not a non-negative integer.
+     */
     J(n: number, x: number): number;
     zerosCache: number[][];
+    /**
+     * Retrieves the m-th positive zero of the Bessel function of the first
+     * kind.
+     * @throws {RangeError} If `m` is not a positive integer or `n` is not a
+     * non-negative integer.
+     */
     getZero(n: number, m: number): number;
 }
 
@@ -93,6 +104,7 @@ export const bessel: BesselUtility = {
      * - n = 0, 1: evaluated directly via the integral representation.
      * - n >= 2: evaluated via Miller's stable backward recurrence.
      * - Negative x is handled through the identity J_n(-x) = (-1)^n J_n(x).
+     * @throws {RangeError} If `n` is not a non-negative integer.
      */
     J(n: number, x: number): number {
         if (!Number.isInteger(n) || n < 0) {
@@ -121,6 +133,8 @@ export const bessel: BesselUtility = {
      * of J_n and refining each bracket with bisection. Results are cached
      * per order n, and repeated calls with increasing m resume the scan
      * from the last cached zero rather than starting over.
+     * @throws {RangeError} If `m` is not a positive integer or `n` is not a
+     * non-negative integer.
      */
     getZero(n: number, m: number): number {
         if (!Number.isInteger(m) || m < 1) {
