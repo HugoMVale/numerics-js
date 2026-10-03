@@ -91,6 +91,9 @@ export function scaleVector(x: Vector): Vector {
  * @param x Differentiation point `x`.
  * @param options Configuration options for the Jacobian calculation.
  * @returns Jacobian matrix.
+ * @throws {RangeError} If provided `fx` has a different size from perturbed
+ * function values, if `f` returns vectors of inconsistent sizes, or if
+ * `sclx` has fewer components than `x`.
  *
  * @example
  * ```ts
@@ -166,6 +169,7 @@ export function jacobianForward(
  * @param x Differentiation point `x`.
  * @param options Configuration options for the derivative calculation.
  * @returns Tuple containing the derivative and mean function value, `(f'(x), f(x))`.
+ * @throws {RangeError} If `options.h` is `0`.
  *
  * @example
  * ```ts
