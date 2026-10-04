@@ -257,7 +257,7 @@ export function quasiNewton(
         } else {
             J = jacobianForward(countedF, x, { fx, sclx, epsf: options.epsf });
         }
-        return { J, finite: allFinite(J) };
+        return { J, finite: J.allFinite() };
     };
 
     let xc = x0.copy();
@@ -267,7 +267,7 @@ export function quasiNewton(
         throw new RangeError(`quasiNewton: f(x0) must have dimension ${n}, got ${fc.size}`);
     }
 
-    if (!allFinite(fc)) {
+    if (!fc.allFinite()) {
         return failure('f(x0) contains non-finite values.', 0, xc, fc, null);
     }
 
@@ -281,7 +281,7 @@ export function quasiNewton(
         if (J0.rows !== n || J0.cols !== n) {
             throw new RangeError(`quasiNewton: J0 must have dimensions ${n}x${n}, got ${J0.rows}x${J0.cols}`);
         }
-        if (!allFinite(J0)) {
+        if (!J0.allFinite()) {
             return nonFiniteJacobianX0(J0);
         }
     }
@@ -524,11 +524,6 @@ export function quasiNewton(
         fx: fc,
         Jx: Jc,
     };
-}
-
-/** Returns `true` if every entry of the array is finite (no `NaN` or `±Infinity`). */
-function allFinite(a: { data: Float64Array }): boolean {
-    return a.data.every(Number.isFinite);
 }
 
 /**
