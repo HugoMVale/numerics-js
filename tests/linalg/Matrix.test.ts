@@ -1093,6 +1093,13 @@ describe('Matrix', () => {
         expect(a.isClose(b)).toEqual([true, false, true, true]);
     });
 
+    it('tests elements for NaN and finiteness in row-major order', () => {
+        const m = new Matrix(2, 2, [1, NaN, Infinity, -2]);
+        expect(m.isNaN()).toEqual([false, true, false, false]);
+        expect(m.isFinite()).toEqual([true, false, false, true]);
+        expect(m.allFinite()).toBe(false);
+    });
+
     it('isClose: rtol scales the argument, not `this` (asymmetric)', () => {
         const smaller: Matrix = new Matrix(1, 1, [0.5]);
         const larger: Matrix = new Matrix(1, 1, [1]);

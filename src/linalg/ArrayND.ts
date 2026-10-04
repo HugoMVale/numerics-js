@@ -369,6 +369,41 @@ export abstract class ArrayND {
     // -----------------------------------------------------------------
 
     /**
+     * Tests each element for NaN.
+     * @returns A boolean array, one entry per element of the flat buffer.
+     */
+    isNaN(): boolean[] {
+        const result: boolean[] = new Array(this.data.length);
+        for (let i = 0; i < this.data.length; i++) {
+            result[i] = Number.isNaN(this.data[i]);
+        }
+        return result;
+    }
+
+    /**
+     * Tests each element for finiteness. NaN and either infinity are not finite.
+     * @returns A boolean array, one entry per element of the flat buffer.
+     */
+    isFinite(): boolean[] {
+        const result: boolean[] = new Array(this.data.length);
+        for (let i = 0; i < this.data.length; i++) {
+            result[i] = Number.isFinite(this.data[i]);
+        }
+        return result;
+    }
+
+    /**
+     * Checks whether every element in the flat buffer is finite.
+     * @returns `true` if every element is finite. Empty arrays return `true`.
+     */
+    allFinite(): boolean {
+        for (let i = 0; i < this.data.length; i++) {
+            if (!Number.isFinite(this.data[i])) return false;
+        }
+        return true;
+    }
+
+    /**
      * Tests whether a single pair of elements is "close": `a` (from
      * `this`) is close to `b` (from the argument) if
      * `|a - b| <= atol + rtol * |b|`. Shared by `isClose` (which needs

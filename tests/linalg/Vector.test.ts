@@ -90,6 +90,15 @@ describe('Vector', () => {
         expect(() => a.isClose(b)).toThrowError(RangeError);
     });
 
+    it('tests elements for NaN and finiteness', () => {
+        const v = new Vector([NaN, Infinity, -Infinity, 1, -2]);
+        expect(v.isNaN()).toEqual([true, false, false, false, false]);
+        expect(v.isFinite()).toEqual([false, false, false, true, true]);
+        expect(v.allFinite()).toBe(false);
+        expect(new Vector([1, -2]).allFinite()).toBe(true);
+        expect(new Vector(0).allFinite()).toBe(true);
+    });
+
     it('never considers NaN close to anything, including another NaN', () => {
         const a: Vector = new Vector([NaN]);
         const b: Vector = new Vector([NaN]);
