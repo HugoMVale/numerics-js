@@ -12,13 +12,6 @@ export interface TestFunctionData {
     globalMinimum: number;
 }
 
-/** `linspace(start, end, n)`, matching `numpy.linspace`. */
-function linspace(start: number, end: number, n: number): Vector {
-    if (n === 1) return Vector.from([start]);
-    const step = (end - start) / (n - 1);
-    return Vector.from(Array.from({ length: n }, (_, i) => start + step * i));
-}
-
 /** Per-component weights for the `ellipsoid` test function. */
 function ellipsoidCoeffs(n: number): number[] {
     const denom = n > 1 ? n - 1 : 1;
@@ -40,7 +33,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
             return s;
         },
         // Simple start to verify basic algorithm correctness
-        initialPoint: (n) => Vector.from(Array(n).fill(5.0)),
+        initialPoint: (n) => Vector.full(n, 5.0),
         globalMinimum: 0,
     },
     ellipsoid: {
@@ -51,7 +44,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
             return s;
         },
         // Asymmetric start -> exposes conditioning issues
-        initialPoint: (n) => linspace(1.0, 2.0, n),
+        initialPoint: (n) => Vector.linspace(1.0, 2.0, n),
         globalMinimum: 0,
     },
     rosenbrock: {
@@ -63,7 +56,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
             return s;
         },
         // Classic challenging but not extreme start
-        initialPoint: (n) => Vector.from(Array(n).fill(-1.2)),
+        initialPoint: (n) => Vector.full(n, -1.2),
         globalMinimum: 0,
     },
     zakharov: {
@@ -74,7 +67,7 @@ export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
             return s + u ** 2 + u ** 4;
         },
         // Initial point recommended by standard benchmark literature
-        initialPoint: (n) => Vector.from(Array(n).fill(1.5)),
+        initialPoint: (n) => Vector.full(n, 1.5),
         globalMinimum: 0,
     },
 };
