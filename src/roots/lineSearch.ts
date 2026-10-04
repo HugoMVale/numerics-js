@@ -13,6 +13,11 @@ const alpha = 1e-4;
  * (`gc·p >= 0`), no evaluations are made and the search fails immediately,
  * returning `xc` and `fc`.
  *
+ * A trial point at which the objective is not finite (`NaN` or `±Infinity`)
+ * is treated as a rejected step: the step length is reduced by a factor of
+ * `10` and the search continues. Such points are not used for the
+ * interpolation of the next step length.
+ *
  * **References**
  *
  * *   J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
@@ -23,7 +28,6 @@ const alpha = 1e-4;
  */
 export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
     const { fN, p, xc, fc, gc, tolx, sclx, maxLen, trustLen } = ctx;
-    let nFev = 0;
     let success = false;
     let wasMaxStep = false;
     let Fp = new Vector(0);
@@ -36,7 +40,7 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
 
     const slope = gc.dot(p);
     if (slope >= 0) {
-        return { success: false, wasMaxStep, nFev, xp: xc, fp: fc, Fp: Fp, trustLen: trustLen ?? 0 };
+        return { success: false, wasMaxStep, xp: xc, fp: fc, Fp: Fp, trustLen: trustLen ?? 0 };
     }
 
     const maxDenominator = p.abs().div(
@@ -58,7 +62,6 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
         xp = xc.add(p.mult(lambda));
 
         const res = fN(xp);
-        nFev += 1;
 
         if (Array.isArray(res)) {
             fp = res[0];
@@ -67,7 +70,9 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
             fp = res;
         }
 
-        if (fp <= fc + alpha * lambda * slope) {
+        const finite = Number.isFinite(fp);
+
+        if (finite && fp <= fc + alpha * lambda * slope) {
             success = true;
             if (first && newtLen > 0.99 * maxLen) {
                 wasMaxStep = true;
@@ -76,10 +81,18 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
         } else if (lambda < lambdaMin) {
             success = false;
             xp = xc;
+            fp = fc;
             break;
+        } else if (!finite) {
+            // Non-finite trial value: shrink the step, keep the last finite
+            // trial (`lambdaPrev`, `fpPrev`) for the interpolation.
+            lambda *= 0.1;
         } else {
             if (first) {
-                lambdaTemp = -slope / (2 * (fp - fc - slope));
+                // Quadratic model through f(xc), slope, and f(xc + lambda*p). Equals
+                // `-slope / (2 * (fp - fc - slope))` for `lambda = 1`; the general form
+                // is needed when earlier non-finite trials have already shortened `lambda`.
+                lambdaTemp = -slope * lambda * lambda / (2 * (fp - fc - lambda * slope));
                 first = false;
             } else {
                 const l2 = lambda * lambda;
@@ -110,5 +123,5 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
         }
     }
 
-    return { success, wasMaxStep, nFev, xp, fp, Fp, trustLen: trustLen ?? 0 };
+    return { success, wasMaxStep, xp, fp, Fp, trustLen: trustLen ?? 0 };
 }
