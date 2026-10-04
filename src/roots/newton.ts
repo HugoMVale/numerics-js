@@ -46,7 +46,8 @@ export interface QuasiNewtonOptions {
      */
     sclf?: Vector;
     /**
-     * Maximum number of outer quasi-Newton iterations.
+     * Maximum number of outer quasi-Newton iterations. Must be a finite,
+     * strictly positive integer.
      * @default 100
      */
     maxIter?: number;
@@ -93,7 +94,10 @@ export interface QuasiNewtonOptions {
     /**
      * If `true` and `jac` is provided, `jac`'s result at `x0` is checked
      * against a forward finite-difference approximation, to help catch
-     * errors in the user-provided Jacobian.
+     * errors in the user-provided Jacobian. The check is independent of `J0`:
+     * if both are provided, `jac(x0)` is still evaluated for the check (at the
+     * cost of one extra `jac` call and `n` function calls), but the first
+     * iteration starts from `J0`.
      * @default true
      */
     jacCheck?: boolean;
@@ -101,7 +105,8 @@ export interface QuasiNewtonOptions {
      * Initial Jacobian approximation at `x0`. If provided, it is used
      * instead of computing the Jacobian at the first iteration. Useful for
      * restarts, or when a cheap initial approximation (e.g. the identity)
-     * is sufficient and reduces function calls.
+     * is sufficient and reduces function calls. `J0` is an approximation by
+     * design and is never checked against finite differences; see `jacCheck`.
      */
     J0?: Matrix;
 }
@@ -138,8 +143,15 @@ export interface QuasiNewtonOptions {
  * provided, the scaling factors are determined from this value.
  * @param options Configuration options for the solver.
  * @returns A `VectorRootResult` with the root solution and diagnostics.
- * @throws {RangeError} If `x0` has no components or `f(x0)` has a different
- * dimension than `x0`, or if `jac(x0)` does not return an `n`×`n` matrix.
+ *
+ * Non-finite values (`NaN` or `±Infinity`) are handled as follows: if `f(x0)`
+ * or a Jacobian is not finite, the solver returns a failure result
+ * (`success: false`). If `f` is not finite at a trial point, the global
+ * strategies reject the step and backtrack, whereas with `globalMethod: null`
+ * the solver returns a failure result.
+ * @throws {RangeError} If `x0` has no components, if `maxIter` is not a finite
+ * strictly positive integer, if `f(x0)` has a different dimension than `x0`,
+ * or if `J0` or `jac(x0)` is not an `n`×`n` matrix.
  * @throws {Error} If `sclx` or `sclf` contains a value that is not strictly
  * positive, or if `globalMethod` is not `'line-search'`, `'dogleg'`, or
  * `null`.
@@ -177,6 +189,10 @@ export function quasiNewton(
         throw new RangeError('quasiNewton: x0 must have at least one component');
     }
 
+    if (options.maxIter !== undefined && !(Number.isInteger(options.maxIter) && options.maxIter >= 1)) {
+        throw new RangeError(`quasiNewton: maxIter must be a finite strictly positive integer, got ${options.maxIter}`);
+    }
+
     options.sclx?.map((value) => {
         if (!(value > 0)) throw new Error('quasiNewton: sclx must contain strictly positive values');
         return value;
@@ -186,7 +202,7 @@ export function quasiNewton(
         return value;
     });
 
-    const sclx = options.sclx ? options.sclx.abs() : scaleVector(x0);
+    const sclx = options.sclx ?? scaleVector(x0);
     const tolx = options.tolx ?? 1e-10;
     const tolf = options.tolf ?? 1e-5;
     const maxIter = options.maxIter ?? 100;
@@ -194,6 +210,9 @@ export function quasiNewton(
     const broydenUpdate = options.broydenUpdate ?? false;
     const jacCheck = options.jacCheck ?? true;
     const globalMethod: GlobalMethod = options.globalMethod === undefined ? 'line-search' : options.globalMethod;
+    if (globalMethod !== null && globalMethod !== 'line-search' && globalMethod !== 'dogleg') {
+        throw new Error(`quasiNewton: unknown globalMethod '${String(globalMethod)}'`);
+    }
 
     let method = 'Quasi-Newton';
     const methodOptions: string[] = [`Global: ${titleCase(globalMethod ?? 'none')}`];
@@ -203,58 +222,116 @@ export function quasiNewton(
     let nFev = 0;
     let nJev = 0;
 
+    // All evaluations of `f` (including those made by finite differences and by the
+    // global strategies) go through this wrapper, which counts them.
+    const countedF = (x: Vector): Vector => {
+        nFev += 1;
+        return f(x);
+    };
+
+    const failure = (
+        message: string,
+        iterations: number,
+        x: Vector,
+        fx: Vector,
+        Jx: Matrix | null
+    ): VectorRootResult => ({
+        method,
+        success: false,
+        message,
+        evaluationsFunction: nFev,
+        evaluationsJacobian: nJev,
+        iterations,
+        x,
+        fx,
+        Jx,
+    });
+
+    // Evaluates the Jacobian at `x` (with `fx = f(x)`), either with the user-supplied
+    // `jac` or by forward finite differences, and counts the evaluations.
+    const evaluateJacobian = (x: Vector, fx: Vector): { J: Matrix; finite: boolean } => {
+        let J: Matrix;
+        if (options.jac) {
+            J = options.jac(x);
+            nJev += 1;
+        } else {
+            J = jacobianForward(countedF, x, { fx, sclx, epsf: options.epsf });
+        }
+        return { J, finite: allFinite(J) };
+    };
+
     let xc = x0.copy();
-    let fc = f(xc);
-    nFev += 1;
+    let fc = countedF(xc);
 
     if (fc.size !== n) {
         throw new RangeError(`quasiNewton: f(x0) must have dimension ${n}, got ${fc.size}`);
     }
 
-    // Evaluate Jacobian at x0.
-    let Jc: Matrix;
-    if (options.J0) {
-        Jc = options.J0.copy();
-    } else if (options.jac) {
-        Jc = options.jac(xc);
-        if (Jc.rows !== n || Jc.cols !== n) {
-            throw new RangeError(`quasiNewton: jac(x0) must have dimensions ${n}x${n}, got ${Jc.rows}x${Jc.cols}`);
-        }
-        nJev += 1;
-    } else {
-        Jc = jacobianForward(f, xc, { fx: fc, sclx, epsf: options.epsf });
-        nFev += n;
+    if (!allFinite(fc)) {
+        return failure('f(x0) contains non-finite values.', 0, xc, fc, null);
     }
 
-    // Check user-provided Jacobian against a finite-difference approximation.
-    if (jacCheck && options.jac) {
-        const Jfd = jacobianForward(f, xc, { fx: fc, sclx: sclx, epsf: options.epsf });
-        nFev += n;
+    // Jacobian at x0.
+    const nonFiniteJacobianX0 = (J: Matrix) =>
+        failure('Jacobian at x0 contains non-finite values.', 0, xc, fc, J);
+
+    // Initial Jacobian approximation provided by the user (never checked).
+    const J0 = options.J0?.copy();
+    if (J0) {
+        if (J0.rows !== n || J0.cols !== n) {
+            throw new RangeError(`quasiNewton: J0 must have dimensions ${n}x${n}, got ${J0.rows}x${J0.cols}`);
+        }
+        if (!allFinite(J0)) {
+            return nonFiniteJacobianX0(J0);
+        }
+    }
+
+    // User-supplied Jacobian at x0: needed as the starting Jacobian (if `J0` is not
+    // provided) or to check it against a finite-difference approximation.
+    let Jjac: Matrix | undefined;
+    if (options.jac && (!J0 || jacCheck)) {
+        const { J, finite } = evaluateJacobian(xc, fc);
+        if (J.rows !== n || J.cols !== n) {
+            throw new RangeError(`quasiNewton: jac(x0) must have dimensions ${n}x${n}, got ${J.rows}x${J.cols}`);
+        }
+        if (!finite) {
+            return nonFiniteJacobianX0(J);
+        }
+        Jjac = J;
+    }
+
+    // Check `jac(x0)` against a finite-difference approximation.
+    if (jacCheck && Jjac) {
+        const Jfd = jacobianForward(countedF, xc, { fx: fc, sclx: sclx, epsf: options.epsf });
         const epsfEff = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
         const tol = 1e2 * Math.sqrt(epsfEff);
-        if (!Jc.allClose(Jfd, tol, tol)) {
-            return {
-                method,
-                success: false,
-                message: 'User-provided Jacobian `jac` does not match finite-difference approximation.',
-                evaluationsFunction: nFev,
-                evaluationsJacobian: nJev,
-                iterations: 0,
-                x: x0.copy(),
-                fx: fc,
-                Jx: Jc,
-            };
+        if (!Jjac.allClose(Jfd, tol, tol)) {
+            return failure(
+                'User-provided Jacobian `jac` does not match finite-difference approximation.',
+                0,
+                xc,
+                fc,
+                Jjac
+            );
         }
     }
 
-    // Set f scaling factors.
-    let sclf: Vector;
-    if (options.sclf) {
-        sclf = options.sclf.abs();
+    // Starting Jacobian: `J0`, else `jac(x0)`, else a finite-difference approximation.
+    let Jc: Matrix;
+    if (J0) {
+        Jc = J0;
+    } else if (Jjac) {
+        Jc = Jjac;
     } else {
-        const rowMax = Jc.abs().max(1); // per-equation max |J_ij|
-        sclf = rowMax.map((v) => 1 / (v === 0 ? 1 : v));
+        const { J, finite } = evaluateJacobian(xc, fc);
+        if (!finite) {
+            return nonFiniteJacobianX0(J);
+        }
+        Jc = J;
     }
+
+    // Set f scaling factors (default: inverse of the per-equation max |J_ij|).
+    const sclf = options.sclf ?? Jc.abs().max(1).map((v) => 1 / (v === 0 ? 1 : v));
 
     // Check initial solution with a tight tolerance.
     if (sclf.mult(fc).normInf() <= 1e-2 * tolf) {
@@ -265,7 +342,7 @@ export function quasiNewton(
             evaluationsFunction: nFev,
             evaluationsJacobian: nJev,
             iterations: 0,
-            x: x0.copy(),
+            x: xc,
             fx: fc,
             Jx: Jc,
         };
@@ -276,7 +353,7 @@ export function quasiNewton(
 
     // Objective function for global methods: 1/2*||sclf*f(x)||².
     const fN = (x: Vector): [number, Vector] => {
-        const fx = f(x);
+        const fx = countedF(x);
         const fNx = 0.5 * sclf.mult(fx).normSq();
         return [fNx, fx];
     };
@@ -337,32 +414,35 @@ export function quasiNewton(
         if (globalMethod === null) {
             // No global strategy: take the full quasi-Newton step as-is.
             const xpFull = ctx.xc.add(ctx.p);
-            const res = ctx.fN(xpFull);
-            const [fpFull, FpFull] = Array.isArray(res) ? res : [res, new Vector(0)];
-            step = { success: true, wasMaxStep: true, nFev: 1, xp: xpFull, fp: fpFull, Fp: FpFull, trustLen };
+            const [fpFull, FpFull] = ctx.fN(xpFull);
+            step = { success: true, wasMaxStep: true, xp: xpFull, fp: fpFull, Fp: FpFull, trustLen };
         } else if (globalMethod === 'line-search') {
             step = lineSearch(ctx);
-        } else if (globalMethod === 'dogleg') {
-            step = dogleg(ctx);
         } else {
-            throw new Error(`quasiNewton: unknown globalMethod '${globalMethod}'`);
+            step = dogleg(ctx);
         }
 
-        nFev += step.nFev;
         consecutiveMaxSteps = step.wasMaxStep ? consecutiveMaxSteps + 1 : 0;
         trustLen = step.trustLen;
 
-        xp = step.xp;
-        fp = step.Fp;
+        // A step is rejected if the strategy failed or if it returned a non-finite
+        // objective value. In both cases the current iterate and its function value
+        // are kept (strategies do not guarantee meaningful values on failure).
+        const nonFiniteStep = step.success && !Number.isFinite(step.fp);
+        if (!step.success || nonFiniteStep) {
+            xp = xc;
+            fp = fc;
+        } else {
+            xp = step.xp;
+            fp = step.Fp;
+        }
 
         // If the global-method step failed, restart once with a fresh Jacobian.
         if (broydenUpdate && !step.success && !restart) {
-            if (options.jac) {
-                Jc = options.jac(xc);
-                nJev += 1;
-            } else {
-                Jc = jacobianForward(f, xc, { fx: fc, sclx, epsf: options.epsf });
-                nFev += n;
+            const { J, finite } = evaluateJacobian(xc, fc);
+            Jc = J;
+            if (!finite) {
+                return failure('Jacobian at the current iterate contains non-finite values.', nIter, xc, fc, Jc);
             }
             restart = true;
             continue;
@@ -370,7 +450,10 @@ export function quasiNewton(
 
         // Check termination and convergence conditions.
         let stop: boolean;
-        if (!step.success) {
+        if (nonFiniteStep) {
+            message = 'f returned non-finite values at the proposed step. Consider using a global method (`globalMethod`).';
+            stop = true;
+        } else if (!step.success) {
             message =
                 'Last global step failed to decrease ||sclf*f(x)||₂ sufficiently. Either `x` is ' +
                 'close to a root and no more accuracy is possible, or the secant approximation to ' +
@@ -407,12 +490,12 @@ export function quasiNewton(
         // Update Jacobian.
         if (broydenUpdate) {
             ({ Q, R } = updateBroyden(xc, xp, fc, fp, Q, R, sclx, sclf));
-        } else if (options.jac) {
-            Jc = options.jac(xp);
-            nJev += 1;
         } else {
-            Jc = jacobianForward(f, xp, { fx: fp, sclx: sclx, epsf: options.epsf });
-            nFev += n;
+            const { J, finite } = evaluateJacobian(xp, fp);
+            Jc = J;
+            if (!finite) {
+                return failure('Jacobian at the current iterate contains non-finite values.', nIter, xp, fp, Jc);
+            }
         }
 
         // Next iteration.
@@ -441,6 +524,11 @@ export function quasiNewton(
         fx: fc,
         Jx: Jc,
     };
+}
+
+/** Returns `true` if every entry of the array is finite (no `NaN` or `±Infinity`). */
+function allFinite(a: { data: Float64Array }): boolean {
+    return a.data.every(Number.isFinite);
 }
 
 /**
