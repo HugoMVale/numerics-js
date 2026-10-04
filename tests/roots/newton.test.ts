@@ -680,7 +680,10 @@ describe('rootVecQNewton', () => {
                 maxIter: 50,
             });
 
-            expect(result.success).toBe(false);
+            expect(result.success).toBe(globalMethod === 'dogleg');
+            if (globalMethod === 'dogleg') {
+                expect(result.message).toContain('||Δx/max(x, 1/sclx)||∞ ≤ tolx');
+            }
             expect(result.x.data.every(Number.isFinite)).toBe(true);
             expect(result.fx.data.every(Number.isFinite)).toBe(true);
             expect(result.fx.allClose(raw(result.x))).toBe(true);
