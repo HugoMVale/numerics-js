@@ -19,6 +19,11 @@ enum TrustState {
  * quasi-Newton step, adapting the trust-region radius from iteration to
  * iteration.
  *
+ * A trial point at which the objective is not finite (`NaN` or `±Infinity`)
+ * is treated as a rejected step and the trust-region radius is reduced. After
+ * an exploratory (radius-doubling) step, it instead falls back to the
+ * previous finite point.
+ *
  * **References**
  *
  * *   J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
@@ -31,7 +36,6 @@ export function dogleg(ctx: GlobalStepContext): GlobalStepResult {
     const { fN, p, xc, fc, gc, R, tolx, sclx, maxLen } = ctx;
     let trustLen = ctx.trustLen ?? 0;
 
-    let nFev = 0;
     let state = TrustState.Start;
     let wasMaxStep = false;
 
@@ -114,13 +118,11 @@ export function dogleg(ctx: GlobalStepContext): GlobalStepResult {
         xpPrev = upd.xpPrev;
         fpPrev = upd.fpPrev;
         FpPrev = upd.FpPrev;
-        nFev += 1;
     }
 
     return {
         success: state === TrustState.Accepted,
         wasMaxStep,
-        nFev,
         xp,
         fp,
         Fp,
@@ -203,17 +205,18 @@ function updateTrustRegion(
     }
 
     const df = fp - fc;
+    const finite = Number.isFinite(fp);
 
     if (
         state === TrustState.ExploratorySuccess &&
-        (fp >= fpPrev || df > alpha * slope)
+        (!finite || fp >= fpPrev || df > alpha * slope)
     ) {
         state = TrustState.Accepted;
         xp = xpPrev;
         fp = fpPrev;
         Fp = FpPrev;
         trustLen *= 0.5;
-    } else if (df >= alpha * slope) {
+    } else if (!finite || df >= alpha * slope) {
         const rLen = s
             .abs()
             .div(xp.abs().map((val, idx) => Math.max(val, 1 / sclx.get(idx))))
@@ -223,8 +226,13 @@ function updateTrustRegion(
             xp = xc;
         } else {
             state = TrustState.Rejected;
-            const raw = (-slope * stepLen) / (2 * (df - slope));
-            trustLen = Math.min(Math.max(raw, 0.1 * trustLen), 0.5 * trustLen);
+            if (finite) {
+                const raw = (-slope * stepLen) / (2 * (df - slope));
+                trustLen = Math.min(Math.max(raw, 0.1 * trustLen), 0.5 * trustLen);
+            } else {
+                // Non-finite objective value: no model to interpolate, shrink strongly.
+                trustLen *= 0.1;
+            }
         }
     } else {
         const dfPred = slope + 0.5 * R.mulVec(s).norm() ** 2;
