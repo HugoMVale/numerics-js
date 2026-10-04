@@ -11,7 +11,11 @@ import { Matrix } from '../linalg/Matrix.js';
 export interface ScalarRootResult {
     /** Name of the method that produced this result (e.g. `'bisection'`). */
     method: string;
-    /** Whether the root-finding was successful. */
+    /**
+     * Whether the solver met a success termination criterion. For vector
+     * roots, the `tolx` step-size criterion may be met even when the residual
+     * is not sufficiently small; inspect `message` and `fx`.
+     */
     success: boolean;
     /** Message describing the result or error. */
     message: string;
