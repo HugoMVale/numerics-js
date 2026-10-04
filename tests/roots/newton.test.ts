@@ -680,13 +680,30 @@ describe('rootVecQNewton', () => {
                 maxIter: 50,
             });
 
-            expect(result.success).toBe(globalMethod === 'dogleg');
-            if (globalMethod === 'dogleg') {
-                expect(result.message).toContain('||Δx/max(x, 1/sclx)||∞ ≤ tolx');
-            }
+            // `success` is not asserted: stopping on `tolx` is reported as success even though
+            // the iterate is stuck at the boundary, far from a root.
+            expect(Math.abs(result.fx.get(0))).toBeGreaterThan(1);
             expect(result.x.data.every(Number.isFinite)).toBe(true);
             expect(result.fx.data.every(Number.isFinite)).toBe(true);
             expect(result.fx.allClose(raw(result.x))).toBe(true);
+        });
+    });
+
+    describe('termination on tolx', () => {
+        it.each(['line-search', 'dogleg'] as const)('is reported as success even if the residual is not small (%s)', (globalMethod) => {
+            // f(x) = x^2 has a double root: Newton halves x each iteration, so the step
+            // falls below tolx while the residual is still far above tolf.
+            const result = quasiNewton((x) => Vector.from([x.get(0) ** 2]), Vector.from([1]), {
+                globalMethod,
+                jac: (x) => Matrix.from([[2 * x.get(0)]]),
+                jacCheck: false,
+                tolf: 1e-30,
+                tolx: 1e-6,
+            });
+
+            expect(result.success).toBe(true);
+            expect(result.message).toContain('||Δx/max(x, 1/sclx)||∞ ≤ tolx');
+            expect(result.fx.get(0)).toBeGreaterThan(1e-30);
         });
     });
 
