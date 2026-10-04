@@ -7,6 +7,8 @@
 import { Vector } from './linalg/Vector.js';
 import { Matrix } from './linalg/Matrix.js';
 
+const EPS = Number.EPSILON;
+
 /**
  * Calculates scaling factors for a given vector.
  *
@@ -131,8 +133,7 @@ export function jacobianForward(
     const fx = options.fx ?? f(x);
     const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
 
-    const eps = Number.EPSILON;
-    const epsf = options.epsf !== undefined ? Math.max(options.epsf, eps) : eps;
+    const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
     const h0 = Math.sqrt(epsf);
 
     const jacobian = new Matrix(fx.size, x.size);
@@ -194,8 +195,7 @@ export function derivativeCentered(
         h?: number;
     } = {}
 ): [number, number] {
-    const eps = Number.EPSILON;
-    const epsf = options.epsf !== undefined ? Math.max(options.epsf, eps) : eps;
+    const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
     const h0 = Math.cbrt(3 * epsf);
     let h: number;
 
