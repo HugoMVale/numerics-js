@@ -12,15 +12,12 @@ export interface RootTestFunction {
 export const fPowellSingular: RootTestFunction = {
     description: 'Extended Powell singular function. Dennis & Schnabel (1996).',
     f: (x) => {
-        const values = new Array<number>(x.size).fill(0);
-        for (let k = 0; k < x.size / 4; k++) {
-            const i = 4 * k;
-            values[i] = x.get(i) - 10 * x.get(i + 1);
-            values[i + 1] = Math.sqrt(5) * (x.get(i + 2) - x.get(i + 3));
-            values[i + 2] = (x.get(i + 1) - 2 * x.get(i + 2)) ** 2;
-            values[i + 3] = Math.sqrt(10) * (x.get(i) - x.get(i + 3)) ** 2;
-        }
-        return Vector.from(values);
+        const result = new Vector(x.size);
+        result.set(0, x.get(0) - 10 * x.get(1));
+        result.set(1, Math.sqrt(5) * (x.get(2) - x.get(3)));
+        result.set(2, (x.get(1) - 2 * x.get(2)) ** 2);
+        result.set(3, Math.sqrt(10) * (x.get(0) - x.get(3)) ** 2);
+        return result;
     },
     x0: Vector.from([3, -1, 0, 1]),
     xs: Vector.from([0, 0, 0, 0]),
@@ -29,13 +26,13 @@ export const fPowellSingular: RootTestFunction = {
 export const fRosenbrock: RootTestFunction = {
     description: 'Extended Rosenbrock function. Dennis & Schnabel (1996).',
     f: (x) => {
-        const values = new Array<number>(x.size).fill(0);
+        const result = new Vector(x.size);
         for (let k = 0; k < x.size / 2; k++) {
             const i = 2 * k;
-            values[i] = 1 - x.get(i);
-            values[i + 1] = 10 * (x.get(i + 1) - x.get(i) ** 2);
+            result.set(i, 1 - x.get(i));
+            result.set(i + 1, 10 * (x.get(i + 1) - x.get(i) ** 2));
         }
-        return Vector.from(values);
+        return result;
     },
     x0: Vector.from([-1.2, 1, -1.2, 1]),
     xs: Vector.from([1, 1, 1, 1]),
@@ -49,17 +46,13 @@ export const fTrigonometric: RootTestFunction = {
         for (let j = 0; j < n; j++) {
             sumCos += Math.cos(x.get(j));
         }
-        const values = new Array<number>(n).fill(0);
-        for (let i = 0; i < n; i++) {
-            // f_i(x) = n - sum_j cos(x_j) + (i + 1) * (1 - cos(x_i)) - sin(x_i), with i = 0, ..., n - 1.
-            values[i] = n - sumCos + (i + 1) * (1 - Math.cos(x.get(i))) - Math.sin(x.get(i));
-        }
-        return Vector.from(values);
+        // f_i(x) = n - sum_j cos(x_j) + (i + 1) * (1 - cos(x_i)) - sin(x_i), with i = 0, ..., n - 1.
+        return x.map((value, i) => n - sumCos + (i + 1) * (1 - Math.cos(value)) - Math.sin(value));
     },
     // The standard starting point 1/n = 0.1 converges (for all solver settings) to a different root
     // with |x|max ~ 0.18, and SciPy's hybr fails from it; x0 = 0.01 reaches xs = 0 reliably.
-    x0: Vector.from(new Array(10).fill(0.01)),
-    xs: Vector.from(new Array(10).fill(0)),
+    x0: Vector.full(10, 0.01),
+    xs: Vector.zero(10),
 };
 
 export const fCase10: RootTestFunction = {
@@ -67,10 +60,10 @@ export const fCase10: RootTestFunction = {
     f: (x) => {
         const x1 = x.get(0);
         const x2 = x.get(1);
-        return Vector.from([
-            -13 + x1 + ((-x2 + 5) * x2 - 2) * x2,
-            -29 + x1 + ((x2 + 1) * x2 - 14) * x2,
-        ]);
+        const result = new Vector(2);
+        result.set(0, -13 + x1 + ((-x2 + 5) * x2 - 2) * x2);
+        result.set(1, -29 + x1 + ((x2 + 1) * x2 - 14) * x2);
+        return result;
     },
     x0: Vector.from([15, -2]),
     xs: Vector.from([5, 4]),
@@ -81,7 +74,10 @@ export const fExample65: RootTestFunction = {
     f: (x) => {
         const x1 = x.get(0);
         const x2 = x.get(1);
-        return Vector.from([x1 ** 2 + x2 ** 2 - 2, Math.exp(x1 - 1) + x2 ** 3 - 2]);
+        const result = new Vector(2);
+        result.set(0, x1 ** 2 + x2 ** 2 - 2);
+        result.set(1, Math.exp(x1 - 1) + x2 ** 3 - 2);
+        return result;
     },
     x0: Vector.from([2, 0.5]),
     xs: Vector.from([1, 1]),
