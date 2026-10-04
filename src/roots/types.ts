@@ -105,14 +105,18 @@ export interface GlobalStepContext {
 }
 
 
-/** Outcome of a global-step strategy. */
+/**
+ * Outcome of a global-step strategy.
+ *
+ * If `success` is `false`, the step is rejected: `xp`, `fp` and `Fp` are then
+ * not meaningful and the caller must keep its current iterate and function
+ * value.
+ */
 export interface GlobalStepResult {
     /** Whether a step satisfying the strategy's acceptance condition was found. */
     success: boolean;
     /** Whether the accepted step was (on the first sub-iteration) the maximum allowed length. */
     wasMaxStep: boolean;
-    /** Number of extra `f` evaluations performed by the strategy. */
-    nFev: number;
     /** The proposed next iterate. */
     xp: Vector;
     /** The objective function value evaluated at the new vector `xp`. */
@@ -127,5 +131,3 @@ export interface GlobalStepResult {
      */
     trustLen: number;
 }
-
-export type GlobalStepStrategy = (ctx: GlobalStepContext) => GlobalStepResult;
