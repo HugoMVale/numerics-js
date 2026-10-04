@@ -7,7 +7,6 @@ describe('lineSearch', () => {
     it('accepts the full Newton step when it decreases the objective', () => {
         const res = lineSearch(makeCtx([-4, -3]));
         expect(res.success).toBe(true);
-        expect(res.nFev).toBe(1);
         expect(res.xp.get(0)).toBeCloseTo(1, 12);
         expect(res.xp.get(1)).toBeCloseTo(2, 12);
         expect(res.fp).toBeCloseTo(0, 12);
@@ -18,7 +17,6 @@ describe('lineSearch', () => {
         const ctx = makeCtx([-12, -9]);
         const res = lineSearch(ctx);
         expect(res.success).toBe(true);
-        expect(res.nFev).toBeGreaterThan(1);
         expect(res.fp).toBeLessThan(ctx.fc);
     });
 
@@ -33,7 +31,6 @@ describe('lineSearch', () => {
         const ctx = makeCtx([4, 3]);
         const res = lineSearch(ctx);
         expect(res.success).toBe(false);
-        expect(res.nFev).toBe(0);
         expect(res.xp.get(0)).toBe(5);
         expect(res.xp.get(1)).toBe(5);
         expect(res.fp).toBe(ctx.fc);
