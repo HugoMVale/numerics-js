@@ -470,6 +470,7 @@ export function quasiNewton(
                 '||Δx/max(x, 1/sclx)||∞ ≤ tolx: `x` may be an approximate root, but it is also ' +
                 'possible that the algorithm is making slow progress and is not near a root, or ' +
                 'that `tolx` is too large.';
+            success = true;
             stop = true;
         } else if (globalMethod && consecutiveMaxSteps >= 5) {
             message =
