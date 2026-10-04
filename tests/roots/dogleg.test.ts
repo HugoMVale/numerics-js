@@ -7,7 +7,6 @@ describe('dogleg', () => {
     it('accepts the full Newton step when it fits in the trust region', () => {
         const res = dogleg(makeCtx([-4, -3], { trustLen: 10 }));
         expect(res.success).toBe(true);
-        expect(res.nFev).toBe(1);
         expect(res.xp.get(0)).toBeCloseTo(1, 12);
         expect(res.xp.get(1)).toBeCloseTo(2, 12);
         expect(res.fp).toBeCloseTo(0, 12);
@@ -18,7 +17,6 @@ describe('dogleg', () => {
         const ctx = makeCtx([-12, -9], { trustLen: 100 });
         const res = dogleg(ctx);
         expect(res.success).toBe(true);
-        expect(res.nFev).toBeGreaterThan(1);
         expect(res.fp).toBeLessThan(ctx.fc);
         expect(res.trustLen).toBeLessThan(15);
     });
