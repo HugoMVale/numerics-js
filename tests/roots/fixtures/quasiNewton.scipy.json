@@ -1,0 +1,187 @@
+[
+    {
+        "id": "rosenbrock",
+        "description": "Extended Rosenbrock function (4 variables)",
+        "x0": [
+            -1.2,
+            1.0,
+            -1.2,
+            1.0
+        ],
+        "fx0": [
+            2.2,
+            -4.3999999999999995,
+            2.2,
+            -4.3999999999999995
+        ],
+        "tolx": 1e-10,
+        "tolf": 0.0,
+        "scipyX": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "scipyFx": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scipyEvaluations": 32,
+        "scipySuccess": true,
+        "scipyMessage": "The solution converged."
+    },
+    {
+        "id": "powell_singular",
+        "description": "Extended Powell singular function (4 variables)",
+        "x0": [
+            3.0,
+            -1.0,
+            0.0,
+            1.0
+        ],
+        "fx0": [
+            13.0,
+            -2.23606797749979,
+            1.0,
+            12.649110640673518
+        ],
+        "tolx": 1e-10,
+        "tolf": 0.0,
+        "scipyX": [
+            -2.3059782291787874e-19,
+            -2.3059782291787873e-20,
+            1.992768666546087e-18,
+            1.992768666546087e-18
+        ],
+        "scipyFx": [
+            0.0,
+            0.0,
+            1.6068850833464617e-35,
+            1.563227229770868e-35
+        ],
+        "scipyEvaluations": 112,
+        "scipySuccess": false,
+        "scipyMessage": "The iteration is not making good progress, as measured by the \n improvement from the last ten iterations."
+    },
+    {
+        "id": "trigonometric_5",
+        "description": "Trigonometric function (5 variables)",
+        "x0": [
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01
+        ],
+        "fx0": [
+            -0.009699835834158023,
+            -0.009649836250823286,
+            -0.00959983666748855,
+            -0.009549837084153813,
+            -0.009499837500819076
+        ],
+        "tolx": 1e-10,
+        "tolf": 0.0,
+        "scipyX": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scipyFx": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scipyEvaluations": 83,
+        "scipySuccess": true,
+        "scipyMessage": "The solution converged."
+    },
+    {
+        "id": "trigonometric",
+        "description": "Trigonometric function (10 variables)",
+        "x0": [
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01
+        ],
+        "fx0": [
+            -0.009449837917485894,
+            -0.009399838334151157,
+            -0.00934983875081642,
+            -0.009299839167481684,
+            -0.009249839584146947,
+            -0.00919984000081221,
+            -0.009149840417477474,
+            -0.009099840834142737,
+            -0.009049841250808,
+            -0.008999841667473264
+        ],
+        "tolx": 1e-10,
+        "tolf": 0.0,
+        "scipyX": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scipyFx": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scipyEvaluations": 125,
+        "scipySuccess": true,
+        "scipyMessage": "The solution converged."
+    },
+    {
+        "id": "example65",
+        "description": "Example 6.5 of Dennis & Schnabel (1996), x0 = [1.5, 1]",
+        "x0": [
+            1.5,
+            1.0
+        ],
+        "fx0": [
+            1.25,
+            0.6487212707001282
+        ],
+        "tolx": 1e-10,
+        "tolf": 0.0,
+        "scipyX": [
+            0.999999999999985,
+            0.9999999999999991
+        ],
+        "scipyFx": [
+            -3.175237850427948e-14,
+            -1.7763568394002505e-14
+        ],
+        "scipyEvaluations": 12,
+        "scipySuccess": true,
+        "scipyMessage": "The solution converged."
+    }
+]
