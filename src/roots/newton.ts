@@ -20,8 +20,9 @@ export interface QuasiNewtonOptions {
      * Tolerance for the scaled step size. The algorithm terminates when the
      * scaled distance between two successive iterates
      * `||Δx/max(x, 1/sclx)||∞` is below this threshold. If too large, the
-     * algorithm may terminate prematurely. A value on the order of
-     * `eps^(2/3)` is typically recommended.
+     * algorithm may terminate with `success: true` at an approximate point
+     * that is not a root. A value on the order of `eps^(2/3)` is typically
+     * recommended.
      * @default 1e-10
      */
     tolx?: number;
