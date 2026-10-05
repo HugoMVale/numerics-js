@@ -308,6 +308,7 @@ describe('quasiNewton', () => {
                     fCalls += 1;
                     return fExample65.f(x);
                 }, fExample65.x0, {
+                    globalMethod: 'line-search',
                     broydenUpdate: true,
                     tolf: 1e-8,
                     ...(useJac ? {
@@ -340,6 +341,7 @@ describe('quasiNewton', () => {
                 const f = (x: Vector) => (poisoned ? Vector.from([NaN, NaN]) : fExample65.f(x));
 
                 const result = quasiNewton(f, fExample65.x0, {
+                    globalMethod: 'line-search',
                     broydenUpdate: true,
                     ...(useJac ? {
                         jac: (x: Vector) => (poisoned ? Matrix.from([[NaN, NaN], [NaN, NaN]]) : fExample65.jac!(x)),
@@ -622,6 +624,7 @@ describe('quasiNewton', () => {
             const f = (x: Vector) => Vector.from([x.get(0) ** 2 - 4]);
             const result = quasiNewton(f, Vector.from([1]), {
                 globalMethod,
+                broydenUpdate: false,
                 jac: (x) => Matrix.from([[x.get(0) === 1 ? 2 : NaN]]),
                 jacCheck: false,
             });
