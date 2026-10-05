@@ -74,7 +74,7 @@ export interface QuasiNewtonOptions {
     epsf?: number;
     /**
      * Global strategy to improve convergence from remote starting points.
-     * @default 'line-search'
+     * @default 'dogleg'
      */
     globalMethod?: GlobalMethod;
     /**
@@ -83,7 +83,7 @@ export interface QuasiNewtonOptions {
      * reduces the number of function/Jacobian evaluations, but may lead to
      * inaccurate Jacobian approximations and poor convergence far from the
      * root or for highly nonlinear functions.
-     * @default false
+     * @default true
      */
     broydenUpdate?: boolean;
     /**
@@ -121,10 +121,10 @@ export interface QuasiNewtonOptions {
  * the global strategy used to improve convergence from remote starting
  * points.
  *
- * The default settings favor the likelihood of convergence over
- * computational efficiency. For situations where maximum efficiency is
- * desired and the initial guess is known to be close to the root, consider
- * disabling the global method and using Broyden's update for the Jacobian.
+ * The default settings balance convergence reliability and computational
+ * efficiency. If the initial guess is close to the root and speed is a
+ * priority, consider disabling the global strategy. For more challenging
+ * problems, consider disabling Broyden's Jacobian update.
  *
  * Solving systems of nonlinear equations is a surprisingly complex task —
  * often more difficult than solving systems of differential equations or
@@ -208,9 +208,9 @@ export function quasiNewton(
     const tolf = options.tolf ?? 1e-5;
     const maxIter = options.maxIter ?? 100;
     const maxLenFactor = options.maxLenFactor ?? 1e3;
-    const broydenUpdate = options.broydenUpdate ?? false;
+    const broydenUpdate = options.broydenUpdate ?? true;
     const jacCheck = options.jacCheck ?? true;
-    const globalMethod: GlobalMethod = options.globalMethod === undefined ? 'line-search' : options.globalMethod;
+    const globalMethod: GlobalMethod = options.globalMethod === undefined ? 'dogleg' : options.globalMethod;
     if (globalMethod !== null && globalMethod !== 'line-search' && globalMethod !== 'dogleg') {
         throw new Error(`quasiNewton: unknown globalMethod '${String(globalMethod)}'`);
     }
