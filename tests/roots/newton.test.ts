@@ -20,7 +20,7 @@ const { lineSearch: realLineSearch } = await vi.importActual<typeof import('../.
     '../../src/roots/lineSearch.js',
 );
 
-describe('rootVecQNewton', () => {
+describe('quasiNewton', () => {
     it('rejects an initial guess with no components before evaluating f', () => {
         let evaluated = false;
 
