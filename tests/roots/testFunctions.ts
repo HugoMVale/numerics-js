@@ -55,6 +55,40 @@ export const fTrigonometric: RootTestFunction = {
     xs: Vector.zero(10),
 };
 
+export const fPowellBadlyScaled: RootTestFunction = {
+    description: 'Powell badly scaled function. Powell (1970); Moré, Garbow & Hillstrom (1981), problem 3.',
+    f: (x) => {
+        const result = new Vector(2);
+        result.set(0, 1e4 * x.get(0) * x.get(1) - 1);
+        result.set(1, Math.exp(-x.get(0)) + Math.exp(-x.get(1)) - 1.0001);
+        return result;
+    },
+    x0: Vector.from([0, 1]),
+    // Reference root (accurate to about 1e-15).
+    xs: Vector.from([1.09815932969984e-5, 9.106146739866338]),
+};
+
+export const fHelicalValley: RootTestFunction = {
+    description: 'Helical valley function. Fletcher & Powell (1963); Moré, Garbow & Hillstrom (1981), problem 7.',
+    f: (x) => {
+        const x1 = x.get(0);
+        const x2 = x.get(1);
+        const x3 = x.get(2);
+        // theta = arctan(x2 / x1) / (2 pi), taken in the range (-1/4, 3/4].
+        let theta = Math.atan2(x2, x1) / (2 * Math.PI);
+        if (theta < -0.25) {
+            theta += 1;
+        }
+        const result = new Vector(3);
+        result.set(0, 10 * (x3 - 10 * theta));
+        result.set(1, 10 * (Math.hypot(x1, x2) - 1));
+        result.set(2, x3);
+        return result;
+    },
+    x0: Vector.from([-1, 0, 0]),
+    xs: Vector.from([1, 0, 0]),
+};
+
 export const fCase10: RootTestFunction = {
     description: 'Case 10 of Broyden (1965). Very tough.',
     f: (x) => {
