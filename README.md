@@ -41,7 +41,7 @@ const solution = ode.rungeKuttaAdaptive(
 
 const times = solution.t;
 const temperatures = solution.y.col(0);
-const temperature = new interpolate.PchipInterpolator(times, temperatures);
+const temperature = new interpolate.PchipInterpolator1D(times, temperatures);
 const accumulatedHeat = integrate.quad((time) => temperature.eval(time) - 20, 0, 10);
 
 console.log(temperature.eval(2.25));
@@ -50,18 +50,28 @@ console.log(accumulatedHeat.value);
 
 ## What’s included
 
-- `linalg`: `Vector`, `Matrix`, and `Vec3` data structures and linear algebra.
-- `integrate`: sampled-data rules and adaptive quadrature.
-- `interpolate`: linear and shape-preserving one-dimensional interpolation.
-- `numdiff`: finite-difference derivatives and Jacobians.
-- `ode`: fixed-step and adaptive Runge-Kutta solvers, plus Verlet integration.
-- `optimize`: scalar Brent minimization and Nelder-Mead optimization.
-- `roots`: bisection, Brent, and secant root finding.
-- `special`: special functions, including Bessel functions.
-- `math`: small numerical utilities.
+- `linalg`: `Vector`, `Matrix`, and `Vec3` types; linear-system solves,
+  factorizations, condition estimates, determinants, and eigenvalues/eigenvectors.
+- `integrate`: trapezoid and Simpson rules for sampled data; Gauss–Kronrod
+  quadrature, including adaptive integration over finite or infinite intervals.
+- `interpolate`: one-off and reusable linear interpolation, plus shape-preserving
+  PCHIP interpolation for scalar and vector-valued data.
+- `numdiff`: centered finite-difference derivatives, forward-difference
+  Jacobians, and input scaling.
+- `ode`: fixed-step and adaptive Runge–Kutta solvers for non-stiff problems,
+  plus a velocity Verlet integrator for second-order mechanical systems.
+- `optimize`: bounded scalar minimization with Brent's method and
+  multidimensional Nelder–Mead optimization.
+- `roots`: scalar bisection, Brent, and secant methods, plus quasi-Newton
+  solving for systems of nonlinear equations.
+- `special`: Bessel functions of the first kind for non-negative integer
+  orders and their positive zeros.
+- `math`: clipping, signed magnitude, approximate equality, and seeded
+  pseudo-random number generation.
 
 The package is native ESM and exposes both the package root and focused module
-subpaths such as `numerics-js/linalg` and `numerics-js/ode`.
+subpaths such as `numerics-js/linalg`, `numerics-js/ode`,
+`numerics-js/ode/verlet`, and `numerics-js/special/bessel`.
 
 ## Documentation
 
