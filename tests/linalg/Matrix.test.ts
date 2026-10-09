@@ -2077,4 +2077,213 @@ describe('Matrix', () => {
             expect(() => new Matrix(3, 2).cond1Lower()).toThrow(RangeError);
         });
     });
+
+    describe('repeat()', () => {
+        // Golden values below follow numpy's np.repeat on [[1, 2, 3], [4, 5, 6]].
+        const A23 = (): Matrix => new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+
+        it('with no axis, flattens in row-major order and returns a Vector (numpy)', () => {
+            const r = A23().repeat(2);
+            expect(r).toBeInstanceOf(Vector);
+            expect(r.toArray()).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]);
+        });
+
+        it('with no axis, repeat(0) returns an empty Vector', () => {
+            expect(A23().repeat(0).size).toBe(0);
+        });
+
+        it('axis 0 repeats each row in place', () => {
+            const r = A23().repeat(2, 0);
+            expect(r).toBeInstanceOf(Matrix);
+            expect(r.rows).toBe(4);
+            expect(r.cols).toBe(3);
+            expect(r.toArray()).toEqual([
+                [1, 2, 3],
+                [1, 2, 3],
+                [4, 5, 6],
+                [4, 5, 6],
+            ]);
+        });
+
+        it('axis 1 repeats each column in place', () => {
+            const r = A23().repeat(2, 1);
+            expect(r.rows).toBe(2);
+            expect(r.cols).toBe(6);
+            expect(r.toArray()).toEqual([
+                [1, 1, 2, 2, 3, 3],
+                [4, 4, 5, 5, 6, 6],
+            ]);
+        });
+
+        it('supports counts above 2 on a non-square matrix, on both axes', () => {
+            expect(A23().repeat(3, 0).toArray()).toEqual([
+                [1, 2, 3], [1, 2, 3], [1, 2, 3],
+                [4, 5, 6], [4, 5, 6], [4, 5, 6],
+            ]);
+            expect(A23().repeat(3, 1).toArray()).toEqual([
+                [1, 1, 1, 2, 2, 2, 3, 3, 3],
+                [4, 4, 4, 5, 5, 5, 6, 6, 6],
+            ]);
+        });
+
+        it('repeat(1, axis) equals the original, as an independent copy', () => {
+            for (const axis of [0, 1] as const) {
+                const a = A23();
+                const r = a.repeat(1, axis);
+                expect(r.toArray()).toEqual(a.toArray());
+                expect(r.data).not.toBe(a.data);
+            }
+        });
+
+        it('handles single-row, single-column and 1x1 matrices', () => {
+            expect(new Matrix(1, 2, [1, 2]).repeat(2, 0).toArray()).toEqual([[1, 2], [1, 2]]);
+            expect(new Matrix(1, 2, [1, 2]).repeat(2, 1).toArray()).toEqual([[1, 1, 2, 2]]);
+            expect(new Matrix(2, 1, [1, 2]).repeat(2, 0).toArray()).toEqual([[1], [1], [2], [2]]);
+            expect(new Matrix(2, 1, [1, 2]).repeat(2, 1).toArray()).toEqual([[1, 1], [2, 2]]);
+            expect(new Matrix(1, 1, [5]).repeat(3, 0).toArray()).toEqual([[5], [5], [5]]);
+            expect(new Matrix(1, 1, [5]).repeat(3, 1).toArray()).toEqual([[5, 5, 5]]);
+        });
+
+        it('agrees with row() / Vector.repeat() on both axes (cross-check)', () => {
+            // Axis 0: each source row must appear `repeats` times in a row.
+            const a = new Matrix(3, 2, [1, 2, 3, 4, 5, 6]);
+            const r = a.repeat(3, 0);
+            for (let i = 0; i < 3; i++) {
+                for (let k = 0; k < 3; k++) expect(r.row(i * 3 + k).toArray()).toEqual(a.row(i).toArray());
+            }
+            // And axis 1 against Vector.repeat applied per row.
+            const c = a.repeat(3, 1);
+            for (let i = 0; i < 3; i++) expect(c.row(i).toArray()).toEqual(a.row(i).repeat(3).toArray());
+        });
+
+        it('does not mutate the original and does not alias its buffer', () => {
+            const a = A23();
+            for (const axis of [undefined, 0, 1] as const) {
+                const r = axis === undefined ? a.repeat(2) : a.repeat(2, axis);
+                r.data[0] = 999;
+                expect(a.toArray()).toEqual([[1, 2, 3], [4, 5, 6]]);
+            }
+        });
+
+        it('throws RangeError for repeats=0 along an axis, since Matrix cannot be empty', () => {
+            expect(() => A23().repeat(0, 0)).toThrowError(RangeError);
+            expect(() => A23().repeat(0, 1)).toThrowError(RangeError);
+            expect(() => A23().repeat(0, 0)).toThrowError(/Matrix\.repeat/);
+        });
+
+        it('rejects counts that are negative, fractional, NaN or infinite, with and without axis', () => {
+            for (const bad of [-1, 1.5, NaN, Infinity]) {
+                expect(() => A23().repeat(bad)).toThrowError(RangeError);
+                expect(() => A23().repeat(bad, 0)).toThrowError(RangeError);
+                expect(() => A23().repeat(bad, 1)).toThrowError(RangeError);
+            }
+        });
+
+        it('rejects an invalid axis', () => {
+            expect(() => A23().repeat(2, 2 as never)).toThrowError(RangeError);
+            expect(() => A23().repeat(2, -1 as never)).toThrowError(RangeError);
+        });
+    });
+
+    describe('tile()', () => {
+        // Golden values below follow numpy's np.tile on [[1, 2, 3], [4, 5, 6]].
+        const A23 = (): Matrix => new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+
+        it('a scalar tiles along the columns only (numpy promotes it to (1, reps))', () => {
+            const t = A23().tile(2);
+            expect(t.rows).toBe(2);
+            expect(t.cols).toBe(6);
+            expect(t.toArray()).toEqual([
+                [1, 2, 3, 1, 2, 3],
+                [4, 5, 6, 4, 5, 6],
+            ]);
+        });
+
+        it('a [rowReps, colReps] pair tiles along both axes', () => {
+            expect(A23().tile([2, 2]).toArray()).toEqual([
+                [1, 2, 3, 1, 2, 3],
+                [4, 5, 6, 4, 5, 6],
+                [1, 2, 3, 1, 2, 3],
+                [4, 5, 6, 4, 5, 6],
+            ]);
+            expect(A23().tile([2, 1]).toArray()).toEqual([
+                [1, 2, 3],
+                [4, 5, 6],
+                [1, 2, 3],
+                [4, 5, 6],
+            ]);
+        });
+
+        it('produces the right shape for unequal counts', () => {
+            const t = A23().tile([3, 2]);
+            expect(t.rows).toBe(6);
+            expect(t.cols).toBe(6);
+            // Every block must equal the original.
+            for (let a = 0; a < 3; a++) {
+                for (let b = 0; b < 2; b++) {
+                    expect(t.slice(a * 2, a * 2 + 2, b * 3, b * 3 + 3).toArray()).toEqual(A23().toArray());
+                }
+            }
+        });
+
+        it('tile(1) and tile([1, 1]) equal the original, as independent copies', () => {
+            for (const reps of [1, [1, 1] as [number, number]]) {
+                const a = A23();
+                const t = a.tile(reps);
+                expect(t.toArray()).toEqual(a.toArray());
+                expect(t.data).not.toBe(a.data);
+            }
+        });
+
+        it('handles single-row, single-column and 1x1 matrices', () => {
+            expect(new Matrix(1, 2, [1, 2]).tile([2, 2]).toArray()).toEqual([[1, 2, 1, 2], [1, 2, 1, 2]]);
+            expect(new Matrix(2, 1, [1, 2]).tile([2, 3]).toArray()).toEqual([
+                [1, 1, 1],
+                [2, 2, 2],
+                [1, 1, 1],
+                [2, 2, 2],
+            ]);
+            expect(new Matrix(1, 1, [5]).tile([2, 2]).toArray()).toEqual([[5, 5], [5, 5]]);
+        });
+
+        it('agrees with hstack/vstack of copies (independent cross-check)', () => {
+            const a = A23();
+            const viaStack = Matrix.vstack([
+                Matrix.hstack([a, a, a]),
+                Matrix.hstack([a, a, a]),
+            ]);
+            expect(a.tile([2, 3]).toArray()).toEqual(viaStack.toArray());
+        });
+
+        it('agrees with Vector.tile on each row for a scalar count', () => {
+            const a = A23();
+            const t = a.tile(3);
+            for (let i = 0; i < a.rows; i++) expect(t.row(i).toArray()).toEqual(a.row(i).tile(3).toArray());
+        });
+
+        it('does not mutate the original and does not alias its buffer', () => {
+            const a = A23();
+            const t = a.tile([2, 2]);
+            t.set(0, 0, 999);
+            expect(a.toArray()).toEqual([[1, 2, 3], [4, 5, 6]]);
+            // The replicated copy of (0, 0) must be a separate element, too.
+            expect(t.get(2, 0)).toBe(1);
+            expect(t.get(0, 3)).toBe(1);
+        });
+
+        it('throws RangeError when either count is 0, since Matrix cannot be empty', () => {
+            expect(() => A23().tile(0)).toThrowError(RangeError);
+            expect(() => A23().tile([0, 2])).toThrowError(RangeError);
+            expect(() => A23().tile([2, 0])).toThrowError(RangeError);
+            expect(() => A23().tile(0)).toThrowError(/Matrix\.tile/);
+        });
+
+        it('rejects counts that are negative, fractional, NaN or infinite', () => {
+            for (const bad of [-1, 1.5, NaN, Infinity]) {
+                expect(() => A23().tile(bad)).toThrowError(RangeError);
+                expect(() => A23().tile([bad, 1])).toThrowError(RangeError);
+                expect(() => A23().tile([1, bad])).toThrowError(RangeError);
+            }
+        });
+    });
 });

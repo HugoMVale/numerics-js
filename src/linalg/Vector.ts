@@ -132,6 +132,39 @@ export class Vector extends ArrayND {
     }
 
     /**
+     * Repeats each component `repeats` times in place, like
+     * `numpy.repeat(a, repeats)`: `[1, 2, 3].repeat(2)` is
+     * `[1, 1, 2, 2, 3, 3]`. Contrast with `tile()`, which repeats the
+     * whole vector. Only a scalar count is supported (no per-element counts).
+     * @param repeats How many times to repeat each component. Must be a
+     * non-negative integer; `0` yields an empty vector.
+     * @returns A new, independent vector of size `size * repeats`.
+     * @throws {RangeError} If `repeats` is not a non-negative integer.
+     */
+    repeat(repeats: number): Vector {
+        ArrayND._checkCount(repeats, 'Vector.repeat');
+        const res = new Vector(this.size * repeats);
+        ArrayND._repeatElements(this.data, repeats, res.data, 0);
+        return res;
+    }
+
+    /**
+     * Concatenates this vector with itself `reps` times, like
+     * `numpy.tile(a, reps)`: `[1, 2, 3].tile(2)` is `[1, 2, 3, 1, 2, 3]`.
+     * Contrast with `repeat()`, which repeats each component in place.
+     * @param reps How many copies to concatenate. Must be a non-negative
+     * integer; `0` yields an empty vector.
+     * @returns A new, independent vector of size `size * reps`.
+     * @throws {RangeError} If `reps` is not a non-negative integer.
+     */
+    tile(reps: number): Vector {
+        ArrayND._checkCount(reps, 'Vector.tile', 'reps');
+        const res = new Vector(this.size * reps);
+        ArrayND._tileArray(this.data, reps, res.data, 0);
+        return res;
+    }
+
+    /**
      * Applies a function to each component, elementwise.
      * @param fn Called with each component's value and index; its return
      * value becomes the corresponding component of the result.

@@ -1464,6 +1464,98 @@ export class Matrix extends ArrayND {
     }
 
     /**
+     * Repeats every element `repeats` times, over this matrix flattened in
+     * row-major order, like `numpy.repeat(a, repeats)` with no axis:
+     * `[[1, 2], [3, 4]].repeat(2)` is `Vector(1, 1, 2, 2, 3, 3, 4, 4)`.
+     * Only a scalar count is supported.
+     * @param repeats Must be a non-negative integer; `0` yields an empty vector.
+     * @returns A new vector of length `rows * cols * repeats`.
+     * @throws {RangeError} If `repeats` is not a non-negative integer.
+     */
+    repeat(repeats: number, axis?: undefined): Vector;
+    /**
+     * Repeats each row (`axis: 0`) or each column (`axis: 1`) `repeats`
+     * times in place, like `numpy.repeat(a, repeats, axis)`: repeating
+     * `[[1, 2], [3, 4]]` twice along axis 0 gives rows `[1,2],[1,2],[3,4],[3,4]`;
+     * along axis 1 it gives `[1,1,2,2],[3,3,4,4]`. Contrast with `tile()`.
+     * @param repeats Must be a non-negative integer.
+     * @param axis `0` to repeat rows, `1` to repeat columns.
+     * @returns A new, independent matrix, with `rows * repeats` rows (axis 0)
+     * or `cols * repeats` columns (axis 1).
+     * @throws {RangeError} If `repeats` is not a non-negative integer, `axis`
+     * is not `0`/`1`, or `repeats` is `0` (Matrix cannot represent a matrix
+     * with 0 rows or 0 columns).
+     */
+    repeat(repeats: number, axis: 0 | 1): Matrix;
+    repeat(repeats: number, axis?: 0 | 1): Vector | Matrix {
+        ArrayND._checkCount(repeats, 'Matrix.repeat');
+        if (axis === undefined) {
+            const res = new Vector(this.size * repeats);
+            ArrayND._repeatElements(this.data, repeats, res.data, 0);
+            return res;
+        }
+        if (axis !== 0 && axis !== 1) {
+            throw new RangeError(`Matrix.repeat: axis must be 0, 1 or undefined, got ${axis}`);
+        }
+        if (repeats === 0) {
+            throw new RangeError(
+                `Matrix.repeat: repeats=0 along axis ${axis} would produce an empty matrix, ` +
+                `but Matrix cannot represent a matrix with 0 rows or 0 columns`
+            );
+        }
+        if (axis === 0) {
+            const res = new Matrix(this.rows * repeats, this.cols);
+            for (let i = 0; i < this.rows; i++) {
+                const srcOffset = this.flatIndex(i, 0);
+                const src = this.data.subarray(srcOffset, srcOffset + this.cols);
+                for (let k = 0; k < repeats; k++) res.data.set(src, res.flatIndex(i * repeats + k, 0));
+            }
+            return res;
+        }
+        const res = new Matrix(this.rows, this.cols * repeats);
+        for (let i = 0; i < this.rows; i++) {
+            const srcOffset = this.flatIndex(i, 0);
+            ArrayND._repeatElements(
+                this.data.subarray(srcOffset, srcOffset + this.cols), repeats, res.data, res.flatIndex(i, 0)
+            );
+        }
+        return res;
+    }
+
+    /**
+     * Tiles this matrix, like `numpy.tile(a, reps)` for a 2-D `a`. A scalar
+     * `reps` tiles along the columns only (numpy promotes it to `(1, reps)`);
+     * a `[rowReps, colReps]` pair tiles along both axes. Contrast with
+     * `repeat()`, which repeats each row/column in place.
+     * @param reps Non-negative integer(s). Must both be `>= 1` here.
+     * @returns A new, independent `rows * rowReps x cols * colReps` matrix.
+     * @throws {RangeError} If a count is not a non-negative integer, or is
+     * `0` (Matrix cannot represent a matrix with 0 rows or 0 columns).
+     */
+    tile(reps: number | [number, number]): Matrix {
+        const [rowReps, colReps] = typeof reps === 'number' ? [1, reps] : reps;
+        ArrayND._checkCount(rowReps, 'Matrix.tile', 'row reps');
+        ArrayND._checkCount(colReps, 'Matrix.tile', 'column reps');
+        if (rowReps === 0 || colReps === 0) {
+            throw new RangeError(
+                `Matrix.tile: reps (${rowReps}, ${colReps}) would produce an empty matrix, ` +
+                `but Matrix cannot represent a matrix with 0 rows or 0 columns`
+            );
+        }
+        const newCols = this.cols * colReps;
+        const res = new Matrix(this.rows * rowReps, newCols);
+        // Build the first block of `rows` rows (each source row tiled along
+        // the columns), then replicate that block down the remaining rows.
+        for (let i = 0; i < this.rows; i++) {
+            const srcOffset = this.flatIndex(i, 0);
+            ArrayND._tileArray(this.data.subarray(srcOffset, srcOffset + this.cols), colReps, res.data, i * newCols);
+        }
+        const blockLen = this.rows * newCols;
+        for (let a = 1; a < rowReps; a++) res.data.copyWithin(a * blockLen, 0, blockLen);
+        return res;
+    }
+
+    /**
      * Returns this matrix's elements as an array of row arrays.
      * @returns An array of `rows` arrays, each with `cols` numbers.
      */

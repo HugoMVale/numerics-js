@@ -724,6 +724,52 @@ export abstract class ArrayND {
     }
 
     // -----------------------------------------------------------------
+    // Shared helpers for `repeat`/`tile`. Both change the shape, so the
+    // public methods live on the subclasses; only the validation and the
+    // raw buffer-filling loops are shared here.
+    // -----------------------------------------------------------------
+
+    /**
+     * Validates a `repeat`/`tile` count.
+     * @param count The count to validate.
+     * @param caller Fully qualified method name for the error message (e.g. `"Vector.repeat"`).
+     * @param name The parameter name for the error message.
+     * @throws {RangeError} If `count` is not a non-negative integer (NaN,
+     * Infinity, fractions and negatives are all rejected).
+     */
+    protected static _checkCount(count: number, caller: string, name: string = 'repeats'): void {
+        if (!Number.isInteger(count) || count < 0) {
+            throw new RangeError(`${caller}: ${name} must be a non-negative integer, got ${count}`);
+        }
+    }
+
+    /**
+     * Writes every element of `src` repeated `count` times in place
+     * (`[a, b]` with `count = 2` becomes `a, a, b, b`) into `dst`,
+     * starting at `dstOff`. Writes `src.length * count` elements.
+     * Counts are assumed already validated.
+     */
+    protected static _repeatElements(src: Float64Array, count: number, dst: Float64Array, dstOff: number): void {
+        if (count === 0) return;
+        if (count === 1) {
+            dst.set(src, dstOff);
+            return;
+        }
+        let o = dstOff;
+        for (let i = 0; i < src.length; i++, o += count) dst.fill(src[i], o, o + count);
+    }
+
+    /**
+     * Writes `src` concatenated with itself `count` times
+     * (`[a, b]` with `count = 2` becomes `a, b, a, b`) into `dst`,
+     * starting at `dstOff`. Writes `src.length * count` elements.
+     * Counts are assumed already validated.
+     */
+    protected static _tileArray(src: Float64Array, count: number, dst: Float64Array, dstOff: number): void {
+        for (let k = 0; k < count; k++) dst.set(src, dstOff + k * src.length);
+    }
+
+    // -----------------------------------------------------------------
     // Copying / filling
     // -----------------------------------------------------------------
 

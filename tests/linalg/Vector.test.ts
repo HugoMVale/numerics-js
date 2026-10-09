@@ -570,4 +570,101 @@ describe('Vector', () => {
         expect(() => empty.outer(v)).toThrowError(RangeError);
         expect(() => v.outer(empty)).toThrowError(RangeError);
     });
+
+    describe('repeat()', () => {
+        // Golden values follow numpy: np.repeat([1, 2, 3], 2) -> [1, 1, 2, 2, 3, 3]
+        it('repeats each component in place', () => {
+            expect(new Vector([1, 2, 3]).repeat(2).toArray()).toEqual([1, 1, 2, 2, 3, 3]);
+            expect(new Vector([1, 2, 3]).repeat(3).toArray()).toEqual([1, 1, 1, 2, 2, 2, 3, 3, 3]);
+        });
+
+        it('repeats(1) returns an equal but independent copy', () => {
+            const v = new Vector([1, 2, 3]);
+            const r = v.repeat(1);
+            expect(r.toArray()).toEqual([1, 2, 3]);
+            expect(r).not.toBe(v);
+            expect(r.data).not.toBe(v.data);
+        });
+
+        it('repeats(0) returns an empty vector (as numpy does)', () => {
+            const r = new Vector([1, 2, 3]).repeat(0);
+            expect(r).toBeInstanceOf(Vector);
+            expect(r.size).toBe(0);
+        });
+
+        it('handles a single-component and an empty vector', () => {
+            expect(new Vector([7]).repeat(4).toArray()).toEqual([7, 7, 7, 7]);
+            expect(new Vector(0).repeat(5).size).toBe(0);
+        });
+
+        it('preserves NaN, Infinity and negative components', () => {
+            const r = new Vector([NaN, -Infinity, -0.5]).repeat(2);
+            expect(r.size).toBe(6);
+            expect(Number.isNaN(r.get(0))).toBe(true);
+            expect(Number.isNaN(r.get(1))).toBe(true);
+            expect(r.get(2)).toBe(-Infinity);
+            expect(r.get(3)).toBe(-Infinity);
+            expect(r.get(4)).toBe(-0.5);
+            expect(r.get(5)).toBe(-0.5);
+        });
+
+        it('does not mutate the original and does not alias its buffer', () => {
+            const v = new Vector([1, 2]);
+            const r = v.repeat(2);
+            r.set(0, 999);
+            expect(v.toArray()).toEqual([1, 2]);
+        });
+
+        it('rejects counts that are negative, fractional, NaN or infinite', () => {
+            const v = new Vector([1, 2]);
+            for (const bad of [-1, 1.5, NaN, Infinity, -Infinity]) {
+                expect(() => v.repeat(bad)).toThrowError(RangeError);
+            }
+            expect(() => v.repeat(-1)).toThrowError(/Vector\.repeat/);
+        });
+    });
+
+    describe('tile()', () => {
+        // Golden values follow numpy: np.tile([1, 2, 3], 2) -> [1, 2, 3, 1, 2, 3]
+        it('concatenates the whole vector with itself', () => {
+            expect(new Vector([1, 2, 3]).tile(2).toArray()).toEqual([1, 2, 3, 1, 2, 3]);
+            expect(new Vector([1, 2]).tile(3).toArray()).toEqual([1, 2, 1, 2, 1, 2]);
+        });
+
+        it('differs from repeat() in element order', () => {
+            const v = new Vector([1, 2]);
+            expect(v.tile(2).toArray()).not.toEqual(v.repeat(2).toArray());
+        });
+
+        it('tile(1) returns an equal but independent copy', () => {
+            const v = new Vector([1, 2, 3]);
+            const t = v.tile(1);
+            expect(t.toArray()).toEqual([1, 2, 3]);
+            expect(t.data).not.toBe(v.data);
+        });
+
+        it('tile(0) returns an empty vector (as numpy does)', () => {
+            expect(new Vector([1, 2, 3]).tile(0).size).toBe(0);
+        });
+
+        it('handles an empty vector', () => {
+            expect(new Vector(0).tile(4).size).toBe(0);
+        });
+
+        it('does not mutate the original and does not alias its buffer', () => {
+            const v = new Vector([1, 2]);
+            const t = v.tile(2);
+            t.set(0, 999);
+            expect(v.toArray()).toEqual([1, 2]);
+            expect(t.toArray()).toEqual([999, 2, 1, 2]);
+        });
+
+        it('rejects counts that are negative, fractional, NaN or infinite', () => {
+            const v = new Vector([1, 2]);
+            for (const bad of [-1, 1.5, NaN, Infinity]) {
+                expect(() => v.tile(bad)).toThrowError(RangeError);
+            }
+            expect(() => v.tile(-1)).toThrowError(/Vector\.tile/);
+        });
+    });
 });
