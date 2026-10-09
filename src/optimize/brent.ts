@@ -27,11 +27,10 @@ export interface BrentResult {
  * parabolic step, and otherwise falls back to the more robust golden-section
  * step.
  *
- * Results are validated against `scipy.optimize.minimize_scalar` with
- * `method="brent"` (see `benchmarks/optimize/brent.scipy.test.ts`).
+ * Results are validated against `scipy.optimize.minimize_scalar` with `method="brent"`.
  * With the same `tolx`, the number of function calls is essentially identical to SciPy's 
- * across the benchmark problems; see `benchmarks/optimize/brent.scipy.benchmark.md`
- * for the comparison table.
+ * across the benchmark problems; 
+ * see the [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/optimize/brent.scipy.benchmark.md).
  *
  * @param f Function to minimize.
  * @param xa One end of the bracketing interval.

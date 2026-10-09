@@ -136,10 +136,8 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * and/or `sclx` reflect the expected scale of the variables. If `sclx` is
  * not provided, the variable scaling is inferred from `x0`.
  *
- * Results are validated against `scipy.optimize.minimize` with
- * `method="Nelder-Mead"` (see `benchmarks/optimize/nelderMead.scipy.test.ts`);
- * see `benchmarks/optimize/nelderMead.scipy.benchmark.md` for the comparison
- * table.
+ * Results are validated against `scipy.optimize.minimize` with `method="Nelder-Mead"`. 
+ * See the [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/optimize/nelderMead.scipy.benchmark.md).
  *
  * References:
  * - Nelder, J. A.; Mead, R. A Simplex Method for Function Minimization.

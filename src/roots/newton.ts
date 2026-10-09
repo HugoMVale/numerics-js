@@ -134,10 +134,8 @@ export interface QuasiNewtonOptions {
  * factors, and a suitable global strategy is an essential part of solving
  * the problem.
  *
- * Results are validated against `scipy.optimize.root` with
- * `method="hybr"` (see `benchmarks/roots/quasiNewton.scipy.test.ts`);
- * see `benchmarks/roots/quasiNewton.scipy.benchmark.md` for the comparison
- * table.
+ * Results are validated against `scipy.optimize.root` with `method="hybr"`. 
+ * See the [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/roots/quasiNewton.scipy.benchmark.md).
  *
  * **References**
  *
