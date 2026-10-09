@@ -19,9 +19,9 @@
 ## Independent numerical benchmarks
 
 - Some algorithms have a companion test that checks results against an independent reference implementation (e.g. SciPy) instead of only hand-derived closed-form values, guarding against correct-looking-but-wrong numerics.
-- Reference values are generated offline by a PEP 723 standalone Python script under `scripts/benchmarks/` (e.g. `generate_gauss_kronrod_fixtures.py`), run via `uv run scripts/benchmarks/<script>.py`. `uv` resolves the script's inline `dependencies` into an ephemeral, cached environment, so no `pyproject.toml`/`requirements.txt` or persistent Python env is added to the repo.
-- Each script writes a JSON fixture to `tests/<module>/fixtures/`, pairing an integrand/case id with the reference value and its reported error estimate.
-- A matching Vitest file (e.g. `gaussKronrod.scipy.test.ts`) loads the fixture and re-implements each case's function in TypeScript by id, then asserts the library result agrees with the reference within a tolerance derived from both sides' error estimates.
+- Reference values are generated offline by PEP 723 standalone Python scripts under `benchmarks/<module>/`, run via `uv run benchmarks/<module>/<script>.py`. `uv` resolves each script's inline `dependencies` into an ephemeral, cached environment, so no `pyproject.toml`/`requirements.txt` or persistent Python env is added to the repo.
+- Each benchmark directory contains its Python generator, JSON fixture, matching Vitest comparison, and optional Markdown report.
+- A matching Vitest file (e.g. `benchmarks/integrate/quad.scipy.test.ts`) loads the fixture and re-implements each case's function in TypeScript by id, then asserts the library result agrees with the reference within a tolerance derived from both sides' error estimates.
 - The Python script and the TS test's integrand map must stay in sync (same id, math, and bounds). When adding or changing benchmark cases, update both, then rerun the generation script to refresh the fixture before rerunning the test.
 - This is a generation-time tool only; Python/SciPy are never required to run `npm test` or build.
 
