@@ -4,10 +4,10 @@
 # ///
 """Generate SciPy reference fixtures for the adaptive Runge-Kutta solvers.
 
-Run with: uv run scripts/benchmarks/generate_runge_kutta_adaptive_fixtures.py
+Run with: uv run benchmarks/ode/generate_runge_kutta_adaptive_fixtures.py
 
 Each case must have a matching derivative function in
-tests/ode/rungeKuttaAdaptive.scipy.test.ts (same id, math, span, and state).
+benchmarks/ode/rungeKuttaAdaptive.scipy.test.ts (same id, math, span, and state).
 """
 
 import json
@@ -90,7 +90,7 @@ def main() -> None:
             }
         )
 
-    out_path = Path(__file__).resolve().parents[2] / "tests" / "ode" / "fixtures" / "rungeKuttaAdaptive.scipy.json"
+    out_path = Path(__file__).resolve().with_name("rungeKuttaAdaptive.scipy.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")

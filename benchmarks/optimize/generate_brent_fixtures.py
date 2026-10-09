@@ -4,10 +4,10 @@
 # ///
 """Generate SciPy Brent reference values for the optimize.brent test fixture.
 
-Run with: uv run scripts/benchmarks/generate_brent_fixtures.py
+Run with: uv run benchmarks/optimize/generate_brent_fixtures.py
 
 Each case here must have a matching hand-written objective in
-tests/optimize/brent.scipy.test.ts (same id, math, and bounds).
+benchmarks/optimize/brent.scipy.test.ts (same id, math, and bounds).
 """
 
 import json
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from scipy.optimize import minimize_scalar
 
-# Shared with tests/optimize/brent.scipy.test.ts so both solvers use the same
+# Shared with benchmarks/optimize/brent.scipy.test.ts so both solvers use the same
 # requested x tolerance and their evaluation counts are comparable.
 TOL_X = 1e-8
 
@@ -83,7 +83,7 @@ def main() -> None:
             }
         )
 
-    out_path = Path(__file__).resolve().parents[2] / "tests" / "optimize" / "fixtures" / "brent.scipy.json"
+    out_path = Path(__file__).resolve().with_name("brent.scipy.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")

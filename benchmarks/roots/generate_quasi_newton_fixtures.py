@@ -4,10 +4,10 @@
 # ///
 """Generate SciPy hybr reference values for the roots.quasiNewton test fixture.
 
-Run with: uv run scripts/benchmarks/generate_quasi_newton_fixtures.py
+Run with: uv run benchmarks/roots/generate_quasi_newton_fixtures.py
 
 Each case here must mirror the function and starting point in
-tests/roots/quasiNewton.scipy.test.ts, which in turn uses
+benchmarks/roots/quasiNewton.scipy.test.ts, which in turn uses
 tests/roots/testFunctions.ts.
 """
 
@@ -341,13 +341,7 @@ def main() -> None:
             }
         )
 
-    out_path = (
-        Path(__file__).resolve().parents[2]
-        / "tests"
-        / "roots"
-        / "fixtures"
-        / "quasiNewton.scipy.json"
-    )
+    out_path = Path(__file__).resolve().with_name("quasiNewton.scipy.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")

@@ -4,10 +4,10 @@
 # ///
 """Generate SciPy reference values for the 'quad' integrator test fixture.
 
-Run with: uv run scripts/benchmarks/generate_quad_fixtures.py
+Run with: uv run benchmarks/integrate/generate_quad_fixtures.py
 
 Each case here must have a matching hand-written integrand in
-tests/integrate/quad.scipy.test.ts (same id, same math, same bounds).
+benchmarks/integrate/quad.scipy.test.ts (same id, same math, same bounds).
 
 Infinite bounds are written as strings in the JSON fixture because JSON has no
 representation for Infinity. Finite breakpoints are passed to SciPy as
@@ -25,7 +25,7 @@ from pathlib import Path
 from scipy.integrate import quad
 
 # Requested tolerance shared with the quad(fn, a, b, tol) call in
-# tests/integrate/quad.scipy.test.ts, so evaluation counts are comparable.
+# benchmarks/integrate/quad.scipy.test.ts, so evaluation counts are comparable.
 # Matches quad's own default tol, since that's the representative use case.
 TOL = 1e-8
 
@@ -162,7 +162,7 @@ def main() -> None:
             }
         )
 
-    out_path = Path(__file__).resolve().parents[2] / "tests" / "integrate" / "fixtures" / "quad.scipy.json"
+    out_path = Path(__file__).resolve().with_name("quad.scipy.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")

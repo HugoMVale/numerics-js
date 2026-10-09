@@ -4,10 +4,10 @@
 # ///
 """Generate SciPy reference values for the Matrix.lu() test fixture.
 
-Run with: uv run scripts/benchmarks/generate_matrix_lu_fixtures.py
+Run with: uv run benchmarks/linalg/generate_matrix_lu_fixtures.py
 
 Each case here must have a matching matrix in
-tests/linalg/Matrix.lu.scipy.test.ts (same id and entries).
+benchmarks/linalg/Matrix.lu.scipy.test.ts (same id and entries).
 """
 
 import json
@@ -94,7 +94,7 @@ def main() -> None:
             }
         )
 
-    out_path = Path(__file__).resolve().parents[2] / "tests" / "linalg" / "fixtures" / "Matrix.lu.scipy.json"
+    out_path = Path(__file__).resolve().with_name("Matrix.lu.scipy.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")

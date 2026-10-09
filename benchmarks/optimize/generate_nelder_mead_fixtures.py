@@ -4,10 +4,10 @@
 # ///
 """Generate SciPy Nelder-Mead reference values for the optimize.nelderMead test fixture.
 
-Run with: uv run scripts/benchmarks/generate_nelder_mead_fixtures.py
+Run with: uv run benchmarks/optimize/generate_nelder_mead_fixtures.py
 
 Each case here must have a matching hand-written objective and initial point
-in tests/optimize/nelderMead.scipy.test.ts (same id, math, and starting
+in benchmarks/optimize/nelderMead.scipy.test.ts (same id, math, and starting
 point), mirroring TEST_FUNCTIONS_MULTIVAR in tests/optimize/testFunctions.ts.
 """
 
@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
-# Shared with tests/optimize/nelderMead.scipy.test.ts so both solvers use the
+# Shared with benchmarks/optimize/nelderMead.scipy.test.ts so both solvers use the
 # same requested tolerances and their evaluation counts are comparable.
 # fatol is set far below xatol so both solvers terminate on the x-tolerance
 # criterion, avoiding any need to reconcile xatol with nelderMead's tolf.
@@ -90,13 +90,7 @@ def main() -> None:
             }
         )
 
-    out_path = (
-        Path(__file__).resolve().parents[2]
-        / "tests"
-        / "optimize"
-        / "fixtures"
-        / "nelderMead.scipy.json"
-    )
+    out_path = Path(__file__).resolve().with_name("nelderMead.scipy.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     print(f"Wrote {len(results)} cases to {out_path}")
