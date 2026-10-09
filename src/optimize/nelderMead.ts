@@ -137,8 +137,8 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * not provided, the variable scaling is inferred from `x0`.
  *
  * Results are validated against `scipy.optimize.minimize` with
- * `method="Nelder-Mead"` (see `tests/optimize/nelderMead.scipy.test.ts`);
- * see `tests/optimize/nelderMead.scipy.benchmark.md` for the comparison
+ * `method="Nelder-Mead"` (see `benchmarks/optimize/nelderMead.scipy.test.ts`);
+ * see `benchmarks/optimize/nelderMead.scipy.benchmark.md` for the comparison
  * table.
  *
  * References:

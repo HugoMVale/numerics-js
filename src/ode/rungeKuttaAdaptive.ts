@@ -305,10 +305,10 @@ export interface RungeKuttaAdaptiveOptions {
  * shortened so the last recorded time is exactly `tEnd`.
  *
  * Results are validated against the corresponding `scipy.integrate.solve_ivp`
- * `RK23` and `RK45` methods (see `tests/ode/rungeKuttaAdaptive.scipy.test.ts`).
+ * `RK23` and `RK45` methods (see `benchmarks/ode/rungeKuttaAdaptive.scipy.test.ts`).
  * With the same `atol` and `rtol`, the number of function calls is essentially 
  * identical to SciPy's across the benchmark problems;
- * see `tests/ode/rungeKuttaAdaptive.scipy.benchmark.md` for the comparison
+ * see `benchmarks/ode/rungeKuttaAdaptive.scipy.benchmark.md` for the comparison
  * table.
  *
  * @param method Embedded Runge-Kutta pair: `'rk23'` for Bogacki-Shampine 3(2),

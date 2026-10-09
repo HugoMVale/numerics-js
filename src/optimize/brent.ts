@@ -28,9 +28,9 @@ export interface BrentResult {
  * step.
  *
  * Results are validated against `scipy.optimize.minimize_scalar` with
- * `method="brent"` (see `tests/optimize/brent.scipy.test.ts`).
+ * `method="brent"` (see `benchmarks/optimize/brent.scipy.test.ts`).
  * With the same `tolx`, the number of function calls is essentially identical to SciPy's 
- * across the benchmark problems; see `tests/optimize/brent.scipy.benchmark.md`
+ * across the benchmark problems; see `benchmarks/optimize/brent.scipy.benchmark.md`
  * for the comparison table.
  *
  * @param f Function to minimize.
