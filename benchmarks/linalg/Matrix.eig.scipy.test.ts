@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Matrix } from '../../src/linalg/Matrix.js';
-import fixtures from './fixtures/Matrix.eig.scipy.json' with { type: 'json' };
+import fixtures from './Matrix.eig.scipy.json' with { type: 'json' };
 
 function sortIndices(values: Array<{ re: number; im: number }>): number[] {
     return values.map((_, index) => index).sort((a, b) => values[a].re - values[b].re || values[a].im - values[b].im);

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { rungeKuttaAdaptive } from '../../src/ode/rungeKuttaAdaptive.js';
 import type { DerivativeFunction, RungeKuttaAdaptiveMethod } from '../../src/ode/types.js';
-import fixtures from './fixtures/rungeKuttaAdaptive.scipy.json' with { type: 'json' };
+import fixtures from './rungeKuttaAdaptive.scipy.json' with { type: 'json' };
 
-// Must mirror CASES in scripts/benchmarks/generate_runge_kutta_adaptive_fixtures.py
+// Must mirror CASES in generate_runge_kutta_adaptive_fixtures.py
 // (same id, derivative, time span, and initial state).
 const DERIVATIVES: Record<string, DerivativeFunction> = {
     exponential_decay: (_t, y, out) => {

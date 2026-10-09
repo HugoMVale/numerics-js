@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { brent } from '../../src/optimize/brent.js';
-import fixtures from './fixtures/brent.scipy.json' with { type: 'json' };
+import fixtures from './brent.scipy.json' with { type: 'json' };
 
-// Must mirror CASES in scripts/benchmarks/generate_brent_fixtures.py
+// Must mirror CASES in generate_brent_fixtures.py
 // (same id, objective, and bracket endpoints).
 const OBJECTIVES: Record<string, (x: number) => number> = {
     quadratic: (x) => (x - 2) ** 2,

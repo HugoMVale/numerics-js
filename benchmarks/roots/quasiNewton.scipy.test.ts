@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { quasiNewton } from '../../src/roots/newton.js';
-import fixtures from './fixtures/quasiNewton.scipy.json' with { type: 'json' };
+import fixtures from './quasiNewton.scipy.json' with { type: 'json' };
 import {
     fExample65,
     fHelicalValley,
@@ -9,9 +9,9 @@ import {
     fPowellSingular,
     fRosenbrock,
     fTrigonometric,
-} from './testFunctions.js';
+} from '../../tests/roots/testFunctions.js';
 
-// Must mirror CASES in scripts/benchmarks/generate_quasi_newton_fixtures.py.
+// Must mirror CASES in generate_quasi_newton_fixtures.py.
 const TEST_FUNCTIONS: Record<string, (x: Vector) => Vector> = {
     rosenbrock: fRosenbrock.f,
     rosenbrock_100: fRosenbrock.f,

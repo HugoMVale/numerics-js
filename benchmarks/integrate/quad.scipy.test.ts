@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { quad } from '../../src/integrate/quad.js';
-import fixtures from './fixtures/quad.scipy.json' with { type: 'json' };
+import fixtures from './quad.scipy.json' with { type: 'json' };
 
-// Must mirror the CASES list in scripts/benchmarks/generate_quad_fixtures.py (same id, math, bounds).
+// Must mirror the CASES list in generate_quad_fixtures.py (same id, math, bounds).
 const INTEGRANDS: Record<string, (x: number) => number> = {
     sine: Math.sin,
     rational_pi: (x) => 4 / (1 + x * x),

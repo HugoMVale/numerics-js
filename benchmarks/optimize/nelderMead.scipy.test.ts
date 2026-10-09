@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { nelderMead } from '../../src/optimize/nelderMead.js';
-import { TEST_FUNCTIONS_MULTIVAR } from './testFunctions.js';
-import fixtures from './fixtures/nelderMead.scipy.json' with { type: 'json' };
+import { TEST_FUNCTIONS_MULTIVAR } from '../../tests/optimize/testFunctions.js';
+import fixtures from './nelderMead.scipy.json' with { type: 'json' };
 
-// Must mirror CASES in scripts/benchmarks/generate_nelder_mead_fixtures.py
+// Must mirror CASES in generate_nelder_mead_fixtures.py
 // (same id, objective, and starting point), which in turn mirror
 // TEST_FUNCTIONS_MULTIVAR in tests/optimize/testFunctions.ts for N = 2.
 const N = 2;

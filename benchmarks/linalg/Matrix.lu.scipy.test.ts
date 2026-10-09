@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Matrix } from '../../src/linalg/Matrix.js';
-import fixtures from './fixtures/Matrix.lu.scipy.json' with { type: 'json' };
+import fixtures from './Matrix.lu.scipy.json' with { type: 'json' };
 
 describe('Matrix.lu() vs scipy.linalg.lu reference values', () => {
     for (const fixture of fixtures) {
