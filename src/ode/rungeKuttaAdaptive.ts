@@ -348,8 +348,12 @@ export interface RungeKuttaAdaptiveOptions {
  *   success: true,
  *   message: 'Integration successful.',
  *   evaluations: 14,
- *   t: Vector [ 0, 0.14680437989650819, 1 ],
- *   y: Matrix [[1], [0.863462874659396], [0.3680228572282582]],
+ *   t: Vector { data: Float64Array(3) [ 0, 0.14680437989650819, 1 ] },
+ *   y: Matrix {
+ *     _rows: 3,
+ *     _cols: 1,
+ *     data: Float64Array(3) [ 1, 0.863462874659396, 0.3680228572282582 ]
+ *   }
  * }
  * ```
  *
