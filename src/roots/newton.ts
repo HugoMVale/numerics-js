@@ -126,13 +126,14 @@ export interface QuasiNewtonOptions {
  * priority, consider disabling the global strategy. For more challenging
  * problems, consider disabling Broyden's Jacobian update.
  *
- * Solving systems of nonlinear equations is a surprisingly complex task —
- * often more difficult than solving systems of differential equations or
- * even multivariate optimization problems. Convergence is guaranteed only
- * when the initial guess is sufficiently close to the root, which is rarely
- * true in practice. The choice of a good initial guess, appropriate scaling
- * factors, and a suitable global strategy is an essential part of solving
- * the problem.
+ * > [!Note] 
+ * > Solving systems of nonlinear equations is a surprisingly complex task —
+ * > often more difficult than solving systems of differential equations or
+ * > even multivariate optimization problems. Convergence is guaranteed only
+ * > when the initial guess is sufficiently close to the root, which is rarely
+ * > true in practice. The choice of a good initial guess, appropriate scaling
+ * > factors, and a suitable global strategy is an essential part of solving
+ * > the problem.
  *
  * Results are validated against `scipy.optimize.root` with `method="hybr"`. 
  * See the [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/roots/quasiNewton.scipy.benchmark.md).
