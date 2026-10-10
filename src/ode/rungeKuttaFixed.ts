@@ -195,8 +195,18 @@ export function rungeKuttaStep(
  *   success: true,
  *   message: 'Integration successful.',
  *   evaluations: 16,
- *   t: Vector [ 0, 0.25, 0.5, 0.75, 1 ],
- *   y: Matrix [[1], [0.7788085937500001], [0.6065428256988528], [0.472380765131675], [0.36789419940674883]],
+ *   t: Vector { data: Float64Array(5) [ 0, 0.25, 0.5, 0.75, 1 ] },
+ *   y: Matrix {
+ *     _rows: 5,
+ *     _cols: 1,
+ *     data: Float64Array(5) [
+ *       1,
+ *       0.7788085937500001,
+ *       0.6065428256988528,
+ *       0.472380765131675,
+ *       0.36789419940674883
+ *     ]
+ *   }
  * }
  * ```
  */
