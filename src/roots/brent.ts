@@ -57,7 +57,7 @@ const METHOD = 'brent';
  * function f1(x: number): number {
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
  * }
- * const result = brent(f1, 0, 1, { tolf: 1e-6 });
+ * const result = brent(f1, 0, 1, { tolx: 1e-15, tolf: 1e-12 });
  * console.log(result);
  * ```
  *
@@ -67,9 +67,9 @@ const METHOD = 'brent';
  *   method: 'brent',
  *   success: true,
  *   message: 'converged: |f(x)| below tolf',
- *   evaluations: 9,
- *   x: 0.5369737681040232,
- *   fx: 5.475264686083392e-11
+ *   evaluations: 10,
+ *   x: 0.5369737680962301,
+ *   fx: -2.220446049250313e-16
  * }
  * ```
  */
