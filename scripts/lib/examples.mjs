@@ -170,7 +170,7 @@ function extractExampleGroups(file) {
             for (const tag of tags) {
                 seen.add(tag.pos);
                 const text = ts.getTextOfJSDocComment(tag.comment) ?? '';
-                const match = /```ts\n([\s\S]*?)\n```/.exec(text);
+                const match = /```ts\r?\n([\s\S]*?)\r?\n```/.exec(text);
                 if (match) codes.push(match[1]);
             }
             if (codes.length > 0) groups.push(codes);
@@ -265,16 +265,20 @@ function createChecker() {
         paths: { 'numerics-js': [join(src, 'index')], 'numerics-js/*': [join(src, '*')] },
     };
     const virtual = join(root, '__example__.ts');
+    const canonicalFileName = ts.createGetCanonicalFileName(ts.sys.useCaseSensitiveFileNames);
+    const virtualPath = canonicalFileName(ts.normalizePath(virtual));
+    const isVirtual = (fileName) =>
+        canonicalFileName(ts.normalizePath(fileName)) === virtualPath;
     let previous;
     return (code) => {
         const host = ts.createCompilerHost(options);
         const readFile = host.readFile.bind(host);
         const fileExists = host.fileExists.bind(host);
         const getSourceFile = host.getSourceFile.bind(host);
-        host.readFile = (f) => (f === virtual ? code : readFile(f));
-        host.fileExists = (f) => f === virtual || fileExists(f);
+        host.readFile = (f) => (isVirtual(f) ? code : readFile(f));
+        host.fileExists = (f) => isVirtual(f) || fileExists(f);
         host.getSourceFile = (f, languageVersion, ...rest) =>
-            f === virtual ? ts.createSourceFile(f, code, languageVersion, true) : getSourceFile(f, languageVersion, ...rest);
+            isVirtual(f) ? ts.createSourceFile(f, code, languageVersion, true) : getSourceFile(f, languageVersion, ...rest);
         const program = ts.createProgram([virtual], options, host, previous);
         previous = program;
         const diagnostics = ts.getPreEmitDiagnostics(program, program.getSourceFile(virtual));
