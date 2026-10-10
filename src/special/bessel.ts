@@ -7,6 +7,18 @@ export interface BesselUtility {
      * Computes the Bessel function of the first kind for a non-negative
      * integer order.
      * @throws {RangeError} If `n` is not a non-negative integer.
+     *
+     * @example
+     * ```ts
+     * import { bessel } from 'numerics-js/special';
+     *
+     * console.log(bessel.J(0, 1));
+     * ```
+     *
+     * Output:
+     * ```text
+     * 0.7651976865579664
+     * ```
      */
     J(n: number, x: number): number;
     zerosCache: number[][];
@@ -15,6 +27,18 @@ export interface BesselUtility {
      * kind.
      * @throws {RangeError} If `m` is not a positive integer or `n` is not a
      * non-negative integer.
+     *
+     * @example
+     * ```ts
+     * import { bessel } from 'numerics-js/special';
+     *
+     * console.log(bessel.getZero(0, 1));
+     * ```
+     *
+     * Output:
+     * ```text
+     * 2.4048255577038584
+     * ```
      */
     getZero(n: number, m: number): number;
 }

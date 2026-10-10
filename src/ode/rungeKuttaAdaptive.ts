@@ -355,12 +355,22 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { rungeKuttaAdaptive, type DerivativeFunction } from 'numerics-js/ode';
+ *
  * // Same integration, with explicit tolerances and an initial step size.
+ * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
  * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]), {
  *     atol: 1e-8,
  *     rtol: 1e-8,
  *     h0: 0.01,
  * });
+ * console.log(result.y.get(result.y.rows - 1, 0));
+ * ```
+ *
+ * Output:
+ * ```text
+ * 0.3678794431779414
  * ```
  */
 export function rungeKuttaAdaptive(
