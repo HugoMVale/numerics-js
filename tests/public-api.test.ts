@@ -23,8 +23,8 @@ describe('public API', () => {
         expect(typeof numdiff.derivativeCentered).toBe('function');
         expect(typeof numdiff.jacobianForward).toBe('function');
         expect(typeof numdiff.scaleVector).toBe('function');
-        expect(typeof special.bessel.J).toBe('function');
-        expect(typeof special.bessel.getZero).toBe('function');
+        expect(typeof special.besselJ).toBe('function');
+        expect(typeof special.besselJZero).toBe('function');
         expect(typeof roots.bisection).toBe('function');
         expect(typeof roots.brent).toBe('function');
         expect(typeof roots.secant).toBe('function');

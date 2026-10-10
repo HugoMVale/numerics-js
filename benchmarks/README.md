@@ -35,3 +35,5 @@ sync when changing a benchmark.
 | [`optimize/`](./optimize/)   | Brent minimization           | [`brent.scipy.benchmark.md`](./optimize/brent.scipy.benchmark.md)                             |
 | [`optimize/`](./optimize/)   | Nelder-Mead minimization     | [`nelderMead.scipy.benchmark.md`](./optimize/nelderMead.scipy.benchmark.md)                   |
 | [`roots/`](./roots/)         | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                    |
+| [`special/`](./special/)     | Bessel function `J_n(x)`     | [`besselJ.scipy.benchmark.md`](./special/besselJ.scipy.benchmark.md)                          |
+| [`special/`](./special/)     | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                  |
