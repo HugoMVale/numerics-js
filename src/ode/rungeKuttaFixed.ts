@@ -47,7 +47,9 @@ function stagesPerStep(method: RungeKuttaFixedMethod): number {
 
 /**
  * Advances the state by one step using the requested explicit Runge-Kutta method.
- *
+ * 
+ * @internal
+ * 
  * @param method Which Runge-Kutta scheme to use: `'euler'` (order 1), `'midpoint'`
  * or `'trapezoid'` (order 2), or `'rk4'` (order 4, the classic 4-stage method).
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into the
