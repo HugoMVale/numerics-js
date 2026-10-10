@@ -95,7 +95,9 @@
         "typecheck": "tsc --noEmit",
         "build": "npm run clean && tsc -p tsconfig.build.json",
         "docs": "typedoc",
-        "prepare": "husky"
+        "prepare": "husky",
+        "docs:playground": "node scripts/build-playground.mjs",
+        "docs:site": "npm run build && npm run docs && npm run docs:playground"
     },
     "keywords": [
         "numerical-methods",
@@ -113,6 +115,7 @@
         "eslint": "^10.10.0",
         "husky": "^9.1.7",
         "katex": "^0.16.47",
+        "node-inspect-extracted": "^3.3.3",
         "typedoc": "^0.28.20",
         "typedoc-material-theme": "^1.4.1",
         "typescript": "^6.0.3",

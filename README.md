@@ -67,7 +67,9 @@ subpaths such as `numerics-js/linalg`, `numerics-js/ode`, and
 ## Documentation
 
 Read the [API reference](https://hugomvale.github.io/numerics-js/) for complete
-signatures, options, guarantees, and examples.
+signatures, options, guarantees, and examples. Every example there has a **Run**
+button that opens it in the [playground](https://hugomvale.github.io/numerics-js/playground/),
+where you can edit and run numerics-js code directly in your browser.
 
 ## Development
 

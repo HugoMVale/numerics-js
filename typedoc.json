@@ -15,6 +15,7 @@
     "out": "docs",
     "readme": "README.md",
     "name": "numerics-js API",
+    "customJs": "docs-assets/playground-links.js",
     "plugin": [
         "typedoc-material-theme"
     ],

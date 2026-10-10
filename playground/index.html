@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>numerics-js Playground</title>
+    <meta name="description" content="Try numerics-js live in your browser.">
+    <link rel="stylesheet" href="playground.css">
+</head>
+<body>
+    <header>
+        <a class="brand" href="../">numerics-js <span>Playground</span></a>
+        <span id="version" class="muted"></span>
+        <span class="spacer"></span>
+        <label class="muted" for="examples">Examples</label>
+        <select id="examples"></select>
+        <button id="run" class="primary" disabled title="Run (Ctrl/Cmd + Enter)">Run &#9654;</button>
+        <button id="stop" hidden>Stop</button>
+        <button id="share" disabled>Copy link</button>
+        <a href="../">API reference</a>
+    </header>
+    <main>
+        <section id="editor" aria-label="Code editor">
+            <p id="editor-status" class="muted">Loading editor&hellip;</p>
+        </section>
+        <section id="output" aria-label="Output">
+            <div class="output-head">
+                <span>Output</span>
+                <button id="clear" class="link">Clear</button>
+            </div>
+            <pre id="console" aria-live="polite"></pre>
+        </section>
+    </main>
+    <noscript>The playground needs JavaScript.</noscript>
+    <script type="module" src="playground.js"></script>
+</body>
+</html>
