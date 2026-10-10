@@ -19,20 +19,27 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
  * @example
  * ```ts
  * import { Vector } from 'numerics-js/linalg';
- * import { dormandPrince45, wrapAllocatingDerivative } from 'numerics-js/ode';
+ * import { rungeKuttaAdaptive, wrapAllocatingDerivative } from 'numerics-js/ode';
  *
  * // Exponential decay: dy/dt = -y
  * const f = wrapAllocatingDerivative((t, y) => y.copy().multSelf(-1));
- * const result = dormandPrince45(f, 0, 1, new Vector([1]));
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]));
  * console.log(result);
  * ```
  *
  * Output:
  * ```text
  * {
- *   t: Vector [ 0, 0.14680437989650819, 1 ],
- *   y: Matrix [[1], [0.863462874659396], [0.3680228572282582]],
- *   method: 'dp54'
+ *   method: 'rk45',
+ *   success: true,
+ *   message: 'Integration successful.',
+ *   evaluations: 14,
+ *   t: Vector { data: Float64Array(3) [ 0, 0.14680437989650819, 1 ] },
+ *   y: Matrix {
+ *     _rows: 3,
+ *     _cols: 1,
+ *     data: Float64Array(3) [ 1, 0.863462874659396, 0.3680228572282582 ]
+ *   }
  * }
  * ```
  */
