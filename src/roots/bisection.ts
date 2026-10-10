@@ -45,8 +45,26 @@ function stableMidpoint(xa: number, xb: number): number {
  *
  * @example
  * ```ts
+ * import { bisection } from 'numerics-js/roots';
+ *
  * // Overriding a single option; unspecified options keep their defaults.
- * const result = bisection(f1, 0, 1, { maxIter: 100 });
+ * function f1(x: number): number {
+ *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
+ * }
+ * const result = bisection(f1, 0, 1, { tolx: 1e-6 });
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   method: 'bisection',
+ *   success: true,
+ *   message: 'converged: interval half-width below tolx',
+ *   evaluations: 22,
+ *   x: 0.5369729995727539,
+ *   fx: -0.0000053995149571495205
+ * }
  * ```
  */
 export function bisection(

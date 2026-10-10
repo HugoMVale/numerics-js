@@ -51,8 +51,26 @@ const METHOD = 'brent';
  *
  * @example
  * ```ts
+ * import { brent } from 'numerics-js/roots';
+ *
  * // Overriding a single option; unspecified options keep their defaults.
- * const result = brent(f1, 0, 1, { maxIter: 100 });
+ * function f1(x: number): number {
+ *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
+ * }
+ * const result = brent(f1, 0, 1, { tolf: 1e-6 });
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   method: 'brent',
+ *   success: true,
+ *   message: 'converged: |f(x)| below tolf',
+ *   evaluations: 9,
+ *   x: 0.5369737681040232,
+ *   fx: 5.475264686083392e-11
+ * }
  * ```
  */
 export function brent(

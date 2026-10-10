@@ -46,8 +46,26 @@ const METHOD = 'secant';
  *
  * @example
  * ```ts
+ * import { secant } from 'numerics-js/roots';
+ *
  * // Overriding a single option; unspecified options keep their defaults.
- * const result = secant(f1, 0, 1, { maxIter: 100 });
+ * function f1(x: number): number {
+ *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;
+ * }
+ * const result = secant(f1, 0, 1, { tolx: 1e-6 });
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   method: 'secant',
+ *   success: true,
+ *   message: 'converged: step size below tolx',
+ *   evaluations: 9,
+ *   x: 0.5369737680249199,
+ *   fx: -5.010138970362732e-10
+ * }
  * ```
  */
 export function secant(
