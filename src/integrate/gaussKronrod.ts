@@ -72,6 +72,7 @@ function halfLength(a: number, b: number): number {
 /**
  * Applies the 7-15 Gauss-Kronrod rule to one panel and returns the
  * embedded Gauss and Kronrod estimates.
+ * 
  * @internal
  *
  * @param evalF Instrumented function evaluator.
