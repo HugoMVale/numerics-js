@@ -44,6 +44,8 @@ export type StepFn = (state: VerletState, dt: number) => void;
  *   the same length as the others (reused every call to avoid allocations).
  *
  * @example
+ * import { createVelocityVerlet, type VerletState } from 'numerics-js/ode/verlet';
+ *
  * const step = createVelocityVerlet((u, v, aOut) => {
  *   // e.g. constant gravity
  *   for (let i = 0; i < aOut.length; i++) aOut[i] = -9.81;

@@ -162,6 +162,9 @@ export interface QuasiNewtonOptions {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { quasiNewton } from 'numerics-js/roots';
+ *
  * // Steady-state concentrations of A, B, C at the outlet of a CSTR with a
  * // consecutive reaction scheme A+B->C, C+B->D.
  * const A0 = 1.0, B0 = 2.0, C0 = 0.0, k1 = 1e-3, k2 = 5e-4, tau = 1e3;

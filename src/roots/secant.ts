@@ -22,6 +22,8 @@ const METHOD = 'secant';
  *
  * @example
  * ```ts
+ * import { secant } from 'numerics-js/roots';
+ *
  * // Test for scalar root-finding methods.
  * function f1(x: number): number {
  *     return 2 * x ** 3 + 4 * x ** 2 + x - 2;

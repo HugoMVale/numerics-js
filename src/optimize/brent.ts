@@ -42,6 +42,8 @@ export interface BrentResult {
  *
  * @example
  * ```ts
+ * import { brent } from 'numerics-js/optimize';
+ *
  * const f = (x: number): number => x ** 4 - x + 1;
  * const result = brent(f, -3.0, 3.0);
  * console.log(result);

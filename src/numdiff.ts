@@ -20,6 +20,9 @@ const EPS = Number.EPSILON;
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { scaleVector } from 'numerics-js/numdiff';
+ *
  * const x = Vector.from([1e-2, 0.0, 1.0, 1e3]);
  * const scaled = scaleVector(x);
  * console.log(scaled.toString());
@@ -99,6 +102,9 @@ export function scaleVector(x: Vector): Vector {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { jacobianForward } from 'numerics-js/numdiff';
+ *
  * // Evaluate the numerical Jacobian of `f(x) = [x0**2 * x1**3]` at `(2, -2)`.
  * const f = (x: Vector) => Vector.from([Math.pow(x.get(0), 2) * Math.pow(x.get(1), 3)]);
  * const x = Vector.from([2.0, -2.0]);
@@ -174,6 +180,8 @@ export function jacobianForward(
  *
  * @example
  * ```ts
+ * import { derivativeCentered } from 'numerics-js/numdiff';
+ *
  * // Evaluate the numerical derivative of `f(x) = x**3` at `x = 1`.
  * const f = (x: number) => x ** 3;
  * const [df, fx] = derivativeCentered(f, 1.0);

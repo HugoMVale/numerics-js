@@ -18,6 +18,9 @@ import { Vector } from '../linalg/Vector.js';
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { trapezoid } from 'numerics-js/integrate';
+ *
  * const y = Vector.from([0, 1, 2, 3, 4]);
  * const integral = trapezoid(y);
  * console.log(`integral = ${integral}`);

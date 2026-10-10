@@ -135,6 +135,8 @@ export function gaussKronrod15(
  *
  * @example
  * ```ts
+ * import { gaussKronrod } from 'numerics-js/integrate';
+ *
  * // Integrate an oscillatory function that requires adaptive subdivision.
  * const result = gaussKronrod(x => Math.sin(100 * x), 0, 1);
  * console.log(result);

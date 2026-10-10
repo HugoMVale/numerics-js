@@ -70,6 +70,9 @@ function stagesPerStep(method: RungeKuttaFixedMethod): number {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { rungeKuttaStep, type DerivativeFunction } from 'numerics-js/ode';
+ *
  * // Exponential decay: dy/dt = -y
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
  * const out = new Vector(1);
@@ -174,6 +177,9 @@ export function rungeKuttaStep(
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { rungeKuttaFixed, type DerivativeFunction } from 'numerics-js/ode';
+ *
  * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
  * const result = rungeKuttaFixed('rk4', f, 0, 1, new Vector([1]), 0.25);

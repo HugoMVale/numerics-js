@@ -148,6 +148,8 @@ function getFullyInfiniteTransform(): QuadTransform {
  * 
  * @example
  * ```ts
+ * import { quad } from 'numerics-js/integrate';
+ *
  * // Integrate a function over a finite interval.
  * const result = quad(x => x * x, 0, 1);
  * console.log(result);

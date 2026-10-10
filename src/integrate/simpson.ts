@@ -56,6 +56,9 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { simpson } from 'numerics-js/integrate';
+ *
  * // Integrate `y = x^2` at non-uniform sample locations.
  * const x = Vector.from([0, 1, 3]);
  * const y = Vector.from([0, 1, 9]);

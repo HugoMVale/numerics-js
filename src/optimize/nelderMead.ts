@@ -156,6 +156,9 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { nelderMead } from 'numerics-js/optimize';
+ *
  * // Find the minimum of `f(x) = (x0 - 100)^2 + (x1 - 1e10)^2`
  * const f = (x: Vector): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
  * const result = nelderMead(f, [1, 1e8]);

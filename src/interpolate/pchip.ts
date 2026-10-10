@@ -295,6 +295,8 @@ function computeMonotonicDerivativesND(xp: Vector, fp: Matrix): Matrix {
  *
  * @example
  * ```ts
+ * import { PchipInterpolator1D } from 'numerics-js/interpolate';
+ *
  * const f = new PchipInterpolator1D([1, 2, 3], [3, 2, 0]);
  * f.eval(2.5); // 1.1458333333333335
  * f.eval([0, 1.5, 3.14]); // Vector(3, 2.6041666666666665, 0)
@@ -467,6 +469,9 @@ export class PchipInterpolator1D {
  *
  * @example
  * ```ts
+ * import { Matrix } from 'numerics-js/linalg';
+ * import { PchipInterpolatorND } from 'numerics-js/interpolate';
+ *
  * const f = new PchipInterpolatorND([1, 2, 3], Matrix.from([[3, 0], [2, 1], [0, 4]]));
  * f.eval(2.5); // Vector(1.1458333333333333, 2.5208333333333335)
  * ```

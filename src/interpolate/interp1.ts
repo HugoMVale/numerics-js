@@ -185,6 +185,8 @@ function linearDerivativeManyND(x: number[] | Vector, xp: Vector, fp: Matrix, ca
  *
  * @example
  * ```ts
+ * import { LinearInterpolator1D } from 'numerics-js/interpolate';
+ *
  * const f = new LinearInterpolator1D([1, 2, 3], [3, 2, 0]);
  * f.eval(2.5); // 1
  * f.eval([0, 1.5, 3.14]); // Vector(3, 2.5, 0)
@@ -335,6 +337,9 @@ export class LinearInterpolator1D {
  * 
  * @example
  * ```ts
+ * import { Matrix } from 'numerics-js/linalg';
+ * import { LinearInterpolatorND } from 'numerics-js/interpolate';
+ *
  * const f = new LinearInterpolatorND([0, 1, 2], Matrix.from([[0, 0], [1, 2], [4, 2]]));
  * f.eval(0.5); // Vector(0.5, 1)
  * f.eval([0, 1.5]); // Matrix [[0, 0], [2.5, 2]]
@@ -516,6 +521,8 @@ export class LinearInterpolatorND {
  *
  * @example
  * ```ts
+ * import { interp1D } from 'numerics-js/interpolate';
+ *
  * const xp = [1, 2, 3];
  * const fp = [3, 2, 0];
  * interp1D(2.5, xp, fp); // 1
@@ -584,6 +591,9 @@ export function interp1D(
  *
  * @example
  * ```ts
+ * import { Matrix } from 'numerics-js/linalg';
+ * import { interpND } from 'numerics-js/interpolate';
+ *
  * const xp = [0, 1, 2];
  * const fp = Matrix.from([[0, 0], [1, 2], [4, 2]]);
  * interpND(0.5, xp, fp); // Vector(0.5, 1)

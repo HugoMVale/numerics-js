@@ -332,6 +332,9 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { rungeKuttaAdaptive, type DerivativeFunction } from 'numerics-js/ode';
+ *
  * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
  * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]));
