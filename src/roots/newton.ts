@@ -169,20 +169,58 @@ export interface QuasiNewtonOptions {
  * // consecutive reaction scheme A+B->C, C+B->D.
  * const A0 = 1.0, B0 = 2.0, C0 = 0.0, k1 = 1e-3, k2 = 5e-4, tau = 1e3;
  * const f = (x: Vector) => {
- *     const [A, B, C] = x;
+ *     const A = x.get(0);
+ *     const B = x.get(1);
+ *     const C = x.get(2);
  *     return Vector.from([
  *         (A0 - A) / tau - k1 * A * B,
  *         (B0 - B) / tau - k1 * A * B,
  *         (C0 - C) / tau + k1 * A * B - k2 * C * B,
  *     ]);
  * };
- * const sol = quasiNewton(f, Vector.from([0.5, 1.0, 0.5]));
- * console.log(sol.x.toString());
+ * const result = quasiNewton(f, Vector.from([0.5, 1.0, 0.5]));
+ * console.log(result);
  * ```
  *
  * Output:
  * ```text
- * Vector(0.4142135642138721, 1.4142135642135265, 0.34314574906501627)
+ * {
+ *   method: 'Quasi-Newton (Global: Dogleg, Broyden update)',
+ *   success: true,
+ *   message: '||sclf*f(x)||∞ ≤ tolf',
+ *   evaluationsFunction: 11,
+ *   evaluationsJacobian: 0,
+ *   iterations: 5,
+ *   x: Vector {
+ *     data: Float64Array(3) [
+ *       0.41421352884099183,
+ *       1.41421352884099,
+ *       0.34314585087266003
+ *     ]
+ *   },
+ *   fx: Vector {
+ *     data: Float64Array(3) [
+ *       9.484310992818878e-11,
+ *       9.484311166291226e-11,
+ *       -2.2689164606913385e-10
+ *     ]
+ *   },
+ *   Jx: Matrix {
+ *     _rows: 3,
+ *     _cols: 3,
+ *     data: Float64Array(9) [
+ *       -0.002258737205195089,
+ *       -0.0006576136302667394,
+ *       -0.0000327507748313307,
+ *       -0.001258737204565406,
+ *       -0.0016576136324643798,
+ *       -0.00003275077541458123,
+ *       0.0013170456146685168,
+ *       0.0005501917069028699,
+ *       -0.001628743353253245
+ *     ]
+ *   }
+ * }
  * ```
  */
 export function quasiNewton(
