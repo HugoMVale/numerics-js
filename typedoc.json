@@ -15,7 +15,10 @@
     "out": "docs",
     "readme": "README.md",
     "name": "numerics-js API",
-    "customJs": "docs-assets/playground-links.js",
+    "navigationLinks": {
+        "GitHub": "https://github.com/HugoMVale/numerics-js"
+    },
+    "customJs": "docs-assets/site-customizations.js",
     "plugin": [
         "typedoc-material-theme"
     ],
