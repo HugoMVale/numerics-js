@@ -32,6 +32,7 @@ sync when changing a benchmark.
 | [`linalg/`](./linalg/)       | LU factorization             | [`Matrix.lu.scipy.benchmark.md`](./linalg/Matrix.lu.scipy.benchmark.md)                       |
 | [`linalg/`](./linalg/)       | QR factorization             | [`Matrix.qr.scipy.benchmark.md`](./linalg/Matrix.qr.scipy.benchmark.md)                       |
 | [`ode/`](./ode/)             | Adaptive Runge-Kutta         | [`rungeKuttaAdaptive.scipy.benchmark.md`](./ode/rungeKuttaAdaptive.scipy.benchmark.md)        |
+| [`ode/`](./ode/)             | Adaptive TR-BDF2 (stiff)     | [`trBdf2Adaptive.scipy.benchmark.md`](./ode/trBdf2Adaptive.scipy.benchmark.md)                |
 | [`optimize/`](./optimize/)   | Brent minimization           | [`brent.scipy.benchmark.md`](./optimize/brent.scipy.benchmark.md)                             |
 | [`optimize/`](./optimize/)   | Nelder-Mead minimization     | [`nelderMead.scipy.benchmark.md`](./optimize/nelderMead.scipy.benchmark.md)                   |
 | [`roots/`](./roots/)         | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                    |

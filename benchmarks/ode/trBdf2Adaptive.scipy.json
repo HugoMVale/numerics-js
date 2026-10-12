@@ -1,0 +1,390 @@
+[
+    {
+        "id": "prothero_robinson",
+        "description": "y' = -1e5 (y - sin t) + cos t, y(0) = 1, on [0, 2]",
+        "t0": 0.0,
+        "tEnd": 2.0,
+        "y0": [
+            1.0
+        ],
+        "reference": {
+            "method": "Radau",
+            "atol": 1e-12,
+            "rtol": 1e-11,
+            "finalY": [
+                0.9092974268257343
+            ]
+        },
+        "settings": [
+            {
+                "name": "default",
+                "atol": 1e-06,
+                "rtol": 0.001,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            0.9092978079039042
+                        ],
+                        "steps": 24,
+                        "evaluations": 176,
+                        "jacobians": 1,
+                        "decompositions": 26
+                    },
+                    "bdf": {
+                        "finalY": [
+                            0.9092974221400765
+                        ],
+                        "steps": 72,
+                        "evaluations": 146,
+                        "jacobians": 1,
+                        "decompositions": 20
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            0.9092586817671797
+                        ],
+                        "steps": 70,
+                        "evaluations": 130,
+                        "jacobians": 6,
+                        "decompositions": 6
+                    }
+                }
+            },
+            {
+                "name": "tight",
+                "atol": 1e-08,
+                "rtol": 1e-05,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            0.9092979942723798
+                        ],
+                        "steps": 61,
+                        "evaluations": 435,
+                        "jacobians": 1,
+                        "decompositions": 36
+                    },
+                    "bdf": {
+                        "finalY": [
+                            0.9092974270289589
+                        ],
+                        "steps": 140,
+                        "evaluations": 282,
+                        "jacobians": 1,
+                        "decompositions": 31
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            0.9092974233246173
+                        ],
+                        "steps": 138,
+                        "evaluations": 274,
+                        "jacobians": 13,
+                        "decompositions": 13
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "id": "robertson",
+        "description": "Robertson chemical kinetics on [0, 1e4]",
+        "t0": 0.0,
+        "tEnd": 10000.0,
+        "y0": [
+            1.0,
+            0.0,
+            0.0
+        ],
+        "reference": {
+            "method": "Radau",
+            "atol": 1e-12,
+            "rtol": 1e-11,
+            "finalY": [
+                0.10730042854069997,
+                4.80016697271651e-07,
+                0.8926990914426044
+            ]
+        },
+        "settings": [
+            {
+                "name": "default",
+                "atol": 1e-06,
+                "rtol": 0.001,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            0.107304937606537,
+                            4.800389248993644e-07,
+                            0.8926945823545379
+                        ],
+                        "steps": 33,
+                        "evaluations": 323,
+                        "jacobians": 18,
+                        "decompositions": 78
+                    },
+                    "bdf": {
+                        "finalY": [
+                            0.10744428967434445,
+                            4.807343693570804e-07,
+                            0.8925552295912862
+                        ],
+                        "steps": 84,
+                        "evaluations": 210,
+                        "jacobians": 8,
+                        "decompositions": 31
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            0.10738069064569572,
+                            4.804182336486717e-07,
+                            0.8926188289441661
+                        ],
+                        "steps": 105,
+                        "evaluations": 209,
+                        "jacobians": 20,
+                        "decompositions": 20
+                    }
+                }
+            },
+            {
+                "name": "tight",
+                "atol": 1e-08,
+                "rtol": 1e-05,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            0.10730047612267293,
+                            4.800169436088605e-07,
+                            0.8926990438603835
+                        ],
+                        "steps": 79,
+                        "evaluations": 681,
+                        "jacobians": 30,
+                        "decompositions": 134
+                    },
+                    "bdf": {
+                        "finalY": [
+                            0.10729589779836862,
+                            4.799940343431263e-07,
+                            0.8927036222075977
+                        ],
+                        "steps": 184,
+                        "evaluations": 523,
+                        "jacobians": 8,
+                        "decompositions": 48
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            0.10730290067435454,
+                            4.800290874334104e-07,
+                            0.8926966192964291
+                        ],
+                        "steps": 239,
+                        "evaluations": 469,
+                        "jacobians": 36,
+                        "decompositions": 36
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "id": "van_der_pol_mu1000",
+        "description": "Van der Pol oscillator, mu = 1000, on [0, 1500]",
+        "t0": 0.0,
+        "tEnd": 1500.0,
+        "y0": [
+            2.0,
+            0.0
+        ],
+        "reference": {
+            "method": "Radau",
+            "atol": 1e-12,
+            "rtol": 1e-11,
+            "finalY": [
+                -1.3547459194872697,
+                0.0016217887275948833
+            ]
+        },
+        "settings": [
+            {
+                "name": "default",
+                "atol": 1e-06,
+                "rtol": 0.001,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            -1.3547508903640093,
+                            0.001621764186718334
+                        ],
+                        "steps": 110,
+                        "evaluations": 1129,
+                        "jacobians": 38,
+                        "decompositions": 186
+                    },
+                    "bdf": {
+                        "finalY": [
+                            -1.341367050560568,
+                            0.0016781462906169256
+                        ],
+                        "steps": 211,
+                        "evaluations": 703,
+                        "jacobians": 35,
+                        "decompositions": 78
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            -1.3452272265958047,
+                            0.0016615115647209792
+                        ],
+                        "steps": 278,
+                        "evaluations": 692,
+                        "jacobians": 53,
+                        "decompositions": 53
+                    }
+                }
+            },
+            {
+                "name": "tight",
+                "atol": 1e-08,
+                "rtol": 1e-05,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            -1.354745732059499,
+                            0.001621789446145211
+                        ],
+                        "steps": 279,
+                        "evaluations": 2514,
+                        "jacobians": 74,
+                        "decompositions": 252
+                    },
+                    "bdf": {
+                        "finalY": [
+                            -1.3546499327076762,
+                            0.0016221788261069714
+                        ],
+                        "steps": 462,
+                        "evaluations": 1416,
+                        "jacobians": 43,
+                        "decompositions": 115
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            -1.3545703966526872,
+                            0.0016225022648522808
+                        ],
+                        "steps": 538,
+                        "evaluations": 1151,
+                        "jacobians": 77,
+                        "decompositions": 77
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "id": "stiff_linear_chain",
+        "description": "Linear chain with rates -1000, -1, -0.1 on [0, 20]",
+        "t0": 0.0,
+        "tEnd": 20.0,
+        "y0": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "reference": {
+            "method": "Radau",
+            "atol": 1e-12,
+            "rtol": 1e-11,
+            "finalY": [
+                0.0001503875754578922,
+                0.1503725367005527,
+                0.13533528323661273
+            ]
+        },
+        "settings": [
+            {
+                "name": "default",
+                "atol": 1e-06,
+                "rtol": 0.001,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            0.00015038960017524334,
+                            0.15037456123372983,
+                            0.13533712359589606
+                        ],
+                        "steps": 23,
+                        "evaluations": 175,
+                        "jacobians": 2,
+                        "decompositions": 32
+                    },
+                    "bdf": {
+                        "finalY": [
+                            0.00015024776126055467,
+                            0.1502327308867067,
+                            0.13520386567382828
+                        ],
+                        "steps": 70,
+                        "evaluations": 148,
+                        "jacobians": 1,
+                        "decompositions": 18
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            0.0001505620670469045,
+                            0.15054701060698047,
+                            0.13549207706928598
+                        ],
+                        "steps": 74,
+                        "evaluations": 162,
+                        "jacobians": 11,
+                        "decompositions": 11
+                    }
+                }
+            },
+            {
+                "name": "tight",
+                "atol": 1e-08,
+                "rtol": 1e-05,
+                "scipy": {
+                    "radau": {
+                        "finalY": [
+                            0.00015038758187986713,
+                            0.15037254312189338,
+                            0.1353352890237139
+                        ],
+                        "steps": 68,
+                        "evaluations": 490,
+                        "jacobians": 2,
+                        "decompositions": 44
+                    },
+                    "bdf": {
+                        "finalY": [
+                            0.0001503870395721642,
+                            0.1503720009371917,
+                            0.13533486975918604
+                        ],
+                        "steps": 144,
+                        "evaluations": 306,
+                        "jacobians": 1,
+                        "decompositions": 30
+                    },
+                    "lsoda": {
+                        "finalY": [
+                            0.00015038616045629267,
+                            0.1503711218316867,
+                            0.13533400109679392
+                        ],
+                        "steps": 138,
+                        "evaluations": 286,
+                        "jacobians": 12,
+                        "decompositions": 12
+                    }
+                }
+            }
+        ]
+    }
+]

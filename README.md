@@ -54,7 +54,7 @@ console.log(accumulatedHeat.value);
 - `integrate`: sampled-data rules and adaptive quadrature, including infinite intervals.
 - `interpolate`: linear and shape-preserving interpolation for scalar and vector-valued data.
 - `numdiff`: finite-difference derivatives and Jacobians.
-- `ode`: fixed-step and adaptive Runge-Kutta solvers, plus velocity Verlet integration.
+- `ode`: fixed-step and adaptive Runge-Kutta solvers, an adaptive implicit solver for stiff problems, plus velocity Verlet integration.
 - `optimize`: scalar Brent minimization and multidimensional Nelder-Mead optimization.
 - `roots`: scalar bisection, Brent, and secant methods, plus quasi-Newton system solving.
 - `special`: Bessel functions of the first kind and their positive zeros.
