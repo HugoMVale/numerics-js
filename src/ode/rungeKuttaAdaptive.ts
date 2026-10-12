@@ -1,6 +1,7 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
+import { estimateInitialStep } from './stepControl.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
 
 /**
@@ -185,64 +186,6 @@ function adaptiveErrorNorm(
 }
 
 /**
- * Estimates a reasonable initial step size using Hairer, Norsett & Wanner's algorithm.
- */
-function estimateInitialStep(
-    f: DerivativeFunction,
-    t0: number,
-    y0: Vector,
-    dir: 1 | -1,
-    atol: number,
-    rtol: number,
-    order: number,
-    scratch: AdaptiveScratch
-): number {
-    const dim = y0.size;
-    const f0 = scratch.k1;
-    f(t0, y0, f0);
-
-    const yd = y0.data;
-    const f0d = f0.data;
-
-    let d0Sq = 0;
-    let d1Sq = 0;
-    for (let i = 0; i < dim; i++) {
-        const scale = atol + rtol * Math.abs(yd[i]);
-        d0Sq += (yd[i] / scale) ** 2;
-        d1Sq += (f0d[i] / scale) ** 2;
-    }
-    const d0 = Math.sqrt(d0Sq / dim);
-    const d1 = Math.sqrt(d1Sq / dim);
-
-    const h0 = d0 < 1e-5 || d1 < 1e-5 ? 1e-6 : 0.01 * (d0 / d1);
-
-    const y1 = scratch.yTemp;
-    const y1d = y1.data;
-    for (let i = 0; i < dim; i++) {
-        y1d[i] = yd[i] + dir * h0 * f0d[i];
-    }
-    const f1 = scratch.k2;
-    f(t0 + dir * h0, y1, f1);
-    const f1d = f1.data;
-
-    let d2Sq = 0;
-    for (let i = 0; i < dim; i++) {
-        const scale = atol + rtol * Math.abs(yd[i]);
-        d2Sq += ((f1d[i] - f0d[i]) / scale) ** 2;
-    }
-    const d2 = Math.sqrt(d2Sq / dim) / h0;
-
-    let h1: number;
-    if (Math.max(d1, d2) <= 1e-15) {
-        h1 = Math.max(1e-6, h0 * 1e-3);
-    } else {
-        h1 = Math.pow(0.01 / Math.max(d1, d2), 1 / (order + 1));
-    }
-
-    return dir * Math.min(100 * h0, h1);
-}
-
-/**
  * Optional tuning parameters for {@link rungeKuttaAdaptive}.
  */
 export interface RungeKuttaAdaptiveOptions {
@@ -348,6 +291,8 @@ export interface RungeKuttaAdaptiveOptions {
  *   success: true,
  *   message: 'Integration successful.',
  *   evaluations: 14,
+ *   evaluationsJacobian: 0,
+ *   decompositions: 0,
  *   t: Vector { data: Float64Array(3) [ 0, 0.14680437989650819, 1 ] },
  *   y: Matrix {
  *     _rows: 3,
@@ -424,6 +369,8 @@ export function rungeKuttaAdaptive(
             success: true,
             message: 'Integration successful.',
             evaluations: 0,
+            evaluationsJacobian: 0,
+            decompositions: 0,
             t: tVec,
             y: yMat,
         };
@@ -465,7 +412,7 @@ export function rungeKuttaAdaptive(
     if (h0 !== undefined) {
         h = dir * Math.abs(h0);
     } else {
-        h = estimateInitialStep(f, t0, y, dir, atol, rtol, methodOrder, scratch);
+        h = estimateInitialStep(f, t0, y, dir, atol, rtol, methodOrder, scratch.k1, scratch.k2, scratch.yTemp);
         k1Ready = true;
     }
     h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
@@ -479,7 +426,7 @@ export function rungeKuttaAdaptive(
         for (let i = 0; i < tBuf.length; i++) {
             yMat.setRow(i, yBuf[i]);
         }
-        return { method, success, message, evaluations, t: tVec, y: yMat };
+        return { method, success, message, evaluations, evaluationsJacobian: 0, decompositions: 0, t: tVec, y: yMat };
     };
 
     let steps = 0;

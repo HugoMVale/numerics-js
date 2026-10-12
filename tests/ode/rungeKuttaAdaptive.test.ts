@@ -29,6 +29,17 @@ describe('rungeKuttaAdaptive additional coverage', () => {
         expect(result.message).toBe('Integration successful.');
     });
 
+    it.each(methods)('(%s) reports zero Jacobian evaluations and LU decompositions', (method) => {
+        const f: DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
+        const result = rungeKuttaAdaptive(method, f, 0, 1, new Vector([1]));
+        const trivial = rungeKuttaAdaptive(method, f, 1, 1, new Vector([1]));
+
+        expect(result.evaluationsJacobian).toBe(0);
+        expect(result.decompositions).toBe(0);
+        expect(trivial.evaluationsJacobian).toBe(0);
+        expect(trivial.decompositions).toBe(0);
+    });
+
     it.each(methods)('(%s) accepts an explicit initial step size h0', (method) => {
         const f: DerivativeFunction = (t, y, out) => { out.data[0] = -y.data[0]; return out; };
         const y0 = new Vector([1]);

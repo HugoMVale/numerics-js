@@ -34,6 +34,8 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
  *   success: true,
  *   message: 'Integration successful.',
  *   evaluations: 14,
+ *   evaluationsJacobian: 0,
+ *   decompositions: 0,
  *   t: Vector { data: Float64Array(3) [ 0, 0.14680437989650819, 1 ] },
  *   y: Matrix {
  *     _rows: 3,
