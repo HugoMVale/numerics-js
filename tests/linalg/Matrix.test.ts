@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
-import { Matrix, type Eigenvalue, type Eigenpair } from '../../src/linalg/Matrix.js';
+import { Matrix, type Eigenvalue, type Eigenpair, type LUDecomposition } from '../../src/linalg/Matrix.js';
 import { rand } from '../../src/math.js';
 
 /** Exact 1-norm condition number via an explicit inverse, used as ground truth. */
@@ -201,6 +201,144 @@ describe('Matrix', () => {
             expect(U.get(0, 0)).toBe(7);
             expect(perm).toEqual([0]);
             expect(sign).toBe(1);
+        });
+    });
+
+    describe('lu(out), luSolve() and the out argument of the triangular solves', () => {
+        const a1: Matrix = Matrix.from([
+            [0, 2, 1],
+            [4, 1, -1],
+            [2, 5, 3],
+        ]); // needs pivoting
+        const a2: Matrix = Matrix.from([
+            [3, 0, 0],
+            [0, 2, 0],
+            [0, 0, 5],
+        ]); // diagonal: no multipliers at all
+
+        const expectSameFactorization = (x: LUDecomposition, y: LUDecomposition) => {
+            expect(x.L.data).toEqual(y.L.data);
+            expect(x.U.data).toEqual(y.U.data);
+            expect(x.perm).toEqual(y.perm);
+            expect(x.sign).toBe(y.sign);
+        };
+
+        it('lu(out) fills and returns the given storage, giving the same factorization as lu()', () => {
+            const out = a2.lu();
+            const result = a1.lu(out);
+            expect(result).toBe(out);
+            expectSameFactorization(result, a1.lu());
+        });
+
+        it('lu(out) leaves no stale entries from the previous factorization', () => {
+            const out = a1.lu(); // L has non-zero multipliers, perm is not the identity
+            const result = a2.lu(out);
+            expect(result).toBe(out);
+            expectSameFactorization(result, a2.lu());
+            expect(result.perm).toEqual([0, 1, 2]);
+            expect(result.sign).toBe(1);
+        });
+
+        it('lu(out) does not modify the input matrix', () => {
+            const a = a1.copy();
+            a.lu(a2.lu());
+            expect(a.data).toEqual(a1.data);
+        });
+
+        it('factors in place when the matrix is out.U', () => {
+            const out = a2.lu();
+            out.U.data.set(a1.data);
+            const result = out.U.lu(out);
+            expect(result).toBe(out);
+            expectSameFactorization(result, a1.lu());
+        });
+
+        it('returns an exactly upper-triangular U and a unit-lower-triangular L', () => {
+            const { L, U } = a1.lu();
+            for (let i = 0; i < 3; i++) {
+                expect(L.get(i, i)).toBe(1);
+                for (let j = 0; j < i; j++) expect(U.get(i, j)).toBe(0);
+                for (let j = i + 1; j < 3; j++) expect(L.get(i, j)).toBe(0);
+            }
+        });
+
+        it('lu(out) rejects an out that does not match the matrix, or aliases L', () => {
+            expect(() => a1.lu(Matrix.identity(2).lu())).toThrowError(RangeError);
+            const bad = a1.lu();
+            bad.perm.pop();
+            expect(() => a1.lu(bad)).toThrowError(RangeError);
+            const out = a2.lu();
+            expect(() => out.L.lu(out)).toThrowError(RangeError);
+        });
+
+        it('lu(out) still throws on a singular matrix', () => {
+            const singular: Matrix = new Matrix(2, 2, [1, 2, 2, 4]);
+            expect(() => singular.lu(Matrix.identity(2).lu())).toThrowError(/singular/);
+        });
+
+        it('luSolve solves A x = b and agrees with solve()', () => {
+            const b = new Vector([1, 2, 3]);
+            const x = Matrix.luSolve(a1.lu(), b);
+            expect(a1.mulVec(x).allClose(b)).toBe(true);
+            expect(x.allClose(a1.solve(b))).toBe(true);
+        });
+
+        it('luSolve can be reused for several right-hand sides, with or without out', () => {
+            const decomposition = a1.lu();
+            const out = new Vector(3);
+            for (const b of [new Vector([1, 0, 0]), new Vector([0, 1, 0]), new Vector([5, -2, 7])]) {
+                const x = Matrix.luSolve(decomposition, b, out);
+                expect(x).toBe(out);
+                expect(a1.mulVec(x).allClose(b)).toBe(true);
+            }
+        });
+
+        it('luSolve leaves b untouched and rejects out === b', () => {
+            const decomposition = a1.lu();
+            const b = new Vector([1, 2, 3]);
+            Matrix.luSolve(decomposition, b, new Vector(3));
+            expect(b.data).toEqual(new Float64Array([1, 2, 3]));
+            expect(() => Matrix.luSolve(decomposition, b, b)).toThrowError(RangeError);
+        });
+
+        it('luSolve rejects mismatched sizes', () => {
+            const decomposition = a1.lu();
+            expect(() => Matrix.luSolve(decomposition, new Vector(2))).toThrowError(RangeError);
+            expect(() => Matrix.luSolve(decomposition, new Vector(3), new Vector(2))).toThrowError(RangeError);
+        });
+
+        it('luSolve throws on a zero diagonal in U', () => {
+            const decomposition = a1.lu();
+            decomposition.U.set(1, 1, 0);
+            expect(() => Matrix.luSolve(decomposition, new Vector([1, 2, 3]))).toThrowError(/zero diagonal/);
+        });
+
+        it('solveLower and solveUpper write into out and may be applied in place (out === b)', () => {
+            const l: Matrix = Matrix.from([[2, 0, 0], [1, 3, 0], [-1, 4, 5]]);
+            const u: Matrix = Matrix.from([[2, 1, -1], [0, 3, 2], [0, 0, 4]]);
+            const b = new Vector([4, 5, 6]);
+
+            const out = new Vector(3);
+            expect(l.solveLower(b, false, out)).toBe(out);
+            expect(out.allClose(l.solveLower(b))).toBe(true);
+            expect(u.solveUpper(b, out)).toBe(out);
+            expect(out.allClose(u.solveUpper(b))).toBe(true);
+
+            const inPlaceLower = b.copy();
+            expect(l.solveLower(inPlaceLower, false, inPlaceLower)).toBe(inPlaceLower);
+            expect(inPlaceLower.allClose(l.solveLower(b))).toBe(true);
+            const inPlaceUnit = b.copy();
+            l.solveLower(inPlaceUnit, true, inPlaceUnit);
+            expect(inPlaceUnit.allClose(l.solveLower(b, true))).toBe(true);
+            const inPlaceUpper = b.copy();
+            expect(u.solveUpper(inPlaceUpper, inPlaceUpper)).toBe(inPlaceUpper);
+            expect(inPlaceUpper.allClose(u.solveUpper(b))).toBe(true);
+        });
+
+        it('solveLower and solveUpper reject an out of the wrong size', () => {
+            const m = Matrix.identity(3);
+            expect(() => m.solveLower(new Vector(3), false, new Vector(2))).toThrowError(RangeError);
+            expect(() => m.solveUpper(new Vector(3), new Vector(4))).toThrowError(RangeError);
         });
     });
 

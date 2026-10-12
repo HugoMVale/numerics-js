@@ -84,7 +84,7 @@ export interface LUDecomposition {
 
 /**
  * Finds the best pivot row for column `col`, searching rows `startRow..m.rows-1`.
- * Used internally by `forwardEliminate`, `inverse`, and `lu` to share the
+ * Used internally by `forwardEliminate` and `inverse` to share the
  * same partial-pivoting (largest-magnitude-entry) selection logic.
  * @param m The matrix to search (may be a working copy or an augmented matrix).
  * @param col Column to search (0-based).
@@ -230,10 +230,10 @@ export function inverse(A: Matrix): Matrix {
 /**
  * Computes a partial-pivoted LU factorization of `A`, such that `P * A =
  * L * U` for the row permutation `P` implied by `perm`. Factoring once
- * and reusing the result via `solveLower`/`solveUpper` is much cheaper
- * than calling `solve()` repeatedly against the same matrix with
- * different right-hand sides (e.g. inside a Newton solver that reuses a
- * Jacobian across corrector steps).
+ * and reusing the result via `luSolve` (or `solveLower`/`solveUpper`) is
+ * much cheaper than calling `solve()` repeatedly against the same matrix
+ * with different right-hand sides (e.g. inside a Newton solver that
+ * reuses a Jacobian across corrector steps).
  *
  * There is no tolerance parameter: matching the convention used by
  * LAPACK's `dgetrf` (which this is modeled on), the pivot in each column
@@ -243,46 +243,90 @@ export function inverse(A: Matrix): Matrix {
  * in reference implementations; if you need that kind of near-singularity
  * detection, use `rank()`, which does expose a tolerance for exactly this
  * purpose.
- * @param A The matrix to factor. Must be square.
- * @returns The `{ L, U, perm, sign }` factorization.
- * @throws {RangeError} If `A` is not square.
+ *
+ * Repeated factorizations of same-sized matrices (e.g. one per step of
+ * an implicit ODE solver) can avoid all allocation by passing the
+ * factorization returned by an earlier call as `out`. `A` may even be
+ * `out.U` itself, in which case the matrix is factored in place, without
+ * copying it first.
+ * @param A The matrix to factor. Must be square. It is never modified,
+ * except when it is `out.U` (see `out`).
+ * @param out Optional storage to reuse: a factorization whose `L` and `U`
+ * are `n x n` matrices and whose `perm` has length `n`, as returned by an
+ * earlier call for a matrix of the same size. Its `L`, `U`, `perm` and
+ * `sign` are overwritten and the same object is returned. `A` may be
+ * `out.U`, but not `out.L`. If this function throws, the contents of
+ * `out` are undefined. Omit to allocate a new factorization.
+ * @returns The `{ L, U, perm, sign }` factorization: `out` if given,
+ * otherwise a new object.
+ * @throws {RangeError} If `A` is not square, if `out` does not match the
+ * size of `A`, or if `A` is `out.L`.
  * @throws {Error} If `A` is singular (some column's largest available
  * pivot is exactly `0`).
  */
-export function lu(A: Matrix): LUDecomposition {
+export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
     if (A.rows !== A.cols) throw new RangeError(`Matrix lu requires a square matrix, got ${A.rows}x${A.cols}`);
     const n = A.rows;
-    const U = A.copy();
-    const L = Matrix.identity(n);
-    const perm = Array.from({ length: n }, (_, i) => i);
+    const result = out ?? { L: new Matrix(n, n), U: new Matrix(n, n), perm: new Array<number>(n), sign: 1 };
+    const { L, U, perm } = result;
+    if (L.rows !== n || L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
+        throw new RangeError(`Matrix lu: out must hold ${n}x${n} L and U factors and a permutation of length ${n}`);
+    }
+    if (A === L) throw new RangeError('Matrix lu: A must not be out.L');
+
+    const u = U.data;
+    const l = L.data;
+    if (A !== U) u.set(A.data);
+    l.fill(0);
+    for (let i = 0; i < n; i++) {
+        l[i * n + i] = 1;
+        perm[i] = i;
+    }
     let sign = 1;
 
     for (let col = 0; col < n; col++) {
-        const pivotRow = findPivotRow(U, col, col, 0);
+        let pivotRow = -1;
+        let pivotVal = 0;
+        for (let i = col; i < n; i++) {
+            const v = Math.abs(u[i * n + col]);
+            if (v > pivotVal) { pivotVal = v; pivotRow = i; }
+        }
         if (pivotRow === -1) throw new Error('Matrix lu: matrix is singular');
         if (pivotRow !== col) {
-            U.swapRows(col, pivotRow);
+            const colOffset = col * n;
+            const pivotOffset = pivotRow * n;
+            for (let j = 0; j < n; j++) {
+                const tmp = u[colOffset + j];
+                u[colOffset + j] = u[pivotOffset + j];
+                u[pivotOffset + j] = tmp;
+            }
             // Rows of L to the left of `col` already hold computed
             // multipliers; swap those along with U's rows so that
             // P * A === L * U still holds after the pivot.
             for (let k = 0; k < col; k++) {
-                const tmp = L.getUnchecked(col, k);
-                L.setUnchecked(col, k, L.getUnchecked(pivotRow, k));
-                L.setUnchecked(pivotRow, k, tmp);
+                const tmp = l[colOffset + k];
+                l[colOffset + k] = l[pivotOffset + k];
+                l[pivotOffset + k] = tmp;
             }
             [perm[col], perm[pivotRow]] = [perm[pivotRow], perm[col]];
             sign = -sign;
         }
-        const pivot = U.getUnchecked(col, col);
+        const pivotOffset = col * n;
+        const pivot = u[pivotOffset + col];
         for (let i = col + 1; i < n; i++) {
-            const factor = U.getUnchecked(i, col) / pivot;
+            const rowOffset = i * n;
+            const factor = u[rowOffset + col] / pivot;
             if (factor !== 0) {
-                U.addScaledRow(i, col, -factor);
-                L.setUnchecked(i, col, factor);
+                // Columns up to `col` are eliminated: U's entry is set to
+                // an exact 0 and the multiplier is stored in L instead.
+                u[rowOffset + col] = 0;
+                l[rowOffset + col] = factor;
+                for (let j = col + 1; j < n; j++) u[rowOffset + j] -= factor * u[pivotOffset + j];
             }
         }
     }
-    return { L, U, perm, sign };
+    result.sign = sign;
+    return result;
 }
 
 /**
@@ -293,15 +337,23 @@ export function lu(A: Matrix): LUDecomposition {
  * @param b The right-hand side vector. Must have `b.size === A.rows`.
  * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s (as
  *   `lu()`'s `L` always is) and is never read, avoiding a division.
- * @returns The solution vector `x`.
- * @throws {RangeError} If `A` is not square, or `b.size !== A.rows`.
+ * @param out Optional vector of size `A.rows` that receives the solution,
+ *   avoiding an allocation. It may be `b` itself, which is then
+ *   overwritten with the solution. If this function throws, the contents
+ *   of `out` are undefined.
+ * @returns The solution vector `x`: `out` if given, otherwise a new vector.
+ * @throws {RangeError} If `A` is not square, `b.size !== A.rows`, or
+ *   `out.size !== A.rows`.
  * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
  */
-export function solveLower(A: Matrix, b: Vector, unitDiagonal = false): Vector {
+export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vector): Vector {
     if (A.rows !== A.cols) throw new RangeError(`Matrix solveLower requires a square matrix, got ${A.rows}x${A.cols}`);
     if (b.size !== A.rows) throw new RangeError(`Matrix solveLower shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
+    if (out !== undefined && out.size !== A.rows) throw new RangeError(`Matrix solveLower out has size ${out.size}, expected ${A.rows}`);
     const n = A.rows;
-    const x = new Vector(n);
+    // Row i reads only x[0..i-1], which are already final, and b[i] before
+    // writing x[i]: so `x` may alias `b`.
+    const x = out ?? new Vector(n);
     for (let i = 0; i < n; i++) {
         const offset = A.flatIndex(i, 0);
         let s = b.data[i];
@@ -323,15 +375,23 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false): Vector {
  * directly on the `U` factor from `lu()`.
  * @param A The (conceptually upper-triangular) coefficient matrix. Must be square.
  * @param b The right-hand side vector. Must have `b.size === A.rows`.
- * @returns The solution vector `x`.
- * @throws {RangeError} If `A` is not square, or `b.size !== A.rows`.
+ * @param out Optional vector of size `A.rows` that receives the solution,
+ *   avoiding an allocation. It may be `b` itself, which is then
+ *   overwritten with the solution. If this function throws, the contents
+ *   of `out` are undefined.
+ * @returns The solution vector `x`: `out` if given, otherwise a new vector.
+ * @throws {RangeError} If `A` is not square, `b.size !== A.rows`, or
+ *   `out.size !== A.rows`.
  * @throws {Error} If a zero diagonal entry is encountered.
  */
-export function solveUpper(A: Matrix, b: Vector): Vector {
+export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
     if (A.rows !== A.cols) throw new RangeError(`Matrix solveUpper requires a square matrix, got ${A.rows}x${A.cols}`);
     if (b.size !== A.rows) throw new RangeError(`Matrix solveUpper shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
+    if (out !== undefined && out.size !== A.rows) throw new RangeError(`Matrix solveUpper out has size ${out.size}, expected ${A.rows}`);
     const n = A.rows;
-    const x = new Vector(n);
+    // Row i reads only x[i+1..n-1], which are already final, and b[i] before
+    // writing x[i]: so `x` may alias `b`.
+    const x = out ?? new Vector(n);
     for (let i = n - 1; i >= 0; i--) {
         const offset = A.flatIndex(i, 0);
         let s = b.data[i];
@@ -344,11 +404,45 @@ export function solveUpper(A: Matrix, b: Vector): Vector {
 }
 
 /**
+ * Solves `A * x = b` for `x`, given the LU factorization of `A` as
+ * returned by `lu()`: applies the row permutation to `b`, then forward
+ * substitution against `L` and back substitution against `U`, reusing
+ * `solveLower`/`solveUpper` rather than duplicating their loops. As with
+ * `solve()` vs. `lu()`: if you need to solve against the same matrix with
+ * several right-hand sides, call `lu()` once and reuse this instead of
+ * refactoring each time.
+ * @param decomposition The `{ L, U, perm }` factorization of the
+ * coefficient matrix, as returned by `lu()`.
+ * @param b The right-hand side vector. Must have `b.size === L.rows`.
+ * @param out Optional vector of size `L.rows` that receives the solution,
+ * avoiding an allocation. It must not be `b`. If this function throws,
+ * the contents of `out` are undefined.
+ * @returns The solution vector `x`: `out` if given, otherwise a new vector.
+ * @throws {RangeError} If `b` or `out` does not match the size of the
+ * factorization, or if `out` is `b`.
+ * @throws {Error} If `U` has a zero diagonal entry.
+ */
+export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
+    const { L, U, perm } = decomposition;
+    const n = L.rows;
+    if (L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
+        throw new RangeError('Matrix luSolve: inconsistent LU factorization shapes');
+    }
+    if (b.size !== n) throw new RangeError(`Matrix luSolve shape mismatch: ${n}x${n} vs vec(${b.size})`);
+    if (out !== undefined && out.size !== n) throw new RangeError(`Matrix luSolve out has size ${out.size}, expected ${n}`);
+    if (out !== undefined && out === b) throw new RangeError('Matrix luSolve: out must not be b');
+    const x = out ?? new Vector(n);
+    for (let i = 0; i < n; i++) x.data[i] = b.data[perm[i]];
+    solveLower(L, x, true, x);
+    return solveUpper(U, x, x);
+}
+
+/**
  * Solves the linear system `A * x = b` for `x`, via LU decomposition with
- * partial pivoting (`lu()`) followed by forward and back substitution. If
- * you need to solve against the same matrix with several right-hand
- * sides, call `lu()` once yourself and reuse `solveLower`/`solveUpper`
- * directly instead of calling this repeatedly.
+ * partial pivoting (`lu()`) followed by forward and back substitution
+ * (`luSolve`). If you need to solve against the same matrix with several
+ * right-hand sides, call `lu()` once yourself and reuse `luSolve`
+ * instead of calling this repeatedly.
  * @param A The coefficient matrix. Must be square.
  * @param b The right-hand side vector. Must have `b.size === A.rows`.
  * @returns The solution vector `x` such that `A.mulVec(x)` is (up to
@@ -359,10 +453,7 @@ export function solveUpper(A: Matrix, b: Vector): Vector {
 export function solve(A: Matrix, b: Vector): Vector {
     if (A.rows !== A.cols) throw new RangeError(`Matrix solve requires a square matrix, got ${A.rows}x${A.cols}`);
     if (b.size !== A.rows) throw new RangeError(`Matrix solve shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
-    const { L, U, perm } = lu(A);
-    const pb = new Vector(perm.map(p => b.data[p]));
-    const y = solveLower(L, pb, true);
-    return solveUpper(U, y);
+    return luSolve(lu(A), b);
 }
 
 // -----------------------------------------------------------------

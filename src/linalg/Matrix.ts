@@ -908,13 +908,39 @@ export class Matrix extends ArrayND {
      * that `P * this = L * U` for the row permutation `P` implied by
      * `perm`: see `linalg.lu()` for the algorithm and why it has no
      * tolerance parameter.
-     * @returns The `{ L, U, perm, sign }` factorization.
-     * @throws {RangeError} If this matrix is not square.
+     * @param out Optional storage to reuse, as returned by an earlier call
+     * for a matrix of the same size: its `L`, `U`, `perm` and `sign` are
+     * overwritten and it is returned, so repeated factorizations allocate
+     * nothing. This matrix may be `out.U` (factored in place), but not
+     * `out.L`. If this method throws, the contents of `out` are undefined.
+     * @returns The `{ L, U, perm, sign }` factorization: `out` if given,
+     * otherwise a new object.
+     * @throws {RangeError} If this matrix is not square, if `out` does not
+     * match its size, or if this matrix is `out.L`.
      * @throws {Error} If this matrix is singular (some column's largest
      * available pivot is exactly `0`).
      */
-    lu(): LUDecomposition {
-        return linalg.lu(this);
+    lu(out?: LUDecomposition): LUDecomposition {
+        return linalg.lu(this, out);
+    }
+
+    /**
+     * Solves `A * x = b` for `x`, given the LU factorization of `A` as
+     * returned by `lu()`: see `linalg.luSolve()`. If you need to solve
+     * against the same matrix with several right-hand sides, call `lu()`
+     * once and reuse this instead of refactoring each time.
+     * @param decomposition The `{ L, U, perm }` factorization of the
+     * coefficient matrix, as returned by `lu()`.
+     * @param b The right-hand side vector. Must have `b.size === L.rows`.
+     * @param out Optional vector of size `L.rows` that receives the
+     * solution, avoiding an allocation. It must not be `b`.
+     * @returns The solution vector `x`: `out` if given, otherwise a new vector.
+     * @throws {RangeError} If `b` or `out` does not match the size of the
+     * factorization, or if `out` is `b`.
+     * @throws {Error} If `U` has a zero diagonal entry.
+     */
+    static luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
+        return linalg.luSolve(decomposition, b, out);
     }
 
     /**
@@ -924,12 +950,16 @@ export class Matrix extends ArrayND {
      * @param b The right-hand side vector. Must have `b.size === this.rows`.
      * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s
      *   (as `lu()`'s `L` always is) and is never read, avoiding a division.
-     * @returns The solution vector `x`.
-     * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
+     * @param out Optional vector of size `this.rows` that receives the
+     *   solution, avoiding an allocation. It may be `b` itself, which is
+     *   then overwritten with the solution.
+     * @returns The solution vector `x`: `out` if given, otherwise a new vector.
+     * @throws {RangeError} If this matrix is not square, `b.size !== this.rows`,
+     *   or `out.size !== this.rows`.
      * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
      */
-    solveLower(b: Vector, unitDiagonal = false): Vector {
-        return linalg.solveLower(this, b, unitDiagonal);
+    solveLower(b: Vector, unitDiagonal = false, out?: Vector): Vector {
+        return linalg.solveLower(this, b, unitDiagonal, out);
     }
 
     /**
@@ -937,12 +967,16 @@ export class Matrix extends ArrayND {
      * triangular: only entries on and above the diagonal are read, so this
      * can be called directly on the `U` factor from `lu()`.
      * @param b The right-hand side vector. Must have `b.size === this.rows`.
-     * @returns The solution vector `x`.
-     * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
+     * @param out Optional vector of size `this.rows` that receives the
+     *   solution, avoiding an allocation. It may be `b` itself, which is
+     *   then overwritten with the solution.
+     * @returns The solution vector `x`: `out` if given, otherwise a new vector.
+     * @throws {RangeError} If this matrix is not square, `b.size !== this.rows`,
+     *   or `out.size !== this.rows`.
      * @throws {Error} If a zero diagonal entry is encountered.
      */
-    solveUpper(b: Vector): Vector {
-        return linalg.solveUpper(this, b);
+    solveUpper(b: Vector, out?: Vector): Vector {
+        return linalg.solveUpper(this, b, out);
     }
 
     /**
@@ -950,8 +984,8 @@ export class Matrix extends ArrayND {
      * decomposition with partial pivoting (`lu()`) followed by forward
      * and back substitution: see `linalg.solve()`. If you need to solve
      * against the same matrix with several right-hand sides, call `lu()`
-     * once yourself and reuse `solveLower`/`solveUpper` directly instead
-     * of calling this repeatedly.
+     * once yourself and reuse `Matrix.luSolve` instead of calling this
+     * repeatedly.
      * @param b The right-hand side vector. Must have `b.size === this.rows`.
      * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
      *   floating-point error) equal to `b`.
