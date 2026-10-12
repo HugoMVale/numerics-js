@@ -24,6 +24,16 @@ const orderOf: Record<RungeKuttaMethod, number> = {
     rk4: 4,
 };
 
+describe('rungeKuttaFixed result counters', () => {
+    it('reports zero Jacobian evaluations and LU decompositions', () => {
+        const f: DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
+        const result = rungeKuttaFixed('rk4', f, 0, 1, new Vector([1]), 0.25);
+
+        expect(result.evaluationsJacobian).toBe(0);
+        expect(result.decompositions).toBe(0);
+    });
+});
+
 describe('rungeKuttaStep', () => {
     it('euler: matches y + h*f(t,y) exactly', () => {
         const y = new Vector([2]);

@@ -195,6 +195,8 @@ export function rungeKuttaStep(
  *   success: true,
  *   message: 'Integration successful.',
  *   evaluations: 16,
+ *   evaluationsJacobian: 0,
+ *   decompositions: 0,
  *   t: Vector { data: Float64Array(5) [ 0, 0.25, 0.5, 0.75, 1 ] },
  *   y: Matrix {
  *     _rows: 5,
@@ -273,6 +275,8 @@ export function rungeKuttaFixed(
         success: true,
         message: 'Integration successful.',
         evaluations: evaluations,
+        evaluationsJacobian: 0,
+        decompositions: 0,
         t: tVec,
         y: yMat,
     };
