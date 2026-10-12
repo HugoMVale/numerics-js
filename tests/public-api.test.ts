@@ -31,6 +31,7 @@ describe('public API', () => {
         expect(typeof roots.quasiNewton).toBe('function');
         expect(typeof ode.rungeKuttaFixed).toBe('function');
         expect(typeof ode.rungeKuttaAdaptive).toBe('function');
+        expect(typeof ode.trBdf2Adaptive).toBe('function');
         expect(typeof ode.createVelocityVerlet).toBe('function');
         expect(typeof ode.wrapAllocatingDerivative).toBe('function');
         expect(typeof optimize.brent).toBe('function');
