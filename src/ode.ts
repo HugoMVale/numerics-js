@@ -1,13 +1,16 @@
 /**
- * Ordinary differential equation solvers for non-stiff problems.
+ * Ordinary differential equation solvers for non-stiff and stiff problems.
  *
- * All current solvers are explicit and are therefore suitable for non-stiff problems only.
- * Implicit methods for stiff problems are planned but not yet available.
+ * The Runge-Kutta solvers are explicit and are therefore suitable for non-stiff
+ * problems only. {@link trBdf2Adaptive} is implicit and handles stiff problems.
  *
  * Choose a method based on the problem and step-size requirements:
  *
- * - Use {@link rungeKuttaAdaptive} for general-purpose integration with
- *   automatic step-size and error control.
+ * - Use {@link rungeKuttaAdaptive} for general-purpose integration of non-stiff
+ *   problems with automatic step-size and error control.
+ * - Use {@link trBdf2Adaptive} for stiff problems at moderate tolerances. It is
+ *   second-order accurate and L-stable, and offers the same automatic step-size
+ *   and error control.
  * - Use {@link rungeKuttaFixed} when the time grid is prescribed or a fixed
  *   step size is required.
  * - Use {@link createVelocityVerlet} for second-order mechanical systems,
@@ -20,14 +23,19 @@ export { rungeKuttaFixed } from './ode/rungeKuttaFixed.js';
 export { rungeKuttaAdaptive } from './ode/rungeKuttaAdaptive.js';
 export type { RungeKuttaAdaptiveOptions } from './ode/rungeKuttaAdaptive.js';
 
+export { trBdf2Adaptive } from './ode/trBdf2Adaptive.js';
+export type { TrBdf2AdaptiveOptions } from './ode/trBdf2Adaptive.js';
+
 export { wrapAllocatingDerivative } from './ode/adapters.js';
 
 export type {
     DerivativeFunction,
     AllocatingDerivativeFunction,
+    JacobianFunction,
     OdeResult,
     RungeKuttaFixedMethod,
     RungeKuttaAdaptiveMethod,
+    TrBdf2Method,
     OdeMethod,
 } from './ode/types.js';
 
