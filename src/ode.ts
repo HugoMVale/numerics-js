@@ -11,6 +11,8 @@
  * - Use {@link trBdf2Adaptive} for stiff problems at moderate tolerances. It is
  *   second-order accurate and L-stable, and offers the same automatic step-size
  *   and error control.
+ * - Locate zero crossings of user-defined functions along the solution, and optionally stop at
+ *   them, with the `events` option of {@link rungeKuttaAdaptive}; see {@link OdeEvent}.
  * - Use {@link rungeKuttaFixed} when the time grid is prescribed or a fixed
  *   step size is required.
  * - Use {@link createVelocityVerlet} for second-order mechanical systems,
@@ -32,6 +34,9 @@ export type {
     DerivativeFunction,
     AllocatingDerivativeFunction,
     JacobianFunction,
+    OdeEvent,
+    OdeEventDirection,
+    OdeEventOccurrence,
     OdeResult,
     RungeKuttaFixedMethod,
     RungeKuttaAdaptiveMethod,

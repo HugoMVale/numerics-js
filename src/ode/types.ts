@@ -29,6 +29,46 @@ export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod | TrBdf
  */
 export type JacobianFunction = (t: number, y: Vector, J: Matrix) => Matrix;
 
+/** Direction in which an event function must cross zero to trigger, relative to the integration direction. */
+export type OdeEventDirection = 'rising' | 'falling' | 'both';
+
+/**
+ * Event of an ODE integration: a scalar function `g(t, y)` whose zero crossings along the
+ * solution are located and reported, optionally stopping the integration.
+ *
+ * The event function must not mutate `y`, which is a solver-owned buffer that must not be
+ * retained. Calls to `fn` are not counted in {@link OdeResult.evaluations}.
+ */
+export interface OdeEvent {
+    /** Event function `g(t, y)`; an event occurs where it changes sign. It must return a finite number. */
+    fn: (t: number, y: Vector) => number;
+    /**
+     * Which zero crossings trigger the event. `'rising'` means `g` goes from negative to non-negative
+     * and `'falling'` from positive to non-positive, as the integration progresses. When integrating
+     * backward in time, "as the integration progresses" means towards decreasing `t`.
+     * @default 'both'
+     */
+    direction?: OdeEventDirection;
+    /**
+     * Stops the integration at this event. `true` stops at the first occurrence; a positive integer
+     * `N` stops at the `N`-th occurrence. `false` never stops.
+     * @default false
+     */
+    terminal?: boolean | number;
+}
+
+/** A located occurrence of an {@link OdeEvent}. */
+export interface OdeEventOccurrence {
+    /** Index of the event in the `events` option. */
+    index: number;
+    /** Time at which the event function crosses zero. */
+    t: number;
+    /** Solution at time `t`, evaluated from the solver's dense output (the step's interpolant). */
+    y: Vector;
+    /** Direction of the crossing, relative to the integration direction. */
+    direction: 'rising' | 'falling';
+}
+
 /** Result of integrating an ODE over a span of time. */
 export interface OdeResult {
     /** Which solver method produced this result. */
@@ -51,4 +91,10 @@ export interface OdeResult {
     evaluationsJacobian: number;
     /** Number of LU factorizations of the Newton iteration matrix. Always `0` for explicit solvers. */
     decompositions: number;
+    /**
+     * Located event occurrences in chronological order (in the integration direction). Present only
+     * when the `events` option was given. If a terminal event stopped the integration, it is the
+     * last entry.
+     */
+    events?: OdeEventOccurrence[];
 }

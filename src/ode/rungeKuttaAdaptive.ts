@@ -1,8 +1,14 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
+import { EventDetector, validateEvents, type StepInterpolant } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
-import type { DerivativeFunction, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
+import type {
+    DerivativeFunction,
+    OdeEvent,
+    OdeResult,
+    RungeKuttaAdaptiveMethod,
+} from './types.js';
 
 /**
  * Reusable intermediate vectors for adaptive Runge-Kutta integration steps.
@@ -137,6 +143,65 @@ export function rungeKuttaAdaptiveStep(
     return out;
 }
 
+// Dense-output coefficients (rows: stages k1..ks; columns: powers x^1..x^p of the relative position
+// x = (t - t_n) / h in the step), from Bogacki & Shampine (cubic) and Shampine (1986) (quartic).
+const DENSE_RK23 = [
+    [1, -4 / 3, 5 / 9],
+    [0, 1, -2 / 3],
+    [0, 4 / 3, -8 / 9],
+    [0, -1, 1],
+];
+const DENSE_RK45 = [
+    [1, -8048581381 / 2820520608, 8663915743 / 2820520608, -12715105075 / 11282082432],
+    [0, 0, 0, 0],
+    [0, 131558114200 / 32700410799, -68118460800 / 10900136933, 87487479700 / 32700410799],
+    [0, -1754552775 / 470086768, 14199869525 / 1410260304, -10690763975 / 1880347072],
+    [0, 127303824393 / 49829197408, -318862633887 / 49829197408, 701980252875 / 199316789632],
+    [0, -282668133 / 205662961, 2019193451 / 616988883, -1453857185 / 822651844],
+    [0, 40617522 / 29380423, -110615467 / 29380423, 69997945 / 29380423],
+];
+
+/**
+ * Evaluates the continuous extension of an attempted step inside the step, without evaluating `f`.
+ *
+ * Uses the stages left in `scratch` by {@link rungeKuttaAdaptiveStep}: a cubic polynomial for
+ * `'rk23'` (error `O(h^4)`) and a quartic one for `'rk45'` (error `O(h^5)`). The interpolant
+ * reproduces `y` at `x = 0` and the step's end state at `x = 1` up to rounding.
+ *
+ * @param method Embedded Runge-Kutta pair, as passed to {@link rungeKuttaAdaptiveStep}.
+ * @param y State at the start of the step, as passed to {@link rungeKuttaAdaptiveStep}.
+ * @param h Step size used by {@link rungeKuttaAdaptiveStep}.
+ * @param scratch Workspace holding the stages of that step; all stages must be intact, so the
+ * first-same-as-last copy into `k1` must not have happened yet.
+ * @param x Relative position in the step, `(t - t_n) / h`; `[0, 1]` is inside the step.
+ * @param out Vector that receives the interpolated state, mutated in place. It must not alias `y`.
+ * @returns `out`, for chaining.
+ */
+export function rungeKuttaAdaptiveDense(
+    method: RungeKuttaAdaptiveMethod,
+    y: Vector,
+    h: number,
+    scratch: AdaptiveScratch,
+    x: number,
+    out: Vector
+): Vector {
+    const { k1, k2, k3, k4, k5, k6, k7 } = scratch;
+    const coefficients = method === 'rk23' ? DENSE_RK23 : DENSE_RK45;
+    const stages = method === 'rk23' ? [k1, k2, k3, k4] : [k1, k2, k3, k4, k5, k6, k7];
+    out.set(y.data);
+    for (let i = 0; i < stages.length; i++) {
+        const row = coefficients[i];
+        let weight = 0;
+        let power = 1;
+        for (let j = 0; j < row.length; j++) {
+            power *= x;
+            weight += row[j] * power;
+        }
+        if (weight !== 0) out.addScaled(stages[i], h * weight);
+    }
+    return out;
+}
+
 /**
  * Computes the weighted RMS local-error norm for an attempted step.
  */
@@ -236,6 +301,12 @@ export interface RungeKuttaAdaptiveOptions {
      * @default 10
      */
     maxScale?: number;
+    /**
+     * Events to detect along the solution; see {@link OdeEvent}. Occurrences are located inside
+     * each accepted step from the step's dense output and reported in {@link OdeResult.events}.
+     * Detection does not change the step sequence. If omitted, no events are evaluated.
+     */
+    events?: OdeEvent[];
 }
 
 /**
@@ -246,6 +317,15 @@ export interface RungeKuttaAdaptiveOptions {
  * relative tolerances; rejected steps are retried with a smaller step. The
  * initial step is estimated when `h0` is omitted, and the final step is
  * shortened so the last recorded time is exactly `tEnd`.
+ *
+ * Zero crossings of user-supplied event functions can be located with the `events` option. After
+ * each accepted step the event functions are evaluated, and a sign change triggers a root search
+ * on the step's dense output (a cubic for `'rk23'`, a quartic for `'rk45'`), which costs no
+ * further evaluations of `f`. Event times are therefore as accurate as the step's interpolant,
+ * comparable to the integration tolerances. Non-terminal events do not alter the integration.
+ * A terminal event ends it at the event time, which becomes the last recorded point. Only sign
+ * changes between accepted steps are seen, so use `hMax` if two crossings can occur within a step.
+ * An event function that is exactly zero at `t0` is not reported.
  *
  * Results are validated against the corresponding `scipy.integrate.solve_ivp`
  * `RK23` and `RK45` methods. With the same `atol` and `rtol`, the number of function 
@@ -265,11 +345,13 @@ export interface RungeKuttaAdaptiveOptions {
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
  * `y0`; on success, the last row is at `tEnd`. `evaluations` is the number of calls to `f`,
- * and `method` echoes `method`. The `success` flag indicates whether `tEnd` was
- * reached, and `message` provides additional status information.
+ * and `method` echoes `method`. The `success` flag indicates whether the integration completed,
+ * i.e. reached `tEnd` or was stopped by a terminal event, and `message` provides additional status
+ * information. `events` is present when the `events` option was given.
  * @throws {RangeError} If the state has no components, tolerances are invalid,
- * a step-size or controller limit is invalid, or `method` is not recognized
- * when `t0 !== tEnd`.
+ * a step-size or controller limit is invalid, an event option is invalid, or `method` is not
+ * recognized when `t0 !== tEnd`.
+ * @throws {TypeError} If an event function is not a function.
  * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
  * with the reason in `message`.
  *
@@ -321,6 +403,32 @@ export interface RungeKuttaAdaptiveOptions {
  * ```text
  * 0.3678794431779414
  * ```
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { rungeKuttaAdaptive, type DerivativeFunction, type OdeEvent } from 'numerics-js/ode';
+ *
+ * // A ball dropped from 1 m. State: [height, velocity]. Stop when it reaches the ground.
+ * const f: DerivativeFunction = (t, y, out) => {
+ *     out.data[0] = y.data[1];
+ *     out.data[1] = -9.81;
+ *     return out;
+ * };
+ * const ground: OdeEvent = { fn: (t, y) => y.data[0], direction: 'falling', terminal: true };
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 5, new Vector([1, 0]), { events: [ground] });
+ * const [hit] = result.events!;
+ * console.log(result.message);
+ * console.log(hit.t, hit.y.data[0]);
+ * console.log(Math.sqrt(2 / 9.81));
+ * ```
+ *
+ * Output:
+ * ```text
+ * Integration stopped by a terminal event.
+ * 0.45152364098573017 -1.1102230246251565e-16
+ * 0.4515236409857309
+ * ```
  */
 export function rungeKuttaAdaptive(
     method: RungeKuttaAdaptiveMethod,
@@ -340,6 +448,7 @@ export function rungeKuttaAdaptive(
         safety = 0.9,
         minScale = 0.2,
         maxScale = 10,
+        events,
     } = options;
     const dim = y0.size;
     if (dim <= 0) throw new RangeError(`rungeKuttaAdaptive: y0 must have at least one component, got dimension ${dim}.`);
@@ -358,13 +467,14 @@ export function rungeKuttaAdaptive(
     if (!(minScale > 0) || minScale > maxScale) {
         throw new RangeError(`rungeKuttaAdaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`);
     }
+    if (events !== undefined) validateEvents(events, 'rungeKuttaAdaptive');
 
     if (tEnd === t0) {
         const tVec = new Vector(1);
         tVec.data[0] = t0;
         const yMat = new Matrix(1, dim);
         yMat.setRow(0, y0.data);
-        return {
+        const trivial: OdeResult = {
             method: method,
             success: true,
             message: 'Integration successful.',
@@ -374,6 +484,8 @@ export function rungeKuttaAdaptive(
             t: tVec,
             y: yMat,
         };
+        if (events !== undefined) trivial.events = [];
+        return trivial;
     }
 
     const dir = Math.sign(tEnd - t0) as 1 | -1;
@@ -417,6 +529,10 @@ export function rungeKuttaAdaptive(
     }
     h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
 
+    const detector = events === undefined ? null : new EventDetector(events, t0, y);
+    // Reads the loop variables at call time, so it always describes the step under evaluation.
+    const dense: StepInterpolant = (tq, out) => rungeKuttaAdaptiveDense(method, y, h, scratch, (tq - t) / h, out);
+
     const tBuf: number[] = [t0];
     const yBuf: Float64Array[] = [y.data.slice()];
     const makeResult = (success: boolean, message: string): OdeResult => {
@@ -426,7 +542,9 @@ export function rungeKuttaAdaptive(
         for (let i = 0; i < tBuf.length; i++) {
             yMat.setRow(i, yBuf[i]);
         }
-        return { method, success, message, evaluations, evaluationsJacobian: 0, decompositions: 0, t: tVec, y: yMat };
+        const result: OdeResult = { method, success, message, evaluations, evaluationsJacobian: 0, decompositions: 0, t: tVec, y: yMat };
+        if (detector !== null) result.events = detector.occurrences;
+        return result;
     };
 
     let steps = 0;
@@ -445,7 +563,17 @@ export function rungeKuttaAdaptive(
         const err = adaptiveErrorNorm(method, y, next, h, scratch, atol, rtol);
 
         if (err <= 1) {
-            t = isFinalStep ? tEnd : t + h;
+            const tNew = isFinalStep ? tEnd : t + h;
+            if (detector !== null) {
+                // Before the state swap and the FSAL copy, which would destroy the step's stages.
+                const stop = detector.check(tNew, next, dense);
+                if (stop !== null) {
+                    tBuf.push(stop.t);
+                    yBuf.push(stop.y.data.slice());
+                    return makeResult(true, 'Integration stopped by a terminal event.');
+                }
+            }
+            t = tNew;
             [y, next] = [next, y];
             tBuf.push(t);
             yBuf.push(y.data.slice());
