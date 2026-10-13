@@ -318,14 +318,15 @@ export interface RungeKuttaAdaptiveOptions {
  * initial step is estimated when `h0` is omitted, and the final step is
  * shortened so the last recorded time is exactly `tEnd`.
  *
- * Zero crossings of user-supplied event functions can be located with the `events` option. After
- * each accepted step the event functions are evaluated, and a sign change triggers a root search
- * on the step's dense output (a cubic for `'rk23'`, a quartic for `'rk45'`), which costs no
- * further evaluations of `f`. Event times are therefore as accurate as the step's interpolant,
- * comparable to the integration tolerances. Non-terminal events do not alter the integration.
- * A terminal event ends it at the event time, which becomes the last recorded point. Only sign
- * changes between accepted steps are seen, so use `hMax` if two crossings can occur within a step.
- * An event function that is exactly zero at `t0` is not reported.
+ * Zero crossings of user-supplied event functions can be located with the `events` option.
+ * After each accepted step the event functions are evaluated, and a sign change triggers a 
+ * root search on the step's dense output (a cubic for `'rk23'`, a quartic for `'rk45'`), 
+ * which costs no further evaluations of `f`. Event times are therefore as accurate as the 
+ * step's interpolant, comparable to the integration tolerances. Non-terminal events do not 
+ * alter the integration. A terminal event ends it at the event time, which becomes the last 
+ * recorded point. Only sign changes between accepted steps are seen, so use `hMax` if two 
+ * crossings can occur within a step. An event function that is exactly zero at `t0` is not 
+ * reported.
  *
  * Results are validated against the corresponding `scipy.integrate.solve_ivp`
  * `RK23` and `RK45` methods. With the same `atol` and `rtol`, the number of function 
@@ -346,8 +347,8 @@ export interface RungeKuttaAdaptiveOptions {
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
  * `y0`; on success, the last row is at `tEnd`. `evaluations` is the number of calls to `f`,
  * and `method` echoes `method`. The `success` flag indicates whether the integration completed,
- * i.e. reached `tEnd` or was stopped by a terminal event, and `message` provides additional status
- * information. `events` is present when the `events` option was given.
+ * i.e. reached `tEnd` or was stopped by a terminal event, and `message` provides additional 
+ * status information. `events` is present when the `events` option was given.
  * @throws {RangeError} If the state has no components, tolerances are invalid,
  * a step-size or controller limit is invalid, an event option is invalid, or `method` is not
  * recognized when `t0 !== tEnd`.
@@ -428,6 +429,38 @@ export interface RungeKuttaAdaptiveOptions {
  * Integration stopped by a terminal event.
  * 0.45152364098573017 -1.1102230246251565e-16
  * 0.4515236409857309
+ * ```
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { rungeKuttaAdaptive, type DerivativeFunction, type OdeEvent } from 'numerics-js/ode';
+ *
+ * // Simple harmonic oscillator: x'' = -x, starting at x = 1. Stop at the first downward zero crossing.
+ * const oscillator: DerivativeFunction = (_t, y, out) => {
+ *     out.data[0] = y.data[1];
+ *     out.data[1] = -y.data[0];
+ *     return out;
+ * };
+ * const zeroCrossing: OdeEvent = {
+ *     fn: (_t, y) => y.data[0],
+ *     direction: 'falling',
+ *     terminal: true,
+ * };
+ * const result = rungeKuttaAdaptive('rk45', oscillator, 0, 2 * Math.PI, new Vector([1, 0]), {
+ *     atol: 1e-9,
+ *     rtol: 1e-9,
+ *     events: [zeroCrossing],
+ * });
+ * const [event] = result.events!;
+ * console.log(event.t, event.y.data[1]);
+ * console.log(Math.PI / 2);
+ * ```
+ *
+ * Output:
+ * ```text
+ * 1.5707963266771703 -0.9999999993753101
+ * 1.5707963267948966
  * ```
  */
 export function rungeKuttaAdaptive(
