@@ -232,14 +232,17 @@ export interface TrBdf2AdaptiveOptions {
  *     return out;
  * };
  * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]));
- * console.log(result.success, result.t.size - 1, result.evaluations);
- * console.log(result.y.get(result.y.rows - 1, 0));
+ * console.log({
+ *     success: result.success,
+ *     steps: result.t.size - 1,
+ *     evaluations: result.evaluations,
+ *     yEnd: result.y.get(result.y.rows - 1, 0),
+ * });
  * ```
  *
  * Output:
  * ```text
- * true 21 84
- * 0.5411713864049918
+ * { success: true, steps: 21, evaluations: 84, yEnd: 0.5411713864049918 }
  * ```
  *
  * @example
