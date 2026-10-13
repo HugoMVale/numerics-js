@@ -205,4 +205,61 @@ describe('brent', () => {
         expect(result.message).toBe('converged: bracket half-width below tolx');
         expect(result.x).toBeCloseTo(Math.SQRT2, 8);
     });
+    describe('known endpoint values (fa, fb)', () => {
+        it('skips the endpoint evaluations and finds the same root', () => {
+            const g = (x: number): number => Math.exp(x) - 2;
+            const plain = brent(g, 0, 1, { tolf: 0, tolx: 1e-14 });
+
+            let calls = 0;
+            const counted = (x: number): number => {
+                calls++;
+                return g(x);
+            };
+            const reused = brent(counted, 0, 1, { tolf: 0, tolx: 1e-14, fa: g(0), fb: g(1) });
+
+            expect(reused.x).toBe(plain.x);
+            expect(reused.evaluations).toBe(plain.evaluations - 2);
+            expect(calls).toBe(reused.evaluations);
+        });
+
+        it('accepts a single known endpoint value', () => {
+            let calls = 0;
+            const counted = (x: number): number => {
+                calls++;
+                return f(x);
+            };
+            const result = brent(counted, 0, 5, { fa: f(0) });
+            const plain = brent(f, 0, 5);
+
+            expect(result.x).toBe(plain.x);
+            expect(result.evaluations).toBe(plain.evaluations - 1);
+            expect(calls).toBe(result.evaluations);
+        });
+
+        it('works with a reversed bracket', () => {
+            const result = brent(f, 5, 0, { fa: f(5), fb: f(0) });
+            expect(result.x).toBeCloseTo(2, 6);
+        });
+
+        it('returns early, without evaluating f, when a supplied value is within tolf', () => {
+            const never = (): number => {
+                throw new Error('f must not be called');
+            };
+            const a = brent(never, 2, 5, { fa: 0, fb: 21 });
+            expect(a.x).toBe(2);
+            expect(a.fx).toBe(0);
+            expect(a.evaluations).toBe(0);
+
+            const b = brent(never, 0, 2, { fa: -4, fb: 0 });
+            expect(b.x).toBe(2);
+            expect(b.fx).toBe(0);
+            expect(b.evaluations).toBe(0);
+        });
+
+        it('rejects a bracket whose supplied values have the same sign', () => {
+            expect(() => brent(f, 0, 1, { fa: 1, fb: 2 })).toThrow(
+                'brent: root is not bracketed (f(xa) and f(xb) must have opposite signs)'
+            );
+        });
+    });
 });

@@ -22,7 +22,12 @@ const METHOD = 'brent';
  * @param options.tolx Stop when the bracket half-width is below this (absolute `x` tolerance). Defaults to `1e-8`.
  * @param options.tolf Stop when `|f(x)|` is below this (absolute function-value tolerance). Defaults to `1e-8`.
  * @param options.maxIter Maximum number of iterations. Defaults to `50`.
- * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
+ * @param options.fa Known value of `f(xa)`. If given, `f(xa)` is not evaluated, which saves a
+ * function evaluation when the caller already has it. It must be consistent with `f`.
+ * @param options.fb Known value of `f(xb)`; same meaning as `fa`.
+ * @returns Result containing success status, a message, the approximate root, function value, and
+ * evaluation count. The count includes only calls to `f` actually made, i.e. it excludes the
+ * endpoint values supplied through `options.fa` and `options.fb`.
  * @throws {Error} If f(xa) and f(xb) do not have opposite signs.
  *
  * @example
@@ -81,16 +86,23 @@ export function brent(
         tolx?: number;
         tolf?: number;
         maxIter?: number;
+        fa?: number;
+        fb?: number;
     } = {}
 ): ScalarRootResult {
-    const { tolx = 1e-8, tolf = 1e-8, maxIter = 50 } = options;
+    const { tolx = 1e-8, tolf = 1e-8, maxIter = 50, fa: faKnown, fb: fbKnown } = options;
 
     const eps = Number.EPSILON;
 
     let evaluations = 0;
 
-    let fa = f(xa);
-    evaluations++;
+    let fa: number;
+    if (faKnown === undefined) {
+        fa = f(xa);
+        evaluations++;
+    } else {
+        fa = faKnown;
+    }
     if (Math.abs(fa) <= tolf) {
         return {
             method: METHOD,
@@ -102,8 +114,13 @@ export function brent(
         };
     }
 
-    let fb = f(xb);
-    evaluations++;
+    let fb: number;
+    if (fbKnown === undefined) {
+        fb = f(xb);
+        evaluations++;
+    } else {
+        fb = fbKnown;
+    }
     if (Math.abs(fb) <= tolf) {
         return {
             method: METHOD,
