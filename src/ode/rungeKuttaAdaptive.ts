@@ -419,16 +419,22 @@ export interface RungeKuttaAdaptiveOptions {
  * const ground: OdeEvent = { fn: (t, y) => y.data[0], direction: 'falling', terminal: true };
  * const result = rungeKuttaAdaptive('rk45', f, 0, 5, new Vector([1, 0]), { events: [ground] });
  * const [hit] = result.events!;
- * console.log(result.message);
- * console.log(hit.t, hit.y.data[0]);
- * console.log(Math.sqrt(2 / 9.81));
+ * console.log({
+ *     message: result.message,
+ *     hitTime: hit.t,
+ *     hitHeight: hit.y.data[0],
+ *     expectedTime: Math.sqrt(2 / 9.81),
+ * });
  * ```
  *
  * Output:
  * ```text
- * Integration stopped by a terminal event.
- * 0.45152364098573017 -1.1102230246251565e-16
- * 0.4515236409857309
+ * { 
+ *  message: 'Integration stopped by a terminal event.', 
+ *  hitTime: 0.45152364098573017, 
+ *  hitHeight: -1.1102230246251565e-16, 
+ *  expectedTime: 0.4515236409857309 
+ * }
  * ```
  *
  * @example
@@ -453,14 +459,20 @@ export interface RungeKuttaAdaptiveOptions {
  *     events: [zeroCrossing],
  * });
  * const [event] = result.events!;
- * console.log(event.t, event.y.data[1]);
- * console.log(Math.PI / 2);
+ * console.log({
+ *     eventTime: event.t,
+ *     eventVelocity: event.y.data[1],
+ *     expectedTime: Math.PI / 2,
+ * });
  * ```
  *
  * Output:
  * ```text
- * 1.5707963266771703 -0.9999999993753101
- * 1.5707963267948966
+ * { 
+ *  eventTime: 1.5707963266771703, 
+ *  eventVelocity: -0.9999999993753101, 
+ *  expectedTime: 1.5707963267948966
+ * }
  * ```
  */
 export function rungeKuttaAdaptive(
