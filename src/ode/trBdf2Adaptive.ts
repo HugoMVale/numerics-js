@@ -3,8 +3,9 @@ import { Matrix } from '../linalg/Matrix.js';
 import type { LUDecomposition } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
 import { jacobianForward } from '../numdiff.js';
+import { EventDetector, validateEvents, type StepInterpolant } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
-import type { DerivativeFunction, JacobianFunction, OdeResult } from './types.js';
+import type { DerivativeFunction, JacobianFunction, OdeEvent, OdeResult } from './types.js';
 
 // -----------------------------------------------------------------
 // TR-BDF2 (Bank et al., 1985), in the three-stage DIRK form and with the implementation
@@ -48,6 +49,42 @@ const MAX_NEWTON_ITERATIONS = 4;
 const NEWTON_FAILURE_SHRINK = 0.5;
 /** Accepted-step growth factors below this keep the step size, so the LU factors stay valid. */
 const MIN_STEP_CHANGE = 1.2;
+
+/**
+ * Evaluates the continuous extension of an accepted TR-BDF2 step, without evaluating `f`.
+ *
+ * The interpolant is the cubic `p(x)`, with `x = (t - t_n) / h`, that matches the step's starting
+ * state `y_n` and starting slope `z_n = h f_n`, the intermediate state `y_g` at `x = GAMMA`, and the
+ * final state `y_{n+1}` at `x = 1`. It reproduces both end states up to rounding and has error
+ * `O(h^3)`, like the method itself. The end-point derivative is deliberately not used: for stiff
+ * problems it carries `h * lambda` times the end-state error, which would make a Hermite cubic much
+ * less accurate than the step.
+ *
+ * @param y State `y_n` at the start of the step. Not mutated.
+ * @param yNew Accepted state `y_{n+1}` at the end of the step. Not mutated.
+ * @param yG Intermediate state `y_g` at `x = GAMMA`. Not mutated.
+ * @param zN Scaled first-stage derivative `z_n = h f_n` of the step. Not mutated.
+ * @param x Relative position in the step, `(t - t_n) / h`; `[0, 1]` is inside the step.
+ * @param out Vector that receives the interpolated state, mutated in place. It must not alias the inputs.
+ * @returns `out`, for chaining.
+ */
+export function trBdf2AdaptiveDense(y: Vector, yNew: Vector, yG: Vector, zN: Vector, x: number, out: Vector): Vector {
+    const yd = y.data;
+    const nd = yNew.data;
+    const gd = yG.data;
+    const zd = zN.data;
+    const od = out.data;
+    const g2 = GAMMA * GAMMA;
+    for (let i = 0; i < yd.length; i++) {
+        // p(x) = y_n + z_n x + c2 x^2 + c3 x^3, with p(GAMMA) = y_g and p(1) = y_{n+1}.
+        const a = gd[i] - yd[i] - zd[i] * GAMMA;
+        const b = nd[i] - yd[i] - zd[i];
+        const c3 = (a - b * g2) / (g2 * (GAMMA - 1));
+        const c2 = b - c3;
+        od[i] = yd[i] + x * (zd[i] + x * (c2 + x * c3));
+    }
+    return out;
+}
 
 /**
  * Optional tuning parameters for {@link trBdf2Adaptive}.
@@ -107,6 +144,12 @@ export interface TrBdf2AdaptiveOptions {
      * derivative evaluations per refresh, where `n` is the number of state components.
      */
     jac?: JacobianFunction;
+    /**
+     * Events to detect along the solution; see {@link OdeEvent}. Occurrences are located inside
+     * each accepted step from the step's dense output and reported in {@link OdeResult.events}.
+     * Detection does not change the step sequence. If omitted, no events are evaluated.
+     */
+    events?: OdeEvent[];
 }
 
 /**
@@ -144,6 +187,18 @@ export interface TrBdf2AdaptiveOptions {
  *
  * The method is dense: the Jacobian and its factors are stored as full `n x n` matrices.
  *
+ * Zero crossings of user-supplied event functions can be located with the `events` option, with
+ * the same semantics as in {@link rungeKuttaAdaptive}. After each accepted step the event functions
+ * are evaluated, and a sign change triggers a root search on the step's dense output, a cubic
+ * through the step's start state and slope, its intermediate stage state and its end state, which
+ * costs no further evaluations of `f`. Event times are therefore as accurate as this interpolant,
+ * which is second order accurate like the method. On stiff problems its error can exceed the
+ * step's end-point error by a factor that shrinks with the step size, so tighten the tolerances if
+ * very accurate event times are needed. Non-terminal events do not alter the integration. A
+ * terminal event ends it at the event time, which becomes the last recorded point. Only sign
+ * changes between accepted steps are seen, so use `hMax` if two crossings can occur within a step.
+ * An event function that is exactly zero at `t0` is not reported.
+ *
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into
  * the supplied `dydt` buffer rather than allocating.
  * @param t0 Starting time.
@@ -157,10 +212,12 @@ export interface TrBdf2AdaptiveOptions {
  * `y0`; on success, the last row is at `tEnd`. `evaluations` is the number of calls to
  * `f`, including those spent on finite-difference Jacobians; `evaluationsJacobian` is the
  * number of Jacobian refreshes and `decompositions` the number of LU factorizations.
- * `method` is `'trbdf2'`. The `success` flag indicates whether `tEnd` was reached, and
- * `message` provides additional status information.
- * @throws {RangeError} If the state has no components, tolerances are invalid, or a
- * step-size or controller limit is invalid.
+ * `method` is `'trbdf2'`. The `success` flag indicates whether the integration completed, i.e.
+ * reached `tEnd` or was stopped by a terminal event, and `message` provides additional status
+ * information. `events` is present when the `events` option was given.
+ * @throws {RangeError} If the state has no components, tolerances are invalid, a
+ * step-size or controller limit is invalid, or an event option is invalid.
+ * @throws {TypeError} If an event function is not a function.
  * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
  * with the reason in `message`.
  *
@@ -206,6 +263,32 @@ export interface TrBdf2AdaptiveOptions {
  * true 652 1 37
  * 0.5411437997526206
  * ```
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { trBdf2Adaptive, type DerivativeFunction, type OdeEvent } from 'numerics-js/ode';
+ *
+ * // Stiff relaxation towards cos(t): dy/dt = -1000 (y - cos(t)), y(0) = 0.
+ * // Locate the first time the solution crosses zero, i.e. y(t) = 0.
+ * const f: DerivativeFunction = (t, y, out) => {
+ *     out.data[0] = -1000 * (y.data[0] - Math.cos(t));
+ *     return out;
+ * };
+ * const zero: OdeEvent = { fn: (t, y) => y.data[0], direction: 'falling', terminal: true };
+ * const result = trBdf2Adaptive(f, 0, 3, new Vector([0]), { atol: 1e-8, rtol: 1e-8, events: [zero] });
+ * const [hit] = result.events!;
+ * console.log(result.message);
+ * console.log(hit.t, hit.direction);
+ * console.log(result.t.size - 1, result.evaluations);
+ * ```
+ *
+ * Output:
+ * ```text
+ * Integration stopped by a terminal event.
+ * 1.5717963234203387 falling
+ * 577 2355
+ * ```
  */
 export function trBdf2Adaptive(
     f: DerivativeFunction,
@@ -225,6 +308,7 @@ export function trBdf2Adaptive(
         minScale = 0.2,
         maxScale = 10,
         jac,
+        events,
     } = options;
     const dim = y0.size;
     if (dim <= 0) throw new RangeError(`trBdf2Adaptive: y0 must have at least one component, got dimension ${dim}.`);
@@ -243,6 +327,7 @@ export function trBdf2Adaptive(
     if (!(minScale > 0) || minScale > maxScale) {
         throw new RangeError(`trBdf2Adaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`);
     }
+    if (events !== undefined) validateEvents(events, 'trBdf2Adaptive');
 
     let evaluations = 0;
     let evaluationsJacobian = 0;
@@ -253,7 +338,7 @@ export function trBdf2Adaptive(
         tVec.data[0] = t0;
         const yMat = new Matrix(1, dim);
         yMat.setRow(0, y0.data);
-        return {
+        const trivial: OdeResult = {
             method: 'trbdf2',
             success: true,
             message: 'Integration successful.',
@@ -263,6 +348,8 @@ export function trBdf2Adaptive(
             t: tVec,
             y: yMat,
         };
+        if (events !== undefined) trivial.events = [];
+        return trivial;
     }
 
     const dir = Math.sign(tEnd - t0) as 1 | -1;
@@ -388,6 +475,10 @@ export function trBdf2Adaptive(
         return 0;
     };
 
+    const detector = events === undefined ? null : new EventDetector(events, t0, y);
+    // Reads the loop variables at call time, so it always describes the step under evaluation.
+    const dense: StepInterpolant = (tq, out) => trBdf2AdaptiveDense(y, yNew, yG, zN, (tq - t) / h, out);
+
     const tBuf: number[] = [t0];
     const yBuf: Float64Array[] = [y.data.slice()];
     const makeResult = (success: boolean, message: string): OdeResult => {
@@ -397,7 +488,9 @@ export function trBdf2Adaptive(
         for (let i = 0; i < tBuf.length; i++) {
             yMat.setRow(i, yBuf[i]);
         }
-        return { method: 'trbdf2', success, message, evaluations, evaluationsJacobian, decompositions, t: tVec, y: yMat };
+        const result: OdeResult = { method: 'trbdf2', success, message, evaluations, evaluationsJacobian, decompositions, t: tVec, y: yMat };
+        if (detector !== null) result.events = detector.occurrences;
+        return result;
     };
 
     const underflowMessage = (hNext: number, reason: string): string =>
@@ -505,7 +598,17 @@ export function trBdf2Adaptive(
         if (!Number.isFinite(err)) err = Infinity;
 
         if (err <= 1) {
-            t = isFinalStep ? tEnd : t + h;
+            const tNew = isFinalStep ? tEnd : t + h;
+            if (detector !== null) {
+                // Before the state swap, which would discard the step's start state.
+                const stop = detector.check(tNew, yNew, dense);
+                if (stop !== null) {
+                    tBuf.push(stop.t);
+                    yBuf.push(stop.y.data.slice());
+                    return makeResult(true, 'Integration stopped by a terminal event.');
+                }
+            }
+            t = tNew;
             [y, yNew] = [yNew, y];
             tBuf.push(t);
             yBuf.push(y.data.slice());

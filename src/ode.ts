@@ -12,7 +12,8 @@
  *   second-order accurate and L-stable, and offers the same automatic step-size
  *   and error control.
  * - Locate zero crossings of user-defined functions along the solution, and optionally stop at
- *   them, with the `events` option of {@link rungeKuttaAdaptive}; see {@link OdeEvent}.
+ *   them, with the `events` option of {@link rungeKuttaAdaptive} or {@link trBdf2Adaptive}; see
+ *   {@link OdeEvent}.
  * - Use {@link rungeKuttaFixed} when the time grid is prescribed or a fixed
  *   step size is required.
  * - Use {@link createVelocityVerlet} for second-order mechanical systems,
