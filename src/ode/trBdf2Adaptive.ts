@@ -242,7 +242,12 @@ export interface TrBdf2AdaptiveOptions {
  *
  * Output:
  * ```text
- * { success: true, steps: 21, evaluations: 84, yEnd: 0.5411713864049918 }
+ * { 
+ *  success: true, 
+ *  steps: 21, 
+ *  evaluations: 84, 
+ *  yEnd: 0.5411713864049918 
+ * }
  * ```
  *
  * @example
@@ -257,14 +262,24 @@ export interface TrBdf2AdaptiveOptions {
  * };
  * const jac: JacobianFunction = (_t, _y, J) => J.set(0, 0, -1000);
  * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]), { atol: 1e-8, rtol: 1e-6, jac });
- * console.log(result.success, result.evaluations, result.evaluationsJacobian, result.decompositions);
- * console.log(result.y.get(result.y.rows - 1, 0));
+ * console.log({
+ *     success: result.success,
+ *     evaluations: result.evaluations,
+ *     evaluationsJacobian: result.evaluationsJacobian,
+ *     decompositions: result.decompositions,
+ *     yEnd: result.y.get(result.y.rows - 1, 0),
+ * });
  * ```
  *
  * Output:
  * ```text
- * true 652 1 37
- * 0.5411437997526206
+ * {
+ *  success: true, 
+ *  evaluations: 652, 
+ *  evaluationsJacobian: 1, 
+ *  decompositions: 37, 
+ *  yEnd: 0.5411437997526206 
+ * }
  * ```
  *
  * @example
@@ -281,16 +296,24 @@ export interface TrBdf2AdaptiveOptions {
  * const zero: OdeEvent = { fn: (t, y) => y.data[0], direction: 'falling', terminal: true };
  * const result = trBdf2Adaptive(f, 0, 3, new Vector([0]), { atol: 1e-8, rtol: 1e-8, events: [zero] });
  * const [hit] = result.events!;
- * console.log(result.message);
- * console.log(hit.t, hit.direction);
- * console.log(result.t.size - 1, result.evaluations);
+ * console.log({
+ *     message: result.message,
+ *     hitTime: hit.t,
+ *     hitDirection: hit.direction,
+ *     steps: result.t.size - 1,
+ *     evaluations: result.evaluations,
+ * });
  * ```
  *
  * Output:
  * ```text
- * Integration stopped by a terminal event.
- * 1.5717963234203387 falling
- * 577 2355
+ * { 
+ *  message: 'Integration stopped by a terminal event.', 
+ *  hitTime: 1.5717963234203387, 
+ *  hitDirection: 'falling', 
+ *  steps: 577, 
+ *  evaluations: 2355 
+ * }
  * ```
  */
 export function trBdf2Adaptive(
