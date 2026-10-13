@@ -315,6 +315,44 @@ export interface TrBdf2AdaptiveOptions {
  *  evaluations: 2355 
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { trBdf2Adaptive, type DerivativeFunction, type OdeEvent } from 'numerics-js/ode';
+ *
+ * // Simple harmonic oscillator: x'' = -x, starting at x = 1. Stop at the first downward zero crossing.
+ * const f: DerivativeFunction = (_t, y, out) => {
+ *     out.data[0] = y.data[1];
+ *     out.data[1] = -y.data[0];
+ *     return out;
+ * };
+ * const zeroCrossing: OdeEvent = {
+ *     fn: (_t, y) => y.data[0],
+ *     direction: 'falling',
+ *     terminal: true,
+ * };
+ * const result = trBdf2Adaptive(f, 0, 2 * Math.PI, new Vector([1, 0]), {
+ *     atol: 1e-9,
+ *     rtol: 1e-9,
+ *     events: [zeroCrossing],
+ * });
+ * const [event] = result.events!;
+ * console.log({
+ *     eventTime: event.t,
+ *     eventVelocity: event.y.data[1],
+ *     expectedTime: Math.PI / 2,
+ * });
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   eventTime: 1.5707968774578687,
+ *   eventVelocity: -0.9999999998524634,
+ *   expectedTime: 1.5707963267948966
+ * }
+ * ```
  */
 export function trBdf2Adaptive(
     f: DerivativeFunction,
