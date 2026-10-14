@@ -194,31 +194,6 @@ export interface TrBdf2AdaptiveOptions {
  * problems at moderate tolerances; for non-stiff problems, {@link rungeKuttaAdaptive}
  * is more efficient.
  *
- * The first stage of each step reuses the last stage of the previous step,
- * rescaled to the new step size, instead of evaluating `f` again (the
- * "smoothed first stage"). This saves evaluations and avoids exciting stiff
- * components. The stage equations are solved by a simplified Newton iteration
- * that stops when the correction, in the weighted norm `atol + rtol |y|`,
- * falls below half the tolerance, so a step costs only the Newton iterations
- * themselves.
- *
- * The local error is estimated by an embedded third-order companion formula. Because that
- * estimate overestimates the error of stiff components, it is filtered through the
- * already-factored iteration matrix, and the filtered value is compared with
- * the weighted RMS tolerance `atol + rtol * max(|y_n|, |y_{n+1}|)`. Rejected
- * steps are retried with a smaller step. The initial step is estimated when
- * `h0` is omitted, and the final step is shortened so the last recorded time
- * is exactly `tEnd`.
- *
- * The Jacobian is refreshed only when the Newton iteration fails while the
- * Jacobian is out of date, and the factorization is rebuilt only when the
- * Jacobian or the step size changes. Small step growth factors (below 1.2)
- * are suppressed to keep factorizations valid. If the Newton iteration still
- * fails with a fresh Jacobian, or the iteration matrix is singular, the step
- * is halved.
- *
- * The method is dense: the Jacobian and its factors are stored as full `n x n` matrices.
- *
  * Zero crossings of user-supplied event functions can be located with the
  * `events` option, with the same semantics as in {@link rungeKuttaAdaptive}.
  * After each accepted step the event functions are evaluated, and a sign
