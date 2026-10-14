@@ -14,6 +14,9 @@
  * - Locate zero crossings of user-defined functions along the solution, and optionally stop at
  *   them, with the `events` option of {@link rungeKuttaAdaptive} or {@link trBdf2Adaptive}; see
  *   {@link OdeEvent}.
+ * - Evaluate the solution of {@link rungeKuttaAdaptive} or {@link trBdf2Adaptive} at any time
+ *   inside the integration interval, not only at the steps they took, with their `denseOutput`
+ *   option; see {@link OdeDenseOutput}.
  * - Use {@link rungeKuttaFixed} when the time grid is prescribed or a fixed
  *   step size is required.
  * - Use {@link createVelocityVerlet} for second-order mechanical systems,
@@ -30,6 +33,8 @@ export { trBdf2Adaptive } from './ode/trBdf2Adaptive.js';
 export type { TrBdf2AdaptiveOptions } from './ode/trBdf2Adaptive.js';
 
 export { wrapAllocatingDerivative } from './ode/adapters.js';
+
+export type { OdeDenseOutput } from './ode/denseOutput.js';
 
 export type {
     DerivativeFunction,

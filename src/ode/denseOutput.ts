@@ -98,10 +98,10 @@ export class StepPolynomial {
  *
  * The approximation is continuous. At every accepted time point it reproduces the stored state
  * (a row of {@link OdeResult.y}), up to rounding at the end of a step. Between points, its
- * accuracy is that of the solver's interpolant, which is documented with each solver, and is
- * not controlled by the solver's error tolerances; it is comparable to them for the Runge-Kutta
- * solvers and may be lower for stiff problems.
- *
+ * accuracy is that of the solver's interpolant, which is documented with each solver. It is 
+ * not controlled by the solver's error tolerances, but is generally close to the accuracy of
+ * the step points.
+
  * The solved interval is `[tStart, tEnd]`, with `tEnd < tStart` when integrating backward. If
  * the integration stopped early, because a terminal event occurred or because the solver
  * failed, the dense output covers the part that was actually solved.

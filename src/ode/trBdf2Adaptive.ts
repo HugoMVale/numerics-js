@@ -3,7 +3,7 @@ import { Matrix } from '../linalg/Matrix.js';
 import type { LUDecomposition } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
 import { jacobianForward } from '../numdiff.js';
-import { StepPolynomial } from './denseOutput.js';
+import { OdeDenseOutput, StepPolynomial } from './denseOutput.js';
 import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
 import type { DerivativeFunction, JacobianFunction, OdeEvent, OdeResult } from './types.js';
@@ -40,38 +40,50 @@ const E_G = -E_1 / GAMMA;
 const E_N = (E_1 * (1 - GAMMA)) / GAMMA;
 
 /**
- * Newton termination threshold `tau = kappa * epsilon`, with `kappa = 1/2` as recommended by
- * Hosea & Shampine and `epsilon = 1` in the weighted norm `atol + rtol |y|`.
+ * Newton termination threshold `tau = kappa * epsilon`, with `kappa = 1/2` as
+ * recommended by Hosea & Shampine and `epsilon = 1` in the weighted norm
+ * `atol + rtol |y|`.
  */
 const NEWTON_KAPPA = 0.5;
-/** Maximum number of Newton iterations per stage (a standard safeguard, not part of the paper). */
+/**
+ * Maximum number of Newton iterations per stage (a standard safeguard, not
+ * part of the paper).
+ */
 const MAX_NEWTON_ITERATIONS = 4;
 /** Step-size multiplier after a Newton failure with a current Jacobian. */
 const NEWTON_FAILURE_SHRINK = 0.5;
-/** Accepted-step growth factors below this keep the step size, so the LU factors stay valid. */
+/**
+ * Accepted-step growth factors below this keep the step size, so the LU
+ * factors stay valid.
+ */
 const MIN_STEP_CHANGE = 1.2;
 
-/** Degree of the continuous extension of a TR-BDF2 step, see {@link trBdf2AdaptiveDenseCoefficients}. */
+/**
+ * Degree of the continuous extension of a TR-BDF2 step; see
+ * {@link trBdf2AdaptiveDenseCoefficients}.
+ */
 const DENSE_DEGREE = 3;
 
 /**
- * Computes the coefficients of the continuous extension of an accepted TR-BDF2 step, without
- * evaluating `f`.
+ * Computes the coefficients of the continuous extension of an accepted
+ * TR-BDF2 step, without evaluating `f`.
  *
- * The extension is the cubic `p(x) = y_n + z_n x + c_2 x^2 + c_3 x^3`, with `x = (t - t_n) / h`, that
- * matches the step's starting state `y_n` and starting slope `z_n = h f_n`, the intermediate state
- * `y_g` at `x = GAMMA`, and the final state `y_{n+1}` at `x = 1`. It reproduces both end states up to
- * rounding and has error `O(h^3)`, like the method itself. The end-point derivative is deliberately
- * not used: for stiff problems it carries `h * lambda` times the end-state error, which would make a
- * Hermite cubic much less accurate than the step.
+ * The extension is the cubic
+ * `p(x) = y_n + z_n x + c_2 x^2 + c_3 x^3`, with `x = (t - t_n) / h`, that
+ * matches the step's starting state `y_n` and starting slope `z_n = h f_n`,
+ * the intermediate state `y_g` at `x = GAMMA`, and the final state `y_{n+1}`
+ * at `x = 1`. It reproduces both end states up to rounding and has error
+ * `O(h^3)`, like the method itself. The end-point derivative is deliberately
+ * not used: for stiff problems it carries `h * lambda` times the end-state
+ * error, which would make a Hermite cubic much less accurate than the step.
  *
  * @param y State `y_n` at the start of the step. Not mutated.
  * @param yNew Accepted state `y_{n+1}` at the end of the step. Not mutated.
  * @param yG Intermediate state `y_g` at `x = GAMMA`. Not mutated.
  * @param zN Scaled first-stage derivative `z_n = h f_n` of the step. Not mutated.
- * @param out Array of length `4 * y.size` that receives the coefficients as the four blocks
- * `y_n, z_n, c_2, c_3`, one after the other, each of length `y.size`. It is overwritten and must not
- * alias the inputs' data.
+ * @param out Array of length `4 * y.size` that receives the coefficients as
+ * the four blocks `y_n, z_n, c_2, c_3`, one after the other, each of length
+ * `y.size`. It is overwritten and must not alias the inputs' data.
  */
 export function trBdf2AdaptiveDenseCoefficients(y: Vector, yNew: Vector, yG: Vector, zN: Vector, out: Float64Array): void {
     const yd = y.data;
@@ -151,11 +163,22 @@ export interface TrBdf2AdaptiveOptions {
      */
     jac?: JacobianFunction;
     /**
-     * Events to detect along the solution; see {@link OdeEvent}. Occurrences are located inside
-     * each accepted step from the step's dense output and reported in {@link OdeResult.events}.
+     * Events to detect along the solution; see {@link OdeEvent}. Occurrences
+     * are located inside each accepted step from the step's dense output and
+     * reported in {@link OdeResult.events}.
      * Detection does not change the step sequence. If omitted, no events are evaluated.
      */
     events?: OdeEvent[];
+    /**
+     * Whether to also return the dense output, a continuous approximation of
+     * the whole solution that can be evaluated at any time in the solved
+     * interval; see {@link OdeResult.denseOutput}. It is built from the step
+     * interpolants, which also serve the `events` option, at no further
+     * evaluations of `f`, and does not change the step sequence. It stores a
+     * few vectors per accepted step.
+     * @default false
+     */
+    denseOutput?: boolean;
 }
 
 /**
@@ -171,39 +194,58 @@ export interface TrBdf2AdaptiveOptions {
  * problems at moderate tolerances; for non-stiff problems, {@link rungeKuttaAdaptive}
  * is more efficient.
  *
- * The first stage of each step reuses the last stage of the previous step, rescaled to the
- * new step size, instead of evaluating `f` again (the "smoothed first stage"). This saves
- * evaluations and avoids exciting stiff components. The stage equations are solved by a
- * simplified Newton iteration that stops when the correction, in the weighted norm
- * `atol + rtol |y|`, falls below half the tolerance, so a step costs only the Newton
- * iterations themselves.
+ * The first stage of each step reuses the last stage of the previous step,
+ * rescaled to the new step size, instead of evaluating `f` again (the
+ * "smoothed first stage"). This saves evaluations and avoids exciting stiff
+ * components. The stage equations are solved by a simplified Newton iteration
+ * that stops when the correction, in the weighted norm `atol + rtol |y|`,
+ * falls below half the tolerance, so a step costs only the Newton iterations
+ * themselves.
  *
  * The local error is estimated by an embedded third-order companion formula. Because that
  * estimate overestimates the error of stiff components, it is filtered through the
- * already-factored iteration matrix, and the filtered value is compared with the weighted RMS
- * tolerance `atol + rtol * max(|y_n|, |y_{n+1}|)`. Rejected steps are retried with a smaller
- * step. The initial step is estimated when `h0` is omitted, and the final step is shortened
- * so the last recorded time is exactly `tEnd`.
+ * already-factored iteration matrix, and the filtered value is compared with
+ * the weighted RMS tolerance `atol + rtol * max(|y_n|, |y_{n+1}|)`. Rejected
+ * steps are retried with a smaller step. The initial step is estimated when
+ * `h0` is omitted, and the final step is shortened so the last recorded time
+ * is exactly `tEnd`.
  *
- * The Jacobian is refreshed only when the Newton iteration fails while the Jacobian is out of
- * date, and the factorization is rebuilt only when the Jacobian or the step size changes.
- * Small step growth factors (below 1.2) are suppressed to keep factorizations valid. If the
- * Newton iteration still fails with a fresh Jacobian, or the iteration matrix is singular,
- * the step is halved.
+ * The Jacobian is refreshed only when the Newton iteration fails while the
+ * Jacobian is out of date, and the factorization is rebuilt only when the
+ * Jacobian or the step size changes. Small step growth factors (below 1.2)
+ * are suppressed to keep factorizations valid. If the Newton iteration still
+ * fails with a fresh Jacobian, or the iteration matrix is singular, the step
+ * is halved.
  *
  * The method is dense: the Jacobian and its factors are stored as full `n x n` matrices.
  *
- * Zero crossings of user-supplied event functions can be located with the `events` option, with
- * the same semantics as in {@link rungeKuttaAdaptive}. After each accepted step the event functions
- * are evaluated, and a sign change triggers a root search on the step's dense output, a cubic
- * through the step's start state and slope, its intermediate stage state and its end state, which
- * costs no further evaluations of `f`. Event times are therefore as accurate as this interpolant,
- * which is second order accurate like the method. On stiff problems its error can exceed the
- * step's end-point error by a factor that shrinks with the step size, so tighten the tolerances if
- * very accurate event times are needed. Non-terminal events do not alter the integration. A
- * terminal event ends it at the event time, which becomes the last recorded point. Only sign
- * changes between accepted steps are seen, so use `hMax` if two crossings can occur within a step.
+ * Zero crossings of user-supplied event functions can be located with the
+ * `events` option, with the same semantics as in {@link rungeKuttaAdaptive}.
+ * After each accepted step the event functions are evaluated, and a sign
+ * change triggers a root search on the step's dense output, a cubic through
+ * the step's start state and slope, its intermediate stage state and its end
+ * state, which costs no further evaluations of `f`. Event times are therefore
+ * as accurate as this interpolant, which is second order accurate like the
+ * method. On stiff problems its error can exceed the step's end-point error by
+ * a factor that shrinks with the step size, so tighten the tolerances if very
+ * accurate event times are needed. Non-terminal events do not alter the
+ * integration. A terminal event ends it at the event time, which becomes the
+ * last recorded point. Only sign changes between accepted steps are seen, so
+ * use `hMax` if two crossings can occur within a step. An event function that
+ * is exactly zero at `t0` is not reported.
  * An event function that is exactly zero at `t0` is not reported.
+ *
+ * With the `denseOutput` option, the solution can also be evaluated at any time
+ * within the integration interval, not only at the accepted steps; see
+ * {@link OdeDenseOutput}. The dense output is the piecewise cubic formed by the
+ * same step interpolants, which is continuous across steps and second order
+ * accurate like the method, with error `O(h^3)`. It costs no further
+ * evaluations of `f` and does not change the steps. Between steps its accuracy
+ * is not controlled by `atol` and `rtol`, but is generally close to that of the
+ * step points; on stiff problems it can exceed it by a factor that shrinks
+ * with the step size, as for event times. If the integration stops early,
+ * because of a terminal event or a failure, it covers the part that was
+ * solved.
  *
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into
  * the supplied `dydt` buffer rather than allocating.
@@ -216,11 +258,13 @@ export interface TrBdf2AdaptiveOptions {
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
  * `y0`; on success, the last row is at `tEnd`. `evaluations` is the number of calls to
- * `f`, including those spent on finite-difference Jacobians; `evaluationsJacobian` is the
- * number of Jacobian refreshes and `decompositions` the number of LU factorizations.
- * `method` is `'trbdf2'`. The `success` flag indicates whether the integration completed, i.e.
- * reached `tEnd` or was stopped by a terminal event, and `message` provides additional status
- * information. `events` is present when the `events` option was given.
+ * `f`, including those spent on finite-difference Jacobians;
+ * `evaluationsJacobian` is the number of Jacobian refreshes and
+ * `decompositions` the number of LU factorizations. `method` is `'trbdf2'`.
+ * The `success` flag indicates whether the integration completed, i.e. reached
+ * `tEnd` or was stopped by a terminal event, and `message` provides additional
+ * status information. `events` is present when the `events` option was given,
+ * and so is `denseOutput` when the `denseOutput` option was.
  * @throws {RangeError} If the state has no components, tolerances are invalid, a
  * step-size or controller limit is invalid, or an event option is invalid.
  * @throws {TypeError} If an event function is not a function.
@@ -259,7 +303,11 @@ export interface TrBdf2AdaptiveOptions {
  * @example
  * ```ts
  * import { Vector } from 'numerics-js/linalg';
- * import { trBdf2Adaptive, type DerivativeFunction, type JacobianFunction } from 'numerics-js/ode';
+ * import {
+ *     trBdf2Adaptive,
+ *     type DerivativeFunction,
+ *     type JacobianFunction,
+ * } from 'numerics-js/ode';
  *
  * // Same problem with tighter tolerances and an analytic Jacobian, df/dy = -1000.
  * const f: DerivativeFunction = (t, y, out) => {
@@ -267,7 +315,11 @@ export interface TrBdf2AdaptiveOptions {
  *     return out;
  * };
  * const jac: JacobianFunction = (_t, _y, J) => J.set(0, 0, -1000);
- * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]), { atol: 1e-8, rtol: 1e-6, jac });
+ * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]), {
+ *     atol: 1e-8,
+ *     rtol: 1e-6,
+ *     jac,
+ * });
  * console.log({
  *     success: result.success,
  *     evaluations: result.evaluations,
@@ -291,7 +343,11 @@ export interface TrBdf2AdaptiveOptions {
  * @example
  * ```ts
  * import { Vector } from 'numerics-js/linalg';
- * import { trBdf2Adaptive, type DerivativeFunction, type OdeEvent } from 'numerics-js/ode';
+ * import {
+ *     trBdf2Adaptive,
+ *     type DerivativeFunction,
+ *     type OdeEvent,
+ * } from 'numerics-js/ode';
  *
  * // Stiff relaxation towards cos(t): dy/dt = -1000 (y - cos(t)), y(0) = 0.
  * // Locate the first time the solution crosses zero, i.e. y(t) = 0.
@@ -299,8 +355,16 @@ export interface TrBdf2AdaptiveOptions {
  *     out.data[0] = -1000 * (y.data[0] - Math.cos(t));
  *     return out;
  * };
- * const zero: OdeEvent = { fn: (t, y) => y.data[0], direction: 'falling', terminal: true };
- * const result = trBdf2Adaptive(f, 0, 3, new Vector([0]), { atol: 1e-8, rtol: 1e-8, events: [zero] });
+ * const zero: OdeEvent = {
+ *     fn: (t, y) => y.data[0],
+ *     direction: 'falling',
+ *     terminal: true,
+ * };
+ * const result = trBdf2Adaptive(f, 0, 3, new Vector([0]), {
+ *     atol: 1e-8,
+ *     rtol: 1e-8,
+ *     events: [zero],
+ * });
  * const [hit] = result.events!;
  * console.log({
  *     message: result.message,
@@ -325,9 +389,14 @@ export interface TrBdf2AdaptiveOptions {
  * @example
  * ```ts
  * import { Vector } from 'numerics-js/linalg';
- * import { trBdf2Adaptive, type DerivativeFunction, type OdeEvent } from 'numerics-js/ode';
+ * import {
+ *     trBdf2Adaptive,
+ *     type DerivativeFunction,
+ *     type OdeEvent,
+ * } from 'numerics-js/ode';
  *
- * // Simple harmonic oscillator: x'' = -x, starting at x = 1. Stop at the first downward zero crossing.
+ * // Simple harmonic oscillator: x'' = -x, starting at x = 1. Stop at the
+ * // first downward zero crossing.
  * const f: DerivativeFunction = (_t, y, out) => {
  *     out.data[0] = y.data[1];
  *     out.data[1] = -y.data[0];
@@ -359,6 +428,44 @@ export interface TrBdf2AdaptiveOptions {
  *   expectedTime: 1.5707963267948966
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { trBdf2Adaptive, type DerivativeFunction } from 'numerics-js/ode';
+ *
+ * // Stiff relaxation towards cos(t): dy/dt = -1000 (y - cos(t)), y(0) = 0.
+ * // Evaluate the solution on a uniform grid, independent of the steps taken,
+ * // and compare it with the exact one.
+ * const lambda = 1000;
+ * const f: DerivativeFunction = (t, y, out) => {
+ *     out.data[0] = -lambda * (y.data[0] - Math.cos(t));
+ *     return out;
+ * };
+ * const exact = (t: number): number =>
+ *     (
+ *         lambda ** 2 * Math.cos(t) +
+ *         lambda * Math.sin(t) -
+ *         lambda ** 2 * Math.exp(-lambda * t)
+ *     ) / (lambda ** 2 + 1);
+ * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]), {
+ *     atol: 1e-8,
+ *     rtol: 1e-8,
+ *     denseOutput: true,
+ * });
+ * const times = Array.from({ length: 101 }, (_, i) => i / 100);
+ * const y = result.denseOutput!.eval(times);
+ * let maxError = 0;
+ * times.forEach((t, i) => {
+ *     maxError = Math.max(maxError, Math.abs(y.get(i, 0) - exact(t)));
+ * });
+ * console.log({ steps: result.t.size - 1, points: times.length, maxError });
+ * ```
+ *
+ * Output:
+ * ```text
+ * { steps: 533, points: 101, maxError: 9.004891221575662e-8 }
+ * ```
  */
 export function trBdf2Adaptive(
     f: DerivativeFunction,
@@ -379,6 +486,7 @@ export function trBdf2Adaptive(
         maxScale = 10,
         jac,
         events,
+        denseOutput = false,
     } = options;
     const dim = y0.size;
     if (dim <= 0) throw new RangeError(`trBdf2Adaptive: y0 must have at least one component, got dimension ${dim}.`);
@@ -419,6 +527,7 @@ export function trBdf2Adaptive(
             y: yMat,
         };
         if (events !== undefined) trivial.events = [];
+        if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0);
         return trivial;
     }
 
@@ -550,6 +659,7 @@ export function trBdf2Adaptive(
     // from the loop variables as they are at that time, so it must be used before the state swap,
     // which would discard the step's start state.
     const stepPolynomial = new StepPolynomial(dim, DENSE_DEGREE, (c) => trBdf2AdaptiveDenseCoefficients(y, yNew, yG, zN, c));
+    const dense = denseOutput ? new OdeDenseOutput(t0, y) : null;
 
     const tBuf: number[] = [t0];
     const yBuf: Float64Array[] = [y.data.slice()];
@@ -562,6 +672,7 @@ export function trBdf2Adaptive(
         }
         const result: OdeResult = { method: 'trbdf2', success, message, evaluations, evaluationsJacobian, decompositions, t: tVec, y: yMat };
         if (detector !== null) result.events = detector.occurrences;
+        if (dense !== null) result.denseOutput = dense;
         return result;
     };
 
@@ -676,11 +787,13 @@ export function trBdf2Adaptive(
                 // Before the state swap, which would discard the step's start state.
                 const stop = detector.check(tNew, yNew, stepPolynomial.evaluate);
                 if (stop !== null) {
+                    dense?.append(stop.t, stepPolynomial);
                     tBuf.push(stop.t);
                     yBuf.push(stop.y.data.slice());
                     return makeResult(true, 'Integration stopped by a terminal event.');
                 }
             }
+            dense?.append(tNew, stepPolynomial);
             t = tNew;
             [y, yNew] = [yNew, y];
             tBuf.push(t);

@@ -1,7 +1,11 @@
 import type { Vector } from '../linalg/Vector.js';
 import type { Matrix } from '../linalg/Matrix.js';
+import type { OdeDenseOutput } from './denseOutput.js';
 
-/** Derivative function that writes its result into the provided `dydt` buffer to avoid allocation. */
+/**
+ * Derivative function that writes its result into the provided `dydt` buffer to avoid
+ * allocation.
+ */
 export type DerivativeFunction = (t: number, y: Vector, dydt: Vector) => Vector;
 
 /** Derivative function that returns a newly allocated result. */
@@ -29,7 +33,10 @@ export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod | TrBdf
  */
 export type JacobianFunction = (t: number, y: Vector, J: Matrix) => Matrix;
 
-/** Direction in which an event function must cross zero to trigger, relative to the integration direction. */
+/**
+ * Direction in which an event function must cross zero to trigger, relative to the
+ * integration direction.
+ */
 export type OdeEventDirection = 'rising' | 'falling' | 'both';
 
 /**
@@ -40,18 +47,22 @@ export type OdeEventDirection = 'rising' | 'falling' | 'both';
  * retained. Calls to `fn` are not counted in {@link OdeResult.evaluations}.
  */
 export interface OdeEvent {
-    /** Event function `g(t, y)`; an event occurs where it changes sign. It must return a finite number. */
+    /**
+     * Event function `g(t, y)`; an event occurs where it changes sign. It must return a
+     * finite number.
+     */
     fn: (t: number, y: Vector) => number;
     /**
-     * Which zero crossings trigger the event. `'rising'` means `g` goes from negative to non-negative
-     * and `'falling'` from positive to non-positive, as the integration progresses. When integrating
-     * backward in time, "as the integration progresses" means towards decreasing `t`.
+     * Which zero crossings trigger the event. `'rising'` means `g` goes from negative to
+     * non-negative and `'falling'` from positive to non-positive, as the integration
+     * progresses. When integrating backward in time, "as the integration progresses"
+     * means towards decreasing `t`.
      * @default 'both'
      */
     direction?: OdeEventDirection;
     /**
-     * Stops the integration at this event. `true` stops at the first occurrence; a positive integer
-     * `N` stops at the `N`-th occurrence. `false` never stops.
+     * Stops the integration at this event. `true` stops at the first occurrence, or a
+     * positive integer `N` stops at the `N`-th occurrence. `false` never stops.
      * @default false
      */
     terminal?: boolean | number;
@@ -63,7 +74,10 @@ export interface OdeEventOccurrence {
     index: number;
     /** Time at which the event function crosses zero. */
     t: number;
-    /** Solution at time `t`, evaluated from the solver's dense output (the step's interpolant). */
+    /**
+     * Solution at time `t`, evaluated from the solver's dense output (the step's
+     * interpolant).
+     */
     y: Vector;
     /** Direction of the crossing, relative to the integration direction. */
     direction: 'rising' | 'falling';
@@ -84,17 +98,27 @@ export interface OdeResult {
     /** Solution values, one row per time point and one column per state variable. */
     y: Matrix;
     /**
-     * Number of Jacobian refreshes, whether through a user-supplied {@link JacobianFunction}
+     * Number of Jacobian refreshes, whether through a user-supplied
+     * {@link JacobianFunction}
      * or finite differences. Derivative evaluations spent on finite-difference Jacobians
      * are included in `evaluations`. Always `0` for explicit solvers.
      */
     evaluationsJacobian: number;
-    /** Number of LU factorizations of the Newton iteration matrix. Always `0` for explicit solvers. */
+    /**
+     * Number of LU factorizations of the Newton iteration matrix. Always `0` for
+     * explicit solvers.
+     */
     decompositions: number;
     /**
-     * Located event occurrences in chronological order (in the integration direction). Present only
-     * when the `events` option was given. If a terminal event stopped the integration, it is the
-     * last entry.
+     * Located event occurrences in chronological order (in the integration direction).
+     * Present only when the `events` option was given. If a terminal event stopped the
+     * integration, it is the last entry.
      */
     events?: OdeEventOccurrence[];
+    /**
+     * Continuous approximation of the solution over the solved interval, which can be
+     * evaluated at any time within it; see {@link OdeDenseOutput}. Present only when the
+     * `denseOutput` option was given.
+     */
+    denseOutput?: OdeDenseOutput;
 }

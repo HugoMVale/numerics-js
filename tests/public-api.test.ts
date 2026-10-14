@@ -38,6 +38,21 @@ describe('public API', () => {
         expect(typeof optimize.nelderMead).toBe('function');
     });
 
+    it('exposes dense output through the adaptive ode solvers, as a type only', () => {
+        const f: ode.DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
+        const y0 = new linalg.Vector([1]);
+
+        for (const result of [
+            ode.rungeKuttaAdaptive('rk45', f, 0, 1, y0, { denseOutput: true }),
+            ode.trBdf2Adaptive(f, 0, 1, y0, { denseOutput: true }),
+        ]) {
+            const dense: ode.OdeDenseOutput = result.denseOutput!;
+            expect(dense.eval(0.5).get(0)).toBeCloseTo(Math.exp(-0.5), 2);
+        }
+        // The class is only a type: it is obtained from a result and never constructed by users.
+        expect('OdeDenseOutput' in ode).toBe(false);
+    });
+
     it('publishes a browser + node compatible export map', () => {
         const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
         const rootExport = pkg.exports['.'];
