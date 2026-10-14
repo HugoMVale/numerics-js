@@ -1,7 +1,8 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
-import { EventDetector, validateEvents, type StepInterpolant } from './events.js';
+import { StepPolynomial } from './denseOutput.js';
+import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
 import type {
     DerivativeFunction,
@@ -162,10 +163,13 @@ const DENSE_RK45 = [
 ];
 
 /**
- * Evaluates the continuous extension of an attempted step inside the step, without evaluating `f`.
+ * Computes the coefficients of the continuous extension of an attempted step, without
+ * evaluating `f`.
  *
- * Uses the stages left in `scratch` by {@link rungeKuttaAdaptiveStep}: a cubic polynomial for
- * `'rk23'` (error `O(h^4)`) and a quartic one for `'rk45'` (error `O(h^5)`). The interpolant
+ * The extension is a polynomial in the relative position `x = (t - t_n) / h` in the step,
+ * built from the stages left in `scratch` by {@link rungeKuttaAdaptiveStep}: a cubic for
+ * `'rk23'` (error `O(h^4)`) and a quartic for `'rk45'` (error `O(h^5)`). In vector form,
+ * `y(x) = y_n + x Q_1 + x^2 Q_2 + ... + x^p Q_p`, with `Q_j = h * sum_i C_ij k_i`. It
  * reproduces `y` at `x = 0` and the step's end state at `x = 1` up to rounding.
  *
  * @param method Embedded Runge-Kutta pair, as passed to {@link rungeKuttaAdaptiveStep}.
@@ -173,33 +177,33 @@ const DENSE_RK45 = [
  * @param h Step size used by {@link rungeKuttaAdaptiveStep}.
  * @param scratch Workspace holding the stages of that step; all stages must be intact, so the
  * first-same-as-last copy into `k1` must not have happened yet.
- * @param x Relative position in the step, `(t - t_n) / h`; `[0, 1]` is inside the step.
- * @param out Vector that receives the interpolated state, mutated in place. It must not alias `y`.
- * @returns `out`, for chaining.
+ * @param out Array of length `(p + 1) * y.size` that receives the coefficients as the `p + 1`
+ * blocks `y_n, Q_1, ..., Q_p`, one after the other, each of length `y.size`; `p` is `3` for
+ * `'rk23'` and `4` for `'rk45'`. It is overwritten.
  */
-export function rungeKuttaAdaptiveDense(
+export function rungeKuttaAdaptiveDenseCoefficients(
     method: RungeKuttaAdaptiveMethod,
     y: Vector,
     h: number,
     scratch: AdaptiveScratch,
-    x: number,
-    out: Vector
-): Vector {
+    out: Float64Array
+): void {
     const { k1, k2, k3, k4, k5, k6, k7 } = scratch;
-    const coefficients = method === 'rk23' ? DENSE_RK23 : DENSE_RK45;
+    const dim = y.size;
+    const table = method === 'rk23' ? DENSE_RK23 : DENSE_RK45;
     const stages = method === 'rk23' ? [k1, k2, k3, k4] : [k1, k2, k3, k4, k5, k6, k7];
     out.set(y.data);
+    out.fill(0, dim);
     for (let i = 0; i < stages.length; i++) {
-        const row = coefficients[i];
-        let weight = 0;
-        let power = 1;
+        const row = table[i];
+        const kd = stages[i].data;
         for (let j = 0; j < row.length; j++) {
-            power *= x;
-            weight += row[j] * power;
+            const weight = h * row[j];
+            if (weight === 0) continue;
+            const offset = (j + 1) * dim;
+            for (let d = 0; d < dim; d++) out[offset + d] += weight * kd[d];
         }
-        if (weight !== 0) out.addScaled(stages[i], h * weight);
     }
-    return out;
 }
 
 /**
@@ -540,12 +544,14 @@ export function rungeKuttaAdaptive(
     let errExp: number;
     let fsalSource: Vector;
     let stagesPerAttempt: number;
+    let denseDegree: number;
     switch (method) {
         case 'rk23':
             methodOrder = 3;
             errExp = -1 / 3;
             fsalSource = scratch.k4;
             stagesPerAttempt = 4;
+            denseDegree = DENSE_RK23[0].length;
             break;
 
         case 'rk45':
@@ -553,6 +559,7 @@ export function rungeKuttaAdaptive(
             errExp = -1 / 5;
             fsalSource = scratch.k7;
             stagesPerAttempt = 7;
+            denseDegree = DENSE_RK45[0].length;
             break;
 
         default:
@@ -575,8 +582,10 @@ export function rungeKuttaAdaptive(
     h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
 
     const detector = events === undefined ? null : new EventDetector(events, t0, y);
-    // Reads the loop variables at call time, so it always describes the step under evaluation.
-    const dense: StepInterpolant = (tq, out) => rungeKuttaAdaptiveDense(method, y, h, scratch, (tq - t) / h, out);
+    // Continuous extension of the accepted step under evaluation. It is built lazily, on first use,
+    // from the loop variables as they are at that time, so it must be used before the state swap and
+    // the FSAL copy, which would destroy the step's stages.
+    const stepPolynomial = new StepPolynomial(dim, denseDegree, (c) => rungeKuttaAdaptiveDenseCoefficients(method, y, h, scratch, c));
 
     const tBuf: number[] = [t0];
     const yBuf: Float64Array[] = [y.data.slice()];
@@ -609,9 +618,10 @@ export function rungeKuttaAdaptive(
 
         if (err <= 1) {
             const tNew = isFinalStep ? tEnd : t + h;
+            stepPolynomial.reset(t, h);
             if (detector !== null) {
                 // Before the state swap and the FSAL copy, which would destroy the step's stages.
-                const stop = detector.check(tNew, next, dense);
+                const stop = detector.check(tNew, next, stepPolynomial.evaluate);
                 if (stop !== null) {
                     tBuf.push(stop.t);
                     yBuf.push(stop.y.data.slice());

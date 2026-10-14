@@ -3,7 +3,8 @@ import { Matrix } from '../linalg/Matrix.js';
 import type { LUDecomposition } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
 import { jacobianForward } from '../numdiff.js';
-import { EventDetector, validateEvents, type StepInterpolant } from './events.js';
+import { StepPolynomial } from './denseOutput.js';
+import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
 import type { DerivativeFunction, JacobianFunction, OdeEvent, OdeResult } from './types.js';
 
@@ -50,40 +51,45 @@ const NEWTON_FAILURE_SHRINK = 0.5;
 /** Accepted-step growth factors below this keep the step size, so the LU factors stay valid. */
 const MIN_STEP_CHANGE = 1.2;
 
+/** Degree of the continuous extension of a TR-BDF2 step, see {@link trBdf2AdaptiveDenseCoefficients}. */
+const DENSE_DEGREE = 3;
+
 /**
- * Evaluates the continuous extension of an accepted TR-BDF2 step, without evaluating `f`.
+ * Computes the coefficients of the continuous extension of an accepted TR-BDF2 step, without
+ * evaluating `f`.
  *
- * The interpolant is the cubic `p(x)`, with `x = (t - t_n) / h`, that matches the step's starting
- * state `y_n` and starting slope `z_n = h f_n`, the intermediate state `y_g` at `x = GAMMA`, and the
- * final state `y_{n+1}` at `x = 1`. It reproduces both end states up to rounding and has error
- * `O(h^3)`, like the method itself. The end-point derivative is deliberately not used: for stiff
- * problems it carries `h * lambda` times the end-state error, which would make a Hermite cubic much
- * less accurate than the step.
+ * The extension is the cubic `p(x) = y_n + z_n x + c_2 x^2 + c_3 x^3`, with `x = (t - t_n) / h`, that
+ * matches the step's starting state `y_n` and starting slope `z_n = h f_n`, the intermediate state
+ * `y_g` at `x = GAMMA`, and the final state `y_{n+1}` at `x = 1`. It reproduces both end states up to
+ * rounding and has error `O(h^3)`, like the method itself. The end-point derivative is deliberately
+ * not used: for stiff problems it carries `h * lambda` times the end-state error, which would make a
+ * Hermite cubic much less accurate than the step.
  *
  * @param y State `y_n` at the start of the step. Not mutated.
  * @param yNew Accepted state `y_{n+1}` at the end of the step. Not mutated.
  * @param yG Intermediate state `y_g` at `x = GAMMA`. Not mutated.
  * @param zN Scaled first-stage derivative `z_n = h f_n` of the step. Not mutated.
- * @param x Relative position in the step, `(t - t_n) / h`; `[0, 1]` is inside the step.
- * @param out Vector that receives the interpolated state, mutated in place. It must not alias the inputs.
- * @returns `out`, for chaining.
+ * @param out Array of length `4 * y.size` that receives the coefficients as the four blocks
+ * `y_n, z_n, c_2, c_3`, one after the other, each of length `y.size`. It is overwritten and must not
+ * alias the inputs' data.
  */
-export function trBdf2AdaptiveDense(y: Vector, yNew: Vector, yG: Vector, zN: Vector, x: number, out: Vector): Vector {
+export function trBdf2AdaptiveDenseCoefficients(y: Vector, yNew: Vector, yG: Vector, zN: Vector, out: Float64Array): void {
     const yd = y.data;
     const nd = yNew.data;
     const gd = yG.data;
     const zd = zN.data;
-    const od = out.data;
+    const dim = yd.length;
     const g2 = GAMMA * GAMMA;
-    for (let i = 0; i < yd.length; i++) {
-        // p(x) = y_n + z_n x + c2 x^2 + c3 x^3, with p(GAMMA) = y_g and p(1) = y_{n+1}.
+    for (let i = 0; i < dim; i++) {
+        // p(GAMMA) = y_g and p(1) = y_{n+1} determine c2 and c3.
         const a = gd[i] - yd[i] - zd[i] * GAMMA;
         const b = nd[i] - yd[i] - zd[i];
         const c3 = (a - b * g2) / (g2 * (GAMMA - 1));
-        const c2 = b - c3;
-        od[i] = yd[i] + x * (zd[i] + x * (c2 + x * c3));
+        out[i] = yd[i];
+        out[dim + i] = zd[i];
+        out[2 * dim + i] = b - c3;
+        out[3 * dim + i] = c3;
     }
-    return out;
 }
 
 /**
@@ -540,8 +546,10 @@ export function trBdf2Adaptive(
     };
 
     const detector = events === undefined ? null : new EventDetector(events, t0, y);
-    // Reads the loop variables at call time, so it always describes the step under evaluation.
-    const dense: StepInterpolant = (tq, out) => trBdf2AdaptiveDense(y, yNew, yG, zN, (tq - t) / h, out);
+    // Continuous extension of the accepted step under evaluation. It is built lazily, on first use,
+    // from the loop variables as they are at that time, so it must be used before the state swap,
+    // which would discard the step's start state.
+    const stepPolynomial = new StepPolynomial(dim, DENSE_DEGREE, (c) => trBdf2AdaptiveDenseCoefficients(y, yNew, yG, zN, c));
 
     const tBuf: number[] = [t0];
     const yBuf: Float64Array[] = [y.data.slice()];
@@ -663,9 +671,10 @@ export function trBdf2Adaptive(
 
         if (err <= 1) {
             const tNew = isFinalStep ? tEnd : t + h;
+            stepPolynomial.reset(t, h);
             if (detector !== null) {
                 // Before the state swap, which would discard the step's start state.
-                const stop = detector.check(tNew, yNew, dense);
+                const stop = detector.check(tNew, yNew, stepPolynomial.evaluate);
                 if (stop !== null) {
                     tBuf.push(stop.t);
                     yBuf.push(stop.y.data.slice());

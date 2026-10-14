@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
+import { StepPolynomial } from '../../src/ode/denseOutput.js';
 import {
     rungeKuttaAdaptive,
-    rungeKuttaAdaptiveDense,
+    rungeKuttaAdaptiveDenseCoefficients,
     rungeKuttaAdaptiveStep,
 } from '../../src/ode/rungeKuttaAdaptive.js';
 import type { AdaptiveScratch } from '../../src/ode/rungeKuttaAdaptive.js';
@@ -201,7 +202,7 @@ describe('rungeKuttaAdaptive events', () => {
     });
 });
 
-describe('rungeKuttaAdaptiveDense', () => {
+describe('rungeKuttaAdaptiveDenseCoefficients', () => {
     // Logistic y' = 3 y (1 - y): exact y(t) = 1 / (1 + (1/y0 - 1) e^{-3t}) with y0 = 0.1.
     const f: DerivativeFunction = (_t, y, out) => {
         out.data[0] = 3 * y.data[0] * (1 - y.data[0]);
@@ -213,6 +214,8 @@ describe('rungeKuttaAdaptiveDense', () => {
         k5: new Vector(1), k6: new Vector(1), k7: new Vector(1), yTemp: new Vector(1),
     });
 
+    const degree = { rk23: 3, rk45: 4 } as const;
+
     function maxError(method: 'rk23' | 'rk45', h: number): { error: number; endMismatch: number; startMismatch: number } {
         const t0 = 0.5;
         const y0 = new Vector([exact(t0)]);
@@ -220,15 +223,17 @@ describe('rungeKuttaAdaptiveDense', () => {
         const next = new Vector(1);
         const tmp = new Vector(1);
         rungeKuttaAdaptiveStep(method, f, t0, y0, h, next, scratch);
+        const step = new StepPolynomial(1, degree[method], (c) => rungeKuttaAdaptiveDenseCoefficients(method, y0, h, scratch, c));
+        step.reset(t0, h);
         let error = 0;
         for (let i = 0; i <= 50; i++) {
             const x = i / 50;
-            rungeKuttaAdaptiveDense(method, y0, h, scratch, x, tmp);
+            step.evaluate(t0 + x * h, tmp);
             error = Math.max(error, Math.abs(tmp.data[0] - exact(t0 + x * h)));
         }
-        rungeKuttaAdaptiveDense(method, y0, h, scratch, 0, tmp);
+        step.evaluate(t0, tmp);
         const startMismatch = Math.abs(tmp.data[0] - y0.data[0]);
-        rungeKuttaAdaptiveDense(method, y0, h, scratch, 1, tmp);
+        step.evaluate(t0 + h, tmp);
         return { error, endMismatch: Math.abs(tmp.data[0] - next.data[0]), startMismatch };
     }
 
@@ -243,6 +248,32 @@ describe('rungeKuttaAdaptiveDense', () => {
         for (const r of [coarse, fine]) {
             expect(r.startMismatch).toBe(0);
             expect(r.endMismatch).toBeLessThan(1e-15);
+        }
+    });
+
+    it.each(['rk23', 'rk45'] as const)('(%s) writes y_n followed by the coefficient blocks, which add up to the end state', (method) => {
+        const dim = 3;
+        const g: DerivativeFunction = (t, y, out) => {
+            for (let i = 0; i < dim; i++) out.data[i] = Math.sin(t + i) - 0.5 * y.data[(i + 1) % dim];
+            return out;
+        };
+        const y0 = new Vector([1, -0.5, 2]);
+        const h = 0.3;
+        const scratch: AdaptiveScratch = {
+            k1: new Vector(dim), k2: new Vector(dim), k3: new Vector(dim), k4: new Vector(dim),
+            k5: new Vector(dim), k6: new Vector(dim), k7: new Vector(dim), yTemp: new Vector(dim),
+        };
+        const next = new Vector(dim);
+        rungeKuttaAdaptiveStep(method, g, 0.1, y0, h, next, scratch);
+
+        const out = new Float64Array((degree[method] + 1) * dim).fill(NaN);
+        rungeKuttaAdaptiveDenseCoefficients(method, y0, h, scratch, out);
+
+        expect(Array.from(out.subarray(0, dim))).toEqual(Array.from(y0.data));
+        for (let i = 0; i < dim; i++) {
+            let end = 0;
+            for (let j = 0; j <= degree[method]; j++) end += out[j * dim + i];
+            expect(Math.abs(end - next.data[i])).toBeLessThan(1e-15);
         }
     });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
-import { trBdf2Adaptive, trBdf2AdaptiveDense } from '../../src/ode/trBdf2Adaptive.js';
+import { StepPolynomial } from '../../src/ode/denseOutput.js';
+import { trBdf2Adaptive, trBdf2AdaptiveDenseCoefficients } from '../../src/ode/trBdf2Adaptive.js';
 import type { DerivativeFunction, JacobianFunction, OdeEvent } from '../../src/ode/types.js';
 
 const tight = { atol: 1e-10, rtol: 1e-10 };
@@ -204,19 +205,16 @@ describe('trBdf2Adaptive events', () => {
     });
 });
 
-describe('trBdf2AdaptiveDense', () => {
+describe('trBdf2AdaptiveDenseCoefficients', () => {
     // Data from an exact solution y(t) at the step's nodes: start, GAMMA, end, plus the start slope.
     function interpolate(y: (t: number) => number, dy: (t: number) => number, t0: number, h: number, x: number): number {
-        const out = new Vector(1);
-        trBdf2AdaptiveDense(
-            new Vector([y(t0)]),
-            new Vector([y(t0 + h)]),
-            new Vector([y(t0 + GAMMA * h)]),
-            new Vector([h * dy(t0)]),
-            x,
-            out
-        );
-        return out.data[0];
+        const yStart = new Vector([y(t0)]);
+        const yEnd = new Vector([y(t0 + h)]);
+        const yG = new Vector([y(t0 + GAMMA * h)]);
+        const zN = new Vector([h * dy(t0)]);
+        const step = new StepPolynomial(1, 3, (c) => trBdf2AdaptiveDenseCoefficients(yStart, yEnd, yG, zN, c));
+        step.reset(t0, h);
+        return step.evaluate(t0 + x * h, new Vector(1)).data[0];
     }
 
     it('reproduces cubic polynomials exactly', () => {
@@ -245,9 +243,30 @@ describe('trBdf2AdaptiveDense', () => {
     });
 
     it('interpolates every component independently', () => {
-        const out = new Vector(2);
-        trBdf2AdaptiveDense(new Vector([0, 1]), new Vector([1, 1]), new Vector([GAMMA, 1]), new Vector([1, 0]), 0.5, out);
+        const yStart = new Vector([0, 1]);
+        const yEnd = new Vector([1, 1]);
+        const yG = new Vector([GAMMA, 1]);
+        const zN = new Vector([1, 0]);
+        const step = new StepPolynomial(2, 3, (c) => trBdf2AdaptiveDenseCoefficients(yStart, yEnd, yG, zN, c));
+        step.reset(0, 1);
+        const out = step.evaluate(0.5, new Vector(2));
         expect(out.data[0]).toBeCloseTo(0.5, 14); // linear component y = x
         expect(out.data[1]).toBeCloseTo(1, 14); // constant component
+    });
+
+    it('writes y_n, z_n, c_2 and c_3 as consecutive blocks', () => {
+        const out = new Float64Array(8).fill(NaN);
+        // Per component, the cubic p(x) = 1 + 2x + 3x^2 + 4x^3 (and 5 - x) fixes all four blocks.
+        const p0 = (x: number): number => 1 + 2 * x + 3 * x ** 2 + 4 * x ** 3;
+        const p1 = (x: number): number => 5 - x;
+        trBdf2AdaptiveDenseCoefficients(
+            new Vector([p0(0), p1(0)]),
+            new Vector([p0(1), p1(1)]),
+            new Vector([p0(GAMMA), p1(GAMMA)]),
+            new Vector([2, -1]),
+            out
+        );
+        const expected = [1, 5, 2, -1, 3, 0, 4, 0];
+        expected.forEach((v, i) => expect(out[i]).toBeCloseTo(v, 13));
     });
 });
