@@ -8,7 +8,7 @@ const wobble = (i: number) => 0.05 * Math.sin(12.9898 * (i + 1)) + 0.03 * Math.c
 
 /** Straight line `y = p0 + p1*x`, whose least-squares problem has a closed-form solution. */
 const line = (x: number, p: Vector) => p.get(0) + p.get(1) * x;
-const lineJac = (x: number) => [1, x];
+const lineJac = (x: number) => Vector.from([1, x]);
 
 /** Closed-form weighted linear least squares: `p`, `inv(X^T W X)` and the weighted rss. */
 function linearReference(x: Vector, y: Vector, sigma: Vector) {
@@ -29,7 +29,7 @@ describe('curveFit — linear model against the closed-form solution', () => {
 
     it('recovers parameters, covariance, residuals and rss (unweighted)', () => {
         const ref = linearReference(x, y, Vector.ones(m));
-        const res = curveFit(line, x, y, [0, 0]);
+        const res = curveFit(line, x, y, Vector.from([0, 0]));
 
         expect(res.success, res.message).toBe(true);
         expect(res.p.allClose(ref.p, 1e-7, 1e-9)).toBe(true);
@@ -48,7 +48,7 @@ describe('curveFit — linear model against the closed-form solution', () => {
     it('weights the residuals by sigma, and scales the covariance by the residual variance', () => {
         const sigma = x.map((xi) => 0.5 + 0.4 * xi);
         const ref = linearReference(x, y, sigma);
-        const res = curveFit(line, x, y, [0, 0], { sigma });
+        const res = curveFit(line, x, y, Vector.from([0, 0]), { sigma });
 
         expect(res.success, res.message).toBe(true);
         expect(res.p.allClose(ref.p, 1e-7, 1e-9)).toBe(true);
@@ -62,35 +62,27 @@ describe('curveFit — linear model against the closed-form solution', () => {
         const sigma = x.map((xi) => 0.5 + 0.4 * xi);
         const scaled = sigma.mult(10);
 
-        const rel1 = curveFit(line, x, y, [0, 0], { sigma });
-        const rel2 = curveFit(line, x, y, [0, 0], { sigma: scaled });
+        const rel1 = curveFit(line, x, y, Vector.from([0, 0]), { sigma });
+        const rel2 = curveFit(line, x, y, Vector.from([0, 0]), { sigma: scaled });
         expect(rel2.cov.allClose(rel1.cov, 1e-6, 1e-14)).toBe(true);
 
-        const abs1 = curveFit(line, x, y, [0, 0], { sigma, absoluteSigma: true });
-        const abs2 = curveFit(line, x, y, [0, 0], { sigma: scaled, absoluteSigma: true });
+        const abs1 = curveFit(line, x, y, Vector.from([0, 0]), { sigma, absoluteSigma: true });
+        const abs2 = curveFit(line, x, y, Vector.from([0, 0]), { sigma: scaled, absoluteSigma: true });
         expect(abs2.cov.allClose(abs1.cov.mult(100), 1e-6, 1e-14)).toBe(true);
         expect(abs1.cov.allClose(linearReference(x, y, sigma).Ainv, 1e-5, 1e-12)).toBe(true);
     });
 
-    it('accepts plain arrays as well as Vectors, without modifying its inputs', () => {
+    it('does not modify its input Vectors', () => {
         const xv = x.copy();
         const yv = y.copy();
         const p0 = Vector.from([0, 0]);
         const sigma = Vector.full(m, 0.1);
         const a = curveFit(line, xv, yv, p0, { sigma });
-        const xArray = x.toArray();
-        const yArray = y.toArray();
-        const sigmaArray = Array(m).fill(0.1);
-        const b = curveFit(line, xArray, yArray, [0, 0], { sigma: sigmaArray });
-
-        expect(a.p.allClose(b.p, 0, 0)).toBe(true);
+        expect(a.success, a.message).toBe(true);
         expect(xv.toArray()).toEqual(x.toArray());
         expect(yv.toArray()).toEqual(y.toArray());
         expect(p0.toArray()).toEqual([0, 0]);
-        expect(sigma.toArray()).toEqual(sigmaArray);
-        expect(xArray).toEqual(x.toArray());
-        expect(yArray).toEqual(y.toArray());
-        expect(sigmaArray).toEqual(Array(m).fill(0.1));
+        expect(sigma.toArray()).toEqual(Array(m).fill(0.1));
     });
 });
 
@@ -98,7 +90,7 @@ describe('curveFit — nonlinear models', () => {
     it('fits an exponential decay to exact data, with a tiny residual', () => {
         const t = Vector.linspace(0, 4, 15);
         const y = t.map((ti) => 2.5 * Math.exp(-1.3 * ti));
-        const res = curveFit((ti, p) => p.get(0) * Math.exp(-p.get(1) * ti), t, y, [1, 1]);
+        const res = curveFit((ti, p) => p.get(0) * Math.exp(-p.get(1) * ti), t, y, Vector.from([1, 1]));
 
         expect(res.success, res.message).toBe(true);
         expect(res.p.allClose(Vector.from([2.5, 1.3]), 1e-6, 1e-8)).toBe(true);
@@ -110,14 +102,14 @@ describe('curveFit — nonlinear models', () => {
     const gaussJac = (x: number, p: Vector) => {
         const [a, mu, s] = [p.get(0), p.get(1), p.get(2)];
         const e = Math.exp(-(((x - mu) / s) ** 2) / 2);
-        return [e, (a * e * (x - mu)) / s ** 2, (a * e * (x - mu) ** 2) / s ** 3];
+        return Vector.from([e, (a * e * (x - mu)) / s ** 2, (a * e * (x - mu) ** 2) / s ** 3]);
     };
 
     it('fits a noisy Gaussian peak; analytic and finite-difference Jacobians agree and use fewer evaluations', () => {
         const x = Vector.linspace(-3, 5, 40);
         const y = x.map((xi, i) => 4 * Math.exp(-(((xi - 1) / 0.8) ** 2) / 2) + wobble(i));
-        const fd = curveFit(gauss, x, y, [3, 0.5, 1]);
-        const an = curveFit(gauss, x, y, [3, 0.5, 1], { jac: gaussJac });
+        const fd = curveFit(gauss, x, y, Vector.from([3, 0.5, 1]));
+        const an = curveFit(gauss, x, y, Vector.from([3, 0.5, 1]), { jac: gaussJac });
 
         expect(fd.success, fd.message).toBe(true);
         expect(an.success, an.message).toBe(true);
@@ -138,8 +130,8 @@ describe('curveFit — nonlinear models', () => {
             (xi, p) => p.get(0) / (1 + Math.exp(-p.get(1) * (xi - p.get(2)))),
             x,
             y,
-            [800, 0.3, 7],
-            { sclx: [1e-3, 1, 0.1] }
+            Vector.from([800, 0.3, 7]),
+            { sclx: Vector.from([1e-3, 1, 0.1]) }
         );
         expect(res.success, res.message).toBe(true);
         expect(res.method).toContain('Fixed');
@@ -150,13 +142,13 @@ describe('curveFit — nonlinear models', () => {
         const x = Vector.linspace(0, 4, 15);
         const y = x.map((xi, i) => 2 * Math.exp(-xi) + wobble(i));
         let calls = 0;
-        const res = curveFit((xi, p) => { calls++; return p.get(0) * Math.exp(-p.get(1) * xi); }, x, y, [1, 0.5]);
+        const res = curveFit((xi, p) => { calls++; return p.get(0) * Math.exp(-p.get(1) * xi); }, x, y, Vector.from([1, 0.5]));
         expect(res.evaluationsFunction * x.size).toBe(calls);
 
         calls = 0;
         const model = (xi: number, p: Vector) => { calls++; return p.get(0) * Math.exp(-p.get(1) * xi); };
-        const resJac = curveFit(model, x, y, [1, 0.5], {
-            jac: (xi, p) => [Math.exp(-p.get(1) * xi), -p.get(0) * xi * Math.exp(-p.get(1) * xi)],
+        const resJac = curveFit(model, x, y, Vector.from([1, 0.5]), {
+            jac: (xi, p) => Vector.from([Math.exp(-p.get(1) * xi), -p.get(0) * xi * Math.exp(-p.get(1) * xi)]),
             jacCheck: false,
         });
         expect(resJac.evaluationsFunction * x.size).toBe(calls);
@@ -170,7 +162,7 @@ describe('curveFit — covariance edge cases', () => {
 
     it('reports an infinite covariance for redundant parameters', () => {
         // p0 + p1 enter only as their sum.
-        const res = curveFit((xi, p) => p.get(0) + p.get(1) + p.get(2) * xi, x, y, [0, 0, 0]);
+        const res = curveFit((xi, p) => p.get(0) + p.get(1) + p.get(2) * xi, x, y, Vector.from([0, 0, 0]));
         expect(res.p.allFinite()).toBe(true);
         expect(res.p.get(0) + res.p.get(1)).toBeCloseTo(
             linearReference(x, y, Vector.ones(8)).p.get(0),
@@ -183,19 +175,19 @@ describe('curveFit — covariance edge cases', () => {
     it('reports an infinite covariance without degrees of freedom, unless sigma is absolute', () => {
         const x2 = Vector.from([0, 1]);
         const y2 = Vector.from([1, 3]);
-        const rel = curveFit(line, x2, y2, [0, 0]);
+        const rel = curveFit(line, x2, y2, Vector.from([0, 0]));
         expect(rel.dof).toBe(0);
         expect(rel.p.allClose(Vector.from([1, 2]), 1e-6, 1e-8)).toBe(true);
         expect(rel.cov.data.every((v) => v === Infinity)).toBe(true);
 
-        const abs = curveFit(line, x2, y2, [0, 0], { sigma: [0.1, 0.1], absoluteSigma: true });
+        const abs = curveFit(line, x2, y2, Vector.from([0, 0]), { sigma: Vector.from([0.1, 0.1]), absoluteSigma: true });
         expect(abs.cov.allFinite()).toBe(true);
         // inv(X^T X) * sigma², with X = [[1, 0], [1, 1]], i.e. X^T X = [[2, 1], [1, 1]]
         expect(abs.cov.allClose(Matrix.from([[1, -1], [-1, 2]]).mult(0.01), 1e-5, 1e-12)).toBe(true);
     });
 
     it('returns a failure result with NaN covariance if the data are not finite', () => {
-        const res = curveFit(line, Vector.from([0, 1, 2]), Vector.from([1, NaN, 5]), [0, 0]);
+        const res = curveFit(line, Vector.from([0, 1, 2]), Vector.from([1, NaN, 5]), Vector.from([0, 0]));
         expect(res.success).toBe(false);
         expect(res.message).toMatch(/non-finite/);
         expect(res.cov.data.every(Number.isNaN)).toBe(true);
@@ -206,25 +198,26 @@ describe('curveFit — jac option', () => {
     const x = Vector.linspace(0, 4, 10);
     const y = x.map((xi, i) => 1 + 2 * xi + wobble(i));
 
-    it('accepts a gradient returned as a Vector or as an array', () => {
-        const a = curveFit(line, x, y, [0, 0], { jac: (xi) => Vector.from(lineJac(xi)) });
-        const b = curveFit(line, x, y, [0, 0], { jac: lineJac });
-        expect(a.p.allClose(b.p, 0, 0)).toBe(true);
-        expect(a.cov.allClose(b.cov, 0, 0)).toBe(true);
+    it('uses a Vector-valued gradient', () => {
+        const fd = curveFit(line, x, y, Vector.from([0, 0]));
+        const analytic = curveFit(line, x, y, Vector.from([0, 0]), { jac: lineJac });
+        expect(analytic.success, analytic.message).toBe(true);
+        expect(analytic.p.allClose(fd.p, 1e-7, 1e-9)).toBe(true);
+        expect(analytic.cov.allClose(fd.cov, 1e-7, 1e-9)).toBe(true);
     });
 
     it('fails if the gradient is inconsistent with the model, unless jacCheck is disabled', () => {
-        const wrong = (xi: number) => [1, 1.5 * xi];
-        const checked = curveFit(line, x, y, [0, 0], { jac: wrong });
+        const wrong = (xi: number) => Vector.from([1, 1.5 * xi]);
+        const checked = curveFit(line, x, y, Vector.from([0, 0]), { jac: wrong });
         expect(checked.success).toBe(false);
         expect(checked.message).toMatch(/does not match finite-difference/);
 
-        const unchecked = curveFit(line, x, y, [0, 0], { jac: wrong, jacCheck: false });
+        const unchecked = curveFit(line, x, y, Vector.from([0, 0]), { jac: wrong, jacCheck: false });
         expect(unchecked.message).not.toMatch(/does not match/);
     });
 
     it('throws if the gradient has the wrong number of components', () => {
-        expect(() => curveFit(line, x, y, [0, 0], { jac: () => [1] })).toThrow(RangeError);
+        expect(() => curveFit(line, x, y, Vector.from([0, 0]), { jac: () => Vector.from([1]) })).toThrow(RangeError);
     });
 });
 
@@ -233,7 +226,7 @@ describe('curveFit — limits and validation', () => {
     const y = x.map((xi) => 1 + 2 * xi);
 
     it('passes the solver limits through, and reports non-convergence', () => {
-        const res = curveFit((xi, p) => p.get(0) * Math.exp(-p.get(1) * xi), x, x.map((xi) => 3 * Math.exp(-2 * xi)), [1, 0.1], { maxIter: 2 });
+        const res = curveFit((xi, p) => p.get(0) * Math.exp(-p.get(1) * xi), x, x.map((xi) => 3 * Math.exp(-2 * xi)), Vector.from([1, 0.1]), { maxIter: 2 });
         expect(res.success).toBe(false);
         expect(res.iterations).toBe(2);
         expect(res.message).toMatch(/Maximum number of iterations/);
@@ -241,20 +234,20 @@ describe('curveFit — limits and validation', () => {
     });
 
     it('throws for inconsistent or insufficient data', () => {
-        expect(() => curveFit(line, Vector.from([0, 1, 2]), Vector.from([1, 2]), [0, 0])).toThrow(RangeError);
-        expect(() => curveFit(line, Vector.from([0]), Vector.from([1]), [0, 0])).toThrow(RangeError);
-        expect(() => curveFit(line, x, y, [])).toThrow(RangeError);
+        expect(() => curveFit(line, Vector.from([0, 1, 2]), Vector.from([1, 2]), Vector.from([0, 0]))).toThrow(RangeError);
+        expect(() => curveFit(line, Vector.from([0]), Vector.from([1]), Vector.from([0, 0]))).toThrow(RangeError);
+        expect(() => curveFit(line, x, y, Vector.zero(0))).toThrow(RangeError);
     });
 
     it('throws for an invalid sigma', () => {
-        expect(() => curveFit(line, x, y, [0, 0], { sigma: Vector.from([1, 2]) })).toThrow(RangeError);
-        expect(() => curveFit(line, x, y, [0, 0], { sigma: Vector.zero(10) })).toThrow(Error);
-        expect(() => curveFit(line, x, y, [0, 0], { sigma: Vector.full(10, -1) })).toThrow(Error);
-        expect(() => curveFit(line, x, y, [0, 0], { sigma: Vector.full(10, NaN) })).toThrow(Error);
+        expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sigma: Vector.from([1, 2]) })).toThrow(RangeError);
+        expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sigma: Vector.zero(10) })).toThrow(Error);
+        expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sigma: Vector.full(10, -1) })).toThrow(Error);
+        expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sigma: Vector.full(10, NaN) })).toThrow(Error);
     });
 
     it('throws for invalid solver options', () => {
-        expect(() => curveFit(line, x, y, [0, 0], { maxFunEvals: 0 })).toThrow(RangeError);
-        expect(() => curveFit(line, x, y, [0, 0], { sclx: [1, -1] })).toThrow(Error);
+        expect(() => curveFit(line, x, y, Vector.from([0, 0]), { maxFunEvals: 0 })).toThrow(RangeError);
+        expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sclx: Vector.from([1, -1]) })).toThrow(Error);
     });
 });

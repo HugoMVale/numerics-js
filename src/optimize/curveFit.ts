@@ -53,10 +53,10 @@ export interface CurveFitResult {
 export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' | 'sclx'> {
     /**
      * Standard deviations of the errors of `ydata`, used to weight the
-     * residuals as `(f(x, p) - y) / sigma`. Must be strictly positive. By
-     * default, all points have the same weight.
+     * residuals as `(f(x, p) - y) / sigma`. Must be a `Vector` with strictly
+     * positive components. By default, all points have the same weight.
      */
-    sigma?: Vector | number[];
+    sigma?: Vector;
     /**
      * Whether `sigma` holds absolute standard deviations, so that the
      * covariance is `inv(J^T J)`. If `false`, `sigma` only gives relative
@@ -71,15 +71,15 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
      * `sclx` in {@link levenbergMarquardt}: ideally `sclx*p` is of order 1 at
      * the solution. If omitted, MINPACK's adaptive scaling is used.
      */
-    sclx?: Vector | number[];
+    sclx?: Vector;
     /**
      * Function returning the gradient of the model with respect to the
-     * parameters, `∂f/∂p` (`n` components), at a single point `x`. By
+     * parameters, `∂f/∂p` (an `n`-component `Vector`), at a single point `x`. By
      * default, the Jacobian is approximated using forward finite differences.
      * Like in {@link levenbergMarquardt}, it is checked against finite
      * differences at `p0` if `jacCheck` is `true`.
      */
-    jac?: (x: number, p: Vector) => Vector | number[];
+    jac?: (x: number, p: Vector) => Vector;
 }
 
 /**
@@ -105,9 +105,9 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  *
  * @param f Model function `f(x, p)`, returning the predicted `y` at `x` for
  * the parameter vector `p`.
- * @param xdata Independent variable values, `m` points.
- * @param ydata Observed values, `m` points.
- * @param p0 Initial guess for the parameters, `n <= m` components.
+ * @param xdata Independent variable values, `m` points in a `Vector`.
+ * @param ydata Observed values, `m` points in a `Vector`.
+ * @param p0 Initial guess for the parameters, a `Vector` with `n <= m` components.
  * @param options Configuration options; see {@link CurveFitOptions}.
  * @returns A {@link CurveFitResult} with the optimal parameters, their
  * covariance and diagnostics.
@@ -119,12 +119,13 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
  * import { curveFit } from 'numerics-js/optimize';
  *
  * // Fit `y = a*exp(-b*t)` to noisy data.
- * const t = [0, 1, 2, 3, 4, 5];
- * const y = [3.02, 1.81, 1.12, 0.66, 0.41, 0.24];
- * const result = curveFit((t, p) => p.get(0) * Math.exp(-p.get(1) * t), t, y, [1, 1]);
+ * const t = Vector.from([0, 1, 2, 3, 4, 5]);
+ * const y = Vector.from([3.02, 1.81, 1.12, 0.66, 0.41, 0.24]);
+ * const result = curveFit((t, p) => p.get(0) * Math.exp(-p.get(1) * t), t, y, Vector.from([1, 1]));
  * console.log(result.p.toString());
  * console.log(result.stderr.toString());
  * ```
@@ -137,14 +138,14 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  */
 export function curveFit(
     f: (x: number, p: Vector) => number,
-    xdata: Vector | number[],
-    ydata: Vector | number[],
-    p0: Vector | number[],
+    xdata: Vector,
+    ydata: Vector,
+    p0: Vector,
     options: CurveFitOptions = {}
 ): CurveFitResult {
-    const x = xdata instanceof Vector ? xdata : Vector.from(xdata);
-    const y = ydata instanceof Vector ? ydata : Vector.from(ydata);
-    const p0v = p0 instanceof Vector ? p0.copy() : Vector.from(p0);
+    const x = xdata;
+    const y = ydata;
+    const p0v = p0.copy();
     const m = x.size;
     const n = p0v.size;
 
@@ -164,7 +165,7 @@ export function curveFit(
     if (sigmaOption === undefined) {
         sigma = Vector.ones(m);
     } else {
-        sigma = sigmaOption instanceof Vector ? sigmaOption : Vector.from(sigmaOption);
+        sigma = sigmaOption;
         if (sigma.size !== m) {
             throw new RangeError(`curveFit: sigma must have the same length as ydata (${m}), got ${sigma.size}`);
         }
@@ -190,12 +191,12 @@ export function curveFit(
               const J = new Matrix(m, n);
               for (let i = 0; i < m; i++) {
                   const g = jac(x.data[i], p);
-                  const size = g instanceof Vector ? g.size : g.length;
+                  const size = g.size;
                   if (size !== n) {
                       throw new RangeError(`curveFit: jac must return ${n} components, got ${size}`);
                   }
                   const w = unweighted ? 1 : 1 / sigma.data[i];
-                  for (let j = 0; j < n; j++) J.data[i * n + j] = (g instanceof Vector ? g.data[j] : g[j]) * w;
+                  for (let j = 0; j < n; j++) J.data[i * n + j] = g.data[j] * w;
               }
               return J;
           }
@@ -217,14 +218,14 @@ export function curveFit(
         J = jacobianFunction(p);
         nJev += 1;
     } else {
-        const sclx = lmOptions.sclx === undefined ? scaleVector(p0v) : Vector.from(Array.from(lmOptions.sclx instanceof Vector ? lmOptions.sclx.data : lmOptions.sclx));
+        const jacobianSclx = lmOptions.sclx ?? scaleVector(p0v);
         J = jacobianForward(
             (pv) => {
                 nFev += 1;
                 return residualFunction(pv);
             },
             p,
-            { fx: lm.fx, sclx, epsf: lmOptions.epsf }
+            { fx: lm.fx, sclx: jacobianSclx, epsf: lmOptions.epsf }
         );
     }
 

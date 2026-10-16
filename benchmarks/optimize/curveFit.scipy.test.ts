@@ -50,12 +50,15 @@ describe('curveFit vs scipy.optimize.curve_fit (method="lm") reference values', 
             const model = MODELS[fixture.id];
             expect(model, `no matching model registered for id "${fixture.id}"`).toBeDefined();
 
-            const result = curveFit(model, fixture.xdata, fixture.ydata, fixture.p0, {
+            const xdata = Vector.from(fixture.xdata);
+            const ydata = Vector.from(fixture.ydata);
+            const p0 = Vector.from(fixture.p0);
+            const result = curveFit(model, xdata, ydata, p0, {
                 tolf: fixture.tolf,
                 tolx: fixture.tolx,
                 tolg: fixture.tolg,
                 absoluteSigma: fixture.absoluteSigma,
-                ...(fixture.sigma === null ? {} : { sigma: fixture.sigma }),
+                ...(fixture.sigma === null ? {} : { sigma: Vector.from(fixture.sigma) }),
             });
             const n = fixture.p0.length;
 
