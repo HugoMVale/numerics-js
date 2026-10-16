@@ -1,16 +1,21 @@
 /**
- * Derivative-free optimization methods.
+ * Optimization methods.
  *
- * Choose a method based on the dimensionality of the objective:
+ * Choose a method based on the type of problem:
  *
  * - Use {@link brent} to minimize a scalar function within a bounded
  *   search interval.
  * - Use {@link nelderMead} to minimize an unconstrained multivariate
  *   function when derivatives are unavailable or inconvenient to provide.
+ * - Use {@link levenbergMarquardt} to minimize the sum of squares of a vector
+ *   function (nonlinear least squares); derivatives are supplied or
+ *   approximated by finite differences.
  *
  * @module optimize
  */
 export { brent } from './optimize/brent.js';
 export { nelderMead } from './optimize/nelderMead.js';
+export { levenbergMarquardt } from './optimize/levenbergMarquardt.js';
 export type { BrentResult } from './optimize/brent.js';
 export type { NelderMeadResult, NelderMeadOptions } from './optimize/nelderMead.js';
+export type { LevenbergMarquardtResult, LevenbergMarquardtOptions } from './optimize/levenbergMarquardt.js';

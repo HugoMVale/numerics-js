@@ -36,6 +36,7 @@ describe('public API', () => {
         expect(typeof ode.wrapAllocatingDerivative).toBe('function');
         expect(typeof optimize.brent).toBe('function');
         expect(typeof optimize.nelderMead).toBe('function');
+        expect(typeof optimize.levenbergMarquardt).toBe('function');
     });
 
     it('exposes dense output through the adaptive ode solvers, as a type only', () => {

@@ -55,7 +55,7 @@ console.log(accumulatedHeat.value);
 - `interpolate`: linear and shape-preserving interpolation for scalar and vector-valued data.
 - `numdiff`: finite-difference derivatives and Jacobians.
 - `ode`: fixed-step and adaptive Runge-Kutta solvers, an adaptive implicit solver for stiff problems, plus velocity Verlet integration.
-- `optimize`: scalar Brent minimization and multidimensional Nelder-Mead optimization.
+- `optimize`: scalar Brent minimization, multidimensional Nelder-Mead optimization, and Levenberg-Marquardt nonlinear least squares.
 - `roots`: scalar bisection, Brent, and secant methods, plus quasi-Newton system solving.
 - `special`: Bessel functions of the first kind and their positive zeros.
 - `math`: clipping, signed magnitude, approximate equality, and seeded random numbers.

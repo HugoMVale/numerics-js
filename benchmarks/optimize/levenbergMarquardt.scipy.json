@@ -1,0 +1,1178 @@
+[
+    {
+        "id": "linearFullRank",
+        "problem": "linearFullRank",
+        "description": "Linear function, full rank (MGH 1), n = 5, m = 10, finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "fx0": [
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -2.0,
+            -2.0,
+            -2.0,
+            -2.0,
+            -2.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.7273360224671697,
+                    0.8167583397097529,
+                    1.297365457332734,
+                    1.1762546707509745,
+                    0.891109550601909
+                ],
+                "fx": [
+                    -1.2544287857053384,
+                    -1.1650064684627552,
+                    -0.6843993508397741,
+                    -0.8055101374215337,
+                    -1.090655257570599,
+                    -1.981764808172508,
+                    -1.981764808172508,
+                    -1.981764808172508,
+                    -1.981764808172508,
+                    -1.981764808172508
+                ]
+            },
+            {
+                "x": [
+                    0.8328139278663845,
+                    1.0983087535871898,
+                    0.6867341856037134,
+                    1.1727560440146214,
+                    1.441802865269937
+                ],
+                "fx": [
+                    -1.2136692274019847,
+                    -0.9481744016811793,
+                    -1.3597489696646559,
+                    -0.8737271112537477,
+                    -0.604680289998432,
+                    -2.046483155268369,
+                    -2.046483155268369,
+                    -2.046483155268369,
+                    -2.046483155268369,
+                    -2.046483155268369
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 600,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            -1.0000000298023188,
+            -1.000000029802319,
+            -1.0000000298023188,
+            -1.0000001043081113,
+            -1.000000104308111
+        ],
+        "scipySumSquares": 5.000000000000024,
+        "scipyEvaluations": 13,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 1,
+        "scipyMessage": "Both actual and predicted relative reductions in the sum of squares\n  are at most 0.000000"
+    },
+    {
+        "id": "linearFullRank_jac",
+        "problem": "linearFullRank",
+        "description": "Linear function, full rank (MGH 1), n = 5, m = 10, analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "fx0": [
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -2.0,
+            -2.0,
+            -2.0,
+            -2.0,
+            -2.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.7273360224671697,
+                    0.8167583397097529,
+                    1.297365457332734,
+                    1.1762546707509745,
+                    0.891109550601909
+                ],
+                "fx": [
+                    -1.2544287857053384,
+                    -1.1650064684627552,
+                    -0.6843993508397741,
+                    -0.8055101374215337,
+                    -1.090655257570599,
+                    -1.981764808172508,
+                    -1.981764808172508,
+                    -1.981764808172508,
+                    -1.981764808172508,
+                    -1.981764808172508
+                ]
+            },
+            {
+                "x": [
+                    0.8328139278663845,
+                    1.0983087535871898,
+                    0.6867341856037134,
+                    1.1727560440146214,
+                    1.441802865269937
+                ],
+                "fx": [
+                    -1.2136692274019847,
+                    -0.9481744016811793,
+                    -1.3597489696646559,
+                    -0.8737271112537477,
+                    -0.604680289998432,
+                    -2.046483155268369,
+                    -2.046483155268369,
+                    -2.046483155268369,
+                    -2.046483155268369,
+                    -2.046483155268369
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 1200,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            -1.0,
+            -1.0000000000000004,
+            -1.0,
+            -1.0000000000000004,
+            -1.0
+        ],
+        "scipySumSquares": 5.0,
+        "scipyEvaluations": 3,
+        "scipyJacobianEvaluations": 2,
+        "scipyIer": 3,
+        "scipyMessage": "Both actual and predicted relative reductions in the sum of squares\n  are at most 0.000000 and the relative error between two consecutive iterates is at \n  most 0.000000"
+    },
+    {
+        "id": "rosenbrock",
+        "problem": "rosenbrock",
+        "description": "Rosenbrock function (MGH 4), finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            -1.2,
+            1.0
+        ],
+        "fx0": [
+            -4.3999999999999995,
+            2.2
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    -1.5021051424445147,
+                    1.4488811518333182
+                ],
+                "fx": [
+                    -8.074387071249374,
+                    2.5021051424445147
+                ]
+            },
+            {
+                "x": [
+                    -0.9993150562795531,
+                    0.5958979355941121
+                ],
+                "fx": [
+                    -4.0273264611289425,
+                    1.9993150562795532
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 300,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            1.0,
+            1.0
+        ],
+        "scipySumSquares": 0.0,
+        "scipyEvaluations": 54,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    },
+    {
+        "id": "rosenbrock_jac",
+        "problem": "rosenbrock",
+        "description": "Rosenbrock function (MGH 4), analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            -1.2,
+            1.0
+        ],
+        "fx0": [
+            -4.3999999999999995,
+            2.2
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    -1.5021051424445147,
+                    1.4488811518333182
+                ],
+                "fx": [
+                    -8.074387071249374,
+                    2.5021051424445147
+                ]
+            },
+            {
+                "x": [
+                    -0.9993150562795531,
+                    0.5958979355941121
+                ],
+                "fx": [
+                    -4.0273264611289425,
+                    1.9993150562795532
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 600,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            1.0,
+            1.0
+        ],
+        "scipySumSquares": 0.0,
+        "scipyEvaluations": 21,
+        "scipyJacobianEvaluations": 16,
+        "scipyIer": 4,
+        "scipyMessage": "The cosine of the angle between func(x) and any column of the\n  Jacobian is at most 0.000000 in absolute value"
+    },
+    {
+        "id": "powellSingular",
+        "problem": "powellSingular",
+        "description": "Powell singular function (MGH 13), finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            3.0,
+            -1.0,
+            0.0,
+            1.0
+        ],
+        "fx0": [
+            -7.0,
+            -2.23606797749979,
+            1.0,
+            12.649110640673518
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    2.8255189985034384,
+                    -0.6135200806724823,
+                    0.1974534998820221,
+                    0.8264728640701121
+                ],
+                "fx": [
+                    -3.309681808221385,
+                    -1.4065300574882662,
+                    1.0169251765577367,
+                    12.637047966812764
+                ]
+            },
+            {
+                "x": [
+                    3.7017844899901995,
+                    -1.2798650444545139,
+                    -0.4184054304577919,
+                    0.6598956010750475
+                ],
+                "fx": [
+                    -9.09686595455494,
+                    -2.4111544067155735,
+                    0.19629700955134796,
+                    29.260833509517834
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 500,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            7.564608284174455e-11,
+            -7.564608284174455e-12,
+            2.6024928653470266e-11,
+            2.6024928653470266e-11
+        ],
+        "scipySumSquares": 7.325728611684829e-41,
+        "scipyEvaluations": 503,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 5,
+        "scipyMessage": "Number of calls to function has reached maxfev = 500."
+    },
+    {
+        "id": "powellSingular_jac",
+        "problem": "powellSingular",
+        "description": "Powell singular function (MGH 13), analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            3.0,
+            -1.0,
+            0.0,
+            1.0
+        ],
+        "fx0": [
+            -7.0,
+            -2.23606797749979,
+            1.0,
+            12.649110640673518
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    2.8255189985034384,
+                    -0.6135200806724823,
+                    0.1974534998820221,
+                    0.8264728640701121
+                ],
+                "fx": [
+                    -3.309681808221385,
+                    -1.4065300574882662,
+                    1.0169251765577367,
+                    12.637047966812764
+                ]
+            },
+            {
+                "x": [
+                    3.7017844899901995,
+                    -1.2798650444545139,
+                    -0.4184054304577919,
+                    0.6598956010750475
+                ],
+                "fx": [
+                    -9.09686595455494,
+                    -2.4111544067155735,
+                    0.19629700955134796,
+                    29.260833509517834
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 1000,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            1.6521175961683935e-17,
+            -1.6521175961683934e-18,
+            2.6433881538694683e-18,
+            2.6433881538694683e-18
+        ],
+        "scipySumSquares": 3.732388689129229e-67,
+        "scipyEvaluations": 59,
+        "scipyJacobianEvaluations": 58,
+        "scipyIer": 8,
+        "scipyMessage": "gtol=0.000000 is too small, func(x) is orthogonal to the columns of\n  the Jacobian to machine precision."
+    },
+    {
+        "id": "helicalValley",
+        "problem": "helicalValley",
+        "description": "Helical valley function (MGH 7), finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            -1.0,
+            0.0,
+            0.0
+        ],
+        "fx0": [
+            -50.0,
+            0.0,
+            0.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    -1.1598998150452946,
+                    -0.03480684629794906,
+                    -0.23357897170922903
+                ],
+                "fx": [
+                    -52.81324644414036,
+                    1.6042194803929744,
+                    -0.23357897170922903
+                ]
+            },
+            {
+                "x": [
+                    -0.684223596575193,
+                    -0.3067056107105055,
+                    -0.37053092382279973
+                ],
+                "fx": [
+                    -60.41210765588282,
+                    -2.5017984706224605,
+                    -0.37053092382279973
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 400,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            1.0,
+            -7.77807814791932e-18,
+            0.0
+        ],
+        "scipySumSquares": 1.5324448989176936e-32,
+        "scipyEvaluations": 35,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    },
+    {
+        "id": "beale",
+        "problem": "beale",
+        "description": "Beale function (MGH 5), finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            1.0,
+            1.0
+        ],
+        "fx0": [
+            1.5,
+            2.25,
+            2.625
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.5916647515449359,
+                    1.0985680136649132
+                ],
+                "fx": [
+                    1.5583192193153288,
+                    2.3723868482370576,
+                    2.8177694960818225
+                ]
+            },
+            {
+                "x": [
+                    1.3547419043740012,
+                    1.1016212416937132
+                ],
+                "fx": [
+                    1.6376705544969916,
+                    2.5393313616866298,
+                    3.0814041284191496
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 300,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            3.0,
+            0.5
+        ],
+        "scipySumSquares": 0.0,
+        "scipyEvaluations": 23,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    },
+    {
+        "id": "beale_jac",
+        "problem": "beale",
+        "description": "Beale function (MGH 5), analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            1.0,
+            1.0
+        ],
+        "fx0": [
+            1.5,
+            2.25,
+            2.625
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.5916647515449359,
+                    1.0985680136649132
+                ],
+                "fx": [
+                    1.5583192193153288,
+                    2.3723868482370576,
+                    2.8177694960818225
+                ]
+            },
+            {
+                "x": [
+                    1.3547419043740012,
+                    1.1016212416937132
+                ],
+                "fx": [
+                    1.6376705544969916,
+                    2.5393313616866298,
+                    3.0814041284191496
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 600,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            3.0000000000000004,
+            0.5000000000000001
+        ],
+        "scipySumSquares": 4.930380657631324e-32,
+        "scipyEvaluations": 9,
+        "scipyJacobianEvaluations": 7,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    },
+    {
+        "id": "jennrichSampson",
+        "problem": "jennrichSampson",
+        "description": "Jennrich and Sampson function (MGH 6), finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            0.3,
+            0.4
+        ],
+        "fx0": [
+            1.1583164947827265,
+            1.9523402711170235,
+            2.220279966106503,
+            1.7268506528683378,
+            0.1292548307312842,
+            -3.0728238450545504,
+            -8.610816683664705,
+            -17.555706577750954,
+            -31.47796616855082,
+            -52.68368695633191
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.7319883611359834,
+                    0.6247813610920201
+                ],
+                "fx": [
+                    0.05295174714598794,
+                    -1.8119342681580557,
+                    -7.505215098535938,
+                    -20.86118690437941,
+                    -49.59410912311904,
+                    -109.26155674649374,
+                    -231.310716393904,
+                    -479.4453200018623,
+                    -982.9779025602361,
+                    -2004.9096937163736
+                ]
+            },
+            {
+                "x": [
+                    0.6605513173932924,
+                    0.8293378015753163
+                ],
+                "fx": [
+                    -0.2276599240773356,
+                    -2.9999013205469964,
+                    -11.292071078476361,
+                    -31.631321543576448,
+                    -78.41179851614697,
+                    -183.52866802630774,
+                    -417.9627268202606,
+                    -940.2904376349799,
+                    -2106.0055015944704,
+                    -4714.473493638431
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 300,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            0.2578199265274852,
+            0.2578299767615815
+        ],
+        "scipySumSquares": 124.36218247816447,
+        "scipyEvaluations": 45,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 1,
+        "scipyMessage": "Both actual and predicted relative reductions in the sum of squares\n  are at most 0.000000"
+    },
+    {
+        "id": "jennrichSampson_jac",
+        "problem": "jennrichSampson",
+        "description": "Jennrich and Sampson function (MGH 6), analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            0.3,
+            0.4
+        ],
+        "fx0": [
+            1.1583164947827265,
+            1.9523402711170235,
+            2.220279966106503,
+            1.7268506528683378,
+            0.1292548307312842,
+            -3.0728238450545504,
+            -8.610816683664705,
+            -17.555706577750954,
+            -31.47796616855082,
+            -52.68368695633191
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.7319883611359834,
+                    0.6247813610920201
+                ],
+                "fx": [
+                    0.05295174714598794,
+                    -1.8119342681580557,
+                    -7.505215098535938,
+                    -20.86118690437941,
+                    -49.59410912311904,
+                    -109.26155674649374,
+                    -231.310716393904,
+                    -479.4453200018623,
+                    -982.9779025602361,
+                    -2004.9096937163736
+                ]
+            },
+            {
+                "x": [
+                    0.6605513173932924,
+                    0.8293378015753163
+                ],
+                "fx": [
+                    -0.2276599240773356,
+                    -2.9999013205469964,
+                    -11.292071078476361,
+                    -31.631321543576448,
+                    -78.41179851614697,
+                    -183.52866802630774,
+                    -417.9627268202606,
+                    -940.2904376349799,
+                    -2106.0055015944704,
+                    -4714.473493638431
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 600,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            0.25781992663680026,
+            0.25782997676455266
+        ],
+        "scipySumSquares": 124.36218247815806,
+        "scipyEvaluations": 21,
+        "scipyJacobianEvaluations": 12,
+        "scipyIer": 1,
+        "scipyMessage": "Both actual and predicted relative reductions in the sum of squares\n  are at most 0.000000"
+    },
+    {
+        "id": "brownBadlyScaled",
+        "problem": "brownBadlyScaled",
+        "description": "Brown badly scaled function, finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            1.0,
+            1.0
+        ],
+        "fx0": [
+            -999999.0,
+            0.999998,
+            -1.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    1.0461860090823532,
+                    1.4376729587677568
+                ],
+                "fx": [
+                    -999998.9538139909,
+                    1.4376709587677567,
+                    -0.495926664901142
+                ]
+            },
+            {
+                "x": [
+                    0.9949879400788243,
+                    0.7737731824899875
+                ],
+                "fx": [
+                    -999999.0050120599,
+                    0.7737711824899876,
+                    -1.230105015066051
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 300,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            1000000.0,
+            2.000000000001393e-06
+        ],
+        "scipySumSquares": 1.9395123542400452e-24,
+        "scipyEvaluations": 46,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    },
+    {
+        "id": "brownBadlyScaled_jac",
+        "problem": "brownBadlyScaled",
+        "description": "Brown badly scaled function, analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            1.0,
+            1.0
+        ],
+        "fx0": [
+            -999999.0,
+            0.999998,
+            -1.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    1.0461860090823532,
+                    1.4376729587677568
+                ],
+                "fx": [
+                    -999998.9538139909,
+                    1.4376709587677567,
+                    -0.495926664901142
+                ]
+            },
+            {
+                "x": [
+                    0.9949879400788243,
+                    0.7737731824899875
+                ],
+                "fx": [
+                    -999999.0050120599,
+                    0.7737711824899876,
+                    -1.230105015066051
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 600,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            1000000.0,
+            2e-06
+        ],
+        "scipySumSquares": 0.0,
+        "scipyEvaluations": 16,
+        "scipyJacobianEvaluations": 15,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    },
+    {
+        "id": "freudensteinRoth",
+        "problem": "freudensteinRoth",
+        "description": "Freudenstein and Roth function, local minimum, finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            0.5,
+            -2.0
+        ],
+        "fx0": [
+            19.5,
+            -4.5
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.4517787074747607,
+                    -1.6699221532009394
+                ],
+                "fx": [
+                    9.391634712179998,
+                    -7.037482859507872
+                ]
+            },
+            {
+                "x": [
+                    0.33089093046705464,
+                    -1.1930919863835219
+                ],
+                "fx": [
+                    -1.467253811033462,
+                    -12.24068161806061
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 300,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            11.412484458440325,
+            -0.8968279141291072
+        ],
+        "scipySumSquares": 48.98425372707155,
+        "scipyEvaluations": 30,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 1,
+        "scipyMessage": "Both actual and predicted relative reductions in the sum of squares\n  are at most 0.000000"
+    },
+    {
+        "id": "freudensteinRoth_jac",
+        "problem": "freudensteinRoth",
+        "description": "Freudenstein and Roth function, local minimum, analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            0.5,
+            -2.0
+        ],
+        "fx0": [
+            19.5,
+            -4.5
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    0.4517787074747607,
+                    -1.6699221532009394
+                ],
+                "fx": [
+                    9.391634712179998,
+                    -7.037482859507872
+                ]
+            },
+            {
+                "x": [
+                    0.33089093046705464,
+                    -1.1930919863835219
+                ],
+                "fx": [
+                    -1.467253811033462,
+                    -12.24068161806061
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 600,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            11.412484465499256,
+            -0.8968279137315114
+        ],
+        "scipySumSquares": 48.98425372706993,
+        "scipyEvaluations": 14,
+        "scipyJacobianEvaluations": 8,
+        "scipyIer": 1,
+        "scipyMessage": "Both actual and predicted relative reductions in the sum of squares\n  are at most 0.000000"
+    },
+    {
+        "id": "watson",
+        "problem": "watson",
+        "description": "Watson function (MGH 20), n = 6, m = 31, finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "fx0": [
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            0.0,
+            -1.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    -0.2429258247234657,
+                    -0.16017166238968017,
+                    -0.24114660135707267,
+                    -0.14455352005571398,
+                    -0.4949776662828682,
+                    0.1286045440996787
+                ],
+                "fx": [
+                    -1.2392711362093083,
+                    -1.261246316789683,
+                    -1.2856197751325467,
+                    -1.3128935789552711,
+                    -1.343564004159383,
+                    -1.3781236889274675,
+                    -1.417064249812127,
+                    -1.460879428064122,
+                    -1.5100688371052011,
+                    -1.5651423823095567,
+                    -1.6266254222589547,
+                    -1.6950647365230465,
+                    -1.7710353589308363,
+                    -1.8551483273844136,
+                    -1.9480593916645057,
+                    -2.050478709531842,
+                    -2.163181548881388,
+                    -2.2870199999008696,
+                    -2.4229356862633296,
+                    -2.5719734484883827,
+                    -2.7352959558810337,
+                    -2.9141991860430387,
+                    -3.1101286929925176,
+                    -3.324696566565444,
+                    -3.559698967150519,
+                    -3.817134101069325,
+                    -4.099220483199281,
+                    -4.40841531489043,
+                    -4.747432786991094,
+                    -0.2429258247234657,
+                    -1.2191846187072561
+                ]
+            },
+            {
+                "x": [
+                    -0.21761729257488172,
+                    -0.43191231051205425,
+                    0.11682897725638053,
+                    -0.32367367971879657,
+                    -0.1956116127804104,
+                    -0.05911318912388197
+                ],
+                "fx": [
+                    -1.4790452418766942,
+                    -1.481668652239421,
+                    -1.4873774354479221,
+                    -1.4964338118481844,
+                    -1.5091257747109037,
+                    -1.525768515286717,
+                    -1.5467061710275698,
+                    -1.5723139642174089,
+                    -1.6030008077030051,
+                    -1.6392124646075659,
+                    -1.6814353598760636,
+                    -1.7302011532720023,
+                    -1.7860921960508216,
+                    -1.8497480070054262,
+                    -1.9218729179445866,
+                    -2.003245053955295,
+                    -2.094726830045773,
+                    -2.197277162996767,
+                    -2.3119656154952932,
+                    -2.439988708917121,
+                    -2.5826886614922455,
+                    -2.741574830061512,
+                    -2.918348156242515,
+                    -3.1149289415991044,
+                    -3.3334883013814363,
+                    -3.576483672602504,
+                    -3.846698779672893,
+                    -4.147288489557951,
+                    -4.48182901848102,
+                    -0.21761729257488172,
+                    -1.4792695965396758
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 700,
+        "uniqueMinimizer": true,
+        "scipyX": [
+            -1.389015072214595e-24,
+            1.0136383915151925,
+            -0.24430313496463657,
+            1.3737700562711561,
+            -1.685638590203831,
+            1.0980966943515067
+        ],
+        "scipySumSquares": 0.002605757384191706,
+        "scipyEvaluations": 50,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 1,
+        "scipyMessage": "Both actual and predicted relative reductions in the sum of squares\n  are at most 0.000000"
+    },
+    {
+        "id": "rankDeficient",
+        "problem": "rankDeficient",
+        "description": "Rank-deficient linear problem, finite-difference Jacobian",
+        "useJac": false,
+        "x0": [
+            0.0,
+            0.0
+        ],
+        "fx0": [
+            -2.0,
+            -4.0,
+            -6.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    -0.3497976589372992,
+                    -0.282071136914565
+                ],
+                "fx": [
+                    -2.6318687958518643,
+                    -5.263737591703729,
+                    -7.895606387555593
+                ]
+            },
+            {
+                "x": [
+                    -0.025666884666455503,
+                    -0.023631144918808134
+                ],
+                "fx": [
+                    -2.0492980295852634,
+                    -4.098596059170527,
+                    -6.14789408875579
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 300,
+        "uniqueMinimizer": false,
+        "scipyX": [
+            2.0,
+            -4.440891833802835e-17
+        ],
+        "scipySumSquares": 0.0,
+        "scipyEvaluations": 7,
+        "scipyJacobianEvaluations": 0,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    },
+    {
+        "id": "rankDeficient_jac",
+        "problem": "rankDeficient",
+        "description": "Rank-deficient linear problem, analytic Jacobian",
+        "useJac": true,
+        "x0": [
+            0.0,
+            0.0
+        ],
+        "fx0": [
+            -2.0,
+            -4.0,
+            -6.0
+        ],
+        "mirrorPoints": [
+            {
+                "x": [
+                    -0.3497976589372992,
+                    -0.282071136914565
+                ],
+                "fx": [
+                    -2.6318687958518643,
+                    -5.263737591703729,
+                    -7.895606387555593
+                ]
+            },
+            {
+                "x": [
+                    -0.025666884666455503,
+                    -0.023631144918808134
+                ],
+                "fx": [
+                    -2.0492980295852634,
+                    -4.098596059170527,
+                    -6.14789408875579
+                ]
+            }
+        ],
+        "tolf": 1.49012e-08,
+        "tolx": 1.49012e-08,
+        "tolg": 0.0,
+        "maxFunEvals": 600,
+        "uniqueMinimizer": false,
+        "scipyX": [
+            2.0,
+            0.0
+        ],
+        "scipySumSquares": 0.0,
+        "scipyEvaluations": 3,
+        "scipyJacobianEvaluations": 2,
+        "scipyIer": 2,
+        "scipyMessage": "The relative error between two consecutive iterates is at most 0.000000"
+    }
+]
