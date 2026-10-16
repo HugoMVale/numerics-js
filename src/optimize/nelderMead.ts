@@ -39,7 +39,7 @@ export interface NelderMeadOptions {
      * chosen so that `sclx[i]*x[i]` is of order 1 near the solution for all 
      * components. If omitted, scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
      */
-    sclx?: number[] | Vector;
+    sclx?: Vector;
     /**
      * Maximum number of simplex updates, as a non-negative integer. If zero,
      * the initial simplex is checked for convergence but not updated.
@@ -161,9 +161,9 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  *
  * // Find the minimum of `f(x) = (x0 - 100)^2 + (x1 - 1e10)^2`
  * const f = (x: Vector): number => (x.get(0) - 1e2) ** 2 + (x.get(1) - 1e10) ** 2;
- * const result = nelderMead(f, [1, 1e8]);
+ * const result = nelderMead(f, Vector.from([1, 1e8]));
  * // or, with explicit options:
- * // const result = nelderMead(f, [1, 1e8], { tolx: 1e-10, adaptive: false });
+ * // const result = nelderMead(f, Vector.from([1, 1e8]), { tolx: 1e-10, adaptive: false });
  * console.log(result);
  * ```
  *
@@ -180,7 +180,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  */
 export function nelderMead(
     f: (x: Vector) => number,
-    x0: number[] | Vector,
+    x0: Vector,
     options: NelderMeadOptions = {}
 ): NelderMeadResult {
     const {
@@ -193,16 +193,13 @@ export function nelderMead(
         callback,
     } = options;
 
-    const x0v = x0 instanceof Vector ? x0.copy() : Vector.from(x0);
+    const x0v = x0.copy();
     const n = x0v.size;
     if (n === 0) {
         throw new RangeError('nelderMead: x0 must have at least one component');
     }
 
-    const xScale =
-        sclx !== undefined
-            ? Vector.from(Array.from(sclx instanceof Vector ? sclx.data : sclx, Math.abs))
-            : defaultScale(x0v);
+    const xScale = sclx !== undefined ? sclx.map(Math.abs) : defaultScale(x0v);
 
     const iterLimit = maxIter ?? 200 * n;
     const fevalLimit = maxFunEvals ?? 200 * n;

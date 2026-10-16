@@ -30,7 +30,7 @@ describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('nelderMead — %s', (_na
 
 describe('nelderMead — options and edge cases', () => {
     it('throws for a zero-dimensional initial guess', () => {
-        expect(() => nelderMead(() => 0, [])).toThrow(RangeError);
+        expect(() => nelderMead(() => 0, Vector.from([]))).toThrow(RangeError);
     });
 
     it('accepts an Vector as the initial guess', () => {
@@ -47,7 +47,7 @@ describe('nelderMead — options and edge cases', () => {
         };
         let shrunkenVertices: number[] = [];
 
-        const res = nelderMead(objective, [0, 0], {
+        const res = nelderMead(objective, Vector.from([0, 0]), {
             maxIter: 1,
             callback: (nIter, simplex) => {
                 if (nIter === 2) {
@@ -71,7 +71,7 @@ describe('nelderMead — options and edge cases', () => {
             (1 - x.get(0)) ** 2 + 100 * (x.get(1) - x.get(0) ** 2) ** 2;
         let shrunkenVertices: number[][] = [];
 
-        const res = nelderMead(objective, [-4, 0.5], {
+        const res = nelderMead(objective, Vector.from([-4, 0.5]), {
             callback: (nIter, simplex) => {
                 if (nIter === 9) {
                     shrunkenVertices = Array.from({ length: simplex.rows }, (_, i) => [
@@ -94,14 +94,14 @@ describe('nelderMead — options and edge cases', () => {
     });
 
     it('respects a custom maxiter and reports failure without throwing', () => {
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], { maxIter: 2 });
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([10, 10]), { maxIter: 2 });
         expect(res.success).toBe(false);
         expect(res.message).toMatch(/maximum number of iterations/i);
     });
 
     it('allows zero simplex updates when maxIter is zero', () => {
         const iterations: number[] = [];
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], {
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([10, 10]), {
             maxIter: 0,
             callback: (nIter) => {
                 iterations.push(nIter);
@@ -117,7 +117,7 @@ describe('nelderMead — options and edge cases', () => {
 
     it('allows one simplex update when maxIter is one', () => {
         const iterations: number[] = [];
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], {
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([10, 10]), {
             maxIter: 1,
             callback: (nIter) => {
                 iterations.push(nIter);
@@ -132,24 +132,26 @@ describe('nelderMead — options and edge cases', () => {
     });
 
     it.each([-1, 1.5])('rejects invalid maxIter values (%s)', (maxIter) => {
-        expect(() => nelderMead(() => 0, [1], { maxIter })).toThrow(RangeError);
+        expect(() => nelderMead(() => 0, Vector.from([1]), { maxIter })).toThrow(RangeError);
     });
 
     it('respects a custom maxfeval and reports failure without throwing', () => {
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [10, 10], { maxFunEvals: 5 });
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([10, 10]), { maxFunEvals: 5 });
         expect(res.success).toBe(false);
         expect(res.evaluations).toBeGreaterThanOrEqual(5);
         expect(res.message).toMatch(/maximum number of function evaluations/i);
     });
 
     it('honors a user-supplied sclx', () => {
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [1, 1], { sclx: [1, 1] });
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([1, 1]), {
+            sclx: Vector.from([1, 1]),
+        });
         expect(res.success).toBe(true);
         expect(res.fx).toBeCloseTo(0, 5);
     });
 
     it('accepts a Vector for user-supplied sclx', () => {
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [1, 1], {
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([1, 1]), {
             sclx: Vector.from([1, 1]),
         });
         expect(res.success).toBe(true);
@@ -157,14 +159,14 @@ describe('nelderMead — options and edge cases', () => {
     });
 
     it('terminates when the scaled simplex distance is below tolx', () => {
-        const res = nelderMead((x) => x.get(0) ** 2, [0], { tolx: 0.1, tolf: 0 });
+        const res = nelderMead((x) => x.get(0) ** 2, Vector.from([0]), { tolx: 0.1, tolf: 0 });
 
         expect(res.success).toBe(true);
         expect(res.message).toMatch(/maximum distance between simplex vertices/i);
     });
 
     it('supports the non-adaptive parameter scheme', () => {
-        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [5, -3], { adaptive: false });
+        const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([5, -3]), { adaptive: false });
         expect(res.success).toBe(true);
         expect(res.fx).toBeCloseTo(0, 5);
     });
@@ -174,7 +176,7 @@ describe('nelderMead — options and edge cases', () => {
         let seenCols = -1;
         let seenFxDim = -1;
 
-        nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, [5, -3], {
+        nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([5, -3]), {
             callback: (nIter, x: Matrix, fx: Vector) => {
                 if (nIter === 1) {
                     seenRows = x.rows;

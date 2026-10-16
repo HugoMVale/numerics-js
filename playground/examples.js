@@ -50,7 +50,7 @@ import { Vector } from 'numerics-js/linalg';
 const rosenbrock = (x: Vector): number =>
     (1 - x.get(0)) ** 2 + 100 * (x.get(1) - x.get(0) ** 2) ** 2;
 
-const result = nelderMead(rosenbrock, [-1.2, 1]);
+const result = nelderMead(rosenbrock, new Vector([-1.2, 1]));
 console.log(result);
 `,
     },
