@@ -68,15 +68,13 @@ describe('levenbergMarquardt — result consistency', () => {
         expect(resJac.evaluationsJacobian).toBeGreaterThan(0);
     });
 
-    it('does not modify x0, and accepts a plain array', () => {
+    it('does not modify x0', () => {
         const x0 = Vector.from([-1.2, 1]);
         const before = x0.copy();
-        const fromVector = levenbergMarquardt(rosenbrock.f, x0);
-        const fromArray = levenbergMarquardt(rosenbrock.f, [-1.2, 1]);
+        const res = levenbergMarquardt(rosenbrock.f, x0);
 
         expect(x0.allClose(before, 0, 0)).toBe(true);
-        expect(fromArray.x.allClose(fromVector.x, 0, 0)).toBe(true);
-        expect(fromArray.evaluationsFunction).toBe(fromVector.evaluationsFunction);
+        expect(res.success, res.message).toBe(true);
     });
 
     it('stops immediately at an exact solution', () => {
@@ -126,7 +124,7 @@ describe('levenbergMarquardt — options', () => {
 
     it('converges with fixed scaling on a badly scaled problem, and reports it in the method name', () => {
         const res = levenbergMarquardt(brownBadlyScaled.f, brownBadlyScaled.x0, {
-            sclx: [1e-6, 1e6],
+            sclx: Vector.from([1e-6, 1e6]),
             jac: brownBadlyScaled.jac,
         });
         expect(res.success, res.message).toBe(true);
@@ -208,7 +206,7 @@ describe('levenbergMarquardt — user-supplied Jacobian', () => {
 
 describe('levenbergMarquardt — non-finite function values', () => {
     it('returns a failure result if f(x0) is not finite', () => {
-        const res = levenbergMarquardt(() => Vector.from([NaN, 1]), [1, 1]);
+        const res = levenbergMarquardt(() => Vector.from([NaN, 1]), Vector.from([1, 1]));
         expect(res.success).toBe(false);
         expect(res.message).toMatch(/f\(x0\)/);
         expect(res.evaluationsFunction).toBe(1);
@@ -217,7 +215,7 @@ describe('levenbergMarquardt — non-finite function values', () => {
     it('rejects trial points where f is not finite and shrinks the trust region', () => {
         // Residuals r = (sqrt(x) - 2, x - 4): undefined (NaN) for x < 0, minimum at x = 4.
         const f = (x: Vector) => Vector.from([Math.sqrt(x.get(0)) - 2, 0.1 * (x.get(0) - 4)]);
-        const res = levenbergMarquardt(f, [0.01]);
+        const res = levenbergMarquardt(f, Vector.from([0.01]));
         expect(res.success, res.message).toBe(true);
         expect(res.x.get(0)).toBeCloseTo(4, 6);
     });
@@ -227,16 +225,16 @@ describe('levenbergMarquardt — input validation', () => {
     const f = rosenbrock.f;
 
     it('throws for an empty x0', () => {
-        expect(() => levenbergMarquardt(() => Vector.from([1]), [])).toThrow(RangeError);
+        expect(() => levenbergMarquardt(() => Vector.from([1]), Vector.zero(0))).toThrow(RangeError);
     });
 
     it('throws if there are fewer residuals than variables', () => {
-        expect(() => levenbergMarquardt(() => Vector.from([1]), [1, 2])).toThrow(RangeError);
+        expect(() => levenbergMarquardt(() => Vector.from([1]), Vector.from([1, 2]))).toThrow(RangeError);
     });
 
     it('throws if f changes the number of residuals', () => {
         let n = 2;
-        expect(() => levenbergMarquardt(() => Vector.zero(n++).add(1), [1, 1])).toThrow(RangeError);
+        expect(() => levenbergMarquardt(() => Vector.zero(n++).add(1), Vector.from([1, 1]))).toThrow(RangeError);
     });
 
     it.each([
@@ -255,8 +253,8 @@ describe('levenbergMarquardt — input validation', () => {
     });
 
     it('throws for an sclx of the wrong size or with non-positive entries', () => {
-        expect(() => levenbergMarquardt(f, rosenbrock.x0, { sclx: [1, 1, 1] })).toThrow(RangeError);
-        expect(() => levenbergMarquardt(f, rosenbrock.x0, { sclx: [1, 0] })).toThrow(Error);
-        expect(() => levenbergMarquardt(f, rosenbrock.x0, { sclx: [1, -1] })).toThrow(Error);
+        expect(() => levenbergMarquardt(f, rosenbrock.x0, { sclx: Vector.from([1, 1, 1]) })).toThrow(RangeError);
+        expect(() => levenbergMarquardt(f, rosenbrock.x0, { sclx: Vector.from([1, 0]) })).toThrow(Error);
+        expect(() => levenbergMarquardt(f, rosenbrock.x0, { sclx: Vector.from([1, -1]) })).toThrow(Error);
     });
 });

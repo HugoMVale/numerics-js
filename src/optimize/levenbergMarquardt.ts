@@ -105,7 +105,7 @@ export interface LevenbergMarquardtOptions {
      * Jacobian columns, and the finite-difference steps are scaled from `x0`
      * via {@link scaleVector}.
      */
-    sclx?: Vector | number[];
+    sclx?: Vector;
     /**
      * Factor determining the initial trust-region radius, `trustLenFactor *
      * ||D*x0||` (or `trustLenFactor` itself if `x0` is zero). Values
@@ -190,7 +190,7 @@ export interface LevenbergMarquardtOptions {
  * const y = [3.02, 1.81, 1.12, 0.66, 0.41, 0.24];
  * const residuals = (p: Vector) =>
  *     Vector.from(t.map((ti, i) => p.get(0) * Math.exp(-p.get(1) * ti) - y[i]));
- * const result = levenbergMarquardt(residuals, [1, 1]);
+ * const result = levenbergMarquardt(residuals, Vector.from([1, 1]));
  * console.log(result.success, result.x.toString(), result.cost);
  * ```
  *
@@ -201,10 +201,10 @@ export interface LevenbergMarquardtOptions {
  */
 export function levenbergMarquardt(
     f: (x: Vector) => Vector,
-    x0: Vector | number[],
+    x0: Vector,
     options: LevenbergMarquardtOptions = {}
 ): LevenbergMarquardtResult {
-    let x = x0 instanceof Vector ? x0.copy() : Vector.from(x0);
+    let x = x0.copy();
     const n = x.size;
     if (n === 0) {
         throw new RangeError('levenbergMarquardt: x0 must have at least one component');
@@ -233,7 +233,7 @@ export function levenbergMarquardt(
 
     let userSclx: Vector | undefined;
     if (options.sclx !== undefined) {
-        userSclx = options.sclx instanceof Vector ? options.sclx.copy() : Vector.from(options.sclx);
+        userSclx = options.sclx.copy();
         if (userSclx.size !== n) {
             throw new RangeError(`levenbergMarquardt: sclx must have ${n} components, got ${userSclx.size}`);
         }
