@@ -584,6 +584,193 @@ describe('Matrix', () => {
         });
     });
 
+    describe('qrPivot() and its helpers', () => {
+        /** Random m x n matrix with entries in [-1, 1). */
+        const randomMatrix = (m: number, n: number, seed: number): Matrix => {
+            const rnd = rand(seed);
+            return new Matrix(m, n).map(() => 2 * rnd() - 1);
+        };
+
+        /** Columns of `a` taken in the order given by `perm`. */
+        const permuteCols = (a: Matrix, perm: number[]): Matrix => {
+            const res = new Matrix(a.rows, a.cols);
+            perm.forEach((src, dst) => res.setCol(dst, a.col(src)));
+            return res;
+        };
+
+        it.each([
+            [5, 3],
+            [3, 3],
+            [3, 5],
+            [1, 4],
+            [4, 1],
+            [60, 7],
+        ])('factors a %i x %i matrix: A[:, perm] = Q*R, Q orthonormal, |diag(R)| nonincreasing', (m, n) => {
+            const a = randomMatrix(m, n, 1000 + 10 * m + n);
+            const k = Math.min(m, n);
+            const dec = a.qrPivot();
+            const Q = Matrix.qrPivotQ(dec);
+            const R = Matrix.qrPivotR(dec);
+
+            expect(Q.rows).toBe(m);
+            expect(Q.cols).toBe(k);
+            expect(R.rows).toBe(k);
+            expect(R.cols).toBe(n);
+            expect(dec.QR.rows).toBe(m);
+            expect(dec.QR.cols).toBe(n);
+            expect(dec.tau.size).toBe(k);
+            expect([...dec.perm].sort((x, y) => x - y)).toEqual(Array.from({ length: n }, (_, i) => i));
+
+            expect(Q.matmul(R).allClose(permuteCols(a, dec.perm), 1e-12, 1e-12)).toBe(true);
+            expect(Q.transpose().matmul(Q).allClose(Matrix.identity(k), 1e-12, 1e-12)).toBe(true);
+            for (let i = 0; i < k; i++) {
+                for (let j = 0; j < Math.min(i, n); j++) expect(R.get(i, j)).toBe(0);
+                if (i > 0) expect(Math.abs(R.get(i, i))).toBeLessThanOrEqual(Math.abs(R.get(i - 1, i - 1)) * (1 + 1e-12));
+            }
+        });
+
+        it('moves the column of largest norm to the front, and keeps ties in original order', () => {
+            const a = Matrix.from([
+                [1, 0, 10],
+                [1, 1, 0],
+                [1, 1, 0],
+            ]);
+            expect(a.qrPivot().perm[0]).toBe(2);
+
+            const tie = Matrix.from([
+                [1, 1],
+                [1, 1],
+                [1, 1],
+            ]);
+            expect(tie.qrPivot().perm).toEqual([0, 1]);
+        });
+
+        it('reveals the rank of a matrix with dependent columns', () => {
+            // Column 1 = 2 * column 0, so rank is 2.
+            const a = Matrix.from([
+                [1, 2, 0],
+                [2, 4, 1],
+                [3, 6, 0],
+                [4, 8, 1],
+            ]);
+            const dec = a.qrPivot();
+            const R = Matrix.qrPivotR(dec);
+
+            expect(Math.abs(R.get(2, 2))).toBeLessThan(1e-12 * Math.abs(R.get(0, 0)));
+            expect(Math.abs(R.get(1, 1))).toBeGreaterThan(1e-3 * Math.abs(R.get(0, 0)));
+            expect(dec.perm[2]).not.toBe(2); // one of the dependent columns is pushed last
+            expect(Matrix.qrPivotQ(dec).matmul(R).allClose(permuteCols(a, dec.perm), 1e-12, 1e-12)).toBe(true);
+        });
+
+        it('handles zero columns and the zero matrix without producing NaN', () => {
+            const a = Matrix.from([
+                [0, 3, 0],
+                [0, 4, 0],
+            ]);
+            const dec = a.qrPivot();
+            expect(dec.QR.allFinite()).toBe(true);
+            expect(dec.tau.allFinite()).toBe(true);
+            expect(Matrix.qrPivotQ(dec).matmul(Matrix.qrPivotR(dec)).allClose(permuteCols(a, dec.perm), 1e-12, 1e-12)).toBe(true);
+
+            const z = new Matrix(3, 2).qrPivot();
+            expect(z.QR.allFinite()).toBe(true);
+            expect(Matrix.qrPivotR(z).allClose(new Matrix(2, 2))).toBe(true);
+        });
+
+        it('stays accurate on an ill-conditioned (Hilbert) tall matrix', () => {
+            const a = new Matrix(8, 5).map((_, i, j) => 1 / (i + j + 1));
+            const dec = a.qrPivot();
+            const err = Matrix.qrPivotQ(dec).matmul(Matrix.qrPivotR(dec)).sub(permuteCols(a, dec.perm)).norm() / a.norm();
+            expect(err).toBeLessThan(1e-14);
+        });
+
+        it('does not modify the input matrix', () => {
+            const a = randomMatrix(6, 3, 7);
+            const before = a.copy();
+            a.qrPivot();
+            expect(a.allClose(before, 0, 0)).toBe(true);
+        });
+
+        it('reuses the storage passed as `out`, and can factor in place', () => {
+            const a = randomMatrix(6, 3, 11);
+            const reference = a.qrPivot();
+
+            const out = randomMatrix(6, 3, 12).qrPivot();
+            const res = a.qrPivot(out);
+            expect(res).toBe(out);
+            expect(res.QR.allClose(reference.QR, 0, 0)).toBe(true);
+            expect(res.tau.allClose(reference.tau, 0, 0)).toBe(true);
+            expect(res.perm).toEqual(reference.perm);
+
+            const inPlace = a.copy();
+            const decInPlace = inPlace.qrPivot({ QR: inPlace, tau: new Vector(3), perm: [0, 0, 0] });
+            expect(decInPlace.QR).toBe(inPlace);
+            expect(decInPlace.QR.allClose(reference.QR, 0, 0)).toBe(true);
+            expect(decInPlace.perm).toEqual(reference.perm);
+        });
+
+        it('throws a RangeError if `out` does not match the shape of the matrix', () => {
+            const a = randomMatrix(5, 3, 3);
+            expect(() => a.qrPivot(randomMatrix(4, 3, 3).qrPivot())).toThrowError(RangeError);
+            expect(() => a.qrPivot({ QR: new Matrix(5, 3), tau: new Vector(2), perm: [0, 1, 2] })).toThrowError(RangeError);
+            expect(() => a.qrPivot({ QR: new Matrix(5, 3), tau: new Vector(3), perm: [0, 1] })).toThrowError(RangeError);
+        });
+
+        describe('qrPivotMulQt()', () => {
+            it('matches Q^T*b computed from the explicit thin Q, and preserves the norm of b', () => {
+                const a = randomMatrix(9, 4, 21);
+                const b = Vector.from(Array.from({ length: 9 }, (_, i) => Math.sin(i + 1)));
+                const dec = a.qrPivot();
+                const qtb = Matrix.qrPivotMulQt(dec, b);
+
+                const thin = Matrix.qrPivotQ(dec).transpose().mulVec(b);
+                expect(qtb.size).toBe(9);
+                expect(qtb.slice(0, 4).allClose(thin, 1e-12, 1e-12)).toBe(true);
+                expect(qtb.norm()).toBeCloseTo(b.norm(), 12);
+            });
+
+            it('gives the least-squares solution and residual norm of a tall problem', () => {
+                const a = randomMatrix(12, 3, 31);
+                const xTrue = Vector.from([1, -2, 0.5]);
+                const noise = Vector.from(Array.from({ length: 12 }, (_, i) => 0.01 * Math.cos(3 * i)));
+                const b = a.mulVec(xTrue).add(noise);
+
+                const dec = a.qrPivot();
+                const qtb = Matrix.qrPivotMulQt(dec, b);
+                const z = Matrix.qrPivotR(dec).solveUpper(qtb.slice(0, 3));
+                const x = new Vector(3);
+                dec.perm.forEach((src, j) => x.set(src, z.get(j)));
+
+                // Normal equations as the independent reference.
+                const xNormal = a.transpose().matmul(a).solve(a.transpose().mulVec(b));
+                expect(x.allClose(xNormal, 1e-10, 1e-10)).toBe(true);
+                expect(qtb.slice(3).norm()).toBeCloseTo(a.mulVec(x).sub(b).norm(), 10);
+            });
+
+            it('supports `out`, including `out === b`, and leaves b untouched otherwise', () => {
+                const a = randomMatrix(5, 2, 41);
+                const b = Vector.from([1, 2, 3, 4, 5]);
+                const dec = a.qrPivot();
+                const expected = Matrix.qrPivotMulQt(dec, b);
+                expect(b.toArray()).toEqual([1, 2, 3, 4, 5]);
+
+                const out = new Vector(5);
+                expect(Matrix.qrPivotMulQt(dec, b, out)).toBe(out);
+                expect(out.allClose(expected, 0, 0)).toBe(true);
+
+                const inPlace = b.copy();
+                expect(Matrix.qrPivotMulQt(dec, inPlace, inPlace)).toBe(inPlace);
+                expect(inPlace.allClose(expected, 0, 0)).toBe(true);
+            });
+
+            it('throws a RangeError for mismatched sizes', () => {
+                const dec = randomMatrix(5, 2, 51).qrPivot();
+                expect(() => Matrix.qrPivotMulQt(dec, new Vector(4))).toThrowError(RangeError);
+                expect(() => Matrix.qrPivotMulQt(dec, new Vector(5), new Vector(4))).toThrowError(RangeError);
+            });
+        });
+    });
+
     describe('qrUpdate() and qrUpdateSelf()', () => {
         it('updates a square QR decomposition to match a from-scratch refactor of A + u*v^T', () => {
             const a: Matrix = Matrix.from([

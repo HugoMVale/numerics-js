@@ -40,6 +40,30 @@ export interface QRDecomposition {
 }
 
 /**
+ * Result of `Matrix.qrPivot()`: a Householder QR factorization with column
+ * pivoting, in compact (LAPACK `dgeqp3`) storage, such that
+ * `A[:, perm] = Q * R` with `Q` orthogonal (`rows x k`, `k = min(rows, cols)`,
+ * never stored) and `R` upper trapezoidal (`k x cols`) with diagonal
+ * entries of nonincreasing magnitude.
+ */
+export interface QRPivotDecomposition {
+    /**
+     * `rows x cols` working matrix: `R` on and above the diagonal; below the
+     * diagonal, the essential parts of the Householder vectors (the leading
+     * `1` of each vector is implicit). Use `Matrix.qrPivotR()` and
+     * `Matrix.qrPivotQ()` to extract the factors.
+     */
+    QR: Matrix;
+    /** Scalar factors of the `k = min(rows, cols)` Householder reflectors `H_j = I - tau_j * v_j * v_j^T`. */
+    tau: Vector;
+    /**
+     * Column permutation: `perm[j]` is the index, in the original matrix, of
+     * the column now in position `j`, so that `A[:, perm] = Q * R`.
+     */
+    perm: number[];
+}
+
+/**
  * A single eigenvalue paired with its eigenvector, as returned by
  * `Matrix.eig()`. A real matrix's eigenvector for a genuinely complex
  * eigenvalue is itself genuinely complex, so it's split into real and
@@ -795,6 +819,238 @@ function householderQR(A: Matrix): QRDecomposition {
  */
 export function qr(A: Matrix): QRDecomposition {
     return householderQR(A);
+}
+
+// -----------------------------------------------------------------
+// Pivoted QR in compact storage.
+// -----------------------------------------------------------------
+
+/**
+ * Computes a Householder QR factorization with column pivoting of `A`
+ * (any shape), in compact storage: `A[:, perm] = Q * R`.
+ *
+ * Unlike `qr()`, the orthogonal factor is never formed: it is kept as
+ * `min(rows, cols)` Householder reflectors below the diagonal of `QR`, so
+ * memory and time are `O(rows * cols)` and `O(rows * cols^2)`, instead of
+ * `O(rows^2)` for a tall matrix. At step `j`, the remaining column with the
+ * largest (downdated) 2-norm is moved to position `j`, so the diagonal of
+ * `R` has nonincreasing magnitude; its trailing entries reveal the numerical
+ * rank. The storage follows LAPACK's `dgeqp3`, and the norm downdating
+ * follows `dlaqp2` (with recomputation when cancellation makes the
+ * downdated norm unreliable). Reflectors are applied row by row, which is
+ * the cache-friendly order for the row-major layout.
+ *
+ * There is no tolerance parameter: a column that is already zero below the
+ * diagonal simply yields a reflector with `tau = 0` (identity).
+ * @param A The matrix to factor. Never modified, except when it is `out.QR`
+ * (see `out`).
+ * @param out Optional storage to reuse: a factorization whose `QR` is
+ * `rows x cols`, whose `tau` has `min(rows, cols)` entries and whose `perm`
+ * has `cols` entries, as returned by an earlier call for a matrix of the
+ * same shape. Overwritten and returned. `A` may be `out.QR` (factored in
+ * place). If this function throws, the contents of `out` are undefined.
+ * @returns The `{ QR, tau, perm }` factorization: `out` if given, otherwise
+ * a new object.
+ * @throws {RangeError} If `out` does not match the shape of `A`.
+ */
+export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposition {
+    const m = A.rows;
+    const n = A.cols;
+    const k = Math.min(m, n);
+    const result = out ?? { QR: new Matrix(m, n), tau: new Vector(k), perm: new Array<number>(n) };
+    const { QR, tau, perm } = result;
+    if (QR.rows !== m || QR.cols !== n || tau.size !== k || perm.length !== n) {
+        throw new RangeError(
+            `Matrix qrPivot: out must hold a ${m}x${n} QR matrix, ${k} tau values and a permutation of length ${n}`
+        );
+    }
+
+    const a = QR.data;
+    if (A !== QR) a.set(A.data);
+
+    // vn1: current (downdated) partial column norms; vn2: norms at the last
+    // exact computation; w: work row for applying a reflector.
+    const vn1 = new Float64Array(n);
+    const vn2 = new Float64Array(n);
+    const w = new Float64Array(n);
+    for (let j = 0; j < n; j++) {
+        let s = 0;
+        for (let i = 0; i < m; i++) { const x = a[i * n + j]; s += x * x; }
+        vn1[j] = Math.sqrt(s);
+        vn2[j] = vn1[j];
+        perm[j] = j;
+    }
+    const tol3z = Math.sqrt(Number.EPSILON);
+
+    for (let j = 0; j < k; j++) {
+        // Bring the remaining column of largest norm into position j.
+        let p = j;
+        for (let c = j + 1; c < n; c++) if (vn1[c] > vn1[p]) p = c;
+        if (p !== j) {
+            for (let i = 0; i < m; i++) {
+                const t = a[i * n + j];
+                a[i * n + j] = a[i * n + p];
+                a[i * n + p] = t;
+            }
+            [perm[j], perm[p]] = [perm[p], perm[j]];
+            vn1[p] = vn1[j];
+            vn2[p] = vn2[j];
+        }
+
+        // Householder reflector that maps column j (rows j..m-1) to beta*e_j
+        // (LAPACK `dlarfg`).
+        const alpha = a[j * n + j];
+        let xs = 0;
+        for (let i = j + 1; i < m; i++) { const x = a[i * n + j]; xs += x * x; }
+        const xnorm = Math.sqrt(xs);
+        let tj = 0;
+        if (xnorm !== 0) {
+            const beta = alpha >= 0 ? -Math.hypot(alpha, xnorm) : Math.hypot(alpha, xnorm);
+            tj = (beta - alpha) / beta;
+            const scale = 1 / (alpha - beta);
+            for (let i = j + 1; i < m; i++) a[i * n + j] *= scale;
+            a[j * n + j] = beta;
+        }
+        tau.data[j] = tj;
+
+        if (j + 1 < n) {
+            if (tj !== 0) {
+                // Apply H_j to columns j+1..n-1: with v = [1; a[j+1.., j]],
+                // w^T = v^T A, then A -= tau * v * w^T (row-wise sweeps).
+                for (let c = j + 1; c < n; c++) w[c] = a[j * n + c];
+                for (let i = j + 1; i < m; i++) {
+                    const vi = a[i * n + j];
+                    if (vi !== 0) {
+                        const off = i * n;
+                        for (let c = j + 1; c < n; c++) w[c] += vi * a[off + c];
+                    }
+                }
+                for (let c = j + 1; c < n; c++) {
+                    w[c] *= tj;
+                    a[j * n + c] -= w[c];
+                }
+                for (let i = j + 1; i < m; i++) {
+                    const vi = a[i * n + j];
+                    if (vi !== 0) {
+                        const off = i * n;
+                        for (let c = j + 1; c < n; c++) a[off + c] -= vi * w[c];
+                    }
+                }
+            }
+
+            // Downdate the partial column norms (LAPACK `dlaqp2`).
+            for (let c = j + 1; c < n; c++) {
+                if (vn1[c] === 0) continue;
+                const r = Math.abs(a[j * n + c]) / vn1[c];
+                const temp = Math.max(0, 1 - r * r);
+                const ratio = vn1[c] / vn2[c];
+                if (temp * ratio * ratio <= tol3z) {
+                    let s = 0;
+                    for (let i = j + 1; i < m; i++) { const x = a[i * n + c]; s += x * x; }
+                    vn1[c] = Math.sqrt(s);
+                    vn2[c] = vn1[c];
+                } else {
+                    vn1[c] *= Math.sqrt(temp);
+                }
+            }
+        }
+    }
+    return result;
+}
+
+/**
+ * Computes `Q^T * b` for the orthogonal factor `Q` of a pivoted QR
+ * factorization, without forming `Q`: the `k = min(rows, cols)` Householder
+ * reflectors are applied to `b` in order, in `O(rows * k)` operations.
+ * @param dec A factorization, as returned by `qrPivot()`.
+ * @param b The vector to transform. Must have `b.size === dec.QR.rows`.
+ * @param out Optional vector of size `dec.QR.rows` that receives the result,
+ * avoiding an allocation. It may be `b` itself, which is then overwritten.
+ * @returns `Q^T * b` (full length `rows`): `out` if given, otherwise a new
+ * vector. Its first `k` entries are the components along the columns of the
+ * thin `Q`; for a tall matrix the remaining ones hold the part of `b`
+ * orthogonal to the range of `A`, whose norm is the least-squares residual.
+ * @throws {RangeError} If `b` or `out` does not match the factorization.
+ */
+export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector): Vector {
+    const { QR, tau } = dec;
+    const m = QR.rows;
+    const n = QR.cols;
+    if (b.size !== m) throw new RangeError(`Matrix qrPivotMulQt shape mismatch: ${m}x${n} vs vec(${b.size})`);
+    if (out !== undefined && out.size !== m) throw new RangeError(`Matrix qrPivotMulQt out has size ${out.size}, expected ${m}`);
+    const y = out ?? new Vector(m);
+    if (y !== b) y.data.set(b.data);
+    const d = y.data;
+    const a = QR.data;
+    const k = tau.size;
+    for (let j = 0; j < k; j++) {
+        const tj = tau.data[j];
+        if (tj === 0) continue;
+        let s = d[j];
+        for (let i = j + 1; i < m; i++) s += a[i * n + j] * d[i];
+        s *= tj;
+        d[j] -= s;
+        for (let i = j + 1; i < m; i++) d[i] -= a[i * n + j] * s;
+    }
+    return y;
+}
+
+/**
+ * Forms the thin orthogonal factor `Q` (`rows x k`, `k = min(rows, cols)`) of
+ * a pivoted QR factorization, so that `A[:, perm] = Q * R` with the `R` from
+ * `qrPivotR()`. Mainly useful for verification and for callers that really
+ * need `Q` explicitly; solvers should prefer `qrPivotMulQt()`.
+ * @param dec A factorization, as returned by `qrPivot()`.
+ * @returns A new `rows x k` matrix with orthonormal columns.
+ */
+export function qrPivotQ(dec: QRPivotDecomposition): Matrix {
+    const { QR, tau } = dec;
+    const m = QR.rows;
+    const n = QR.cols;
+    const k = tau.size;
+    const Q = new Matrix(m, k);
+    const q = Q.data;
+    for (let j = 0; j < k; j++) q[j * k + j] = 1;
+    const a = QR.data;
+    // Q = H_0 * H_1 * ... * H_{k-1} * [I_k; 0], applied from the last reflector.
+    // Columns c < j are still zero in rows >= j at this point, so only c >= j matter.
+    const w = new Float64Array(k);
+    for (let j = k - 1; j >= 0; j--) {
+        const tj = tau.data[j];
+        if (tj === 0) continue;
+        for (let c = j; c < k; c++) w[c] = q[j * k + c];
+        for (let i = j + 1; i < m; i++) {
+            const vi = a[i * n + j];
+            if (vi !== 0) for (let c = j; c < k; c++) w[c] += vi * q[i * k + c];
+        }
+        for (let c = j; c < k; c++) {
+            w[c] *= tj;
+            q[j * k + c] -= w[c];
+        }
+        for (let i = j + 1; i < m; i++) {
+            const vi = a[i * n + j];
+            if (vi !== 0) for (let c = j; c < k; c++) q[i * k + c] -= vi * w[c];
+        }
+    }
+    return Q;
+}
+
+/**
+ * Extracts the upper-trapezoidal factor `R` (`k x cols`, `k = min(rows,
+ * cols)`) of a pivoted QR factorization, with exact zeros below the
+ * diagonal. Its diagonal has nonincreasing magnitude.
+ * @param dec A factorization, as returned by `qrPivot()`.
+ * @returns A new `k x cols` matrix.
+ */
+export function qrPivotR(dec: QRPivotDecomposition): Matrix {
+    const { QR, tau } = dec;
+    const n = QR.cols;
+    const k = tau.size;
+    const R = new Matrix(k, n);
+    for (let i = 0; i < k; i++) {
+        for (let j = i; j < n; j++) R.data[i * n + j] = QR.data[i * n + j];
+    }
+    return R;
 }
 
 /**

@@ -8,8 +8,8 @@ import * as linalg from './Matrix.linalg.js';
 // (`lu()`, `qr()`, `eig()`, etc.) are thin forwarders to it, and these
 // re-exports keep `import { Matrix, type LUDecomposition } from
 // './Matrix.js'`-style imports working unchanged.
-export type { Eigenvalue, QRDecomposition, Eigenpair, LUDecomposition } from './Matrix.linalg.js';
-import type { Eigenvalue, QRDecomposition, Eigenpair, LUDecomposition } from './Matrix.linalg.js';
+export type { Eigenvalue, QRDecomposition, QRPivotDecomposition, Eigenpair, LUDecomposition } from './Matrix.linalg.js';
+import type { Eigenvalue, QRDecomposition, QRPivotDecomposition, Eigenpair, LUDecomposition } from './Matrix.linalg.js';
 
 /**
  * A rows x cols matrix backed by a flat, row-major Float64Array.
@@ -1099,6 +1099,81 @@ export class Matrix extends ArrayND {
      */
     qr(): QRDecomposition {
         return linalg.qr(this);
+    }
+
+    /**
+     * Computes a Householder QR factorization with column pivoting of this
+     * matrix (any shape), in compact storage: `this[:, perm] = Q * R`. The
+     * orthogonal factor is never formed, so a tall matrix costs `O(rows *
+     * cols)` memory instead of the `O(rows^2)` of `qr()`; the diagonal of `R`
+     * has nonincreasing magnitude, which reveals the numerical rank. See
+     * `linalg.qrPivot()` for the algorithm. Use `qrPivotMulQt`, `qrPivotQ` and
+     * `qrPivotR` to work with the result.
+     * @param out Optional storage to reuse, as returned by an earlier call
+     * for a matrix of the same shape: overwritten and returned, so repeated
+     * factorizations allocate no result storage. This matrix may be `out.QR`
+     * (factored in place). If this method throws, the contents of `out` are
+     * undefined.
+     * @returns The `{ QR, tau, perm }` factorization: `out` if given,
+     * otherwise a new object.
+     * @throws {RangeError} If `out` does not match the shape of this matrix.
+     *
+     * @example
+     * ```ts
+     * import { Matrix } from 'numerics-js/linalg';
+     *
+     * const a = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+     * const dec = a.qrPivot();
+     * const Q = Matrix.qrPivotQ(dec); // 3x2
+     * const R = Matrix.qrPivotR(dec); // 2x2
+     * console.log(dec.perm);
+     * console.log(Q.matmul(R).toString()); // a[:, perm]
+     * ```
+     *
+     * Output:
+     * ```text
+     * [ 1, 0 ]
+     * Matrix[[1.9999999999999993, 1.0000000000000007], [4, 3.0000000000000004], [6, 5.000000000000001]]
+     * ```
+     */
+    qrPivot(out?: QRPivotDecomposition): QRPivotDecomposition {
+        return linalg.qrPivot(this, out);
+    }
+
+    /**
+     * Computes `Q^T * b` for the orthogonal factor `Q` of a pivoted QR
+     * factorization, without forming `Q`: see `linalg.qrPivotMulQt()`.
+     * @param decomposition A factorization, as returned by `qrPivot()`.
+     * @param b The vector to transform. Must have `b.size === decomposition.QR.rows`.
+     * @param out Optional vector of size `decomposition.QR.rows` that receives
+     * the result, avoiding an allocation. It may be `b` itself.
+     * @returns `Q^T * b` (length `rows`): `out` if given, otherwise a new
+     * vector. For a tall matrix, the norm of the entries beyond the first
+     * `min(rows, cols)` is the least-squares residual norm.
+     * @throws {RangeError} If `b` or `out` does not match the factorization.
+     */
+    static qrPivotMulQt(decomposition: QRPivotDecomposition, b: Vector, out?: Vector): Vector {
+        return linalg.qrPivotMulQt(decomposition, b, out);
+    }
+
+    /**
+     * Forms the thin orthogonal factor `Q` (`rows x min(rows, cols)`) of a
+     * pivoted QR factorization: see `linalg.qrPivotQ()`.
+     * @param decomposition A factorization, as returned by `qrPivot()`.
+     * @returns A new matrix with orthonormal columns.
+     */
+    static qrPivotQ(decomposition: QRPivotDecomposition): Matrix {
+        return linalg.qrPivotQ(decomposition);
+    }
+
+    /**
+     * Extracts the upper-trapezoidal factor `R` (`min(rows, cols) x cols`)
+     * of a pivoted QR factorization: see `linalg.qrPivotR()`.
+     * @param decomposition A factorization, as returned by `qrPivot()`.
+     * @returns A new matrix with exact zeros below the diagonal.
+     */
+    static qrPivotR(decomposition: QRPivotDecomposition): Matrix {
+        return linalg.qrPivotR(decomposition);
     }
 
     /**
