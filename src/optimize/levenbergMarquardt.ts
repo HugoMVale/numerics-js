@@ -139,27 +139,23 @@ export interface LevenbergMarquardtOptions {
 }
 
 /**
- * Minimizes the sum of squares of a vector function, `0.5*||f(x)||²`, using a
- * trust-region Levenberg-Marquardt algorithm.
+ * Minimizes the sum of squares of a vector function, `0.5*||f(x)||²`, using a trust-region 
+ * Levenberg-Marquardt algorithm.
  *
- * This is a MINPACK-style implementation (the algorithm of `lmder` and
- * `lmdif`, Moré, 1978): each step solves the damped least-squares problem
- * `min ||J*p + f||² + par*||D*p||²` with the Levenberg-Marquardt parameter
- * `par` chosen so that `||D*p||` fits inside a trust region whose radius is
- * adapted from the agreement between actual and predicted reductions. The
- * Jacobian is factored by a pivoted QR decomposition ({@link Matrix.qrPivot}),
- * so the cost per iteration is `O(m*n²)` and the Jacobian is never squared.
- * Rank-deficient Jacobians are handled gracefully.
+ * This is a MINPACK-style implementation (Moré, 1978): each step solves the damped 
+ * least-squares problem `min ||J*p + f||² + par*||D*p||²` with the Levenberg-Marquardt 
+ * parameter `par` chosen so that `||D*p||` fits inside a trust region whose radius is
+ * adapted from the agreement between actual and predicted reductions. The Jacobian is 
+ * factored by a pivoted QR decomposition ({@link Matrix.qrPivot}), so the cost per iteration
+ * is `O(m*n²)` and the Jacobian is never squared. Rank-deficient Jacobians are handled
+ * gracefully.
  *
- * The residual vector `f(x)` has `m >= n` components. For the typical use
- * case of fitting a model to data, see {@link curveFit}. Unlike
- * {@link nelderMead}, the method uses derivative information, supplied
- * through `jac` or approximated by finite differences.
+ * The residual vector `f(x)` has `m >= n` components. The method uses derivative information,
+ * supplied through `jac` or approximated by finite differences.
  *
- * A trial point at which `f` returns non-finite values (`NaN` or
- * `±Infinity`) is treated as a rejected step and the trust region is
- * reduced. If `f(x0)` or a Jacobian is not finite, the solver returns a
- * failure result (`success: false`).
+ * A trial point at which `f` returns non-finite values (`NaN` or `±Infinity`) is treated as a
+ * rejected step and the trust region is reduced. If `f(x0)` or a Jacobian is not finite, the 
+ * solver returns a failure result (`success: false`).
  *
  * Results are validated against `scipy.optimize.leastsq` (MINPACK). See the
  * [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/optimize/levenbergMarquardt.scipy.benchmark.md).
@@ -340,7 +336,7 @@ export function levenbergMarquardt(
     let iterations = 0;
     let info = 0;
 
-    outer: for (;;) {
+    outer: for (; ;) {
         // Jacobian at the current iterate.
         if (Jnext) {
             J = Jnext;
@@ -519,8 +515,8 @@ export function levenbergMarquardt(
                 info === 6
                     ? 'no further reduction in ||f||² is possible (tolf is too small)'
                     : info === 7
-                      ? 'no further improvement in `x` is possible (tolx is too small)'
-                      : 'f is orthogonal to the columns of the Jacobian to machine precision (tolg is too small)';
+                        ? 'no further improvement in `x` is possible (tolx is too small)'
+                        : 'f is orthogonal to the columns of the Jacobian to machine precision (tolg is too small)';
             message = success
                 ? `Converged to machine precision: ${reason}.`
                 : `Stopped at machine precision with a non-negligible residual: ${reason}.`;
