@@ -22,10 +22,10 @@ import { Vector } from './Vector.js';
  * its own entry (same `re`, opposite-signed `im`).
  */
 export interface Eigenvalue {
-    /** Real part. */
-    re: number;
-    /** Imaginary part; `0` for a real eigenvalue. */
-    im: number;
+  /** Real part. */
+  re: number;
+  /** Imaginary part; `0` for a real eigenvalue. */
+  im: number;
 }
 
 /**
@@ -33,10 +33,10 @@ export interface Eigenvalue {
  * `A = Q * R`.
  */
 export interface QRDecomposition {
-    /** Orthogonal factor, `rows x rows`. */
-    Q: Matrix;
-    /** Upper-triangular factor, `rows x cols` (trapezoidal if `rows > cols`). */
-    R: Matrix;
+  /** Orthogonal factor, `rows x rows`. */
+  Q: Matrix;
+  /** Upper-triangular factor, `rows x cols` (trapezoidal if `rows > cols`). */
+  R: Matrix;
 }
 
 /**
@@ -47,20 +47,20 @@ export interface QRDecomposition {
  * entries of nonincreasing magnitude.
  */
 export interface QRPivotDecomposition {
-    /**
-     * `rows x cols` working matrix: `R` on and above the diagonal; below the
-     * diagonal, the essential parts of the Householder vectors (the leading
-     * `1` of each vector is implicit). Use `Matrix.qrPivotR()` and
-     * `Matrix.qrPivotQ()` to extract the factors.
-     */
-    QR: Matrix;
-    /** Scalar factors of the `k = min(rows, cols)` Householder reflectors `H_j = I - tau_j * v_j * v_j^T`. */
-    tau: Vector;
-    /**
-     * Column permutation: `perm[j]` is the index, in the original matrix, of
-     * the column now in position `j`, so that `A[:, perm] = Q * R`.
-     */
-    perm: number[];
+  /**
+   * `rows x cols` working matrix: `R` on and above the diagonal; below the
+   * diagonal, the essential parts of the Householder vectors (the leading
+   * `1` of each vector is implicit). Use `Matrix.qrPivotR()` and
+   * `Matrix.qrPivotQ()` to extract the factors.
+   */
+  QR: Matrix;
+  /** Scalar factors of the `k = min(rows, cols)` Householder reflectors `H_j = I - tau_j * v_j * v_j^T`. */
+  tau: Vector;
+  /**
+   * Column permutation: `perm[j]` is the index, in the original matrix, of
+   * the column now in position `j`, so that `A[:, perm] = Q * R`.
+   */
+  perm: number[];
 }
 
 /**
@@ -71,11 +71,11 @@ export interface QRPivotDecomposition {
  * all-zero whenever `value.im` is `0`.
  */
 export interface Eigenpair {
-    value: Eigenvalue;
-    /** Real part of the eigenvector. */
-    vectorRe: Vector;
-    /** Imaginary part of the eigenvector; all-zero for a real eigenvalue. */
-    vectorIm: Vector;
+  value: Eigenvalue;
+  /** Real part of the eigenvector. */
+  vectorRe: Vector;
+  /** Imaginary part of the eigenvector; all-zero for a real eigenvalue. */
+  vectorIm: Vector;
 }
 
 /**
@@ -83,22 +83,22 @@ export interface Eigenpair {
  * `P * A = L * U`, where `P` is the row permutation implied by `perm`.
  */
 export interface LUDecomposition {
-    /** Unit lower-triangular factor (1s on the diagonal). */
-    L: Matrix;
-    /** Upper-triangular factor. */
-    U: Matrix;
-    /**
-     * Row permutation applied during pivoting: `perm[i]` is the index, in
-     * the original matrix, of the row now in position `i`. Apply it to a
-     * vector `b` with `perm.map(p => b.data[p])` before the triangular
-     * solves.
-     */
-    perm: number[];
-    /**
-     * Parity of the row permutation: `+1` for an even number of row swaps,
-     * `-1` for an odd number. `sign * product(diag(U))` equals `det(A)`.
-     */
-    sign: number;
+  /** Unit lower-triangular factor (1s on the diagonal). */
+  L: Matrix;
+  /** Upper-triangular factor. */
+  U: Matrix;
+  /**
+   * Row permutation applied during pivoting: `perm[i]` is the index, in
+   * the original matrix, of the row now in position `i`. Apply it to a
+   * vector `b` with `perm.map(p => b.data[p])` before the triangular
+   * solves.
+   */
+  perm: number[];
+  /**
+   * Parity of the row permutation: `+1` for an even number of row swaps,
+   * `-1` for an odd number. `sign * product(diag(U))` equals `det(A)`.
+   */
+  sign: number;
 }
 
 // -----------------------------------------------------------------
@@ -117,13 +117,16 @@ export interface LUDecomposition {
  * @returns The 0-based row index of the best pivot, or `-1` if none exceeds `tol`.
  */
 function findPivotRow(m: Matrix, col: number, startRow: number, tol: number): number {
-    let pivotRow = -1;
-    let pivotVal = tol;
-    for (let i = startRow; i < m.rows; i++) {
-        const v = Math.abs(m.getUnchecked(i, col));
-        if (v > pivotVal) { pivotVal = v; pivotRow = i; }
+  let pivotRow = -1;
+  let pivotVal = tol;
+  for (let i = startRow; i < m.rows; i++) {
+    const v = Math.abs(m.getUnchecked(i, col));
+    if (v > pivotVal) {
+      pivotVal = v;
+      pivotRow = i;
     }
-    return pivotRow;
+  }
+  return pivotRow;
 }
 
 /**
@@ -142,23 +145,26 @@ function findPivotRow(m: Matrix, col: number, startRow: number, tol: number): nu
  *   parity; `pivots` are the pivot values in the order they were chosen.
  */
 function forwardEliminate(A: Matrix, tol = 0): { rank: number; sign: number; pivots: number[] } {
-    const m = A.copy();
-    let rank = 0;
-    let sign = 1;
-    const pivots: number[] = [];
-    for (let col = 0; col < m.cols && rank < m.rows; col++) {
-        const pivotRow = findPivotRow(m, col, rank, tol);
-        if (pivotRow === -1) continue;
-        if (pivotRow !== rank) { m.swapRows(rank, pivotRow); sign = -sign; }
-        const pivot = m.getUnchecked(rank, col);
-        pivots.push(pivot);
-        for (let i = rank + 1; i < m.rows; i++) {
-            const factor = m.getUnchecked(i, col) / pivot;
-            if (factor !== 0) m.addScaledRow(i, rank, -factor);
-        }
-        rank++;
+  const m = A.copy();
+  let rank = 0;
+  let sign = 1;
+  const pivots: number[] = [];
+  for (let col = 0; col < m.cols && rank < m.rows; col++) {
+    const pivotRow = findPivotRow(m, col, rank, tol);
+    if (pivotRow === -1) continue;
+    if (pivotRow !== rank) {
+      m.swapRows(rank, pivotRow);
+      sign = -sign;
     }
-    return { rank, sign, pivots };
+    const pivot = m.getUnchecked(rank, col);
+    pivots.push(pivot);
+    for (let i = rank + 1; i < m.rows; i++) {
+      const factor = m.getUnchecked(i, col) / pivot;
+      if (factor !== 0) m.addScaledRow(i, rank, -factor);
+    }
+    rank++;
+  }
+  return { rank, sign, pivots };
 }
 
 /**
@@ -189,8 +195,9 @@ const RANK_TOL_SCALE = 10;
  * @returns The rank, between `0` and `min(rows, cols)`.
  */
 export function rank(A: Matrix, tol?: number): number {
-    const effectiveTol = tol ?? RANK_TOL_SCALE * Math.max(A.rows, A.cols) * Number.EPSILON * A.normInf();
-    return forwardEliminate(A, effectiveTol).rank;
+  const effectiveTol =
+    tol ?? RANK_TOL_SCALE * Math.max(A.rows, A.cols) * Number.EPSILON * A.normInf();
+  return forwardEliminate(A, effectiveTol).rank;
 }
 
 /**
@@ -206,12 +213,13 @@ export function rank(A: Matrix, tol?: number): number {
  * @throws {RangeError} If `A` is not square.
  */
 export function determinant(A: Matrix): number {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix determinant requires a square matrix, got ${A.rows}x${A.cols}`);
-    const { rank: r, sign, pivots } = forwardEliminate(A, 0);
-    if (r < A.rows) return 0;
-    let det = sign;
-    for (const p of pivots) det *= p;
-    return det;
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix determinant requires a square matrix, got ${A.rows}x${A.cols}`);
+  const { rank: r, sign, pivots } = forwardEliminate(A, 0);
+  if (r < A.rows) return 0;
+  let det = sign;
+  for (const p of pivots) det *= p;
+  return det;
 }
 
 /**
@@ -224,31 +232,35 @@ export function determinant(A: Matrix): number {
  * @throws {Error} If `A` is singular (not invertible).
  */
 export function inverse(A: Matrix): Matrix {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix inverse requires a square matrix, got ${A.rows}x${A.cols}`);
-    const n = A.rows;
-    // Augment [A | I] and row-reduce the left half to I; the right half
-    // then becomes A^-1.
-    const aug = new Matrix(n, 2 * n);
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix inverse requires a square matrix, got ${A.rows}x${A.cols}`);
+  const n = A.rows;
+  // Augment [A | I] and row-reduce the left half to I; the right half
+  // then becomes A^-1.
+  const aug = new Matrix(n, 2 * n);
+  for (let i = 0; i < n; i++) {
+    aug.data.set(A.data.subarray(A.flatIndex(i, 0), A.flatIndex(i, 0) + n), aug.flatIndex(i, 0));
+    aug.setUnchecked(i, n + i, 1);
+  }
+  for (let col = 0; col < n; col++) {
+    const pivotRow = findPivotRow(aug, col, col, 0);
+    if (pivotRow === -1) throw new Error('Matrix inverse: matrix is singular');
+    if (pivotRow !== col) aug.swapRows(col, pivotRow);
+    aug.scaleRow(col, 1 / aug.getUnchecked(col, col));
     for (let i = 0; i < n; i++) {
-        aug.data.set(A.data.subarray(A.flatIndex(i, 0), A.flatIndex(i, 0) + n), aug.flatIndex(i, 0));
-        aug.setUnchecked(i, n + i, 1);
+      if (i === col) continue;
+      const factor = aug.getUnchecked(i, col);
+      if (factor !== 0) aug.addScaledRow(i, col, -factor);
     }
-    for (let col = 0; col < n; col++) {
-        const pivotRow = findPivotRow(aug, col, col, 0);
-        if (pivotRow === -1) throw new Error('Matrix inverse: matrix is singular');
-        if (pivotRow !== col) aug.swapRows(col, pivotRow);
-        aug.scaleRow(col, 1 / aug.getUnchecked(col, col));
-        for (let i = 0; i < n; i++) {
-            if (i === col) continue;
-            const factor = aug.getUnchecked(i, col);
-            if (factor !== 0) aug.addScaledRow(i, col, -factor);
-        }
-    }
-    const res = new Matrix(n, n);
-    for (let i = 0; i < n; i++) {
-        res.data.set(aug.data.subarray(aug.flatIndex(i, n), aug.flatIndex(i, n) + n), res.flatIndex(i, 0));
-    }
-    return res;
+  }
+  const res = new Matrix(n, n);
+  for (let i = 0; i < n; i++) {
+    res.data.set(
+      aug.data.subarray(aug.flatIndex(i, n), aug.flatIndex(i, n) + n),
+      res.flatIndex(i, 0)
+    );
+  }
+  return res;
 }
 
 /**
@@ -289,68 +301,79 @@ export function inverse(A: Matrix): Matrix {
  * pivot is exactly `0`).
  */
 export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix lu requires a square matrix, got ${A.rows}x${A.cols}`);
-    const n = A.rows;
-    const result = out ?? { L: new Matrix(n, n), U: new Matrix(n, n), perm: new Array<number>(n), sign: 1 };
-    const { L, U, perm } = result;
-    if (L.rows !== n || L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
-        throw new RangeError(`Matrix lu: out must hold ${n}x${n} L and U factors and a permutation of length ${n}`);
-    }
-    if (A === L) throw new RangeError('Matrix lu: A must not be out.L');
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix lu requires a square matrix, got ${A.rows}x${A.cols}`);
+  const n = A.rows;
+  const result = out ?? {
+    L: new Matrix(n, n),
+    U: new Matrix(n, n),
+    perm: new Array<number>(n),
+    sign: 1
+  };
+  const { L, U, perm } = result;
+  if (L.rows !== n || L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
+    throw new RangeError(
+      `Matrix lu: out must hold ${n}x${n} L and U factors and a permutation of length ${n}`
+    );
+  }
+  if (A === L) throw new RangeError('Matrix lu: A must not be out.L');
 
-    const u = U.data;
-    const l = L.data;
-    if (A !== U) u.set(A.data);
-    l.fill(0);
-    for (let i = 0; i < n; i++) {
-        l[i * n + i] = 1;
-        perm[i] = i;
-    }
-    let sign = 1;
+  const u = U.data;
+  const l = L.data;
+  if (A !== U) u.set(A.data);
+  l.fill(0);
+  for (let i = 0; i < n; i++) {
+    l[i * n + i] = 1;
+    perm[i] = i;
+  }
+  let sign = 1;
 
-    for (let col = 0; col < n; col++) {
-        let pivotRow = -1;
-        let pivotVal = 0;
-        for (let i = col; i < n; i++) {
-            const v = Math.abs(u[i * n + col]);
-            if (v > pivotVal) { pivotVal = v; pivotRow = i; }
-        }
-        if (pivotRow === -1) throw new Error('Matrix lu: matrix is singular');
-        if (pivotRow !== col) {
-            const colOffset = col * n;
-            const pivotOffset = pivotRow * n;
-            for (let j = 0; j < n; j++) {
-                const tmp = u[colOffset + j];
-                u[colOffset + j] = u[pivotOffset + j];
-                u[pivotOffset + j] = tmp;
-            }
-            // Rows of L to the left of `col` already hold computed
-            // multipliers; swap those along with U's rows so that
-            // P * A === L * U still holds after the pivot.
-            for (let k = 0; k < col; k++) {
-                const tmp = l[colOffset + k];
-                l[colOffset + k] = l[pivotOffset + k];
-                l[pivotOffset + k] = tmp;
-            }
-            [perm[col], perm[pivotRow]] = [perm[pivotRow], perm[col]];
-            sign = -sign;
-        }
-        const pivotOffset = col * n;
-        const pivot = u[pivotOffset + col];
-        for (let i = col + 1; i < n; i++) {
-            const rowOffset = i * n;
-            const factor = u[rowOffset + col] / pivot;
-            if (factor !== 0) {
-                // Columns up to `col` are eliminated: U's entry is set to
-                // an exact 0 and the multiplier is stored in L instead.
-                u[rowOffset + col] = 0;
-                l[rowOffset + col] = factor;
-                for (let j = col + 1; j < n; j++) u[rowOffset + j] -= factor * u[pivotOffset + j];
-            }
-        }
+  for (let col = 0; col < n; col++) {
+    let pivotRow = -1;
+    let pivotVal = 0;
+    for (let i = col; i < n; i++) {
+      const v = Math.abs(u[i * n + col]);
+      if (v > pivotVal) {
+        pivotVal = v;
+        pivotRow = i;
+      }
     }
-    result.sign = sign;
-    return result;
+    if (pivotRow === -1) throw new Error('Matrix lu: matrix is singular');
+    if (pivotRow !== col) {
+      const colOffset = col * n;
+      const pivotOffset = pivotRow * n;
+      for (let j = 0; j < n; j++) {
+        const tmp = u[colOffset + j];
+        u[colOffset + j] = u[pivotOffset + j];
+        u[pivotOffset + j] = tmp;
+      }
+      // Rows of L to the left of `col` already hold computed
+      // multipliers; swap those along with U's rows so that
+      // P * A === L * U still holds after the pivot.
+      for (let k = 0; k < col; k++) {
+        const tmp = l[colOffset + k];
+        l[colOffset + k] = l[pivotOffset + k];
+        l[pivotOffset + k] = tmp;
+      }
+      [perm[col], perm[pivotRow]] = [perm[pivotRow], perm[col]];
+      sign = -sign;
+    }
+    const pivotOffset = col * n;
+    const pivot = u[pivotOffset + col];
+    for (let i = col + 1; i < n; i++) {
+      const rowOffset = i * n;
+      const factor = u[rowOffset + col] / pivot;
+      if (factor !== 0) {
+        // Columns up to `col` are eliminated: U's entry is set to
+        // an exact 0 and the multiplier is stored in L instead.
+        u[rowOffset + col] = 0;
+        l[rowOffset + col] = factor;
+        for (let j = col + 1; j < n; j++) u[rowOffset + j] -= factor * u[pivotOffset + j];
+      }
+    }
+  }
+  result.sign = sign;
+  return result;
 }
 
 /**
@@ -371,26 +394,29 @@ export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
  * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
  */
 export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vector): Vector {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix solveLower requires a square matrix, got ${A.rows}x${A.cols}`);
-    if (b.size !== A.rows) throw new RangeError(`Matrix solveLower shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
-    if (out !== undefined && out.size !== A.rows) throw new RangeError(`Matrix solveLower out has size ${out.size}, expected ${A.rows}`);
-    const n = A.rows;
-    // Row i reads only x[0..i-1], which are already final, and b[i] before
-    // writing x[i]: so `x` may alias `b`.
-    const x = out ?? new Vector(n);
-    for (let i = 0; i < n; i++) {
-        const offset = A.flatIndex(i, 0);
-        let s = b.data[i];
-        for (let j = 0; j < i; j++) s -= A.data[offset + j] * x.data[j];
-        if (unitDiagonal) {
-            x.data[i] = s;
-        } else {
-            const d = A.data[offset + i];
-            if (d === 0) throw new Error('Matrix solveLower: zero diagonal entry, matrix is singular');
-            x.data[i] = s / d;
-        }
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix solveLower requires a square matrix, got ${A.rows}x${A.cols}`);
+  if (b.size !== A.rows)
+    throw new RangeError(`Matrix solveLower shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
+  if (out !== undefined && out.size !== A.rows)
+    throw new RangeError(`Matrix solveLower out has size ${out.size}, expected ${A.rows}`);
+  const n = A.rows;
+  // Row i reads only x[0..i-1], which are already final, and b[i] before
+  // writing x[i]: so `x` may alias `b`.
+  const x = out ?? new Vector(n);
+  for (let i = 0; i < n; i++) {
+    const offset = A.flatIndex(i, 0);
+    let s = b.data[i];
+    for (let j = 0; j < i; j++) s -= A.data[offset + j] * x.data[j];
+    if (unitDiagonal) {
+      x.data[i] = s;
+    } else {
+      const d = A.data[offset + i];
+      if (d === 0) throw new Error('Matrix solveLower: zero diagonal entry, matrix is singular');
+      x.data[i] = s / d;
     }
-    return x;
+  }
+  return x;
 }
 
 /**
@@ -409,22 +435,25 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vec
  * @throws {Error} If a zero diagonal entry is encountered.
  */
 export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix solveUpper requires a square matrix, got ${A.rows}x${A.cols}`);
-    if (b.size !== A.rows) throw new RangeError(`Matrix solveUpper shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
-    if (out !== undefined && out.size !== A.rows) throw new RangeError(`Matrix solveUpper out has size ${out.size}, expected ${A.rows}`);
-    const n = A.rows;
-    // Row i reads only x[i+1..n-1], which are already final, and b[i] before
-    // writing x[i]: so `x` may alias `b`.
-    const x = out ?? new Vector(n);
-    for (let i = n - 1; i >= 0; i--) {
-        const offset = A.flatIndex(i, 0);
-        let s = b.data[i];
-        for (let j = i + 1; j < n; j++) s -= A.data[offset + j] * x.data[j];
-        const d = A.data[offset + i];
-        if (d === 0) throw new Error('Matrix solveUpper: zero diagonal entry, matrix is singular');
-        x.data[i] = s / d;
-    }
-    return x;
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix solveUpper requires a square matrix, got ${A.rows}x${A.cols}`);
+  if (b.size !== A.rows)
+    throw new RangeError(`Matrix solveUpper shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
+  if (out !== undefined && out.size !== A.rows)
+    throw new RangeError(`Matrix solveUpper out has size ${out.size}, expected ${A.rows}`);
+  const n = A.rows;
+  // Row i reads only x[i+1..n-1], which are already final, and b[i] before
+  // writing x[i]: so `x` may alias `b`.
+  const x = out ?? new Vector(n);
+  for (let i = n - 1; i >= 0; i--) {
+    const offset = A.flatIndex(i, 0);
+    let s = b.data[i];
+    for (let j = i + 1; j < n; j++) s -= A.data[offset + j] * x.data[j];
+    const d = A.data[offset + i];
+    if (d === 0) throw new Error('Matrix solveUpper: zero diagonal entry, matrix is singular');
+    x.data[i] = s / d;
+  }
+  return x;
 }
 
 /**
@@ -447,18 +476,20 @@ export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
  * @throws {Error} If `U` has a zero diagonal entry.
  */
 export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
-    const { L, U, perm } = decomposition;
-    const n = L.rows;
-    if (L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
-        throw new RangeError('Matrix luSolve: inconsistent LU factorization shapes');
-    }
-    if (b.size !== n) throw new RangeError(`Matrix luSolve shape mismatch: ${n}x${n} vs vec(${b.size})`);
-    if (out !== undefined && out.size !== n) throw new RangeError(`Matrix luSolve out has size ${out.size}, expected ${n}`);
-    if (out !== undefined && out === b) throw new RangeError('Matrix luSolve: out must not be b');
-    const x = out ?? new Vector(n);
-    for (let i = 0; i < n; i++) x.data[i] = b.data[perm[i]];
-    solveLower(L, x, true, x);
-    return solveUpper(U, x, x);
+  const { L, U, perm } = decomposition;
+  const n = L.rows;
+  if (L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
+    throw new RangeError('Matrix luSolve: inconsistent LU factorization shapes');
+  }
+  if (b.size !== n)
+    throw new RangeError(`Matrix luSolve shape mismatch: ${n}x${n} vs vec(${b.size})`);
+  if (out !== undefined && out.size !== n)
+    throw new RangeError(`Matrix luSolve out has size ${out.size}, expected ${n}`);
+  if (out !== undefined && out === b) throw new RangeError('Matrix luSolve: out must not be b');
+  const x = out ?? new Vector(n);
+  for (let i = 0; i < n; i++) x.data[i] = b.data[perm[i]];
+  solveLower(L, x, true, x);
+  return solveUpper(U, x, x);
 }
 
 /**
@@ -475,9 +506,11 @@ export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector)
  * @throws {Error} If `A` is singular (no unique solution).
  */
 export function solve(A: Matrix, b: Vector): Vector {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix solve requires a square matrix, got ${A.rows}x${A.cols}`);
-    if (b.size !== A.rows) throw new RangeError(`Matrix solve shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
-    return luSolve(lu(A), b);
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix solve requires a square matrix, got ${A.rows}x${A.cols}`);
+  if (b.size !== A.rows)
+    throw new RangeError(`Matrix solve shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size})`);
+  return luSolve(lu(A), b);
 }
 
 // -----------------------------------------------------------------
@@ -495,12 +528,13 @@ export function solve(A: Matrix, b: Vector): Vector {
  * @throws {RangeError} If `A` is not square.
  */
 export function cond1(A: Matrix): number {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix cond1 requires a square matrix, got ${A.rows}x${A.cols}`);
-    try {
-        return A.norm1() * A.inverse().norm1();
-    } catch {
-        return Infinity;
-    }
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix cond1 requires a square matrix, got ${A.rows}x${A.cols}`);
+  try {
+    return A.norm1() * A.inverse().norm1();
+  } catch {
+    return Infinity;
+  }
 }
 
 /**
@@ -512,18 +546,18 @@ export function cond1(A: Matrix): number {
  * `unitDiagonal` case, since it always reads whatever is actually stored.)
  */
 function normTriangular1(T: Matrix, lower: boolean, unitDiagonal: boolean): number {
-    const n = T.rows;
-    let m = 0;
-    for (let j = 0; j < n; j++) {
-        const iStart = lower ? j : 0;
-        const iEnd = lower ? n - 1 : j;
-        let colSum = 0;
-        for (let i = iStart; i <= iEnd; i++) {
-            colSum += i === j && unitDiagonal ? 1 : Math.abs(T.getUnchecked(i, j));
-        }
-        if (colSum > m) m = colSum;
+  const n = T.rows;
+  let m = 0;
+  for (let j = 0; j < n; j++) {
+    const iStart = lower ? j : 0;
+    const iEnd = lower ? n - 1 : j;
+    let colSum = 0;
+    for (let i = iStart; i <= iEnd; i++) {
+      colSum += i === j && unitDiagonal ? 1 : Math.abs(T.getUnchecked(i, j));
     }
-    return m;
+    if (colSum > m) m = colSum;
+  }
+  return m;
 }
 
 /**
@@ -548,90 +582,90 @@ function normTriangular1(T: Matrix, lower: boolean, unitDiagonal: boolean): numb
  * @returns The 1-norm condition number estimate, or `Infinity` if `T` has a zero 1-norm.
  */
 function cond1Triangular(T: Matrix, lower: boolean, unitDiagonal: boolean): number {
-    const n = T.rows;
-    const tnorm = normTriangular1(T, lower, unitDiagonal);
-    if (tnorm === 0) return Infinity;
-    const diag = (k: number): number => (unitDiagonal ? 1 : T.getUnchecked(k, k));
+  const n = T.rows;
+  const tnorm = normTriangular1(T, lower, unitDiagonal);
+  if (tnorm === 0) return Infinity;
+  const diag = (k: number): number => (unitDiagonal ? 1 : T.getUnchecked(k, k));
 
-    // Stage 1: adaptively solve T^T * y = e (right-looking / column-update
-    // triangular solve, choosing e's sign at each step to promote growth).
-    const z = new Float64Array(n);
-    let ek = 1.0;
-    for (let kk = 0; kk < n; kk++) {
-        const k = lower ? n - 1 - kk : kk;
-        const tkk = diag(k);
+  // Stage 1: adaptively solve T^T * y = e (right-looking / column-update
+  // triangular solve, choosing e's sign at each step to promote growth).
+  const z = new Float64Array(n);
+  let ek = 1.0;
+  for (let kk = 0; kk < n; kk++) {
+    const k = lower ? n - 1 - kk : kk;
+    const tkk = diag(k);
 
-        if (z[k] !== 0) ek = z[k] > 0 ? -Math.abs(ek) : Math.abs(ek); // dsign(ek, -z[k])
-        if (Math.abs(ek - z[k]) > Math.abs(tkk)) {
-            const s = Math.abs(tkk) / Math.abs(ek - z[k]);
-            for (let i = 0; i < n; i++) z[i] *= s;
-            ek *= s;
-        }
-        let wk = ek - z[k];
-        let wkm = -ek - z[k];
-        let s = Math.abs(wk);
-        let sm = Math.abs(wkm);
-        if (tkk === 0) {
-            wk = 1;
-            wkm = 1;
-        } else {
-            wk /= tkk;
-            wkm /= tkk;
-        }
-
-        if (kk !== n - 1) {
-            const jStart = lower ? 0 : k + 1;
-            const jEnd = lower ? k - 1 : n - 1;
-            for (let j = jStart; j <= jEnd; j++) {
-                const tkj = T.getUnchecked(k, j);
-                sm += Math.abs(z[j] + wkm * tkj);
-                z[j] += wk * tkj;
-                s += Math.abs(z[j]);
-            }
-            if (s < sm) {
-                const w = wkm - wk;
-                wk = wkm;
-                for (let j = jStart; j <= jEnd; j++) z[j] += w * T.getUnchecked(k, j);
-            }
-        }
-        z[k] = wk;
+    if (z[k] !== 0) ek = z[k] > 0 ? -Math.abs(ek) : Math.abs(ek); // dsign(ek, -z[k])
+    if (Math.abs(ek - z[k]) > Math.abs(tkk)) {
+      const s = Math.abs(tkk) / Math.abs(ek - z[k]);
+      for (let i = 0; i < n; i++) z[i] *= s;
+      ek *= s;
+    }
+    let wk = ek - z[k];
+    let wkm = -ek - z[k];
+    let s = Math.abs(wk);
+    let sm = Math.abs(wkm);
+    if (tkk === 0) {
+      wk = 1;
+      wkm = 1;
+    } else {
+      wk /= tkk;
+      wkm /= tkk;
     }
 
-    // Normalize y (== z so far) to unit 1-norm.
-    {
-        let sum = 0;
-        for (let i = 0; i < n; i++) sum += Math.abs(z[i]);
-        const s = 1 / sum;
-        for (let i = 0; i < n; i++) z[i] *= s;
+    if (kk !== n - 1) {
+      const jStart = lower ? 0 : k + 1;
+      const jEnd = lower ? k - 1 : n - 1;
+      for (let j = jStart; j <= jEnd; j++) {
+        const tkj = T.getUnchecked(k, j);
+        sm += Math.abs(z[j] + wkm * tkj);
+        z[j] += wk * tkj;
+        s += Math.abs(z[j]);
+      }
+      if (s < sm) {
+        const w = wkm - wk;
+        wk = wkm;
+        for (let j = jStart; j <= jEnd; j++) z[j] += w * T.getUnchecked(k, j);
+      }
     }
-    let ynorm = 1.0;
+    z[k] = wk;
+  }
 
-    // Stage 2: plain solve T * z = y, with intermittent rescaling to avoid overflow.
-    for (let kk = 0; kk < n; kk++) {
-        const k = lower ? kk : n - 1 - kk;
-        const tkk = diag(k);
+  // Normalize y (== z so far) to unit 1-norm.
+  {
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += Math.abs(z[i]);
+    const s = 1 / sum;
+    for (let i = 0; i < n; i++) z[i] *= s;
+  }
+  let ynorm = 1.0;
 
-        if (Math.abs(z[k]) > Math.abs(tkk)) {
-            const s = Math.abs(tkk) / Math.abs(z[k]);
-            for (let i = 0; i < n; i++) z[i] *= s;
-            ynorm *= s;
-        }
-        z[k] = tkk !== 0 ? z[k] / tkk : 1;
+  // Stage 2: plain solve T * z = y, with intermittent rescaling to avoid overflow.
+  for (let kk = 0; kk < n; kk++) {
+    const k = lower ? kk : n - 1 - kk;
+    const tkk = diag(k);
 
-        const iStart = lower ? k + 1 : 0;
-        const iEnd = lower ? n - 1 : k - 1;
-        for (let i = iStart; i <= iEnd; i++) z[i] -= T.getUnchecked(i, k) * z[k];
+    if (Math.abs(z[k]) > Math.abs(tkk)) {
+      const s = Math.abs(tkk) / Math.abs(z[k]);
+      for (let i = 0; i < n; i++) z[i] *= s;
+      ynorm *= s;
     }
+    z[k] = tkk !== 0 ? z[k] / tkk : 1;
 
-    // Normalize z to unit 1-norm, folding the scale factor into `ynorm`.
-    {
-        let sum = 0;
-        for (let i = 0; i < n; i++) sum += Math.abs(z[i]);
-        const s = 1 / sum;
-        ynorm *= s;
-    }
+    const iStart = lower ? k + 1 : 0;
+    const iEnd = lower ? n - 1 : k - 1;
+    for (let i = iStart; i <= iEnd; i++) z[i] -= T.getUnchecked(i, k) * z[k];
+  }
 
-    return tnorm / ynorm;
+  // Normalize z to unit 1-norm, folding the scale factor into `ynorm`.
+  {
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += Math.abs(z[i]);
+    const s = 1 / sum;
+    ynorm *= s;
+  }
+
+  return tnorm / ynorm;
 }
 
 /**
@@ -647,8 +681,9 @@ function cond1Triangular(T: Matrix, lower: boolean, unitDiagonal: boolean): numb
  * @throws {RangeError} If `T` is not square.
  */
 export function cond1Upper(T: Matrix): number {
-    if (T.rows !== T.cols) throw new RangeError(`Matrix cond1Upper requires a square matrix, got ${T.rows}x${T.cols}`);
-    return cond1Triangular(T, false, false);
+  if (T.rows !== T.cols)
+    throw new RangeError(`Matrix cond1Upper requires a square matrix, got ${T.rows}x${T.cols}`);
+  return cond1Triangular(T, false, false);
 }
 
 /**
@@ -666,14 +701,14 @@ export function cond1Upper(T: Matrix): number {
  * @throws {RangeError} If `T` is not square.
  */
 export function cond1Lower(T: Matrix, unitDiagonal = false): number {
-    if (T.rows !== T.cols) throw new RangeError(`Matrix cond1Lower requires a square matrix, got ${T.rows}x${T.cols}`);
-    return cond1Triangular(T, true, unitDiagonal);
+  if (T.rows !== T.cols)
+    throw new RangeError(`Matrix cond1Lower requires a square matrix, got ${T.rows}x${T.cols}`);
+  return cond1Triangular(T, true, unitDiagonal);
 }
 
 // -----------------------------------------------------------------
 // Cholesky decomposition: for symmetric positive-definite matrices.
 // -----------------------------------------------------------------
-
 
 /**
  * Computes the Cholesky factorization of `A`, via the Cholesky–Banachiewicz
@@ -700,25 +735,29 @@ export function cond1Lower(T: Matrix, unitDiagonal = false): number {
  * minor is not strictly positive).
  */
 export function cholesky(A: Matrix): Matrix {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix cholesky requires a square matrix, got ${A.rows}x${A.cols}`);
-    const n = A.rows;
-    const L = new Matrix(n, n);
-    for (let i = 0; i < n; i++) {
-        const rowOffsetA = A.flatIndex(i, 0);
-        const rowOffsetL = L.flatIndex(i, 0);
-        for (let j = 0; j <= i; j++) {
-            const colOffsetL = L.flatIndex(j, 0);
-            let sum = A.data[rowOffsetA + j];
-            for (let k = 0; k < j; k++) sum -= L.data[rowOffsetL + k] * L.data[colOffsetL + k];
-            if (i === j) {
-                if (sum <= 0) throw new Error(`Matrix cholesky: matrix is not positive definite (leading minor of order ${i + 1} is not positive)`);
-                L.data[rowOffsetL + j] = Math.sqrt(sum);
-            } else {
-                L.data[rowOffsetL + j] = sum / L.data[colOffsetL + j];
-            }
-        }
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix cholesky requires a square matrix, got ${A.rows}x${A.cols}`);
+  const n = A.rows;
+  const L = new Matrix(n, n);
+  for (let i = 0; i < n; i++) {
+    const rowOffsetA = A.flatIndex(i, 0);
+    const rowOffsetL = L.flatIndex(i, 0);
+    for (let j = 0; j <= i; j++) {
+      const colOffsetL = L.flatIndex(j, 0);
+      let sum = A.data[rowOffsetA + j];
+      for (let k = 0; k < j; k++) sum -= L.data[rowOffsetL + k] * L.data[colOffsetL + k];
+      if (i === j) {
+        if (sum <= 0)
+          throw new Error(
+            `Matrix cholesky: matrix is not positive definite (leading minor of order ${i + 1} is not positive)`
+          );
+        L.data[rowOffsetL + j] = Math.sqrt(sum);
+      } else {
+        L.data[rowOffsetL + j] = sum / L.data[colOffsetL + j];
+      }
     }
-    return L;
+  }
+  return L;
 }
 
 /**
@@ -738,10 +777,14 @@ export function cholesky(A: Matrix): Matrix {
  * @throws {Error} If `L` has a zero diagonal entry.
  */
 export function choleskySolve(L: Matrix, b: Vector): Vector {
-    if (L.rows !== L.cols) throw new RangeError(`Matrix choleskySolve requires a square matrix, got ${L.rows}x${L.cols}`);
-    if (b.size !== L.rows) throw new RangeError(`Matrix choleskySolve shape mismatch: ${L.rows}x${L.cols} vs vec(${b.size})`);
-    const y = solveLower(L, b, false);
-    return solveUpper(L.transpose(), y);
+  if (L.rows !== L.cols)
+    throw new RangeError(`Matrix choleskySolve requires a square matrix, got ${L.rows}x${L.cols}`);
+  if (b.size !== L.rows)
+    throw new RangeError(
+      `Matrix choleskySolve shape mismatch: ${L.rows}x${L.cols} vs vec(${b.size})`
+    );
+  const y = solveLower(L, b, false);
+  return solveUpper(L.transpose(), y);
 }
 
 // -----------------------------------------------------------------
@@ -759,56 +802,59 @@ export function choleskySolve(L: Matrix, b: Vector): Vector {
  * zeros below the diagonal.
  */
 function householderQR(A: Matrix): QRDecomposition {
-    const m = A.rows;
-    const n = A.cols;
-    const R = A.copy();
-    const Q = Matrix.identity(m);
-    const v = new Float64Array(m);
-    const kMax = Math.min(m - 1, n);
+  const m = A.rows;
+  const n = A.cols;
+  const R = A.copy();
+  const Q = Matrix.identity(m);
+  const v = new Float64Array(m);
+  const kMax = Math.min(m - 1, n);
 
-    for (let k = 0; k < kMax; k++) {
-        let normX = 0;
-        for (let i = k; i < m; i++) { const x = R.getUnchecked(i, k); normX += x * x; }
-        normX = Math.sqrt(normX);
-        if (normX === 0) continue;
-
-        const x0 = R.getUnchecked(k, k);
-        const alpha = x0 >= 0 ? -normX : normX;
-        let vnormSq = 0;
-        for (let i = k; i < m; i++) {
-            const val = i === k ? x0 - alpha : R.getUnchecked(i, k);
-            v[i] = val;
-            vnormSq += val * val;
-        }
-        if (vnormSq === 0) continue;
-        const vnorm = Math.sqrt(vnormSq);
-        for (let i = k; i < m; i++) v[i] /= vnorm;
-
-        // Apply the reflector I - 2vv^T to R on the left (columns k..n-1).
-        for (let j = k; j < n; j++) {
-            let dot = 0;
-            for (let i = k; i < m; i++) dot += v[i] * R.getUnchecked(i, j);
-            dot *= 2;
-            if (dot === 0) continue;
-            for (let i = k; i < m; i++) R.setUnchecked(i, j, R.getUnchecked(i, j) - dot * v[i]);
-        }
-        // Accumulate it into Q on the right: Q := Q * (I - 2vv^T).
-        for (let i = 0; i < m; i++) {
-            let dot = 0;
-            for (let c = k; c < m; c++) dot += Q.getUnchecked(i, c) * v[c];
-            dot *= 2;
-            if (dot === 0) continue;
-            for (let c = k; c < m; c++) Q.setUnchecked(i, c, Q.getUnchecked(i, c) - dot * v[c]);
-        }
+  for (let k = 0; k < kMax; k++) {
+    let normX = 0;
+    for (let i = k; i < m; i++) {
+      const x = R.getUnchecked(i, k);
+      normX += x * x;
     }
+    normX = Math.sqrt(normX);
+    if (normX === 0) continue;
 
-    // Explicit cleanup: force exact zeros below the diagonal, matching
-    // the guarantee numpy/LAPACK-based `qr()` wrappers provide (the
-    // arithmetic above already drives these to ~0, up to rounding).
-    for (let i = 1; i < m; i++) {
-        for (let j = 0; j < Math.min(i, n); j++) R.setUnchecked(i, j, 0);
+    const x0 = R.getUnchecked(k, k);
+    const alpha = x0 >= 0 ? -normX : normX;
+    let vnormSq = 0;
+    for (let i = k; i < m; i++) {
+      const val = i === k ? x0 - alpha : R.getUnchecked(i, k);
+      v[i] = val;
+      vnormSq += val * val;
     }
-    return { Q, R };
+    if (vnormSq === 0) continue;
+    const vnorm = Math.sqrt(vnormSq);
+    for (let i = k; i < m; i++) v[i] /= vnorm;
+
+    // Apply the reflector I - 2vv^T to R on the left (columns k..n-1).
+    for (let j = k; j < n; j++) {
+      let dot = 0;
+      for (let i = k; i < m; i++) dot += v[i] * R.getUnchecked(i, j);
+      dot *= 2;
+      if (dot === 0) continue;
+      for (let i = k; i < m; i++) R.setUnchecked(i, j, R.getUnchecked(i, j) - dot * v[i]);
+    }
+    // Accumulate it into Q on the right: Q := Q * (I - 2vv^T).
+    for (let i = 0; i < m; i++) {
+      let dot = 0;
+      for (let c = k; c < m; c++) dot += Q.getUnchecked(i, c) * v[c];
+      dot *= 2;
+      if (dot === 0) continue;
+      for (let c = k; c < m; c++) Q.setUnchecked(i, c, Q.getUnchecked(i, c) - dot * v[c]);
+    }
+  }
+
+  // Explicit cleanup: force exact zeros below the diagonal, matching
+  // the guarantee numpy/LAPACK-based `qr()` wrappers provide (the
+  // arithmetic above already drives these to ~0, up to rounding).
+  for (let i = 1; i < m; i++) {
+    for (let j = 0; j < Math.min(i, n); j++) R.setUnchecked(i, j, 0);
+  }
+  return { Q, R };
 }
 
 /**
@@ -818,7 +864,7 @@ function householderQR(A: Matrix): QRDecomposition {
  * @returns The `{ Q, R }` factorization.
  */
 export function qr(A: Matrix): QRDecomposition {
-    return householderQR(A);
+  return householderQR(A);
 }
 
 // -----------------------------------------------------------------
@@ -854,108 +900,117 @@ export function qr(A: Matrix): QRDecomposition {
  * @throws {RangeError} If `out` does not match the shape of `A`.
  */
 export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposition {
-    const m = A.rows;
-    const n = A.cols;
-    const k = Math.min(m, n);
-    const result = out ?? { QR: new Matrix(m, n), tau: new Vector(k), perm: new Array<number>(n) };
-    const { QR, tau, perm } = result;
-    if (QR.rows !== m || QR.cols !== n || tau.size !== k || perm.length !== n) {
-        throw new RangeError(
-            `Matrix qrPivot: out must hold a ${m}x${n} QR matrix, ${k} tau values and a permutation of length ${n}`
-        );
+  const m = A.rows;
+  const n = A.cols;
+  const k = Math.min(m, n);
+  const result = out ?? { QR: new Matrix(m, n), tau: new Vector(k), perm: new Array<number>(n) };
+  const { QR, tau, perm } = result;
+  if (QR.rows !== m || QR.cols !== n || tau.size !== k || perm.length !== n) {
+    throw new RangeError(
+      `Matrix qrPivot: out must hold a ${m}x${n} QR matrix, ${k} tau values and a permutation of length ${n}`
+    );
+  }
+
+  const a = QR.data;
+  if (A !== QR) a.set(A.data);
+
+  // vn1: current (downdated) partial column norms; vn2: norms at the last
+  // exact computation; w: work row for applying a reflector.
+  const vn1 = new Float64Array(n);
+  const vn2 = new Float64Array(n);
+  const w = new Float64Array(n);
+  for (let j = 0; j < n; j++) {
+    let s = 0;
+    for (let i = 0; i < m; i++) {
+      const x = a[i * n + j];
+      s += x * x;
+    }
+    vn1[j] = Math.sqrt(s);
+    vn2[j] = vn1[j];
+    perm[j] = j;
+  }
+  const tol3z = Math.sqrt(Number.EPSILON);
+
+  for (let j = 0; j < k; j++) {
+    // Bring the remaining column of largest norm into position j.
+    let p = j;
+    for (let c = j + 1; c < n; c++) if (vn1[c] > vn1[p]) p = c;
+    if (p !== j) {
+      for (let i = 0; i < m; i++) {
+        const t = a[i * n + j];
+        a[i * n + j] = a[i * n + p];
+        a[i * n + p] = t;
+      }
+      [perm[j], perm[p]] = [perm[p], perm[j]];
+      vn1[p] = vn1[j];
+      vn2[p] = vn2[j];
     }
 
-    const a = QR.data;
-    if (A !== QR) a.set(A.data);
-
-    // vn1: current (downdated) partial column norms; vn2: norms at the last
-    // exact computation; w: work row for applying a reflector.
-    const vn1 = new Float64Array(n);
-    const vn2 = new Float64Array(n);
-    const w = new Float64Array(n);
-    for (let j = 0; j < n; j++) {
-        let s = 0;
-        for (let i = 0; i < m; i++) { const x = a[i * n + j]; s += x * x; }
-        vn1[j] = Math.sqrt(s);
-        vn2[j] = vn1[j];
-        perm[j] = j;
+    // Householder reflector that maps column j (rows j..m-1) to beta*e_j
+    // (LAPACK `dlarfg`).
+    const alpha = a[j * n + j];
+    let xs = 0;
+    for (let i = j + 1; i < m; i++) {
+      const x = a[i * n + j];
+      xs += x * x;
     }
-    const tol3z = Math.sqrt(Number.EPSILON);
-
-    for (let j = 0; j < k; j++) {
-        // Bring the remaining column of largest norm into position j.
-        let p = j;
-        for (let c = j + 1; c < n; c++) if (vn1[c] > vn1[p]) p = c;
-        if (p !== j) {
-            for (let i = 0; i < m; i++) {
-                const t = a[i * n + j];
-                a[i * n + j] = a[i * n + p];
-                a[i * n + p] = t;
-            }
-            [perm[j], perm[p]] = [perm[p], perm[j]];
-            vn1[p] = vn1[j];
-            vn2[p] = vn2[j];
-        }
-
-        // Householder reflector that maps column j (rows j..m-1) to beta*e_j
-        // (LAPACK `dlarfg`).
-        const alpha = a[j * n + j];
-        let xs = 0;
-        for (let i = j + 1; i < m; i++) { const x = a[i * n + j]; xs += x * x; }
-        const xnorm = Math.sqrt(xs);
-        let tj = 0;
-        if (xnorm !== 0) {
-            const beta = alpha >= 0 ? -Math.hypot(alpha, xnorm) : Math.hypot(alpha, xnorm);
-            tj = (beta - alpha) / beta;
-            const scale = 1 / (alpha - beta);
-            for (let i = j + 1; i < m; i++) a[i * n + j] *= scale;
-            a[j * n + j] = beta;
-        }
-        tau.data[j] = tj;
-
-        if (j + 1 < n) {
-            if (tj !== 0) {
-                // Apply H_j to columns j+1..n-1: with v = [1; a[j+1.., j]],
-                // w^T = v^T A, then A -= tau * v * w^T (row-wise sweeps).
-                for (let c = j + 1; c < n; c++) w[c] = a[j * n + c];
-                for (let i = j + 1; i < m; i++) {
-                    const vi = a[i * n + j];
-                    if (vi !== 0) {
-                        const off = i * n;
-                        for (let c = j + 1; c < n; c++) w[c] += vi * a[off + c];
-                    }
-                }
-                for (let c = j + 1; c < n; c++) {
-                    w[c] *= tj;
-                    a[j * n + c] -= w[c];
-                }
-                for (let i = j + 1; i < m; i++) {
-                    const vi = a[i * n + j];
-                    if (vi !== 0) {
-                        const off = i * n;
-                        for (let c = j + 1; c < n; c++) a[off + c] -= vi * w[c];
-                    }
-                }
-            }
-
-            // Downdate the partial column norms (LAPACK `dlaqp2`).
-            for (let c = j + 1; c < n; c++) {
-                if (vn1[c] === 0) continue;
-                const r = Math.abs(a[j * n + c]) / vn1[c];
-                const temp = Math.max(0, 1 - r * r);
-                const ratio = vn1[c] / vn2[c];
-                if (temp * ratio * ratio <= tol3z) {
-                    let s = 0;
-                    for (let i = j + 1; i < m; i++) { const x = a[i * n + c]; s += x * x; }
-                    vn1[c] = Math.sqrt(s);
-                    vn2[c] = vn1[c];
-                } else {
-                    vn1[c] *= Math.sqrt(temp);
-                }
-            }
-        }
+    const xnorm = Math.sqrt(xs);
+    let tj = 0;
+    if (xnorm !== 0) {
+      const beta = alpha >= 0 ? -Math.hypot(alpha, xnorm) : Math.hypot(alpha, xnorm);
+      tj = (beta - alpha) / beta;
+      const scale = 1 / (alpha - beta);
+      for (let i = j + 1; i < m; i++) a[i * n + j] *= scale;
+      a[j * n + j] = beta;
     }
-    return result;
+    tau.data[j] = tj;
+
+    if (j + 1 < n) {
+      if (tj !== 0) {
+        // Apply H_j to columns j+1..n-1: with v = [1; a[j+1.., j]],
+        // w^T = v^T A, then A -= tau * v * w^T (row-wise sweeps).
+        for (let c = j + 1; c < n; c++) w[c] = a[j * n + c];
+        for (let i = j + 1; i < m; i++) {
+          const vi = a[i * n + j];
+          if (vi !== 0) {
+            const off = i * n;
+            for (let c = j + 1; c < n; c++) w[c] += vi * a[off + c];
+          }
+        }
+        for (let c = j + 1; c < n; c++) {
+          w[c] *= tj;
+          a[j * n + c] -= w[c];
+        }
+        for (let i = j + 1; i < m; i++) {
+          const vi = a[i * n + j];
+          if (vi !== 0) {
+            const off = i * n;
+            for (let c = j + 1; c < n; c++) a[off + c] -= vi * w[c];
+          }
+        }
+      }
+
+      // Downdate the partial column norms (LAPACK `dlaqp2`).
+      for (let c = j + 1; c < n; c++) {
+        if (vn1[c] === 0) continue;
+        const r = Math.abs(a[j * n + c]) / vn1[c];
+        const temp = Math.max(0, 1 - r * r);
+        const ratio = vn1[c] / vn2[c];
+        if (temp * ratio * ratio <= tol3z) {
+          let s = 0;
+          for (let i = j + 1; i < m; i++) {
+            const x = a[i * n + c];
+            s += x * x;
+          }
+          vn1[c] = Math.sqrt(s);
+          vn2[c] = vn1[c];
+        } else {
+          vn1[c] *= Math.sqrt(temp);
+        }
+      }
+    }
+  }
+  return result;
 }
 
 /**
@@ -973,26 +1028,28 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
  * @throws {RangeError} If `b` or `out` does not match the factorization.
  */
 export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector): Vector {
-    const { QR, tau } = dec;
-    const m = QR.rows;
-    const n = QR.cols;
-    if (b.size !== m) throw new RangeError(`Matrix qrPivotMulQt shape mismatch: ${m}x${n} vs vec(${b.size})`);
-    if (out !== undefined && out.size !== m) throw new RangeError(`Matrix qrPivotMulQt out has size ${out.size}, expected ${m}`);
-    const y = out ?? new Vector(m);
-    if (y !== b) y.data.set(b.data);
-    const d = y.data;
-    const a = QR.data;
-    const k = tau.size;
-    for (let j = 0; j < k; j++) {
-        const tj = tau.data[j];
-        if (tj === 0) continue;
-        let s = d[j];
-        for (let i = j + 1; i < m; i++) s += a[i * n + j] * d[i];
-        s *= tj;
-        d[j] -= s;
-        for (let i = j + 1; i < m; i++) d[i] -= a[i * n + j] * s;
-    }
-    return y;
+  const { QR, tau } = dec;
+  const m = QR.rows;
+  const n = QR.cols;
+  if (b.size !== m)
+    throw new RangeError(`Matrix qrPivotMulQt shape mismatch: ${m}x${n} vs vec(${b.size})`);
+  if (out !== undefined && out.size !== m)
+    throw new RangeError(`Matrix qrPivotMulQt out has size ${out.size}, expected ${m}`);
+  const y = out ?? new Vector(m);
+  if (y !== b) y.data.set(b.data);
+  const d = y.data;
+  const a = QR.data;
+  const k = tau.size;
+  for (let j = 0; j < k; j++) {
+    const tj = tau.data[j];
+    if (tj === 0) continue;
+    let s = d[j];
+    for (let i = j + 1; i < m; i++) s += a[i * n + j] * d[i];
+    s *= tj;
+    d[j] -= s;
+    for (let i = j + 1; i < m; i++) d[i] -= a[i * n + j] * s;
+  }
+  return y;
 }
 
 /**
@@ -1004,35 +1061,35 @@ export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector)
  * @returns A new `rows x k` matrix with orthonormal columns.
  */
 export function qrPivotQ(dec: QRPivotDecomposition): Matrix {
-    const { QR, tau } = dec;
-    const m = QR.rows;
-    const n = QR.cols;
-    const k = tau.size;
-    const Q = new Matrix(m, k);
-    const q = Q.data;
-    for (let j = 0; j < k; j++) q[j * k + j] = 1;
-    const a = QR.data;
-    // Q = H_0 * H_1 * ... * H_{k-1} * [I_k; 0], applied from the last reflector.
-    // Columns c < j are still zero in rows >= j at this point, so only c >= j matter.
-    const w = new Float64Array(k);
-    for (let j = k - 1; j >= 0; j--) {
-        const tj = tau.data[j];
-        if (tj === 0) continue;
-        for (let c = j; c < k; c++) w[c] = q[j * k + c];
-        for (let i = j + 1; i < m; i++) {
-            const vi = a[i * n + j];
-            if (vi !== 0) for (let c = j; c < k; c++) w[c] += vi * q[i * k + c];
-        }
-        for (let c = j; c < k; c++) {
-            w[c] *= tj;
-            q[j * k + c] -= w[c];
-        }
-        for (let i = j + 1; i < m; i++) {
-            const vi = a[i * n + j];
-            if (vi !== 0) for (let c = j; c < k; c++) q[i * k + c] -= vi * w[c];
-        }
+  const { QR, tau } = dec;
+  const m = QR.rows;
+  const n = QR.cols;
+  const k = tau.size;
+  const Q = new Matrix(m, k);
+  const q = Q.data;
+  for (let j = 0; j < k; j++) q[j * k + j] = 1;
+  const a = QR.data;
+  // Q = H_0 * H_1 * ... * H_{k-1} * [I_k; 0], applied from the last reflector.
+  // Columns c < j are still zero in rows >= j at this point, so only c >= j matter.
+  const w = new Float64Array(k);
+  for (let j = k - 1; j >= 0; j--) {
+    const tj = tau.data[j];
+    if (tj === 0) continue;
+    for (let c = j; c < k; c++) w[c] = q[j * k + c];
+    for (let i = j + 1; i < m; i++) {
+      const vi = a[i * n + j];
+      if (vi !== 0) for (let c = j; c < k; c++) w[c] += vi * q[i * k + c];
     }
-    return Q;
+    for (let c = j; c < k; c++) {
+      w[c] *= tj;
+      q[j * k + c] -= w[c];
+    }
+    for (let i = j + 1; i < m; i++) {
+      const vi = a[i * n + j];
+      if (vi !== 0) for (let c = j; c < k; c++) q[i * k + c] -= vi * w[c];
+    }
+  }
+  return Q;
 }
 
 /**
@@ -1043,14 +1100,14 @@ export function qrPivotQ(dec: QRPivotDecomposition): Matrix {
  * @returns A new `k x cols` matrix.
  */
 export function qrPivotR(dec: QRPivotDecomposition): Matrix {
-    const { QR, tau } = dec;
-    const n = QR.cols;
-    const k = tau.size;
-    const R = new Matrix(k, n);
-    for (let i = 0; i < k; i++) {
-        for (let j = i; j < n; j++) R.data[i * n + j] = QR.data[i * n + j];
-    }
-    return R;
+  const { QR, tau } = dec;
+  const n = QR.cols;
+  const k = tau.size;
+  const R = new Matrix(k, n);
+  for (let i = 0; i < k; i++) {
+    for (let j = i; j < n; j++) R.data[i * n + j] = QR.data[i * n + j];
+  }
+  return R;
 }
 
 /**
@@ -1066,19 +1123,19 @@ export function qrPivotR(dec: QRPivotDecomposition): Matrix {
  * @returns The rotation coefficients.
  */
 function givens(a: number, b: number): { c: number; s: number } {
-    if (b === 0) return { c: 1, s: 0 };
-    if (a === 0) return { c: 0, s: 1 };
-    if (Math.abs(a) > Math.abs(b)) {
-        const t = b / a;
-        const u = Math.sign(a) * Math.sqrt(1 + t * t);
-        const c = 1 / u;
-        return { c, s: c * t };
-    } else {
-        const t = a / b;
-        const u = Math.sign(b) * Math.sqrt(1 + t * t);
-        const s = 1 / u;
-        return { c: s * t, s };
-    }
+  if (b === 0) return { c: 1, s: 0 };
+  if (a === 0) return { c: 0, s: 1 };
+  if (Math.abs(a) > Math.abs(b)) {
+    const t = b / a;
+    const u = Math.sign(a) * Math.sqrt(1 + t * t);
+    const c = 1 / u;
+    return { c, s: c * t };
+  } else {
+    const t = a / b;
+    const u = Math.sign(b) * Math.sqrt(1 + t * t);
+    const s = 1 / u;
+    return { c: s * t, s };
+  }
 }
 
 /**
@@ -1096,13 +1153,21 @@ function givens(a: number, b: number): { c: number; s: number } {
  * @param colStart First column to touch, inclusive.
  * @param colEnd Last column to touch, exclusive.
  */
-function applyGivensRows(M: Matrix, i: number, j: number, c: number, s: number, colStart: number, colEnd: number): void {
-    for (let col = colStart; col < colEnd; col++) {
-        const a = M.getUnchecked(i, col);
-        const b = M.getUnchecked(j, col);
-        M.setUnchecked(i, col, c * a + s * b);
-        M.setUnchecked(j, col, -s * a + c * b);
-    }
+function applyGivensRows(
+  M: Matrix,
+  i: number,
+  j: number,
+  c: number,
+  s: number,
+  colStart: number,
+  colEnd: number
+): void {
+  for (let col = colStart; col < colEnd; col++) {
+    const a = M.getUnchecked(i, col);
+    const b = M.getUnchecked(j, col);
+    M.setUnchecked(i, col, c * a + s * b);
+    M.setUnchecked(j, col, -s * a + c * b);
+  }
 }
 
 /**
@@ -1119,12 +1184,12 @@ function applyGivensRows(M: Matrix, i: number, j: number, c: number, s: number, 
  * @param s Rotation sine.
  */
 function applyGivensCols(M: Matrix, i: number, j: number, c: number, s: number): void {
-    for (let row = 0; row < M.rows; row++) {
-        const a = M.getUnchecked(row, i);
-        const b = M.getUnchecked(row, j);
-        M.setUnchecked(row, i, c * a + s * b);
-        M.setUnchecked(row, j, -s * a + c * b);
-    }
+  for (let row = 0; row < M.rows; row++) {
+    const a = M.getUnchecked(row, i);
+    const b = M.getUnchecked(row, j);
+    M.setUnchecked(row, i, c * a + s * b);
+    M.setUnchecked(row, j, -s * a + c * b);
+  }
 }
 
 /**
@@ -1173,57 +1238,64 @@ function applyGivensCols(M: Matrix, i: number, j: number, c: number, s: number):
  * are inconsistent with each other.
  */
 export function qrUpdateSelf(qrDecomp: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
-    const { Q, R } = qrDecomp;
-    const m = Q.rows;
-    const n = R.cols;
-    if (Q.rows !== Q.cols) throw new RangeError(`Matrix.qrUpdateSelf: Q must be square, got ${Q.rows}x${Q.cols}`);
-    if (R.rows !== m) throw new RangeError(`Matrix.qrUpdateSelf: shape mismatch: Q is ${m}x${m} but R has ${R.rows} rows`);
-    if (u.size !== m) throw new RangeError(`Matrix.qrUpdateSelf: u must have size ${m} (Q.rows), got ${u.size}`);
-    if (v.size !== n) throw new RangeError(`Matrix.qrUpdateSelf: v must have size ${n} (R.cols), got ${v.size}`);
+  const { Q, R } = qrDecomp;
+  const m = Q.rows;
+  const n = R.cols;
+  if (Q.rows !== Q.cols)
+    throw new RangeError(`Matrix.qrUpdateSelf: Q must be square, got ${Q.rows}x${Q.cols}`);
+  if (R.rows !== m)
+    throw new RangeError(
+      `Matrix.qrUpdateSelf: shape mismatch: Q is ${m}x${m} but R has ${R.rows} rows`
+    );
+  if (u.size !== m)
+    throw new RangeError(`Matrix.qrUpdateSelf: u must have size ${m} (Q.rows), got ${u.size}`);
+  if (v.size !== n)
+    throw new RangeError(`Matrix.qrUpdateSelf: v must have size ${n} (R.cols), got ${v.size}`);
 
-    // w = Q^T * u
-    const w = new Float64Array(m);
-    for (let i = 0; i < m; i++) {
-        let sum = 0;
-        for (let k = 0; k < m; k++) sum += Q.getUnchecked(k, i) * u.data[k];
-        w[i] = sum;
-    }
+  // w = Q^T * u
+  const w = new Float64Array(m);
+  for (let i = 0; i < m; i++) {
+    let sum = 0;
+    for (let k = 0; k < m; k++) sum += Q.getUnchecked(k, i) * u.data[k];
+    w[i] = sum;
+  }
 
-    // Phase 1: sweep bottom-to-top, collapsing w to w[0]*e_1 while
-    // simultaneously reducing R to upper Hessenberg form.
-    for (let k = m - 1; k >= 1; k--) {
-        if (w[k] === 0) continue;
-        const { c, s } = givens(w[k - 1], w[k]);
-        const a = w[k - 1], b = w[k];
-        w[k - 1] = c * a + s * b;
-        w[k] = -s * a + c * b;
-        applyGivensRows(R, k - 1, k, c, s, 0, n);
-        applyGivensCols(Q, k - 1, k, c, s);
-    }
+  // Phase 1: sweep bottom-to-top, collapsing w to w[0]*e_1 while
+  // simultaneously reducing R to upper Hessenberg form.
+  for (let k = m - 1; k >= 1; k--) {
+    if (w[k] === 0) continue;
+    const { c, s } = givens(w[k - 1], w[k]);
+    const a = w[k - 1],
+      b = w[k];
+    w[k - 1] = c * a + s * b;
+    w[k] = -s * a + c * b;
+    applyGivensRows(R, k - 1, k, c, s, 0, n);
+    applyGivensCols(Q, k - 1, k, c, s);
+  }
 
-    // Fold the (now scalar) update into R's first row.
-    const tau = w[0];
-    if (tau !== 0) {
-        for (let j = 0; j < n; j++) R.setUnchecked(0, j, R.getUnchecked(0, j) + tau * v.data[j]);
-    }
+  // Fold the (now scalar) update into R's first row.
+  const tau = w[0];
+  if (tau !== 0) {
+    for (let j = 0; j < n; j++) R.setUnchecked(0, j, R.getUnchecked(0, j) + tau * v.data[j]);
+  }
 
-    // Phase 2: sweep top-to-bottom, eliminating the sub-diagonal bulge
-    // introduced above and restoring upper-triangular form.
-    const kMax = Math.min(m - 1, n);
-    for (let k = 0; k < kMax; k++) {
-        const sub = R.getUnchecked(k + 1, k);
-        if (sub === 0) continue;
-        const { c, s } = givens(R.getUnchecked(k, k), sub);
-        applyGivensRows(R, k, k + 1, c, s, k, n);
-        applyGivensCols(Q, k, k + 1, c, s);
-    }
+  // Phase 2: sweep top-to-bottom, eliminating the sub-diagonal bulge
+  // introduced above and restoring upper-triangular form.
+  const kMax = Math.min(m - 1, n);
+  for (let k = 0; k < kMax; k++) {
+    const sub = R.getUnchecked(k + 1, k);
+    if (sub === 0) continue;
+    const { c, s } = givens(R.getUnchecked(k, k), sub);
+    applyGivensRows(R, k, k + 1, c, s, k, n);
+    applyGivensCols(Q, k, k + 1, c, s);
+  }
 
-    // Explicit cleanup: force exact zeros below the diagonal, the same
-    // guarantee `householderQR` provides (see its own cleanup pass).
-    for (let i = 1; i < m; i++) {
-        for (let j = 0; j < Math.min(i, n); j++) R.setUnchecked(i, j, 0);
-    }
-    return qrDecomp;
+  // Explicit cleanup: force exact zeros below the diagonal, the same
+  // guarantee `householderQR` provides (see its own cleanup pass).
+  for (let i = 1; i < m; i++) {
+    for (let j = 0; j < Math.min(i, n); j++) R.setUnchecked(i, j, 0);
+  }
+  return qrDecomp;
 }
 
 /**
@@ -1238,7 +1310,7 @@ export function qrUpdateSelf(qrDecomp: QRDecomposition, u: Vector, v: Vector): Q
  * @throws {RangeError} Same conditions as `qrUpdateSelf`.
  */
 export function qrUpdate(qrDecomp: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
-    return qrUpdateSelf({ Q: qrDecomp.Q.copy(), R: qrDecomp.R.copy() }, u, v);
+  return qrUpdateSelf({ Q: qrDecomp.Q.copy(), R: qrDecomp.R.copy() }, u, v);
 }
 
 // -----------------------------------------------------------------
@@ -1262,43 +1334,52 @@ export function qrUpdate(qrDecomp: QRDecomposition, u: Vector, v: Vector): QRDec
  * real-2x2-block cleanup pass — both are exactly this operation, just
  * with a different (locally-derived) `Qlocal`.
  */
-function applySimilarity(H: Matrix, Q: Matrix | null, lo: number, hi: number, Qlocal: Matrix): void {
-    const n = H.rows;
-    const k = hi - lo + 1;
+function applySimilarity(
+  H: Matrix,
+  Q: Matrix | null,
+  lo: number,
+  hi: number,
+  Qlocal: Matrix
+): void {
+  const n = H.rows;
+  const k = hi - lo + 1;
 
-    // H[lo:hi+1, :] := Qlocal^T * H[lo:hi+1, :]
-    const rowBuf = new Float64Array(k * n);
-    for (let i = 0; i < k; i++) for (let j = 0; j < n; j++) rowBuf[i * n + j] = H.getUnchecked(lo + i, j);
-    for (let i = 0; i < k; i++) {
-        for (let j = 0; j < n; j++) {
-            let sum = 0;
-            for (let m = 0; m < k; m++) sum += Qlocal.getUnchecked(m, i) * rowBuf[m * n + j];
-            H.setUnchecked(lo + i, j, sum);
-        }
+  // H[lo:hi+1, :] := Qlocal^T * H[lo:hi+1, :]
+  const rowBuf = new Float64Array(k * n);
+  for (let i = 0; i < k; i++)
+    for (let j = 0; j < n; j++) rowBuf[i * n + j] = H.getUnchecked(lo + i, j);
+  for (let i = 0; i < k; i++) {
+    for (let j = 0; j < n; j++) {
+      let sum = 0;
+      for (let m = 0; m < k; m++) sum += Qlocal.getUnchecked(m, i) * rowBuf[m * n + j];
+      H.setUnchecked(lo + i, j, sum);
     }
+  }
 
-    // H[:, lo:hi+1] := H[:, lo:hi+1] * Qlocal
-    const colBuf = new Float64Array(n * k);
-    for (let i = 0; i < n; i++) for (let j = 0; j < k; j++) colBuf[i * k + j] = H.getUnchecked(i, lo + j);
+  // H[:, lo:hi+1] := H[:, lo:hi+1] * Qlocal
+  const colBuf = new Float64Array(n * k);
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < k; j++) colBuf[i * k + j] = H.getUnchecked(i, lo + j);
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < k; j++) {
+      let sum = 0;
+      for (let m = 0; m < k; m++) sum += colBuf[i * k + m] * Qlocal.getUnchecked(m, j);
+      H.setUnchecked(i, lo + j, sum);
+    }
+  }
+
+  if (Q) {
+    const qBuf = new Float64Array(n * k);
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < k; j++) qBuf[i * k + j] = Q.getUnchecked(i, lo + j);
     for (let i = 0; i < n; i++) {
-        for (let j = 0; j < k; j++) {
-            let sum = 0;
-            for (let m = 0; m < k; m++) sum += colBuf[i * k + m] * Qlocal.getUnchecked(m, j);
-            H.setUnchecked(i, lo + j, sum);
-        }
+      for (let j = 0; j < k; j++) {
+        let sum = 0;
+        for (let m = 0; m < k; m++) sum += qBuf[i * k + m] * Qlocal.getUnchecked(m, j);
+        Q.setUnchecked(i, lo + j, sum);
+      }
     }
-
-    if (Q) {
-        const qBuf = new Float64Array(n * k);
-        for (let i = 0; i < n; i++) for (let j = 0; j < k; j++) qBuf[i * k + j] = Q.getUnchecked(i, lo + j);
-        for (let i = 0; i < n; i++) {
-            for (let j = 0; j < k; j++) {
-                let sum = 0;
-                for (let m = 0; m < k; m++) sum += qBuf[i * k + m] * Qlocal.getUnchecked(m, j);
-                Q.setUnchecked(i, lo + j, sum);
-            }
-        }
-    }
+  }
 }
 
 /**
@@ -1319,64 +1400,67 @@ function applySimilarity(H: Matrix, Q: Matrix | null, lo: number, hi: number, Ql
  * to `A`; and `Q` (or `null` if not requested).
  */
 function hessenberg(A: Matrix, accumulateQ = false): { H: Matrix; Q: Matrix | null } {
-    const n = A.rows;
-    const H = A.copy();
-    const Q = accumulateQ ? Matrix.identity(n) : null;
-    if (n < 3) return { H, Q };
-    const v = new Float64Array(n);
+  const n = A.rows;
+  const H = A.copy();
+  const Q = accumulateQ ? Matrix.identity(n) : null;
+  if (n < 3) return { H, Q };
+  const v = new Float64Array(n);
 
-    for (let k = 0; k < n - 2; k++) {
-        let normX = 0;
-        for (let i = k + 1; i < n; i++) { const x = H.getUnchecked(i, k); normX += x * x; }
-        normX = Math.sqrt(normX);
-        if (normX === 0) continue;
-
-        const x0 = H.getUnchecked(k + 1, k);
-        const alpha = x0 >= 0 ? -normX : normX;
-        let vnormSq = 0;
-        for (let i = k + 1; i < n; i++) {
-            const val = i === k + 1 ? x0 - alpha : H.getUnchecked(i, k);
-            v[i] = val;
-            vnormSq += val * val;
-        }
-        if (vnormSq === 0) continue;
-        const vnorm = Math.sqrt(vnormSq);
-        for (let i = k + 1; i < n; i++) v[i] /= vnorm;
-
-        // Left multiply: H[k+1:, :] -= 2 v (v^T H[k+1:, :]).
-        for (let j = 0; j < n; j++) {
-            let dot = 0;
-            for (let i = k + 1; i < n; i++) dot += v[i] * H.getUnchecked(i, j);
-            dot *= 2;
-            if (dot === 0) continue;
-            for (let i = k + 1; i < n; i++) H.setUnchecked(i, j, H.getUnchecked(i, j) - dot * v[i]);
-        }
-        // Right multiply (completes the similarity transform):
-        // H[:, k+1:] -= 2 (H[:, k+1:] v) v^T.
-        for (let i = 0; i < n; i++) {
-            let dot = 0;
-            for (let j = k + 1; j < n; j++) dot += H.getUnchecked(i, j) * v[j];
-            dot *= 2;
-            if (dot === 0) continue;
-            for (let j = k + 1; j < n; j++) H.setUnchecked(i, j, H.getUnchecked(i, j) - dot * v[j]);
-        }
-        // Accumulate: Q := Q * Hk (same reflector, right-applied).
-        if (Q) {
-            for (let i = 0; i < n; i++) {
-                let dot = 0;
-                for (let j = k + 1; j < n; j++) dot += Q.getUnchecked(i, j) * v[j];
-                dot *= 2;
-                if (dot === 0) continue;
-                for (let j = k + 1; j < n; j++) Q.setUnchecked(i, j, Q.getUnchecked(i, j) - dot * v[j]);
-            }
-        }
+  for (let k = 0; k < n - 2; k++) {
+    let normX = 0;
+    for (let i = k + 1; i < n; i++) {
+      const x = H.getUnchecked(i, k);
+      normX += x * x;
     }
+    normX = Math.sqrt(normX);
+    if (normX === 0) continue;
 
-    // Explicit cleanup: force exact zeros below the subdiagonal.
-    for (let i = 2; i < n; i++) {
-        for (let j = 0; j < i - 1; j++) H.setUnchecked(i, j, 0);
+    const x0 = H.getUnchecked(k + 1, k);
+    const alpha = x0 >= 0 ? -normX : normX;
+    let vnormSq = 0;
+    for (let i = k + 1; i < n; i++) {
+      const val = i === k + 1 ? x0 - alpha : H.getUnchecked(i, k);
+      v[i] = val;
+      vnormSq += val * val;
     }
-    return { H, Q };
+    if (vnormSq === 0) continue;
+    const vnorm = Math.sqrt(vnormSq);
+    for (let i = k + 1; i < n; i++) v[i] /= vnorm;
+
+    // Left multiply: H[k+1:, :] -= 2 v (v^T H[k+1:, :]).
+    for (let j = 0; j < n; j++) {
+      let dot = 0;
+      for (let i = k + 1; i < n; i++) dot += v[i] * H.getUnchecked(i, j);
+      dot *= 2;
+      if (dot === 0) continue;
+      for (let i = k + 1; i < n; i++) H.setUnchecked(i, j, H.getUnchecked(i, j) - dot * v[i]);
+    }
+    // Right multiply (completes the similarity transform):
+    // H[:, k+1:] -= 2 (H[:, k+1:] v) v^T.
+    for (let i = 0; i < n; i++) {
+      let dot = 0;
+      for (let j = k + 1; j < n; j++) dot += H.getUnchecked(i, j) * v[j];
+      dot *= 2;
+      if (dot === 0) continue;
+      for (let j = k + 1; j < n; j++) H.setUnchecked(i, j, H.getUnchecked(i, j) - dot * v[j]);
+    }
+    // Accumulate: Q := Q * Hk (same reflector, right-applied).
+    if (Q) {
+      for (let i = 0; i < n; i++) {
+        let dot = 0;
+        for (let j = k + 1; j < n; j++) dot += Q.getUnchecked(i, j) * v[j];
+        dot *= 2;
+        if (dot === 0) continue;
+        for (let j = k + 1; j < n; j++) Q.setUnchecked(i, j, Q.getUnchecked(i, j) - dot * v[j]);
+      }
+    }
+  }
+
+  // Explicit cleanup: force exact zeros below the subdiagonal.
+  for (let i = 2; i < n; i++) {
+    for (let j = 0; j < i - 1; j++) H.setUnchecked(i, j, 0);
+  }
+  return { H, Q };
 }
 
 /**
@@ -1391,26 +1475,26 @@ function hessenberg(A: Matrix, accumulateQ = false): { H: Matrix; Q: Matrix | nu
  * otherwise two reals, larger root first.
  */
 function solve2x2Eigs(a: number, b: number, c: number, d: number): [Eigenvalue, Eigenvalue] {
-    const tr = a + d;
-    const det = a * d - b * c;
-    const disc = tr * tr - 4 * det;
-    if (disc >= 0) {
-        const s = Math.sqrt(disc);
-        return [
-            { re: (tr + s) / 2, im: 0 },
-            { re: (tr - s) / 2, im: 0 },
-        ];
-    }
-    const s = Math.sqrt(-disc);
+  const tr = a + d;
+  const det = a * d - b * c;
+  const disc = tr * tr - 4 * det;
+  if (disc >= 0) {
+    const s = Math.sqrt(disc);
     return [
-        { re: tr / 2, im: s / 2 },
-        { re: tr / 2, im: -s / 2 },
+      { re: (tr + s) / 2, im: 0 },
+      { re: (tr - s) / 2, im: 0 }
     ];
+  }
+  const s = Math.sqrt(-disc);
+  return [
+    { re: tr / 2, im: s / 2 },
+    { re: tr / 2, im: -s / 2 }
+  ];
 }
 
 /** Complex multiplication, as a `[re, im]` pair. */
 function cmul(aRe: number, aIm: number, bRe: number, bIm: number): [number, number] {
-    return [aRe * bRe - aIm * bIm, aRe * bIm + aIm * bRe];
+  return [aRe * bRe - aIm * bIm, aRe * bIm + aIm * bRe];
 }
 
 /**
@@ -1421,10 +1505,14 @@ function cmul(aRe: number, aIm: number, bRe: number, bIm: number): [number, numb
  * safe-minimum plays.
  */
 function cdiv(aRe: number, aIm: number, bRe: number, bIm: number, floor: number): [number, number] {
-    let dRe = bRe, dIm = bIm;
-    if (dRe * dRe + dIm * dIm < floor * floor) { dRe = floor; dIm = 0; }
-    const dMagSq = dRe * dRe + dIm * dIm;
-    return [(aRe * dRe + aIm * dIm) / dMagSq, (aIm * dRe - aRe * dIm) / dMagSq];
+  let dRe = bRe,
+    dIm = bIm;
+  if (dRe * dRe + dIm * dIm < floor * floor) {
+    dRe = floor;
+    dIm = 0;
+  }
+  const dMagSq = dRe * dRe + dIm * dIm;
+  return [(aRe * dRe + aIm * dIm) / dMagSq, (aIm * dRe - aRe * dIm) / dMagSq];
 }
 
 /**
@@ -1445,49 +1533,72 @@ function cdiv(aRe: number, aIm: number, bRe: number, bIm: number, floor: number)
  * of every summation below, since `y` is zero past it by construction.
  */
 function backSubstitute(
-    T: Matrix, blocks: [number, number][], blockIdx: number, hiTarget: number,
-    lambdaRe: number, lambdaIm: number, yRe: Float64Array, yIm: Float64Array, floor: number
+  T: Matrix,
+  blocks: [number, number][],
+  blockIdx: number,
+  hiTarget: number,
+  lambdaRe: number,
+  lambdaIm: number,
+  yRe: Float64Array,
+  yIm: Float64Array,
+  floor: number
 ): void {
-    for (let bi = blockIdx - 1; bi >= 0; bi--) {
-        const [p, q] = blocks[bi];
+  for (let bi = blockIdx - 1; bi >= 0; bi--) {
+    const [p, q] = blocks[bi];
 
-        if (p === q) {
-            let sumRe = 0, sumIm = 0;
-            for (let j = p + 1; j <= hiTarget; j++) { sumRe += T.getUnchecked(p, j) * yRe[j]; sumIm += T.getUnchecked(p, j) * yIm[j]; }
-            const dRe = T.getUnchecked(p, p) - lambdaRe, dIm = -lambdaIm;
-            const [yr, yi] = cdiv(-sumRe, -sumIm, dRe, dIm, floor);
-            yRe[p] = yr; yIm[p] = yi;
-            continue;
-        }
-
-        // Coupled 2x2 solve for rows p and q = p+1:
-        //   [ (T[p,p]-lambda)   T[p,q]           ] [y_p]   [rhs_p]
-        //   [ T[q,p]            (T[q,q]-lambda)  ] [y_q] = [rhs_q]
-        let rpRe = 0, rpIm = 0, rqRe = 0, rqIm = 0;
-        for (let j = q + 1; j <= hiTarget; j++) {
-            rpRe -= T.getUnchecked(p, j) * yRe[j]; rpIm -= T.getUnchecked(p, j) * yIm[j];
-            rqRe -= T.getUnchecked(q, j) * yRe[j]; rqIm -= T.getUnchecked(q, j) * yIm[j];
-        }
-        const m00Re = T.getUnchecked(p, p) - lambdaRe, m00Im = -lambdaIm;
-        const m01Re = T.getUnchecked(p, q);
-        const m10Re = T.getUnchecked(q, p);
-        const m11Re = T.getUnchecked(q, q) - lambdaRe, m11Im = -lambdaIm;
-
-        const [detARe, detAIm] = cmul(m00Re, m00Im, m11Re, m11Im);
-        const [detBRe, detBIm] = cmul(m01Re, 0, m10Re, 0);
-        const detRe = detARe - detBRe, detIm = detAIm - detBIm;
-
-        const [numPARe, numPAIm] = cmul(rpRe, rpIm, m11Re, m11Im);
-        const [numPBRe, numPBIm] = cmul(m01Re, 0, rqRe, rqIm);
-        const [ypRe, ypIm] = cdiv(numPARe - numPBRe, numPAIm - numPBIm, detRe, detIm, floor);
-
-        const [numQARe, numQAIm] = cmul(m00Re, m00Im, rqRe, rqIm);
-        const [numQBRe, numQBIm] = cmul(m10Re, 0, rpRe, rpIm);
-        const [yqRe, yqIm] = cdiv(numQARe - numQBRe, numQAIm - numQBIm, detRe, detIm, floor);
-
-        yRe[p] = ypRe; yIm[p] = ypIm;
-        yRe[q] = yqRe; yIm[q] = yqIm;
+    if (p === q) {
+      let sumRe = 0,
+        sumIm = 0;
+      for (let j = p + 1; j <= hiTarget; j++) {
+        sumRe += T.getUnchecked(p, j) * yRe[j];
+        sumIm += T.getUnchecked(p, j) * yIm[j];
+      }
+      const dRe = T.getUnchecked(p, p) - lambdaRe,
+        dIm = -lambdaIm;
+      const [yr, yi] = cdiv(-sumRe, -sumIm, dRe, dIm, floor);
+      yRe[p] = yr;
+      yIm[p] = yi;
+      continue;
     }
+
+    // Coupled 2x2 solve for rows p and q = p+1:
+    //   [ (T[p,p]-lambda)   T[p,q]           ] [y_p]   [rhs_p]
+    //   [ T[q,p]            (T[q,q]-lambda)  ] [y_q] = [rhs_q]
+    let rpRe = 0,
+      rpIm = 0,
+      rqRe = 0,
+      rqIm = 0;
+    for (let j = q + 1; j <= hiTarget; j++) {
+      rpRe -= T.getUnchecked(p, j) * yRe[j];
+      rpIm -= T.getUnchecked(p, j) * yIm[j];
+      rqRe -= T.getUnchecked(q, j) * yRe[j];
+      rqIm -= T.getUnchecked(q, j) * yIm[j];
+    }
+    const m00Re = T.getUnchecked(p, p) - lambdaRe,
+      m00Im = -lambdaIm;
+    const m01Re = T.getUnchecked(p, q);
+    const m10Re = T.getUnchecked(q, p);
+    const m11Re = T.getUnchecked(q, q) - lambdaRe,
+      m11Im = -lambdaIm;
+
+    const [detARe, detAIm] = cmul(m00Re, m00Im, m11Re, m11Im);
+    const [detBRe, detBIm] = cmul(m01Re, 0, m10Re, 0);
+    const detRe = detARe - detBRe,
+      detIm = detAIm - detBIm;
+
+    const [numPARe, numPAIm] = cmul(rpRe, rpIm, m11Re, m11Im);
+    const [numPBRe, numPBIm] = cmul(m01Re, 0, rqRe, rqIm);
+    const [ypRe, ypIm] = cdiv(numPARe - numPBRe, numPAIm - numPBIm, detRe, detIm, floor);
+
+    const [numQARe, numQAIm] = cmul(m00Re, m00Im, rqRe, rqIm);
+    const [numQBRe, numQBIm] = cmul(m10Re, 0, rpRe, rpIm);
+    const [yqRe, yqIm] = cdiv(numQARe - numQBRe, numQAIm - numQBIm, detRe, detIm, floor);
+
+    yRe[p] = ypRe;
+    yIm[p] = ypIm;
+    yRe[q] = yqRe;
+    yIm[q] = yqIm;
+  }
 }
 
 /**
@@ -1533,128 +1644,167 @@ function backSubstitute(
  * @throws {Error} If the iteration budget is exhausted before every
  * block deflates (e.g. for a pathologically slow-converging matrix).
  */
-function schurForm(A: Matrix, accumulateQ: boolean, tol: number, maxIterations: number): { T: Matrix; Q: Matrix | null; blocks: [number, number][] } {
-    const n = A.rows;
-    const { H, Q } = hessenberg(A, accumulateQ);
-    if (n === 1) return { T: H, Q, blocks: [[0, 0]] };
+function schurForm(
+  A: Matrix,
+  accumulateQ: boolean,
+  tol: number,
+  maxIterations: number
+): { T: Matrix; Q: Matrix | null; blocks: [number, number][] } {
+  const n = A.rows;
+  const { H, Q } = hessenberg(A, accumulateQ);
+  if (n === 1) return { T: H, Q, blocks: [[0, 0]] };
 
-    // Hessenberg-form norm (sum of magnitudes on/above the diagonal, plus
-    // the subdiagonal): used as a floor for the deflation test when the
-    // local diagonal entries are themselves ~0, matching EISPACK's
-    // `anorm` fallback.
-    let anorm = 0;
-    for (let i = 0; i < n; i++) {
-        for (let j = Math.max(0, i - 1); j < n; j++) anorm += Math.abs(H.getUnchecked(i, j));
+  // Hessenberg-form norm (sum of magnitudes on/above the diagonal, plus
+  // the subdiagonal): used as a floor for the deflation test when the
+  // local diagonal entries are themselves ~0, matching EISPACK's
+  // `anorm` fallback.
+  let anorm = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = Math.max(0, i - 1); j < n; j++) anorm += Math.abs(H.getUnchecked(i, j));
+  }
+
+  // Stack of active [lo, hi] (inclusive) diagonal blocks still to
+  // resolve. A block deflates either by splitting into two smaller
+  // blocks (an interior subdiagonal entry vanishes) or, once it
+  // shrinks to size 1 or 2, by direct read-off.
+  const stack: [number, number][] = [[0, n - 1]];
+  const blocks: [number, number][] = [];
+  let budget = maxIterations;
+
+  while (stack.length > 0) {
+    const [lo, hi] = stack.pop()!;
+
+    if (hi === lo) {
+      blocks.push([lo, hi]);
+      continue;
+    }
+    if (hi === lo + 1) {
+      blocks.push([lo, hi]);
+      continue;
     }
 
-    // Stack of active [lo, hi] (inclusive) diagonal blocks still to
-    // resolve. A block deflates either by splitting into two smaller
-    // blocks (an interior subdiagonal entry vanishes) or, once it
-    // shrinks to size 1 or 2, by direct read-off.
-    const stack: [number, number][] = [[0, n - 1]];
-    const blocks: [number, number][] = [];
-    let budget = maxIterations;
-
-    while (stack.length > 0) {
-        const [lo, hi] = stack.pop()!;
-
-        if (hi === lo) { blocks.push([lo, hi]); continue; }
-        if (hi === lo + 1) { blocks.push([lo, hi]); continue; }
-
-        // Look for an interior subdiagonal entry small enough to treat as
-        // zero, splitting the block in two. If none is found, take one
-        // shifted QR step on the whole active block and check again.
-        // `its` counts iterations spent on *this* block since it was
-        // last split off, purely to trigger the exceptional shift below —
-        // it does not affect the shared `budget`.
-        let its = 0;
-        for (; ;) {
-            let splitAt = -1;
-            for (let k = hi; k > lo; k--) {
-                const s = Math.abs(H.getUnchecked(k - 1, k - 1)) + Math.abs(H.getUnchecked(k, k));
-                const threshold = tol * (s === 0 ? anorm : s);
-                if (Math.abs(H.getUnchecked(k, k - 1)) <= threshold) { splitAt = k; break; }
-            }
-            if (splitAt !== -1) {
-                stack.push([lo, splitAt - 1]);
-                stack.push([splitAt, hi]);
-                break;
-            }
-
-            if (budget-- <= 0) {
-                throw new Error(`Matrix eigenvalues: failed to converge within the iteration budget (${maxIterations})`);
-            }
-
-            its++;
-            const size = hi - lo + 1;
-            let s: number, t: number;
-            if (its % 10 === 0) {
-                // Exceptional shift: an ad hoc real value used twice
-                // (equivalent to `M = (S - sigma*I)^2`) in place of the
-                // usual trace/determinant pair, to break rare stagnation
-                // cycles a fixed shift strategy can otherwise get stuck
-                // in.
-                const sigma = 0.75 * (Math.abs(H.getUnchecked(hi, hi - 1)) + Math.abs(H.getUnchecked(hi - 1, hi - 2)));
-                s = 2 * sigma;
-                t = sigma * sigma;
-            } else {
-                const a = H.getUnchecked(hi - 1, hi - 1), b = H.getUnchecked(hi - 1, hi);
-                const c = H.getUnchecked(hi, hi - 1), d = H.getUnchecked(hi, hi);
-                s = a + d;
-                t = a * d - b * c;
-            }
-
-            const S = new Matrix(size, size);
-            for (let i = 0; i < size; i++) {
-                for (let j = 0; j < size; j++) S.setUnchecked(i, j, H.getUnchecked(lo + i, lo + j));
-            }
-            // M = S^2 - s*S + t*I: the real quadratic shift polynomial.
-            const S2 = S.matmul(S);
-            const M = new Matrix(size, size);
-            for (let i = 0; i < size; i++) {
-                for (let j = 0; j < size; j++) {
-                    let v = S2.getUnchecked(i, j) - s * S.getUnchecked(i, j);
-                    if (i === j) v += t;
-                    M.setUnchecked(i, j, v);
-                }
-            }
-            const { Q: Qlocal } = householderQR(M);
-            applySimilarity(H, Q, lo, hi, Qlocal);
+    // Look for an interior subdiagonal entry small enough to treat as
+    // zero, splitting the block in two. If none is found, take one
+    // shifted QR step on the whole active block and check again.
+    // `its` counts iterations spent on *this* block since it was
+    // last split off, purely to trigger the exceptional shift below —
+    // it does not affect the shared `budget`.
+    let its = 0;
+    for (;;) {
+      let splitAt = -1;
+      for (let k = hi; k > lo; k--) {
+        const s = Math.abs(H.getUnchecked(k - 1, k - 1)) + Math.abs(H.getUnchecked(k, k));
+        const threshold = tol * (s === 0 ? anorm : s);
+        if (Math.abs(H.getUnchecked(k, k - 1)) <= threshold) {
+          splitAt = k;
+          break;
         }
+      }
+      if (splitAt !== -1) {
+        stack.push([lo, splitAt - 1]);
+        stack.push([splitAt, hi]);
+        break;
+      }
+
+      if (budget-- <= 0) {
+        throw new Error(
+          `Matrix eigenvalues: failed to converge within the iteration budget (${maxIterations})`
+        );
+      }
+
+      its++;
+      const size = hi - lo + 1;
+      let s: number, t: number;
+      if (its % 10 === 0) {
+        // Exceptional shift: an ad hoc real value used twice
+        // (equivalent to `M = (S - sigma*I)^2`) in place of the
+        // usual trace/determinant pair, to break rare stagnation
+        // cycles a fixed shift strategy can otherwise get stuck
+        // in.
+        const sigma =
+          0.75 * (Math.abs(H.getUnchecked(hi, hi - 1)) + Math.abs(H.getUnchecked(hi - 1, hi - 2)));
+        s = 2 * sigma;
+        t = sigma * sigma;
+      } else {
+        const a = H.getUnchecked(hi - 1, hi - 1),
+          b = H.getUnchecked(hi - 1, hi);
+        const c = H.getUnchecked(hi, hi - 1),
+          d = H.getUnchecked(hi, hi);
+        s = a + d;
+        t = a * d - b * c;
+      }
+
+      const S = new Matrix(size, size);
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) S.setUnchecked(i, j, H.getUnchecked(lo + i, lo + j));
+      }
+      // M = S^2 - s*S + t*I: the real quadratic shift polynomial.
+      const S2 = S.matmul(S);
+      const M = new Matrix(size, size);
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+          let v = S2.getUnchecked(i, j) - s * S.getUnchecked(i, j);
+          if (i === j) v += t;
+          M.setUnchecked(i, j, v);
+        }
+      }
+      const { Q: Qlocal } = householderQR(M);
+      applySimilarity(H, Q, lo, hi, Qlocal);
+    }
+  }
+
+  blocks.sort((x, y) => x[0] - y[0]);
+  if (!accumulateQ) return { T: H, Q, blocks };
+
+  // Cleanup pass: split any size-2 block with real eigenvalues into two
+  // size-1 blocks (see the doc comment above).
+  const finalBlocks: [number, number][] = [];
+  for (const [lo, hi] of blocks) {
+    if (hi === lo) {
+      finalBlocks.push([lo, hi]);
+      continue;
     }
 
-    blocks.sort((x, y) => x[0] - y[0]);
-    if (!accumulateQ) return { T: H, Q, blocks };
+    const a = H.getUnchecked(lo, lo),
+      b = H.getUnchecked(lo, hi),
+      c = H.getUnchecked(hi, lo),
+      d = H.getUnchecked(hi, hi);
+    const disc = (a - d) * (a - d) + 4 * b * c;
+    if (disc < 0) {
+      finalBlocks.push([lo, hi]);
+      continue;
+    } // genuine complex pair: leave as-is
 
-    // Cleanup pass: split any size-2 block with real eigenvalues into two
-    // size-1 blocks (see the doc comment above).
-    const finalBlocks: [number, number][] = [];
-    for (const [lo, hi] of blocks) {
-        if (hi === lo) { finalBlocks.push([lo, hi]); continue; }
-
-        const a = H.getUnchecked(lo, lo), b = H.getUnchecked(lo, hi), c = H.getUnchecked(hi, lo), d = H.getUnchecked(hi, hi);
-        const disc = (a - d) * (a - d) + 4 * b * c;
-        if (disc < 0) { finalBlocks.push([lo, hi]); continue; } // genuine complex pair: leave as-is
-
-        // Triangularize via the eigenvector for one root: solving (block -
-        // lambda*I)x = 0 gives x = [b, lambda - a] (or the symmetric
-        // [lambda - d, c] if b happens to be ~0); the rotation with x/|x|
-        // as its first column then triangularizes the block by
-        // construction.
-        const lambda = (a + d + Math.sqrt(disc)) / 2;
-        let x0 = b, x1 = lambda - a;
-        if (Math.abs(x0) < 1e-300 && Math.abs(x1) < 1e-300) { x0 = lambda - d; x1 = c; }
-        if (Math.abs(x0) < 1e-300 && Math.abs(x1) < 1e-300) { x0 = 1; x1 = 0; }
-        const norm = Math.hypot(x0, x1);
-        const q0 = x0 / norm, q1 = x1 / norm;
-        const Qlocal = Matrix.from([[q0, -q1], [q1, q0]]);
-
-        applySimilarity(H, Q, lo, hi, Qlocal);
-        H.setUnchecked(hi, lo, 0); // clean up floating-point noise below the diagonal
-        finalBlocks.push([lo, lo]);
-        finalBlocks.push([hi, hi]);
+    // Triangularize via the eigenvector for one root: solving (block -
+    // lambda*I)x = 0 gives x = [b, lambda - a] (or the symmetric
+    // [lambda - d, c] if b happens to be ~0); the rotation with x/|x|
+    // as its first column then triangularizes the block by
+    // construction.
+    const lambda = (a + d + Math.sqrt(disc)) / 2;
+    let x0 = b,
+      x1 = lambda - a;
+    if (Math.abs(x0) < 1e-300 && Math.abs(x1) < 1e-300) {
+      x0 = lambda - d;
+      x1 = c;
     }
-    return { T: H, Q, blocks: finalBlocks };
+    if (Math.abs(x0) < 1e-300 && Math.abs(x1) < 1e-300) {
+      x0 = 1;
+      x1 = 0;
+    }
+    const norm = Math.hypot(x0, x1);
+    const q0 = x0 / norm,
+      q1 = x1 / norm;
+    const Qlocal = Matrix.from([
+      [q0, -q1],
+      [q1, q0]
+    ]);
+
+    applySimilarity(H, Q, lo, hi, Qlocal);
+    H.setUnchecked(hi, lo, 0); // clean up floating-point noise below the diagonal
+    finalBlocks.push([lo, lo]);
+    finalBlocks.push([hi, hi]);
+  }
+  return { T: H, Q, blocks: finalBlocks };
 }
 
 /**
@@ -1683,24 +1833,33 @@ function schurForm(A: Matrix, accumulateQ: boolean, tol: number, maxIterations: 
  * @throws {Error} If the iteration budget is exhausted before every
  * block deflates (e.g. for a pathologically slow-converging matrix).
  */
-export function eigenvalues(A: Matrix, options?: { maxIterations?: number; tol?: number }): Eigenvalue[] {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix eigenvalues requires a square matrix, got ${A.rows}x${A.cols}`);
-    const n = A.rows;
-    const tol = options?.tol ?? Number.EPSILON;
-    const maxIterations = options?.maxIterations ?? 30 * n;
+export function eigenvalues(
+  A: Matrix,
+  options?: { maxIterations?: number; tol?: number }
+): Eigenvalue[] {
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix eigenvalues requires a square matrix, got ${A.rows}x${A.cols}`);
+  const n = A.rows;
+  const tol = options?.tol ?? Number.EPSILON;
+  const maxIterations = options?.maxIterations ?? 30 * n;
 
-    const { T, blocks } = schurForm(A, false, tol, maxIterations);
-    const result: Eigenvalue[] = new Array(n);
-    for (const [lo, hi] of blocks) {
-        if (hi === lo) {
-            result[lo] = { re: T.getUnchecked(lo, lo), im: 0 };
-        } else {
-            const [e1, e2] = solve2x2Eigs(T.getUnchecked(lo, lo), T.getUnchecked(lo, hi), T.getUnchecked(hi, lo), T.getUnchecked(hi, hi));
-            result[lo] = e1;
-            result[hi] = e2;
-        }
+  const { T, blocks } = schurForm(A, false, tol, maxIterations);
+  const result: Eigenvalue[] = new Array(n);
+  for (const [lo, hi] of blocks) {
+    if (hi === lo) {
+      result[lo] = { re: T.getUnchecked(lo, lo), im: 0 };
+    } else {
+      const [e1, e2] = solve2x2Eigs(
+        T.getUnchecked(lo, lo),
+        T.getUnchecked(lo, hi),
+        T.getUnchecked(hi, lo),
+        T.getUnchecked(hi, hi)
+      );
+      result[lo] = e1;
+      result[hi] = e2;
     }
-    return result;
+  }
+  return result;
 }
 
 /**
@@ -1733,110 +1892,157 @@ export function eigenvalues(A: Matrix, options?: { maxIterations?: number; tol?:
  * block deflates.
  */
 export function eig(A: Matrix, options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
-    if (A.rows !== A.cols) throw new RangeError(`Matrix eig requires a square matrix, got ${A.rows}x${A.cols}`);
-    const n = A.rows;
-    const tol = options?.tol ?? Number.EPSILON;
-    const maxIterations = options?.maxIterations ?? 30 * n;
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix eig requires a square matrix, got ${A.rows}x${A.cols}`);
+  const n = A.rows;
+  const tol = options?.tol ?? Number.EPSILON;
+  const maxIterations = options?.maxIterations ?? 30 * n;
 
-    if (n === 1) {
-        return [{ value: { re: A.getUnchecked(0, 0), im: 0 }, vectorRe: new Vector([1]), vectorIm: new Vector([0]) }];
-    }
+  if (n === 1) {
+    return [
+      {
+        value: { re: A.getUnchecked(0, 0), im: 0 },
+        vectorRe: new Vector([1]),
+        vectorIm: new Vector([0])
+      }
+    ];
+  }
 
-    const { T, Q, blocks } = schurForm(A, true, tol, maxIterations);
-    const Qt = Q!; // accumulateQ was true, so Q is always populated here.
+  const { T, Q, blocks } = schurForm(A, true, tol, maxIterations);
+  const Qt = Q!; // accumulateQ was true, so Q is always populated here.
 
-    // Floor for the back-substitution denominator, guarding against
-    // (near-)repeated eigenvalues landing on the diagonal — the same role
-    // LAPACK's dtrevc safe-minimum plays.
-    let tnorm = 0;
-    for (let i = 0; i < n; i++) for (let j = i; j < n; j++) tnorm += Math.abs(T.getUnchecked(i, j));
-    const floor = Number.EPSILON * Math.max(tnorm, 1);
+  // Floor for the back-substitution denominator, guarding against
+  // (near-)repeated eigenvalues landing on the diagonal — the same role
+  // LAPACK's dtrevc safe-minimum plays.
+  let tnorm = 0;
+  for (let i = 0; i < n; i++) for (let j = i; j < n; j++) tnorm += Math.abs(T.getUnchecked(i, j));
+  const floor = Number.EPSILON * Math.max(tnorm, 1);
 
-    const result: Eigenpair[] = new Array(n);
+  const result: Eigenpair[] = new Array(n);
 
-    for (let blockIdx = 0; blockIdx < blocks.length; blockIdx++) {
-        const [lo, hi] = blocks[blockIdx];
-        if (hi === lo) {
-            // Real eigenvalue: back-substitute for a real eigenvector of
-            // T, supported only on indices [0, lo] (T is upper
-            // triangular, so the invariant subspace for the k-th
-            // diagonal eigenvalue is spanned by the first k+1 Schur
-            // basis vectors).
-            const lambda = T.getUnchecked(lo, lo);
-            const yRe = new Float64Array(n), yIm = new Float64Array(n);
-            yRe[lo] = 1;
-            backSubstitute(T, blocks, blockIdx, lo, lambda, 0, yRe, yIm, floor);
+  for (let blockIdx = 0; blockIdx < blocks.length; blockIdx++) {
+    const [lo, hi] = blocks[blockIdx];
+    if (hi === lo) {
+      // Real eigenvalue: back-substitute for a real eigenvector of
+      // T, supported only on indices [0, lo] (T is upper
+      // triangular, so the invariant subspace for the k-th
+      // diagonal eigenvalue is spanned by the first k+1 Schur
+      // basis vectors).
+      const lambda = T.getUnchecked(lo, lo);
+      const yRe = new Float64Array(n),
+        yIm = new Float64Array(n);
+      yRe[lo] = 1;
+      backSubstitute(T, blocks, blockIdx, lo, lambda, 0, yRe, yIm, floor);
 
-            const vRe = new Array<number>(n).fill(0);
-            for (let i = 0; i < n; i++) {
-                let sum = 0;
-                for (let k = 0; k <= lo; k++) sum += Qt.getUnchecked(i, k) * yRe[k];
-                vRe[i] = sum;
-            }
-            let norm = 0;
-            for (let i = 0; i < n; i++) norm += vRe[i] * vRe[i];
-            norm = Math.sqrt(norm);
-            if (norm > 0) for (let i = 0; i < n; i++) vRe[i] /= norm;
+      const vRe = new Array<number>(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let k = 0; k <= lo; k++) sum += Qt.getUnchecked(i, k) * yRe[k];
+        vRe[i] = sum;
+      }
+      let norm = 0;
+      for (let i = 0; i < n; i++) norm += vRe[i] * vRe[i];
+      norm = Math.sqrt(norm);
+      if (norm > 0) for (let i = 0; i < n; i++) vRe[i] /= norm;
 
-            result[lo] = {
-                value: { re: lambda, im: 0 },
-                vectorRe: new Vector(vRe),
-                vectorIm: new Vector(new Array<number>(n).fill(0)),
-            };
-        } else {
-            // Complex-conjugate pair: same idea, but the local 2-entry
-            // "seed" of the eigenvector and every step of the
-            // back-substitution are complex.
-            const a = T.getUnchecked(lo, lo), b = T.getUnchecked(lo, hi), c = T.getUnchecked(hi, lo), d = T.getUnchecked(hi, hi);
-            const [e1] = solve2x2Eigs(a, b, c, d); // e1.im > 0 by construction
-            const lamRe = e1.re, lamIm = e1.im;
+      result[lo] = {
+        value: { re: lambda, im: 0 },
+        vectorRe: new Vector(vRe),
+        vectorIm: new Vector(new Array<number>(n).fill(0))
+      };
+    } else {
+      // Complex-conjugate pair: same idea, but the local 2-entry
+      // "seed" of the eigenvector and every step of the
+      // back-substitution are complex.
+      const a = T.getUnchecked(lo, lo),
+        b = T.getUnchecked(lo, hi),
+        c = T.getUnchecked(hi, lo),
+        d = T.getUnchecked(hi, hi);
+      const [e1] = solve2x2Eigs(a, b, c, d); // e1.im > 0 by construction
+      const lamRe = e1.re,
+        lamIm = e1.im;
 
-            // Local eigenvector of the 2x2 block: [b, lambda - a] solves
-            // (block - lambda*I)v = 0 directly (or the symmetric form if
-            // b happens to be ~0).
-            let v0re = b, v0im = 0;
-            let v1re = lamRe - a, v1im = lamIm;
-            if (Math.abs(b) < floor) { v0re = lamRe - d; v0im = lamIm; v1re = c; v1im = 0; }
+      // Local eigenvector of the 2x2 block: [b, lambda - a] solves
+      // (block - lambda*I)v = 0 directly (or the symmetric form if
+      // b happens to be ~0).
+      let v0re = b,
+        v0im = 0;
+      let v1re = lamRe - a,
+        v1im = lamIm;
+      if (Math.abs(b) < floor) {
+        v0re = lamRe - d;
+        v0im = lamIm;
+        v1re = c;
+        v1im = 0;
+      }
 
-            const yRe = new Float64Array(n), yIm = new Float64Array(n);
-            yRe[lo] = v0re; yIm[lo] = v0im;
-            yRe[hi] = v1re; yIm[hi] = v1im;
-            backSubstitute(T, blocks, blockIdx, hi, lamRe, lamIm, yRe, yIm, floor);
+      const yRe = new Float64Array(n),
+        yIm = new Float64Array(n);
+      yRe[lo] = v0re;
+      yIm[lo] = v0im;
+      yRe[hi] = v1re;
+      yIm[hi] = v1im;
+      backSubstitute(T, blocks, blockIdx, hi, lamRe, lamIm, yRe, yIm, floor);
 
-            const vRe = new Array<number>(n).fill(0), vIm = new Array<number>(n).fill(0);
-            for (let i = 0; i < n; i++) {
-                let sRe = 0, sIm = 0;
-                for (let k = 0; k <= hi; k++) { const q = Qt.getUnchecked(i, k); sRe += q * yRe[k]; sIm += q * yIm[k]; }
-                vRe[i] = sRe; vIm[i] = sIm;
-            }
-
-            // LAPACK normalization: rotate phase so the largest-magnitude
-            // component is real and positive, then scale to unit
-            // Euclidean norm.
-            let maxMagSq = -1, maxIdx = 0;
-            for (let i = 0; i < n; i++) {
-                const m = vRe[i] * vRe[i] + vIm[i] * vIm[i];
-                if (m > maxMagSq) { maxMagSq = m; maxIdx = i; }
-            }
-            if (maxMagSq > 0) {
-                const mag = Math.sqrt(maxMagSq);
-                const cosT = vRe[maxIdx] / mag, sinT = vIm[maxIdx] / mag;
-                for (let i = 0; i < n; i++) {
-                    const re = vRe[i], im = vIm[i];
-                    vRe[i] = re * cosT + im * sinT;
-                    vIm[i] = im * cosT - re * sinT;
-                }
-            }
-            let norm = 0;
-            for (let i = 0; i < n; i++) norm += vRe[i] * vRe[i] + vIm[i] * vIm[i];
-            norm = Math.sqrt(norm);
-            if (norm > 0) for (let i = 0; i < n; i++) { vRe[i] /= norm; vIm[i] /= norm; }
-
-            const vImConj = vIm.map(x => -x);
-            result[lo] = { value: { re: lamRe, im: lamIm }, vectorRe: new Vector(vRe), vectorIm: new Vector(vIm) };
-            result[hi] = { value: { re: lamRe, im: -lamIm }, vectorRe: new Vector(vRe), vectorIm: new Vector(vImConj) };
+      const vRe = new Array<number>(n).fill(0),
+        vIm = new Array<number>(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        let sRe = 0,
+          sIm = 0;
+        for (let k = 0; k <= hi; k++) {
+          const q = Qt.getUnchecked(i, k);
+          sRe += q * yRe[k];
+          sIm += q * yIm[k];
         }
-    }
+        vRe[i] = sRe;
+        vIm[i] = sIm;
+      }
 
-    return result;
+      // LAPACK normalization: rotate phase so the largest-magnitude
+      // component is real and positive, then scale to unit
+      // Euclidean norm.
+      let maxMagSq = -1,
+        maxIdx = 0;
+      for (let i = 0; i < n; i++) {
+        const m = vRe[i] * vRe[i] + vIm[i] * vIm[i];
+        if (m > maxMagSq) {
+          maxMagSq = m;
+          maxIdx = i;
+        }
+      }
+      if (maxMagSq > 0) {
+        const mag = Math.sqrt(maxMagSq);
+        const cosT = vRe[maxIdx] / mag,
+          sinT = vIm[maxIdx] / mag;
+        for (let i = 0; i < n; i++) {
+          const re = vRe[i],
+            im = vIm[i];
+          vRe[i] = re * cosT + im * sinT;
+          vIm[i] = im * cosT - re * sinT;
+        }
+      }
+      let norm = 0;
+      for (let i = 0; i < n; i++) norm += vRe[i] * vRe[i] + vIm[i] * vIm[i];
+      norm = Math.sqrt(norm);
+      if (norm > 0)
+        for (let i = 0; i < n; i++) {
+          vRe[i] /= norm;
+          vIm[i] /= norm;
+        }
+
+      const vImConj = vIm.map((x) => -x);
+      result[lo] = {
+        value: { re: lamRe, im: lamIm },
+        vectorRe: new Vector(vRe),
+        vectorIm: new Vector(vIm)
+      };
+      result[hi] = {
+        value: { re: lamRe, im: -lamIm },
+        vectorRe: new Vector(vRe),
+        vectorIm: new Vector(vImConj)
+      };
+    }
+  }
+
+  return result;
 }

@@ -1,16 +1,12 @@
 export type VectorArray = number[] | Float64Array;
 
-export type ComputeAccelerationFn = (
-    u: VectorArray,
-    v: VectorArray,
-    aOut: VectorArray
-) => void;
+export type ComputeAccelerationFn = (u: VectorArray, v: VectorArray, aOut: VectorArray) => void;
 
 export interface VerletState {
-    u: VectorArray;
-    v: VectorArray;
-    a: VectorArray;
-    aNext: VectorArray;
+  u: VectorArray;
+  v: VectorArray;
+  a: VectorArray;
+  aNext: VectorArray;
 }
 
 export type StepFn = (state: VerletState, dt: number) => void;
@@ -61,22 +57,20 @@ export type StepFn = (state: VerletState, dt: number) => void;
  * 0 -0.07848000000000001
  * ```
  */
-export function createVelocityVerlet(
-    computeAcceleration: ComputeAccelerationFn
-): StepFn {
-    return function step(state: VerletState, dt: number): void {
-        const { u, v, a, aNext } = state;
-        const n = u.length;
+export function createVelocityVerlet(computeAcceleration: ComputeAccelerationFn): StepFn {
+  return function step(state: VerletState, dt: number): void {
+    const { u, v, a, aNext } = state;
+    const n = u.length;
 
-        for (let i = 0; i < n; i++) {
-            u[i] += v[i] * dt + 0.5 * a[i] * dt * dt;
-        }
+    for (let i = 0; i < n; i++) {
+      u[i] += v[i] * dt + 0.5 * a[i] * dt * dt;
+    }
 
-        computeAcceleration(u, v, aNext);
+    computeAcceleration(u, v, aNext);
 
-        for (let i = 0; i < n; i++) {
-            v[i] += 0.5 * (a[i] + aNext[i]) * dt;
-            a[i] = aNext[i];
-        }
-    };
+    for (let i = 0; i < n; i++) {
+      v[i] += 0.5 * (a[i] + aNext[i]) * dt;
+      a[i] = aNext[i];
+    }
+  };
 }

@@ -10,11 +10,11 @@ export type { RungeKuttaFixedMethod as RungeKuttaMethod } from './types.js';
  * @internal
  */
 export interface RungeKuttaScratch {
-    k1: Vector;
-    k2: Vector;
-    k3: Vector;
-    k4: Vector;
-    yTemp: Vector;
+  k1: Vector;
+  k2: Vector;
+  k3: Vector;
+  k4: Vector;
+  yTemp: Vector;
 }
 
 /**
@@ -22,34 +22,34 @@ export interface RungeKuttaScratch {
  * an integration, ensuring `odeIntegrate` only allocates once per output state.
  */
 function makeScratch(dim: number): RungeKuttaScratch {
-    return {
-        k1: new Vector(dim),
-        k2: new Vector(dim),
-        k3: new Vector(dim),
-        k4: new Vector(dim),
-        yTemp: new Vector(dim),
-    };
+  return {
+    k1: new Vector(dim),
+    k2: new Vector(dim),
+    k3: new Vector(dim),
+    k4: new Vector(dim),
+    yTemp: new Vector(dim)
+  };
 }
 
 function stagesPerStep(method: RungeKuttaFixedMethod): number {
-    switch (method) {
-        case 'euler':
-            return 1;
-        case 'midpoint':
-        case 'trapezoid':
-            return 2;
-        case 'rk4':
-            return 4;
-        default:
-            throw new RangeError(`rungeKuttaFixed: unknown method "${method satisfies never}"`);
-    }
+  switch (method) {
+    case 'euler':
+      return 1;
+    case 'midpoint':
+    case 'trapezoid':
+      return 2;
+    case 'rk4':
+      return 4;
+    default:
+      throw new RangeError(`rungeKuttaFixed: unknown method "${method satisfies never}"`);
+  }
 }
 
 /**
  * Advances the state by one step using the requested explicit Runge-Kutta method.
- * 
+ *
  * @internal
- * 
+ *
  * @param method Which Runge-Kutta scheme to use: `'euler'` (order 1), `'midpoint'`
  * or `'trapezoid'` (order 2), or `'rk4'` (order 4, the classic 4-stage method).
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into the
@@ -88,65 +88,63 @@ function stagesPerStep(method: RungeKuttaFixedMethod): number {
  * ```
  */
 export function rungeKuttaStep(
-    method: RungeKuttaFixedMethod,
-    f: DerivativeFunction,
-    t: number,
-    y: Vector,
-    h: number,
-    out: Vector,
-    scratch: RungeKuttaScratch = makeScratch(y.size)
+  method: RungeKuttaFixedMethod,
+  f: DerivativeFunction,
+  t: number,
+  y: Vector,
+  h: number,
+  out: Vector,
+  scratch: RungeKuttaScratch = makeScratch(y.size)
 ): Vector {
-    const { k1, k2, k3, k4, yTemp } = scratch;
-    const half = h / 2;
+  const { k1, k2, k3, k4, yTemp } = scratch;
+  const half = h / 2;
 
-    switch (method) {
-        case 'euler':
-            f(t, y, k1);
-            out.set(y.data).addScaled(k1, h);
-            break;
+  switch (method) {
+    case 'euler':
+      f(t, y, k1);
+      out.set(y.data).addScaled(k1, h);
+      break;
 
-        case 'midpoint':
-            f(t, y, k1);
-            yTemp.set(y.data).addScaled(k1, half);
-            f(t + half, yTemp, k2);
+    case 'midpoint':
+      f(t, y, k1);
+      yTemp.set(y.data).addScaled(k1, half);
+      f(t + half, yTemp, k2);
 
-            out.set(y.data).addScaled(k2, h);
-            break;
+      out.set(y.data).addScaled(k2, h);
+      break;
 
-        case 'trapezoid':
-            f(t, y, k1);
-            yTemp.set(y.data).addScaled(k1, h);
-            f(t + h, yTemp, k2);
+    case 'trapezoid':
+      f(t, y, k1);
+      yTemp.set(y.data).addScaled(k1, h);
+      f(t + h, yTemp, k2);
 
-            out.set(y.data)
-                .addScaled(k1, half)
-                .addScaled(k2, half);
-            break;
+      out.set(y.data).addScaled(k1, half).addScaled(k2, half);
+      break;
 
-        case 'rk4':
+    case 'rk4':
+      f(t, y, k1);
 
-            f(t, y, k1);
+      yTemp.set(y.data).addScaled(k1, half);
+      f(t + half, yTemp, k2);
 
-            yTemp.set(y.data).addScaled(k1, half);
-            f(t + half, yTemp, k2);
+      yTemp.set(y.data).addScaled(k2, half);
+      f(t + half, yTemp, k3);
 
-            yTemp.set(y.data).addScaled(k2, half);
-            f(t + half, yTemp, k3);
+      yTemp.set(y.data).addScaled(k3, h);
+      f(t + h, yTemp, k4);
 
-            yTemp.set(y.data).addScaled(k3, h);
-            f(t + h, yTemp, k4);
+      out
+        .set(y.data)
+        .addScaled(k1, h / 6)
+        .addScaled(k2, h / 3)
+        .addScaled(k3, h / 3)
+        .addScaled(k4, h / 6);
+      break;
+    default:
+      throw new RangeError(`rungeKuttaStep: unknown method "${method satisfies never}"`);
+  }
 
-            out.set(y.data)
-                .addScaled(k1, h / 6)
-                .addScaled(k2, h / 3)
-                .addScaled(k3, h / 3)
-                .addScaled(k4, h / 6);
-            break;
-        default:
-            throw new RangeError(`rungeKuttaStep: unknown method "${method satisfies never}"`);
-    }
-
-    return out;
+  return out;
 }
 
 /**
@@ -213,71 +211,73 @@ export function rungeKuttaStep(
  * ```
  */
 export function rungeKuttaFixed(
-    method: RungeKuttaFixedMethod,
-    f: DerivativeFunction,
-    t0: number,
-    tEnd: number,
-    y0: Vector,
-    h: number
+  method: RungeKuttaFixedMethod,
+  f: DerivativeFunction,
+  t0: number,
+  tEnd: number,
+  y0: Vector,
+  h: number
 ): OdeResult {
-    if (h === 0) throw new RangeError('Step size h must be nonzero.');
-    const totalSpan = tEnd - t0;
-    if (totalSpan !== 0 && Math.sign(h) !== Math.sign(totalSpan)) {
-        throw new RangeError(
-            `Sign of h (${h}) must match the direction from t0 (${t0}) to tEnd (${tEnd}).`
-        );
-    }
+  if (h === 0) throw new RangeError('Step size h must be nonzero.');
+  const totalSpan = tEnd - t0;
+  if (totalSpan !== 0 && Math.sign(h) !== Math.sign(totalSpan)) {
+    throw new RangeError(
+      `Sign of h (${h}) must match the direction from t0 (${t0}) to tEnd (${tEnd}).`
+    );
+  }
 
-    const dim = y0.size;
-    if (dim <= 0) {
-        throw new RangeError(`rungeKuttaFixed: y0 must have at least one component, got dimension ${dim}.`);
-    }
-    const scratch = makeScratch(dim);
+  const dim = y0.size;
+  if (dim <= 0) {
+    throw new RangeError(
+      `rungeKuttaFixed: y0 must have at least one component, got dimension ${dim}.`
+    );
+  }
+  const scratch = makeScratch(dim);
 
-    const EPS = 1e-9;
-    const nFull = Math.floor(Math.abs(totalSpan / h) + EPS);
-    const remainder = totalSpan - nFull * h;
-    const hasPartialStep = Math.abs(remainder) > EPS * Math.abs(h || 1);
+  const EPS = 1e-9;
+  const nFull = Math.floor(Math.abs(totalSpan / h) + EPS);
+  const remainder = totalSpan - nFull * h;
+  const hasPartialStep = Math.abs(remainder) > EPS * Math.abs(h || 1);
 
-    const nRecorded = nFull + (hasPartialStep ? 1 : 0);
-    const nTimes = nRecorded + 1;
-    const evaluationsPerStep = stagesPerStep(method);
-    const tVec = new Vector(nTimes);
-    const yMat = new Matrix(nTimes, dim);
-    let evaluations = 0;
+  const nRecorded = nFull + (hasPartialStep ? 1 : 0);
+  const nTimes = nRecorded + 1;
+  const evaluationsPerStep = stagesPerStep(method);
+  const tVec = new Vector(nTimes);
+  const yMat = new Matrix(nTimes, dim);
+  let evaluations = 0;
 
-    let t = t0;
-    let y = y0.copy();
-    let next = new Vector(dim);
-    tVec.data[0] = t0;
-    yMat.setRow(0, y.data);
+  let t = t0;
+  let y = y0.copy();
+  let next = new Vector(dim);
+  tVec.data[0] = t0;
+  yMat.setRow(0, y.data);
 
-    for (let i = 1; i <= nFull; i++) {
-        const isFinalStep = !hasPartialStep && i === nFull;
-        const stepSize = isFinalStep ? tEnd - t : h;
-        rungeKuttaStep(method, f, t, y, stepSize, next, scratch);
-        evaluations += evaluationsPerStep;
-        t = isFinalStep ? tEnd : t0 + i * h;
-        tVec.data[i] = t;
-        yMat.setRow(i, next.data);
-        [y, next] = [next, y];
-    }
+  for (let i = 1; i <= nFull; i++) {
+    const isFinalStep = !hasPartialStep && i === nFull;
+    const stepSize = isFinalStep ? tEnd - t : h;
+    rungeKuttaStep(method, f, t, y, stepSize, next, scratch);
+    evaluations += evaluationsPerStep;
+    t = isFinalStep ? tEnd : t0 + i * h;
+    tVec.data[i] = t;
+    yMat.setRow(i, next.data);
+    [y, next] = [next, y];
+  }
 
-    if (hasPartialStep) {
-        rungeKuttaStep(method, f, t, y, tEnd - t, next, scratch);
-        evaluations += evaluationsPerStep;
-        tVec.data[nRecorded] = tEnd;
-        yMat.setRow(nRecorded, next.data);
-    }
+  if (hasPartialStep) {
+    rungeKuttaStep(method, f, t, y, tEnd - t, next, scratch);
+    evaluations += evaluationsPerStep;
+    tVec.data[nRecorded] = tEnd;
+    yMat.setRow(nRecorded, next.data);
+  }
 
-    return {
-        method: method,
-        success: true,
-        message: 'Integration successful.',
-        evaluations: evaluations,
-        evaluationsJacobian: 0,
-        decompositions: 0,
-        t: tVec,
-        y: yMat,
-    };
+  return {
+    method: method,
+    success: true,
+    message: 'Integration successful.',
+    evaluations: evaluations,
+    evaluationsJacobian: 0,
+    decompositions: 0,
+    t: tVec,
+    y: yMat
+  };
 }

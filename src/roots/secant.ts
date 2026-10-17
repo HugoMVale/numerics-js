@@ -3,7 +3,7 @@ import type { ScalarRootResult } from './types.js';
 const METHOD = 'secant';
 
 /**
- * Finds a root of a scalar function `f(x)` using the secant method, 
+ * Finds a root of a scalar function `f(x)` using the secant method,
  * starting from two initial guesses.
  *
  * Unlike bisection, the secant method does not require a bracketing interval
@@ -69,100 +69,100 @@ const METHOD = 'secant';
  * ```
  */
 export function secant(
-    f: (x: number) => number,
-    x0: number,
-    x1: number,
-    options: {
-        tolx?: number;
-        maxIter?: number;
-    } = {}
+  f: (x: number) => number,
+  x0: number,
+  x1: number,
+  options: {
+    tolx?: number;
+    maxIter?: number;
+  } = {}
 ): ScalarRootResult {
-    const { tolx = 1e-8, maxIter = 50 } = options;
+  const { tolx = 1e-8, maxIter = 50 } = options;
 
-    if (x0 === x1) {
-        throw new Error(`${METHOD}: x0 and x1 must be different`);
-    }
+  if (x0 === x1) {
+    throw new Error(`${METHOD}: x0 and x1 must be different`);
+  }
 
-    let evaluations = 0;
-    let f0 = f(x0);
-    evaluations++;
-    let f1 = f(x1);
-    evaluations++;
+  let evaluations = 0;
+  let f0 = f(x0);
+  evaluations++;
+  let f1 = f(x1);
+  evaluations++;
 
-    if (f0 === 0) {
-        return {
-            method: METHOD,
-            success: true,
-            message: 'converged: exact root at x0',
-            evaluations,
-            x: x0,
-            fx: f0
-        };
-    }
-    if (f1 === 0) {
-        return {
-            method: METHOD,
-            success: true,
-            message: 'converged: exact root at x1',
-            evaluations,
-            x: x1,
-            fx: f1
-        };
-    }
-
-    for (let k = 0; k < maxIter; k++) {
-        const denom = f1 - f0;
-
-        if (denom === 0) {
-            return {
-                method: METHOD,
-                success: false,
-                message: `did not converge: zero denominator encountered (f(x0)=${f0}, f(x1)=${f1})`,
-                evaluations,
-                x: x1,
-                fx: f1
-            };
-        }
-
-        const x2 = x1 - (f1 * (x1 - x0)) / denom;
-
-        if (Math.abs(x2 - x1) < tolx) {
-            const fx2 = f(x2);
-            evaluations++;
-            return {
-                method: METHOD,
-                success: true,
-                message: 'converged: step size below tolx',
-                evaluations,
-                x: x2,
-                fx: fx2
-            };
-        }
-
-        x0 = x1;
-        f0 = f1;
-        x1 = x2;
-        f1 = f(x1);
-        evaluations++;
-
-        if (f1 === 0) {
-            return {
-                method: METHOD,
-                success: true,
-                message: 'converged: exact root found',
-                evaluations,
-                x: x1,
-                fx: f1
-            };
-        }
-    }
-
+  if (f0 === 0) {
     return {
+      method: METHOD,
+      success: true,
+      message: 'converged: exact root at x0',
+      evaluations,
+      x: x0,
+      fx: f0
+    };
+  }
+  if (f1 === 0) {
+    return {
+      method: METHOD,
+      success: true,
+      message: 'converged: exact root at x1',
+      evaluations,
+      x: x1,
+      fx: f1
+    };
+  }
+
+  for (let k = 0; k < maxIter; k++) {
+    const denom = f1 - f0;
+
+    if (denom === 0) {
+      return {
         method: METHOD,
         success: false,
-        message: `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
+        message: `did not converge: zero denominator encountered (f(x0)=${f0}, f(x1)=${f1})`,
         evaluations,
         x: x1,
         fx: f1
-    };
+      };
+    }
+
+    const x2 = x1 - (f1 * (x1 - x0)) / denom;
+
+    if (Math.abs(x2 - x1) < tolx) {
+      const fx2 = f(x2);
+      evaluations++;
+      return {
+        method: METHOD,
+        success: true,
+        message: 'converged: step size below tolx',
+        evaluations,
+        x: x2,
+        fx: fx2
+      };
+    }
+
+    x0 = x1;
+    f0 = f1;
+    x1 = x2;
+    f1 = f(x1);
+    evaluations++;
+
+    if (f1 === 0) {
+      return {
+        method: METHOD,
+        success: true,
+        message: 'converged: exact root found',
+        evaluations,
+        x: x1,
+        fx: f1
+      };
+    }
+  }
+
+  return {
+    method: METHOD,
+    success: false,
+    message: `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
+    evaluations,
+    x: x1,
+    fx: f1
+  };
 }

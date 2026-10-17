@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "tabWidth": 2,
+  "singleQuote": true,
+  "semi": true,
+  "trailingComma": "none",
+  "printWidth": 100,
+  "endOfLine": "lf",
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "dist/**",
+    "docs/**",
+    "coverage/**",
+    "benchmarks/**/*.json",
+    "benchmarks/**/*.benchmark.md"
+  ]
+}

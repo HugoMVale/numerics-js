@@ -5,7 +5,7 @@
  *
  * - Use {@link quad} for a general function, possibly with infinite bounds,
  *   known discontinuities, or sharp features supplied as breakpoints.
- * - Use {@link gaussKronrod} for a smooth function on a finite interval 
+ * - Use {@link gaussKronrod} for a smooth function on a finite interval
  *   (otherwise use {@link quad}).
  * - Use {@link simpson} for sampled data when a higher-order rule is useful.
  * - Use {@link trapezoid} for sampled data when a simple, robust estimate is

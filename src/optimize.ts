@@ -21,5 +21,8 @@ export { levenbergMarquardt } from './optimize/levenbergMarquardt.js';
 export { curveFit } from './optimize/curveFit.js';
 export type { BrentResult } from './optimize/brent.js';
 export type { NelderMeadResult, NelderMeadOptions } from './optimize/nelderMead.js';
-export type { LevenbergMarquardtResult, LevenbergMarquardtOptions } from './optimize/levenbergMarquardt.js';
+export type {
+  LevenbergMarquardtResult,
+  LevenbergMarquardtOptions
+} from './optimize/levenbergMarquardt.js';
 export type { CurveFitResult, CurveFitOptions } from './optimize/curveFit.js';

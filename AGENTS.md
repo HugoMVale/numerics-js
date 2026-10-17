@@ -11,6 +11,7 @@
 
 - `npm test` runs the complete Vitest suite.
 - `npm run lint` runs Oxlint; this also runs from the pre-commit hook.
+- `npm run format` formats the project with oxfmt (configured in `.oxfmtrc.json`); `npm run format:check` verifies formatting without writing and runs in CI. Generated outputs (`dist/`, `docs/`, `coverage/`, and the benchmark JSON/Markdown reports) are excluded.
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run build` compiles to `dist/` and fixes emitted ESM imports.
 - `npm run docs` regenerates the TypeDoc site in `docs/`.

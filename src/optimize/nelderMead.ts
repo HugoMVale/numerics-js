@@ -5,68 +5,68 @@ import { Matrix } from '../linalg/Matrix.js';
  * Result of a {@link nelderMead} optimization.
  */
 export interface NelderMeadResult {
-    /** Whether the optimize terminated successfully. */
-    success: boolean;
-    /** Human-readable description of the termination reason. */
-    message: string;
-    /** Number of function evaluations performed. */
-    evaluations: number;
-    /** Best point found. */
-    x: Vector;
-    /** Function value at `x`. */
-    fx: number;
+  /** Whether the optimize terminated successfully. */
+  success: boolean;
+  /** Human-readable description of the termination reason. */
+  message: string;
+  /** Number of function evaluations performed. */
+  evaluations: number;
+  /** Best point found. */
+  x: Vector;
+  /** Function value at `x`. */
+  fx: number;
 }
 
 /**
  * Options for {@link nelderMead}.
  */
 export interface NelderMeadOptions {
-    /**
-     * Absolute tolerance for `x`. The algorithm terminates when the maximum
-     * scaled distance between the simplex vertices is less than `tolx`.
-     * @default 1e-8
-     */
-    tolx?: number;
-    /**
-     * Absolute tolerance for `f`. The algorithm terminates when the maximum
-     * difference between the function values at the simplex vertices is less
-     * than `tolf`.
-     * @default 1e-8
-     */
-    tolf?: number;
-    /**
-     * Positive scaling factors for the components of `x`. Ideally, these should be
-     * chosen so that `sclx[i]*x[i]` is of order 1 near the solution for all 
-     * components. If omitted, scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
-     */
-    sclx?: Vector;
-    /**
-     * Maximum number of simplex updates, as a non-negative integer. If zero,
-     * the initial simplex is checked for convergence but not updated.
-     * @default 200*N
-     */
-    maxIter?: number;
-    /**
-     * Soft limit for function evaluations. Checked between iterations, so
-     * simplex initialization or an iteration already in progress may exceed it.
-     * @default 200*N
-     */
-    maxFunEvals?: number;
-    /**
-     * Whether to use the adaptive parameter scheme proposed by Gao (2012).
-     * If `false`, the standard Nelder-Mead parameters are used.
-     * @default true
-     */
-    adaptive?: boolean;
-    /**
-     * Optional callback invoked at each iteration as
-     * `callback(nIter, x, fx) -> {stop, success}`, where `x` is the
-     * `(N+1) x N` matrix of simplex vertices (one per row) and `fx` the
-     * corresponding `N+1` function values. Neither should be mutated by the
-     * callback. If `stop` is `true`, the iteration is terminated; `success`
-     * then decides whether the result is reported as successful.
-     */
-    callback?: (nIter: number, x: Matrix, fx: Vector) => { stop: boolean; success: boolean };
+  /**
+   * Absolute tolerance for `x`. The algorithm terminates when the maximum
+   * scaled distance between the simplex vertices is less than `tolx`.
+   * @default 1e-8
+   */
+  tolx?: number;
+  /**
+   * Absolute tolerance for `f`. The algorithm terminates when the maximum
+   * difference between the function values at the simplex vertices is less
+   * than `tolf`.
+   * @default 1e-8
+   */
+  tolf?: number;
+  /**
+   * Positive scaling factors for the components of `x`. Ideally, these should be
+   * chosen so that `sclx[i]*x[i]` is of order 1 near the solution for all
+   * components. If omitted, scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
+   */
+  sclx?: Vector;
+  /**
+   * Maximum number of simplex updates, as a non-negative integer. If zero,
+   * the initial simplex is checked for convergence but not updated.
+   * @default 200*N
+   */
+  maxIter?: number;
+  /**
+   * Soft limit for function evaluations. Checked between iterations, so
+   * simplex initialization or an iteration already in progress may exceed it.
+   * @default 200*N
+   */
+  maxFunEvals?: number;
+  /**
+   * Whether to use the adaptive parameter scheme proposed by Gao (2012).
+   * If `false`, the standard Nelder-Mead parameters are used.
+   * @default true
+   */
+  adaptive?: boolean;
+  /**
+   * Optional callback invoked at each iteration as
+   * `callback(nIter, x, fx) -> {stop, success}`, where `x` is the
+   * `(N+1) x N` matrix of simplex vertices (one per row) and `fx` the
+   * corresponding `N+1` function values. Neither should be mutated by the
+   * callback. If `stop` is `true`, the iteration is terminated; `success`
+   * then decides whether the result is reported as successful.
+   */
+  callback?: (nIter: number, x: Matrix, fx: Vector) => { stop: boolean; success: boolean };
 }
 
 /**
@@ -75,11 +75,11 @@ export interface NelderMeadOptions {
  * @returns Default scaling factors.
  */
 function defaultScale(x0: Vector): Vector {
-    const s = new Vector(x0.size);
-    for (let i = 0; i < x0.size; i++) {
-        s.set(i, 1 / Math.max(Math.abs(x0.get(i)), 1));
-    }
-    return s;
+  const s = new Vector(x0.size);
+  for (let i = 0; i < x0.size; i++) {
+    s.set(i, 1 / Math.max(Math.abs(x0.get(i)), 1));
+  }
+  return s;
 }
 
 /**
@@ -90,53 +90,53 @@ function defaultScale(x0: Vector): Vector {
  * the second largest.
  */
 function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: number } {
-    const d = fx.data;
+  const d = fx.data;
 
-    let imin = 0;
-    for (let k = 1; k < d.length; k++) {
-        if (d[k] < d[imin]) imin = k;
-    }
+  let imin = 0;
+  for (let k = 1; k < d.length; k++) {
+    if (d[k] < d[imin]) imin = k;
+  }
 
-    let imax: number, imax2: number;
-    if (d[0] > d[1]) {
-        imax = 0;
-        imax2 = 1;
-    } else {
-        imax = 1;
-        imax2 = 0;
+  let imax: number, imax2: number;
+  if (d[0] > d[1]) {
+    imax = 0;
+    imax2 = 1;
+  } else {
+    imax = 1;
+    imax2 = 0;
+  }
+  for (let k = 2; k < d.length; k++) {
+    if (d[k] > d[imax]) {
+      imax2 = imax;
+      imax = k;
+    } else if (d[k] > d[imax2]) {
+      imax2 = k;
     }
-    for (let k = 2; k < d.length; k++) {
-        if (d[k] > d[imax]) {
-            imax2 = imax;
-            imax = k;
-        } else if (d[k] > d[imax2]) {
-            imax2 = k;
-        }
-    }
+  }
 
-    return { imin, imax, imax2 };
+  return { imin, imax, imax2 };
 }
 
 /**
  * Finds the minimum of a multivariate function `f(x)` using the Nelder-Mead simplex
  * algorithm.
  *
- * The Nelder-Mead simplex algorithm is a derivative-free method for unconstrained 
- * minimization of multivariate functions. It maintains a simplex of `N+1` vertices in 
+ * The Nelder-Mead simplex algorithm is a derivative-free method for unconstrained
+ * minimization of multivariate functions. It maintains a simplex of `N+1` vertices in
  * `N`-dimensional space and iteratively updates this simplex based on the function values
  * at the vertices.
  *
- * The initial simplex is aligned with the coordinate axes. For each coordinate, the 
+ * The initial simplex is aligned with the coordinate axes. For each coordinate, the
  * corresponding simplex vertex offset is:
  *
  * `dx_i = 0.05 * max(|x0_i|, 1/scale_i)`
  *
- * where `x0` is the initial guess and `scale_i` is the scaling factor associated with 
+ * where `x0` is the initial guess and `scale_i` is the scaling factor associated with
  * variable `x_i`. Therefore, it is important that `x0` and/or `sclx` reflect the expected
- * scale of the variables. If `sclx` is not provided, the variable scaling is inferred 
+ * scale of the variables. If `sclx` is not provided, the variable scaling is inferred
  * from `x0`.
  *
- * Results are validated against `scipy.optimize.minimize` with `method="Nelder-Mead"`. 
+ * Results are validated against `scipy.optimize.minimize` with `method="Nelder-Mead"`.
  * See the [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/optimize/nelderMead.scipy.benchmark.md).
  *
  * References:
@@ -179,188 +179,203 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * ```
  */
 export function nelderMead(
-    f: (x: Vector) => number,
-    x0: Vector,
-    options: NelderMeadOptions = {}
+  f: (x: Vector) => number,
+  x0: Vector,
+  options: NelderMeadOptions = {}
 ): NelderMeadResult {
-    const {
-        tolx = 1e-8,
-        tolf = 1e-8,
-        sclx,
-        maxIter,
-        maxFunEvals,
-        adaptive = true,
-        callback,
-    } = options;
+  const {
+    tolx = 1e-8,
+    tolf = 1e-8,
+    sclx,
+    maxIter,
+    maxFunEvals,
+    adaptive = true,
+    callback
+  } = options;
 
-    const x0v = x0.copy();
-    const n = x0v.size;
-    if (n === 0) {
-        throw new RangeError('nelderMead: x0 must have at least one component');
+  const x0v = x0.copy();
+  const n = x0v.size;
+  if (n === 0) {
+    throw new RangeError('nelderMead: x0 must have at least one component');
+  }
+
+  const xScale = sclx !== undefined ? sclx.map(Math.abs) : defaultScale(x0v);
+
+  const iterLimit = maxIter ?? 200 * n;
+  const fevalLimit = maxFunEvals ?? 200 * n;
+  if (!Number.isInteger(iterLimit) || iterLimit < 0) {
+    throw new RangeError(`nelderMead: maxIter must be a non-negative integer, got ${iterLimit}`);
+  }
+
+  // Algorithm parameters
+  let a: number, b: number, c: number, d: number;
+  if (adaptive) {
+    // Dimension-dependent parameters from Gao (2012)
+    a = 1.0;
+    b = 1.0 + 2.0 / n;
+    c = 0.75 - 1.0 / (2 * n);
+    d = 1.0 - 1.0 / n;
+  } else {
+    a = 1.0;
+    b = 2.0;
+    c = 0.5;
+    d = 0.5;
+  }
+
+  // Initialize the simplex vertices: (n+1) x n matrix, one vertex per row
+  const x = new Matrix(n + 1, n);
+  x.setRow(0, x0v);
+  for (let k = 0; k < n; k++) {
+    const v = x0v.copy();
+    const step = 0.05 * Math.max(Math.abs(x0v.get(k)), 1 / xScale.get(k));
+    v.set(k, v.get(k) + step);
+    x.setRow(k + 1, v);
+  }
+
+  // Evaluate the function at the simplex vertices
+  const fx = new Vector(n + 1);
+  for (let k = 0; k <= n; k++) {
+    fx.data[k] = f(x.row(k));
+  }
+  let nFev = n + 1;
+
+  // Main optimize loop
+  let nIter = 0;
+  let success = false;
+  let message = '';
+  let xmin = x.row(0);
+  let fmin = fx.data[0];
+
+  while (true) {
+    const { imin, imax, imax2 } = simplexExtremes(fx);
+    xmin = x.row(imin);
+    fmin = fx.data[imin];
+    const fmax2 = fx.data[imax2];
+    const fmax = fx.data[imax];
+
+    if (callback !== undefined) {
+      const { stop, success: cbSuccess } = callback(nIter + 1, x, fx);
+      if (stop) {
+        success = cbSuccess;
+        message = 'Terminated by user callback.';
+        break;
+      }
     }
 
-    const xScale = sclx !== undefined ? sclx.map(Math.abs) : defaultScale(x0v);
-
-    const iterLimit = maxIter ?? 200 * n;
-    const fevalLimit = maxFunEvals ?? 200 * n;
-    if (!Number.isInteger(iterLimit) || iterLimit < 0) {
-        throw new RangeError(`nelderMead: maxIter must be a non-negative integer, got ${iterLimit}`);
-    }
-
-    // Algorithm parameters
-    let a: number, b: number, c: number, d: number;
-    if (adaptive) {
-        // Dimension-dependent parameters from Gao (2012)
-        a = 1.0;
-        b = 1.0 + 2.0 / n;
-        c = 0.75 - 1.0 / (2 * n);
-        d = 1.0 - 1.0 / n;
-    } else {
-        a = 1.0;
-        b = 2.0;
-        c = 0.5;
-        d = 0.5;
-    }
-
-    // Initialize the simplex vertices: (n+1) x n matrix, one vertex per row
-    const x = new Matrix(n + 1, n);
-    x.setRow(0, x0v);
-    for (let k = 0; k < n; k++) {
-        const v = x0v.copy();
-        const step = 0.05 * Math.max(Math.abs(x0v.get(k)), 1 / xScale.get(k));
-        v.set(k, v.get(k) + step);
-        x.setRow(k + 1, v);
-    }
-
-    // Evaluate the function at the simplex vertices
-    const fx = new Vector(n + 1);
+    let maxDist = 0;
     for (let k = 0; k <= n; k++) {
-        fx.data[k] = f(x.row(k));
+      for (let j = 0; j < n; j++) {
+        const dj = Math.abs(xScale.get(j) * (x.get(k, j) - xmin.get(j)));
+        if (dj > maxDist) maxDist = dj;
+      }
     }
-    let nFev = n + 1;
+    if (maxDist < tolx) {
+      success = true;
+      message = 'Maximum distance between simplex vertices is less than `tolx`.';
+      break;
+    }
 
-    // Main optimize loop
-    let nIter = 0;
-    let success = false;
-    let message = '';
-    let xmin = x.row(0);
-    let fmin = fx.data[0];
+    if (fmax - fmin < tolf) {
+      success = true;
+      message = 'Function value spread is less than `tolf`.';
+      break;
+    }
 
-    while (true) {
-        const { imin, imax, imax2 } = simplexExtremes(fx);
-        xmin = x.row(imin);
-        fmin = fx.data[imin];
-        const fmax2 = fx.data[imax2];
-        const fmax = fx.data[imax];
+    if (nIter >= iterLimit) {
+      message = `Maximum number of iterations (${iterLimit}) reached.`;
+      break;
+    }
 
-        if (callback !== undefined) {
-            const { stop, success: cbSuccess } = callback(nIter + 1, x, fx);
-            if (stop) {
-                success = cbSuccess;
-                message = 'Terminated by user callback.';
-                break;
-            }
-        }
+    if (nFev >= fevalLimit) {
+      message = `Maximum number of function evaluations (${fevalLimit}) reached.`;
+      break;
+    }
 
-        let maxDist = 0;
-        for (let k = 0; k <= n; k++) {
-            for (let j = 0; j < n; j++) {
-                const dj = Math.abs(xScale.get(j) * (x.get(k, j) - xmin.get(j)));
-                if (dj > maxDist) maxDist = dj;
-            }
-        }
-        if (maxDist < tolx) {
-            success = true;
-            message = 'Maximum distance between simplex vertices is less than `tolx`.';
-            break;
-        }
+    // Centroid excluding the worst point
+    const xc = new Vector(n);
+    for (let k = 0; k <= n; k++) {
+      if (k === imax) continue;
+      xc.addSelf(x.row(k));
+    }
+    xc.multSelf(1 / n);
 
-        if (fmax - fmin < tolf) {
-            success = true;
-            message = 'Function value spread is less than `tolf`.';
-            break;
-        }
+    const xWorst = x.row(imax);
 
-        if (nIter >= iterLimit) {
-            message = `Maximum number of iterations (${iterLimit}) reached.`;
-            break;
-        }
+    // Reflection
+    const xr = xc
+      .copy()
+      .multSelf(1 + a)
+      .addScaled(xWorst, -a);
+    const fr = f(xr);
+    nFev++;
 
-        if (nFev >= fevalLimit) {
-            message = `Maximum number of function evaluations (${fevalLimit}) reached.`;
-            break;
-        }
+    let doShrink = false;
+    if (fmin <= fr && fr < fmax2) {
+      x.setRow(imax, xr);
+      fx.data[imax] = fr;
+    } else if (fr < fmin) {
+      const xe = xc
+        .copy()
+        .multSelf(1 + a * b)
+        .addScaled(xWorst, -a * b);
+      const fe = f(xe);
+      nFev++;
+      if (fe < fr) {
+        x.setRow(imax, xe);
+        fx.data[imax] = fe;
+      } else {
+        x.setRow(imax, xr);
+        fx.data[imax] = fr;
+      }
+    } else if (fmax2 <= fr && fr < fmax) {
+      const xoc = xc
+        .copy()
+        .multSelf(1 + a * c)
+        .addScaled(xWorst, -a * c);
+      const foc = f(xoc);
+      nFev++;
+      if (foc <= fr) {
+        x.setRow(imax, xoc);
+        fx.data[imax] = foc;
+      } else {
+        doShrink = true;
+      }
+    } else {
+      const xic = xc
+        .copy()
+        .multSelf(1 - a * c)
+        .addScaled(xWorst, a * c);
+      const fic = f(xic);
+      nFev++;
+      if (fic < fmax) {
+        x.setRow(imax, xic);
+        fx.data[imax] = fic;
+      } else {
+        doShrink = true;
+      }
+    }
 
-        // Centroid excluding the worst point
-        const xc = new Vector(n);
-        for (let k = 0; k <= n; k++) {
-            if (k === imax) continue;
-            xc.addSelf(x.row(k));
-        }
-        xc.multSelf(1 / n);
-
-        const xWorst = x.row(imax);
-
-        // Reflection
-        const xr = xc.copy().multSelf(1 + a).addScaled(xWorst, -a);
-        const fr = f(xr);
+    if (doShrink) {
+      for (let k = 0; k <= n; k++) {
+        if (k === imin) continue;
+        const xs = x
+          .row(k)
+          .multSelf(d)
+          .addScaled(xmin, 1 - d);
+        x.setRow(k, xs);
+        fx.data[k] = f(xs);
         nFev++;
-
-        let doShrink = false;
-        if (fmin <= fr && fr < fmax2) {
-            x.setRow(imax, xr);
-            fx.data[imax] = fr;
-        } else if (fr < fmin) {
-            const xe = xc.copy().multSelf(1 + a * b).addScaled(xWorst, -a * b);
-            const fe = f(xe);
-            nFev++;
-            if (fe < fr) {
-                x.setRow(imax, xe);
-                fx.data[imax] = fe;
-            } else {
-                x.setRow(imax, xr);
-                fx.data[imax] = fr;
-            }
-        } else if (fmax2 <= fr && fr < fmax) {
-            const xoc = xc.copy().multSelf(1 + a * c).addScaled(xWorst, -a * c);
-            const foc = f(xoc);
-            nFev++;
-            if (foc <= fr) {
-                x.setRow(imax, xoc);
-                fx.data[imax] = foc;
-            } else {
-                doShrink = true;
-            }
-        } else {
-            const xic = xc.copy().multSelf(1 - a * c).addScaled(xWorst, a * c);
-            const fic = f(xic);
-            nFev++;
-            if (fic < fmax) {
-                x.setRow(imax, xic);
-                fx.data[imax] = fic;
-            } else {
-                doShrink = true;
-            }
-        }
-
-        if (doShrink) {
-            for (let k = 0; k <= n; k++) {
-                if (k === imin) continue;
-                const xs = x.row(k).multSelf(d).addScaled(xmin, 1 - d);
-                x.setRow(k, xs);
-                fx.data[k] = f(xs);
-                nFev++;
-            }
-        }
-
-        nIter++;
+      }
     }
 
-    return {
-        success,
-        message,
-        evaluations: nFev,
-        x: xmin,
-        fx: fmin,
-    };
+    nIter++;
+  }
+
+  return {
+    success,
+    message,
+    evaluations: nFev,
+    x: xmin,
+    fx: fmin
+  };
 }

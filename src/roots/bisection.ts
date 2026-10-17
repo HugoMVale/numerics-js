@@ -3,7 +3,7 @@ import type { ScalarRootResult } from './types.js';
 const METHOD = 'bisection';
 
 function stableMidpoint(xa: number, xb: number): number {
-    return (xa < 0) !== (xb < 0) ? (xa + xb) / 2 : xa + (xb - xa) / 2;
+  return xa < 0 !== xb < 0 ? (xa + xb) / 2 : xa + (xb - xa) / 2;
 }
 
 /**
@@ -68,99 +68,99 @@ function stableMidpoint(xa: number, xb: number): number {
  * ```
  */
 export function bisection(
-    f: (x: number) => number,
-    xa: number,
-    xb: number,
-    options: {
-        tolx?: number;
-        maxIter?: number;
-    } = {}
+  f: (x: number) => number,
+  xa: number,
+  xb: number,
+  options: {
+    tolx?: number;
+    maxIter?: number;
+  } = {}
 ): ScalarRootResult {
-    const { tolx = 1e-8, maxIter = 50 } = options;
+  const { tolx = 1e-8, maxIter = 50 } = options;
 
-    if (xa === xb) {
-        throw new Error(`${METHOD}: xa and xb must be different`);
-    }
-    if (xa > xb) {
-        [xa, xb] = [xb, xa];
-    }
+  if (xa === xb) {
+    throw new Error(`${METHOD}: xa and xb must be different`);
+  }
+  if (xa > xb) {
+    [xa, xb] = [xb, xa];
+  }
 
-    let evaluations = 0;
-    let fa = f(xa);
-    evaluations++;
-    const fb = f(xb);
-    evaluations++;
+  let evaluations = 0;
+  let fa = f(xa);
+  evaluations++;
+  const fb = f(xb);
+  evaluations++;
 
-    if (fa === 0) {
-        return {
-            method: METHOD,
-            success: true,
-            message: 'converged: exact root at xa',
-            evaluations,
-            x: xa,
-            fx: fa
-        };
-    }
-    if (fb === 0) {
-        return {
-            method: METHOD,
-            success: true,
-            message: 'converged: exact root at xb',
-            evaluations,
-            x: xb,
-            fx: fb
-        };
-    }
-
-    if (Math.sign(fa) === Math.sign(fb)) {
-        throw new Error(
-            `${METHOD}: f(xa) and f(xb) must have opposite signs (got f(xa)=${fa}, f(xb)=${fb})`
-        );
-    }
-
-    let mid = stableMidpoint(xa, xb);
-    let fmid = fa;
-
-    for (let k = 0; k < maxIter; k++) {
-        mid = stableMidpoint(xa, xb);
-        fmid = f(mid);
-        evaluations++;
-
-        if (fmid === 0) {
-            return {
-                method: METHOD,
-                success: true,
-                message: 'converged: exact root found',
-                evaluations,
-                x: mid,
-                fx: fmid
-            };
-        }
-        if ((xb - xa) / 2 < tolx) {
-            return {
-                method: METHOD,
-                success: true,
-                message: 'converged: interval half-width below tolx',
-                evaluations,
-                x: mid,
-                fx: fmid
-            };
-        }
-
-        if (Math.sign(fmid) === Math.sign(fa)) {
-            xa = mid;
-            fa = fmid;
-        } else {
-            xb = mid;
-        }
-    }
-
+  if (fa === 0) {
     return {
+      method: METHOD,
+      success: true,
+      message: 'converged: exact root at xa',
+      evaluations,
+      x: xa,
+      fx: fa
+    };
+  }
+  if (fb === 0) {
+    return {
+      method: METHOD,
+      success: true,
+      message: 'converged: exact root at xb',
+      evaluations,
+      x: xb,
+      fx: fb
+    };
+  }
+
+  if (Math.sign(fa) === Math.sign(fb)) {
+    throw new Error(
+      `${METHOD}: f(xa) and f(xb) must have opposite signs (got f(xa)=${fa}, f(xb)=${fb})`
+    );
+  }
+
+  let mid = stableMidpoint(xa, xb);
+  let fmid = fa;
+
+  for (let k = 0; k < maxIter; k++) {
+    mid = stableMidpoint(xa, xb);
+    fmid = f(mid);
+    evaluations++;
+
+    if (fmid === 0) {
+      return {
         method: METHOD,
-        success: false,
-        message: `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
+        success: true,
+        message: 'converged: exact root found',
         evaluations,
         x: mid,
         fx: fmid
-    };
+      };
+    }
+    if ((xb - xa) / 2 < tolx) {
+      return {
+        method: METHOD,
+        success: true,
+        message: 'converged: interval half-width below tolx',
+        evaluations,
+        x: mid,
+        fx: fmid
+      };
+    }
+
+    if (Math.sign(fmid) === Math.sign(fa)) {
+      xa = mid;
+      fa = fmid;
+    } else {
+      xb = mid;
+    }
+  }
+
+  return {
+    method: METHOD,
+    success: false,
+    message: `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
+    evaluations,
+    x: mid,
+    fx: fmid
+  };
 }

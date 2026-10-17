@@ -1,12 +1,14 @@
 {
-    "files.defaultLanguage": "javascript",
-    "files.associations": {
-        "*.js": "javascript",
-        "*.mjs": "javascript",
-        "*.cjs": "javascript"
-    },
-    "js/ts.preferences.importModuleSpecifier": "shortest",
-    "files.exclude": {
-        "**/node_modules": true
-    }
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "files.defaultLanguage": "javascript",
+  "files.associations": {
+    "*.js": "javascript",
+    "*.mjs": "javascript",
+    "*.cjs": "javascript"
+  },
+  "js/ts.preferences.importModuleSpecifier": "shortest",
+  "files.exclude": {
+    "**/node_modules": true
+  }
 }

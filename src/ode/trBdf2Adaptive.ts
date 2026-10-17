@@ -85,100 +85,106 @@ const DENSE_DEGREE = 3;
  * the four blocks `y_n, z_n, c_2, c_3`, one after the other, each of length
  * `y.size`. It is overwritten and must not alias the inputs' data.
  */
-export function trBdf2AdaptiveDenseCoefficients(y: Vector, yNew: Vector, yG: Vector, zN: Vector, out: Float64Array): void {
-    const yd = y.data;
-    const nd = yNew.data;
-    const gd = yG.data;
-    const zd = zN.data;
-    const dim = yd.length;
-    const g2 = GAMMA * GAMMA;
-    for (let i = 0; i < dim; i++) {
-        // p(GAMMA) = y_g and p(1) = y_{n+1} determine c2 and c3.
-        const a = gd[i] - yd[i] - zd[i] * GAMMA;
-        const b = nd[i] - yd[i] - zd[i];
-        const c3 = (a - b * g2) / (g2 * (GAMMA - 1));
-        out[i] = yd[i];
-        out[dim + i] = zd[i];
-        out[2 * dim + i] = b - c3;
-        out[3 * dim + i] = c3;
-    }
+export function trBdf2AdaptiveDenseCoefficients(
+  y: Vector,
+  yNew: Vector,
+  yG: Vector,
+  zN: Vector,
+  out: Float64Array
+): void {
+  const yd = y.data;
+  const nd = yNew.data;
+  const gd = yG.data;
+  const zd = zN.data;
+  const dim = yd.length;
+  const g2 = GAMMA * GAMMA;
+  for (let i = 0; i < dim; i++) {
+    // p(GAMMA) = y_g and p(1) = y_{n+1} determine c2 and c3.
+    const a = gd[i] - yd[i] - zd[i] * GAMMA;
+    const b = nd[i] - yd[i] - zd[i];
+    const c3 = (a - b * g2) / (g2 * (GAMMA - 1));
+    out[i] = yd[i];
+    out[dim + i] = zd[i];
+    out[2 * dim + i] = b - c3;
+    out[3 * dim + i] = c3;
+  }
 }
 
 /**
  * Optional tuning parameters for {@link trBdf2Adaptive}.
  */
 export interface TrBdf2AdaptiveOptions {
-    /**
-     * Absolute error tolerance per state component.
-     * @default 1e-6
-     */
-    atol?: number;
-    /**
-     * Relative error tolerance per state component.
-     * @default 1e-3
-     */
-    rtol?: number;
-    /**
-     * Optional initial step-size magnitude. Its sign is ignored because the
-     * integration direction follows `tEnd - t0`. Estimated automatically when
-     * omitted.
-     */
-    h0?: number;
-    /**
-     * Maximum permitted step-size magnitude.
-     * @default Infinity
-     */
-    hMax?: number;
-    /**
-     * Minimum permitted step-size magnitude after a rejected step or a Newton failure.
-     * @default 1e-12
-     */
-    hMin?: number;
-    /**
-     * Maximum number of attempted steps, including rejected steps and steps
-     * abandoned because the Newton iteration failed.
-     * @default 1e5
-     */
-    maxSteps?: number;
-    /**
-     * Safety factor applied when scaling a step after error estimation. Must
-     * be in `(0, 1]`.
-     * @default 0.9
-     */
-    safety?: number;
-    /**
-     * Smallest allowed multiplier for the next step size.
-     * @default 0.2
-     */
-    minScale?: number;
-    /**
-     * Largest allowed multiplier for the next step size.
-     * @default 10
-     */
-    maxScale?: number;
-    /**
-     * Optional analytic Jacobian `∂f/∂y`; see {@link JacobianFunction}. When omitted,
-     * the Jacobian is approximated by forward finite differences, which costs `n + 1`
-     * derivative evaluations per refresh, where `n` is the number of state components.
-     */
-    jac?: JacobianFunction;
-    /**
-     * Events to detect along the solution; see {@link OdeEvent}. Occurrences
-     * are located inside each accepted step from the step's dense output and
-     * reported in {@link OdeResult.events}.
-     * Detection does not change the step sequence. If omitted, no events are evaluated.
-     */
-    events?: OdeEvent[];
-    /**
-     * Whether to also return the dense output, a continuous approximation of
-     * the whole solution that can be evaluated at any time in the solved
-     * interval; see {@link OdeResult.denseOutput}. It is built from the step
-     * interpolants, which also serve the `events` option, at no further
-     * evaluations of `f`, and does not change the step sequence. It stores a
-     * few vectors per accepted step.
-     * @default false
-     */
-    denseOutput?: boolean;
+  /**
+   * Absolute error tolerance per state component.
+   * @default 1e-6
+   */
+  atol?: number;
+  /**
+   * Relative error tolerance per state component.
+   * @default 1e-3
+   */
+  rtol?: number;
+  /**
+   * Optional initial step-size magnitude. Its sign is ignored because the
+   * integration direction follows `tEnd - t0`. Estimated automatically when
+   * omitted.
+   */
+  h0?: number;
+  /**
+   * Maximum permitted step-size magnitude.
+   * @default Infinity
+   */
+  hMax?: number;
+  /**
+   * Minimum permitted step-size magnitude after a rejected step or a Newton failure.
+   * @default 1e-12
+   */
+  hMin?: number;
+  /**
+   * Maximum number of attempted steps, including rejected steps and steps
+   * abandoned because the Newton iteration failed.
+   * @default 1e5
+   */
+  maxSteps?: number;
+  /**
+   * Safety factor applied when scaling a step after error estimation. Must
+   * be in `(0, 1]`.
+   * @default 0.9
+   */
+  safety?: number;
+  /**
+   * Smallest allowed multiplier for the next step size.
+   * @default 0.2
+   */
+  minScale?: number;
+  /**
+   * Largest allowed multiplier for the next step size.
+   * @default 10
+   */
+  maxScale?: number;
+  /**
+   * Optional analytic Jacobian `∂f/∂y`; see {@link JacobianFunction}. When omitted,
+   * the Jacobian is approximated by forward finite differences, which costs `n + 1`
+   * derivative evaluations per refresh, where `n` is the number of state components.
+   */
+  jac?: JacobianFunction;
+  /**
+   * Events to detect along the solution; see {@link OdeEvent}. Occurrences
+   * are located inside each accepted step from the step's dense output and
+   * reported in {@link OdeResult.events}.
+   * Detection does not change the step sequence. If omitted, no events are evaluated.
+   */
+  events?: OdeEvent[];
+  /**
+   * Whether to also return the dense output, a continuous approximation of
+   * the whole solution that can be evaluated at any time in the solved
+   * interval; see {@link OdeResult.denseOutput}. It is built from the step
+   * interpolants, which also serve the `events` option, at no further
+   * evaluations of `f`, and does not change the step sequence. It stores a
+   * few vectors per accepted step.
+   * @default false
+   */
+  denseOutput?: boolean;
 }
 
 /**
@@ -267,11 +273,11 @@ export interface TrBdf2AdaptiveOptions {
  *
  * Output:
  * ```text
- * { 
- *  success: true, 
- *  steps: 21, 
- *  evaluations: 84, 
- *  yEnd: 0.5411713864049918 
+ * {
+ *  success: true,
+ *  steps: 21,
+ *  evaluations: 84,
+ *  yEnd: 0.5411713864049918
  * }
  * ```
  *
@@ -307,11 +313,11 @@ export interface TrBdf2AdaptiveOptions {
  * Output:
  * ```text
  * {
- *  success: true, 
- *  evaluations: 652, 
- *  evaluationsJacobian: 1, 
- *  decompositions: 37, 
- *  yEnd: 0.5411437997526206 
+ *  success: true,
+ *  evaluations: 652,
+ *  evaluationsJacobian: 1,
+ *  decompositions: 37,
+ *  yEnd: 0.5411437997526206
  * }
  * ```
  *
@@ -352,12 +358,12 @@ export interface TrBdf2AdaptiveOptions {
  *
  * Output:
  * ```text
- * { 
- *  message: 'Integration stopped by a terminal event.', 
- *  hitTime: 1.5717963234203387, 
- *  hitDirection: 'falling', 
- *  steps: 577, 
- *  evaluations: 2355 
+ * {
+ *  message: 'Integration stopped by a terminal event.',
+ *  hitTime: 1.5717963234203387,
+ *  hitDirection: 'falling',
+ *  steps: 577,
+ *  evaluations: 2355
  * }
  * ```
  *
@@ -443,358 +449,402 @@ export interface TrBdf2AdaptiveOptions {
  * ```
  */
 export function trBdf2Adaptive(
-    f: DerivativeFunction,
-    t0: number,
-    tEnd: number,
-    y0: Vector,
-    options: TrBdf2AdaptiveOptions = {}
+  f: DerivativeFunction,
+  t0: number,
+  tEnd: number,
+  y0: Vector,
+  options: TrBdf2AdaptiveOptions = {}
 ): OdeResult {
-    const {
-        atol = 1e-6,
-        rtol = 1e-3,
-        h0,
-        hMax = Infinity,
-        hMin = 1e-12,
-        maxSteps = 1e5,
-        safety = 0.9,
-        minScale = 0.2,
-        maxScale = 10,
-        jac,
-        events,
-        denseOutput = false,
-    } = options;
-    const dim = y0.size;
-    if (dim <= 0) throw new RangeError(`trBdf2Adaptive: y0 must have at least one component, got dimension ${dim}.`);
-    if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
-        throw new RangeError(`trBdf2Adaptive: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`);
-    }
-    if (atol === 0 && rtol === 0) throw new RangeError('trBdf2Adaptive: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.');
-    if (h0 !== undefined && h0 === 0) throw new RangeError('trBdf2Adaptive: h0 must be nonzero.');
-    if (!(hMin > 0)) throw new RangeError(`trBdf2Adaptive: hMin (${hMin}) must be positive.`);
-    if (!(hMax > 0)) throw new RangeError(`trBdf2Adaptive: hMax (${hMax}) must be positive.`);
-    if (hMin > hMax) throw new RangeError(`trBdf2Adaptive: hMin (${hMin}) must not exceed hMax (${hMax}).`);
-    if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
-        throw new RangeError(`trBdf2Adaptive: maxSteps (${maxSteps}) must be a positive integer.`);
-    }
-    if (!(safety > 0 && safety <= 1)) throw new RangeError(`trBdf2Adaptive: safety (${safety}) must be in (0, 1].`);
-    if (!(minScale > 0) || minScale > maxScale) {
-        throw new RangeError(`trBdf2Adaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`);
-    }
-    if (events !== undefined) validateEvents(events, 'trBdf2Adaptive');
+  const {
+    atol = 1e-6,
+    rtol = 1e-3,
+    h0,
+    hMax = Infinity,
+    hMin = 1e-12,
+    maxSteps = 1e5,
+    safety = 0.9,
+    minScale = 0.2,
+    maxScale = 10,
+    jac,
+    events,
+    denseOutput = false
+  } = options;
+  const dim = y0.size;
+  if (dim <= 0)
+    throw new RangeError(
+      `trBdf2Adaptive: y0 must have at least one component, got dimension ${dim}.`
+    );
+  if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
+    throw new RangeError(
+      `trBdf2Adaptive: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
+    );
+  }
+  if (atol === 0 && rtol === 0)
+    throw new RangeError(
+      'trBdf2Adaptive: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.'
+    );
+  if (h0 !== undefined && h0 === 0) throw new RangeError('trBdf2Adaptive: h0 must be nonzero.');
+  if (!(hMin > 0)) throw new RangeError(`trBdf2Adaptive: hMin (${hMin}) must be positive.`);
+  if (!(hMax > 0)) throw new RangeError(`trBdf2Adaptive: hMax (${hMax}) must be positive.`);
+  if (hMin > hMax)
+    throw new RangeError(`trBdf2Adaptive: hMin (${hMin}) must not exceed hMax (${hMax}).`);
+  if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
+    throw new RangeError(`trBdf2Adaptive: maxSteps (${maxSteps}) must be a positive integer.`);
+  }
+  if (!(safety > 0 && safety <= 1))
+    throw new RangeError(`trBdf2Adaptive: safety (${safety}) must be in (0, 1].`);
+  if (!(minScale > 0) || minScale > maxScale) {
+    throw new RangeError(
+      `trBdf2Adaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`
+    );
+  }
+  if (events !== undefined) validateEvents(events, 'trBdf2Adaptive');
 
-    let evaluations = 0;
-    let evaluationsJacobian = 0;
-    let decompositions = 0;
+  let evaluations = 0;
+  let evaluationsJacobian = 0;
+  let decompositions = 0;
 
-    if (tEnd === t0) {
-        const tVec = new Vector(1);
-        tVec.data[0] = t0;
-        const yMat = new Matrix(1, dim);
-        yMat.setRow(0, y0.data);
-        const trivial: OdeResult = {
-            method: 'trbdf2',
-            success: true,
-            message: 'Integration successful.',
-            evaluations,
-            evaluationsJacobian,
-            decompositions,
-            t: tVec,
-            y: yMat,
-        };
-        if (events !== undefined) trivial.events = [];
-        if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0);
-        return trivial;
-    }
-
-    const dir = Math.sign(tEnd - t0) as 1 | -1;
-
-    // Every derivative evaluation, including those inside finite-difference Jacobians, is counted.
-    const fc: DerivativeFunction = (t, y, out) => {
-        evaluations++;
-        return f(t, y, out);
+  if (tEnd === t0) {
+    const tVec = new Vector(1);
+    tVec.data[0] = t0;
+    const yMat = new Matrix(1, dim);
+    yMat.setRow(0, y0.data);
+    const trivial: OdeResult = {
+      method: 'trbdf2',
+      success: true,
+      message: 'Integration successful.',
+      evaluations,
+      evaluationsJacobian,
+      decompositions,
+      t: tVec,
+      y: yMat
     };
+    if (events !== undefined) trivial.events = [];
+    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0);
+    return trivial;
+  }
 
-    // Working storage, allocated once.
-    let y = y0.copy();
-    let yNew = new Vector(dim);
-    const dY = new Vector(dim); // z_n / h: the first-stage derivative carried over from the previous step
-    const zN = new Vector(dim); // z_n = h * dY
-    const zG = new Vector(dim); // converged stage-2 scaled derivative
-    const z1 = new Vector(dim); // converged stage-3 scaled derivative
-    const zIter = new Vector(dim); // Newton iterate
-    const yG = new Vector(dim); // intermediate state at x_n + GAMMA h
-    const base = new Vector(dim); // stage state not depending on the unknown z
-    const yStage = new Vector(dim); // stage state passed to f
-    const fStage = new Vector(dim);
-    const fJac = new Vector(dim); // fresh f(t_n, y_n) for finite-difference Jacobians
-    const resid = new Vector(dim); // Newton right-hand side, later the raw error estimate
-    const scale = new Vector(dim); // weights atol + rtol |y_n|
-    const delta = new Vector(dim); // Newton correction, later the filtered error estimate
-    // Storage of the factorization of I - D h J, reused by every call to `lu`.
-    const lu: LUDecomposition = { L: new Matrix(dim, dim), U: new Matrix(dim, dim), perm: new Array<number>(dim), sign: 1 };
-    const jacBuf = jac !== undefined ? new Matrix(dim, dim) : null;
+  const dir = Math.sign(tEnd - t0) as 1 | -1;
 
-    let t = t0;
+  // Every derivative evaluation, including those inside finite-difference Jacobians, is counted.
+  const fc: DerivativeFunction = (t, y, out) => {
+    evaluations++;
+    return f(t, y, out);
+  };
 
-    // Jacobian and factorization state. `J` is assigned inside closures, so it is declared through an
-    // assertion to keep TypeScript from narrowing it to `null`.
-    let J = null as Matrix | null;
-    let luValid = false; // whether `lu` holds the factorization for step size `luH`
-    let luH = NaN; // step size for which `lu` was built
-    let jacCurrent = false; // whether J was evaluated at (t_n, y_n)
+  // Working storage, allocated once.
+  let y = y0.copy();
+  let yNew = new Vector(dim);
+  const dY = new Vector(dim); // z_n / h: the first-stage derivative carried over from the previous step
+  const zN = new Vector(dim); // z_n = h * dY
+  const zG = new Vector(dim); // converged stage-2 scaled derivative
+  const z1 = new Vector(dim); // converged stage-3 scaled derivative
+  const zIter = new Vector(dim); // Newton iterate
+  const yG = new Vector(dim); // intermediate state at x_n + GAMMA h
+  const base = new Vector(dim); // stage state not depending on the unknown z
+  const yStage = new Vector(dim); // stage state passed to f
+  const fStage = new Vector(dim);
+  const fJac = new Vector(dim); // fresh f(t_n, y_n) for finite-difference Jacobians
+  const resid = new Vector(dim); // Newton right-hand side, later the raw error estimate
+  const scale = new Vector(dim); // weights atol + rtol |y_n|
+  const delta = new Vector(dim); // Newton correction, later the filtered error estimate
+  // Storage of the factorization of I - D h J, reused by every call to `lu`.
+  const lu: LUDecomposition = {
+    L: new Matrix(dim, dim),
+    U: new Matrix(dim, dim),
+    perm: new Array<number>(dim),
+    sign: 1
+  };
+  const jacBuf = jac !== undefined ? new Matrix(dim, dim) : null;
 
-    let h: number;
-    if (h0 !== undefined) {
-        fc(t0, y, dY);
-        h = dir * Math.abs(h0);
+  let t = t0;
+
+  // Jacobian and factorization state. `J` is assigned inside closures, so it is declared through an
+  // assertion to keep TypeScript from narrowing it to `null`.
+  let J = null as Matrix | null;
+  let luValid = false; // whether `lu` holds the factorization for step size `luH`
+  let luH = NaN; // step size for which `lu` was built
+  let jacCurrent = false; // whether J was evaluated at (t_n, y_n)
+
+  let h: number;
+  if (h0 !== undefined) {
+    fc(t0, y, dY);
+    h = dir * Math.abs(h0);
+  } else {
+    h = estimateInitialStep(fc, t0, y, dir, atol, rtol, 2, dY, fStage, yStage);
+  }
+  h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
+
+  const refreshJacobian = (): void => {
+    if (jacBuf !== null && jac !== undefined) {
+      jacBuf.fill(0);
+      jac(t, y, jacBuf);
+      J = jacBuf;
     } else {
-        h = estimateInitialStep(fc, t0, y, dir, atol, rtol, 2, dY, fStage, yStage);
+      // The carried-over first-stage derivative is not accurate enough to be differenced,
+      // so a fresh f(t_n, y_n) is evaluated.
+      fc(t, y, fJac);
+      J = jacobianForward((x) => fc(t, x, fStage), y, { fx: fJac });
     }
-    h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
+    evaluationsJacobian++;
+    jacCurrent = true;
+    luValid = false;
+  };
 
-    const refreshJacobian = (): void => {
-        if (jacBuf !== null && jac !== undefined) {
-            jacBuf.fill(0);
-            jac(t, y, jacBuf);
-            J = jacBuf;
-        } else {
-            // The carried-over first-stage derivative is not accurate enough to be differenced,
-            // so a fresh f(t_n, y_n) is evaluated.
-            fc(t, y, fJac);
-            J = jacobianForward((x) => fc(t, x, fStage), y, { fx: fJac });
-        }
-        evaluationsJacobian++;
-        jacCurrent = true;
-        luValid = false;
+  // Factors I - D*h*J into `lu`, in place. Returns false if the matrix is exactly singular.
+  const factorize = (hStep: number): boolean => {
+    const n = dim;
+    const md = lu.U.data;
+    const jd = (J as Matrix).data;
+    const c = D * hStep;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) md[i * n + j] = (i === j ? 1 : 0) - c * jd[i * n + j];
+    }
+    try {
+      lu.U.lu(lu);
+    } catch {
+      luValid = false;
+      return false;
+    }
+    decompositions++;
+    luH = hStep;
+    luValid = true;
+    return true;
+  };
+
+  // Solves z - h f(tStage, base + D z) = 0 for z by simplified Newton iteration, starting from
+  // the current content of `zIter`. Each iteration costs one evaluation of f and ends with the
+  // updated z, which is used as the stage value without a further evaluation. Returns the number
+  // of iterations used, or 0 on failure.
+  const newton = (tStage: number, hStep: number): number => {
+    const zd = zIter.data;
+    const bd = base.data;
+    const ysd = yStage.data;
+    const rd = resid.data;
+    const sd = scale.data;
+    let normOld = 0;
+
+    for (let k = 0; k < MAX_NEWTON_ITERATIONS; k++) {
+      for (let i = 0; i < dim; i++) ysd[i] = bd[i] + D * zd[i];
+      fc(tStage, yStage, fStage);
+      const fd = fStage.data;
+      for (let i = 0; i < dim; i++) rd[i] = hStep * fd[i] - zd[i];
+      Matrix.luSolve(lu, resid, delta);
+      const dd = delta.data;
+
+      let sumSq = 0;
+      for (let i = 0; i < dim; i++) {
+        const e = dd[i] / sd[i];
+        sumSq += e * e;
+      }
+      const norm = Math.sqrt(sumSq / dim);
+      if (!Number.isFinite(norm)) return 0;
+
+      for (let i = 0; i < dim; i++) zd[i] += dd[i];
+      if (norm < NEWTON_KAPPA) return k + 1;
+
+      if (k > 0) {
+        const rate = norm / normOld;
+        if (
+          rate >= 1 ||
+          (Math.pow(rate, MAX_NEWTON_ITERATIONS - k) / (1 - rate)) * norm > NEWTON_KAPPA
+        )
+          return 0;
+      }
+      normOld = norm;
+    }
+    return 0;
+  };
+
+  const detector = events === undefined ? null : new EventDetector(events, t0, y);
+  // Continuous extension of the accepted step under evaluation. It is built lazily, on first use,
+  // from the loop variables as they are at that time, so it must be used before the state swap,
+  // which would discard the step's start state.
+  const stepPolynomial = new StepPolynomial(dim, DENSE_DEGREE, (c) =>
+    trBdf2AdaptiveDenseCoefficients(y, yNew, yG, zN, c)
+  );
+  const dense = denseOutput ? new OdeDenseOutput(t0, y) : null;
+
+  const tBuf: number[] = [t0];
+  const yBuf: Float64Array[] = [y.data.slice()];
+  const makeResult = (success: boolean, message: string): OdeResult => {
+    const tVec = new Vector(tBuf.length);
+    tVec.set(tBuf);
+    const yMat = new Matrix(tBuf.length, dim);
+    for (let i = 0; i < tBuf.length; i++) {
+      yMat.setRow(i, yBuf[i]);
+    }
+    const result: OdeResult = {
+      method: 'trbdf2',
+      success,
+      message,
+      evaluations,
+      evaluationsJacobian,
+      decompositions,
+      t: tVec,
+      y: yMat
     };
+    if (detector !== null) result.events = detector.occurrences;
+    if (dense !== null) result.denseOutput = dense;
+    return result;
+  };
 
-    // Factors I - D*h*J into `lu`, in place. Returns false if the matrix is exactly singular.
-    const factorize = (hStep: number): boolean => {
-        const n = dim;
-        const md = lu.U.data;
-        const jd = (J as Matrix).data;
-        const c = D * hStep;
-        for (let i = 0; i < n; i++) {
-            for (let j = 0; j < n; j++) md[i * n + j] = (i === j ? 1 : 0) - c * jd[i * n + j];
+  const underflowMessage = (hNext: number, reason: string): string =>
+    `trBdf2Adaptive: step size underflowed below hMin (${hMin}) near t=${t}` +
+    (Number.isNaN(hNext) ? ' (step size became NaN)' : '') +
+    `; ${reason}`;
+
+  let lastRejected = false;
+  let steps = 0;
+  while (t !== tEnd) {
+    if (steps >= maxSteps) {
+      return makeResult(
+        false,
+        `trBdf2Adaptive: exceeded maxSteps (${maxSteps}) without reaching tEnd.`
+      );
+    }
+    steps++;
+
+    const remaining = tEnd - t;
+    let isFinalStep = false;
+    if (Math.abs(h) >= Math.abs(remaining)) {
+      h = remaining;
+      isFinalStep = true;
+    }
+
+    if (J === null) refreshJacobian();
+    let ok = luValid && h === luH ? true : factorize(h);
+
+    let iterations1 = 0;
+    let iterations2 = 0;
+    if (ok) {
+      const yd = y.data;
+      const znd = zN.data;
+      const zgd = zG.data;
+      const zid = zIter.data;
+      const bd = base.data;
+      const ygd = yG.data;
+      const sd = scale.data;
+      const dyd = dY.data;
+      for (let i = 0; i < dim; i++) {
+        sd[i] = atol + rtol * Math.abs(yd[i]);
+        znd[i] = h * dyd[i]; // smoothed first stage, rescaled to the current step size
+      }
+
+      // Stage 2 (x_n + GAMMA h): initial guess z_n.
+      const tG = t + GAMMA * h;
+      for (let i = 0; i < dim; i++) {
+        bd[i] = yd[i] + D * znd[i];
+        zid[i] = znd[i];
+      }
+      iterations1 = newton(tG, h);
+      ok = iterations1 > 0;
+      if (ok) {
+        zG.set(zid);
+
+        // Stage 3 (x_n + h): initial guess from the extrapolated Hermite cubic.
+        for (let i = 0; i < dim; i++) {
+          ygd[i] = yd[i] + D * znd[i] + D * zgd[i];
+          bd[i] = yd[i] + W * znd[i] + W * zgd[i];
+          zid[i] = GUESS_ZN * znd[i] + GUESS_ZG * zgd[i] - GUESS_DY * (ygd[i] - yd[i]);
         }
-        try {
-            lu.U.lu(lu);
-        } catch {
-            luValid = false;
-            return false;
-        }
-        decompositions++;
-        luH = hStep;
-        luValid = true;
-        return true;
-    };
-
-    // Solves z - h f(tStage, base + D z) = 0 for z by simplified Newton iteration, starting from
-    // the current content of `zIter`. Each iteration costs one evaluation of f and ends with the
-    // updated z, which is used as the stage value without a further evaluation. Returns the number
-    // of iterations used, or 0 on failure.
-    const newton = (tStage: number, hStep: number): number => {
-        const zd = zIter.data;
-        const bd = base.data;
-        const ysd = yStage.data;
-        const rd = resid.data;
-        const sd = scale.data;
-        let normOld = 0;
-
-        for (let k = 0; k < MAX_NEWTON_ITERATIONS; k++) {
-            for (let i = 0; i < dim; i++) ysd[i] = bd[i] + D * zd[i];
-            fc(tStage, yStage, fStage);
-            const fd = fStage.data;
-            for (let i = 0; i < dim; i++) rd[i] = hStep * fd[i] - zd[i];
-            Matrix.luSolve(lu, resid, delta);
-            const dd = delta.data;
-
-            let sumSq = 0;
-            for (let i = 0; i < dim; i++) {
-                const e = dd[i] / sd[i];
-                sumSq += e * e;
-            }
-            const norm = Math.sqrt(sumSq / dim);
-            if (!Number.isFinite(norm)) return 0;
-
-            for (let i = 0; i < dim; i++) zd[i] += dd[i];
-            if (norm < NEWTON_KAPPA) return k + 1;
-
-            if (k > 0) {
-                const rate = norm / normOld;
-                if (rate >= 1 || (Math.pow(rate, MAX_NEWTON_ITERATIONS - k) / (1 - rate)) * norm > NEWTON_KAPPA) return 0;
-            }
-            normOld = norm;
-        }
-        return 0;
-    };
-
-    const detector = events === undefined ? null : new EventDetector(events, t0, y);
-    // Continuous extension of the accepted step under evaluation. It is built lazily, on first use,
-    // from the loop variables as they are at that time, so it must be used before the state swap,
-    // which would discard the step's start state.
-    const stepPolynomial = new StepPolynomial(dim, DENSE_DEGREE, (c) => trBdf2AdaptiveDenseCoefficients(y, yNew, yG, zN, c));
-    const dense = denseOutput ? new OdeDenseOutput(t0, y) : null;
-
-    const tBuf: number[] = [t0];
-    const yBuf: Float64Array[] = [y.data.slice()];
-    const makeResult = (success: boolean, message: string): OdeResult => {
-        const tVec = new Vector(tBuf.length);
-        tVec.set(tBuf);
-        const yMat = new Matrix(tBuf.length, dim);
-        for (let i = 0; i < tBuf.length; i++) {
-            yMat.setRow(i, yBuf[i]);
-        }
-        const result: OdeResult = { method: 'trbdf2', success, message, evaluations, evaluationsJacobian, decompositions, t: tVec, y: yMat };
-        if (detector !== null) result.events = detector.occurrences;
-        if (dense !== null) result.denseOutput = dense;
-        return result;
-    };
-
-    const underflowMessage = (hNext: number, reason: string): string =>
-        `trBdf2Adaptive: step size underflowed below hMin (${hMin}) near t=${t}` +
-        (Number.isNaN(hNext) ? ' (step size became NaN)' : '') +
-        `; ${reason}`;
-
-    let lastRejected = false;
-    let steps = 0;
-    while (t !== tEnd) {
-        if (steps >= maxSteps) {
-            return makeResult(false, `trBdf2Adaptive: exceeded maxSteps (${maxSteps}) without reaching tEnd.`);
-        }
-        steps++;
-
-        const remaining = tEnd - t;
-        let isFinalStep = false;
-        if (Math.abs(h) >= Math.abs(remaining)) {
-            h = remaining;
-            isFinalStep = true;
-        }
-
-        if (J === null) refreshJacobian();
-        let ok = luValid && h === luH ? true : factorize(h);
-
-        let iterations1 = 0;
-        let iterations2 = 0;
+        iterations2 = newton(t + h, h);
+        ok = iterations2 > 0;
         if (ok) {
-            const yd = y.data;
-            const znd = zN.data;
-            const zgd = zG.data;
-            const zid = zIter.data;
-            const bd = base.data;
-            const ygd = yG.data;
-            const sd = scale.data;
-            const dyd = dY.data;
-            for (let i = 0; i < dim; i++) {
-                sd[i] = atol + rtol * Math.abs(yd[i]);
-                znd[i] = h * dyd[i]; // smoothed first stage, rescaled to the current step size
-            }
-
-            // Stage 2 (x_n + GAMMA h): initial guess z_n.
-            const tG = t + GAMMA * h;
-            for (let i = 0; i < dim; i++) {
-                bd[i] = yd[i] + D * znd[i];
-                zid[i] = znd[i];
-            }
-            iterations1 = newton(tG, h);
-            ok = iterations1 > 0;
-            if (ok) {
-                zG.set(zid);
-
-                // Stage 3 (x_n + h): initial guess from the extrapolated Hermite cubic.
-                for (let i = 0; i < dim; i++) {
-                    ygd[i] = yd[i] + D * znd[i] + D * zgd[i];
-                    bd[i] = yd[i] + W * znd[i] + W * zgd[i];
-                    zid[i] = GUESS_ZN * znd[i] + GUESS_ZG * zgd[i] - GUESS_DY * (ygd[i] - yd[i]);
-                }
-                iterations2 = newton(t + h, h);
-                ok = iterations2 > 0;
-                if (ok) {
-                    z1.set(zid);
-                    const nd = yNew.data;
-                    const z1d = z1.data;
-                    for (let i = 0; i < dim; i++) nd[i] = bd[i] + D * z1d[i];
-                }
-            }
+          z1.set(zid);
+          const nd = yNew.data;
+          const z1d = z1.data;
+          for (let i = 0; i < dim; i++) nd[i] = bd[i] + D * z1d[i];
         }
-
-        if (!ok) {
-            if (!jacCurrent) {
-                // A stale Jacobian may be the culprit: refresh it and retry with the same step.
-                refreshJacobian();
-                continue;
-            }
-            const hNext = h * NEWTON_FAILURE_SHRINK;
-            if (!(Math.abs(hNext) >= hMin)) {
-                return makeResult(false, underflowMessage(hNext, 'the Newton iteration failed to converge; the problem may be singular, or the derivative function may return non-finite values.'));
-            }
-            h = hNext;
-            lastRejected = true;
-            continue;
-        }
-
-        // Local error estimate Est, solving (I - h D J) Est = est with the factored matrix.
-        {
-            const ed = resid.data;
-            const znd = zN.data;
-            const zgd = zG.data;
-            const z1d = z1.data;
-            for (let i = 0; i < dim; i++) ed[i] = E_N * znd[i] + E_G * zgd[i] + E_1 * z1d[i];
-        }
-        const filtered = Matrix.luSolve(lu, resid, delta);
-        let sumSq = 0;
-        {
-            const yd = y.data;
-            const nd = yNew.data;
-            const fd = filtered.data;
-            for (let i = 0; i < dim; i++) {
-                const e = fd[i] / (atol + rtol * Math.max(Math.abs(yd[i]), Math.abs(nd[i])));
-                sumSq += e * e;
-            }
-        }
-        let err = Math.sqrt(sumSq / dim);
-        if (!Number.isFinite(err)) err = Infinity;
-
-        if (err <= 1) {
-            const tNew = isFinalStep ? tEnd : t + h;
-            stepPolynomial.reset(t, h);
-            if (detector !== null) {
-                // Before the state swap, which would discard the step's start state.
-                const stop = detector.check(tNew, yNew, stepPolynomial.evaluate);
-                if (stop !== null) {
-                    dense?.append(stop.t, stepPolynomial);
-                    tBuf.push(stop.t);
-                    yBuf.push(stop.y.data.slice());
-                    return makeResult(true, 'Integration stopped by a terminal event.');
-                }
-            }
-            dense?.append(tNew, stepPolynomial);
-            t = tNew;
-            [y, yNew] = [yNew, y];
-            tBuf.push(t);
-            yBuf.push(y.data.slice());
-
-            // Smoothed first stage for the next step: the last stage, rescaled by the new step size.
-            const z1d = z1.data;
-            const dyd = dY.data;
-            for (let i = 0; i < dim; i++) dyd[i] = z1d[i] / h;
-            jacCurrent = false;
-
-            let factor = err === 0 ? maxScale : clip(safety * Math.pow(err, -1 / 3), minScale, maxScale);
-            if (lastRejected) factor = Math.min(factor, 1);
-            if (factor < MIN_STEP_CHANGE) factor = 1;
-            h = dir * Math.min(Math.abs(h) * factor, hMax);
-            lastRejected = false;
-        } else {
-            const shrink = clip(safety * Math.pow(err, -1 / 3), minScale, maxScale);
-            const hNext = h * shrink;
-            if (!(Math.abs(hNext) >= hMin)) {
-                return makeResult(false, underflowMessage(hNext, 'atol/rtol may be too tight for the problem.'));
-            }
-            h = hNext;
-            lastRejected = true;
-        }
+      }
     }
 
-    return makeResult(true, 'Integration successful.');
+    if (!ok) {
+      if (!jacCurrent) {
+        // A stale Jacobian may be the culprit: refresh it and retry with the same step.
+        refreshJacobian();
+        continue;
+      }
+      const hNext = h * NEWTON_FAILURE_SHRINK;
+      if (!(Math.abs(hNext) >= hMin)) {
+        return makeResult(
+          false,
+          underflowMessage(
+            hNext,
+            'the Newton iteration failed to converge; the problem may be singular, or the derivative function may return non-finite values.'
+          )
+        );
+      }
+      h = hNext;
+      lastRejected = true;
+      continue;
+    }
+
+    // Local error estimate Est, solving (I - h D J) Est = est with the factored matrix.
+    {
+      const ed = resid.data;
+      const znd = zN.data;
+      const zgd = zG.data;
+      const z1d = z1.data;
+      for (let i = 0; i < dim; i++) ed[i] = E_N * znd[i] + E_G * zgd[i] + E_1 * z1d[i];
+    }
+    const filtered = Matrix.luSolve(lu, resid, delta);
+    let sumSq = 0;
+    {
+      const yd = y.data;
+      const nd = yNew.data;
+      const fd = filtered.data;
+      for (let i = 0; i < dim; i++) {
+        const e = fd[i] / (atol + rtol * Math.max(Math.abs(yd[i]), Math.abs(nd[i])));
+        sumSq += e * e;
+      }
+    }
+    let err = Math.sqrt(sumSq / dim);
+    if (!Number.isFinite(err)) err = Infinity;
+
+    if (err <= 1) {
+      const tNew = isFinalStep ? tEnd : t + h;
+      stepPolynomial.reset(t, h);
+      if (detector !== null) {
+        // Before the state swap, which would discard the step's start state.
+        const stop = detector.check(tNew, yNew, stepPolynomial.evaluate);
+        if (stop !== null) {
+          dense?.append(stop.t, stepPolynomial);
+          tBuf.push(stop.t);
+          yBuf.push(stop.y.data.slice());
+          return makeResult(true, 'Integration stopped by a terminal event.');
+        }
+      }
+      dense?.append(tNew, stepPolynomial);
+      t = tNew;
+      [y, yNew] = [yNew, y];
+      tBuf.push(t);
+      yBuf.push(y.data.slice());
+
+      // Smoothed first stage for the next step: the last stage, rescaled by the new step size.
+      const z1d = z1.data;
+      const dyd = dY.data;
+      for (let i = 0; i < dim; i++) dyd[i] = z1d[i] / h;
+      jacCurrent = false;
+
+      let factor = err === 0 ? maxScale : clip(safety * Math.pow(err, -1 / 3), minScale, maxScale);
+      if (lastRejected) factor = Math.min(factor, 1);
+      if (factor < MIN_STEP_CHANGE) factor = 1;
+      h = dir * Math.min(Math.abs(h) * factor, hMax);
+      lastRejected = false;
+    } else {
+      const shrink = clip(safety * Math.pow(err, -1 / 3), minScale, maxScale);
+      const hNext = h * shrink;
+      if (!(Math.abs(hNext) >= hMin)) {
+        return makeResult(
+          false,
+          underflowMessage(hNext, 'atol/rtol may be too tight for the problem.')
+        );
+      }
+      h = hNext;
+      lastRejected = true;
+    }
+  }
+
+  return makeResult(true, 'Integration successful.');
 }

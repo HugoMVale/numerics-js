@@ -4,12 +4,7 @@ import { clip } from '../math.js';
 import { OdeDenseOutput, StepPolynomial } from './denseOutput.js';
 import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
-import type {
-    DerivativeFunction,
-    OdeEvent,
-    OdeResult,
-    RungeKuttaAdaptiveMethod,
-} from './types.js';
+import type { DerivativeFunction, OdeEvent, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
 
 /**
  * Reusable intermediate vectors for adaptive Runge-Kutta integration steps.
@@ -20,41 +15,41 @@ import type {
  * derivatives between accepted steps.
  */
 export interface AdaptiveScratch {
-    /**
-     * First stage derivative; may contain the derivative reused from the
-     * previous accepted step.
-     */
-    k1: Vector;
-    /** Second stage derivative. */
-    k2: Vector;
-    /** Third stage derivative. */
-    k3: Vector;
-    /** Fourth stage derivative and the FSAL derivative for `'rk23'`. */
-    k4: Vector;
-    /** Fifth stage derivative, used by `'rk45'`. */
-    k5: Vector;
-    /** Sixth stage derivative, used by `'rk45'`. */
-    k6: Vector;
-    /** Seventh stage derivative and the FSAL derivative for `'rk45'`. */
-    k7: Vector;
-    /** Temporary state vector used to evaluate intermediate stages. */
-    yTemp: Vector;
+  /**
+   * First stage derivative; may contain the derivative reused from the
+   * previous accepted step.
+   */
+  k1: Vector;
+  /** Second stage derivative. */
+  k2: Vector;
+  /** Third stage derivative. */
+  k3: Vector;
+  /** Fourth stage derivative and the FSAL derivative for `'rk23'`. */
+  k4: Vector;
+  /** Fifth stage derivative, used by `'rk45'`. */
+  k5: Vector;
+  /** Sixth stage derivative, used by `'rk45'`. */
+  k6: Vector;
+  /** Seventh stage derivative and the FSAL derivative for `'rk45'`. */
+  k7: Vector;
+  /** Temporary state vector used to evaluate intermediate stages. */
+  yTemp: Vector;
 }
 
 /**
  * Allocates a scratch workspace of vectors reused across every stage.
  */
 function makeAdaptiveScratch(dim: number): AdaptiveScratch {
-    return {
-        k1: new Vector(dim),
-        k2: new Vector(dim),
-        k3: new Vector(dim),
-        k4: new Vector(dim),
-        k5: new Vector(dim),
-        k6: new Vector(dim),
-        k7: new Vector(dim),
-        yTemp: new Vector(dim),
-    };
+  return {
+    k1: new Vector(dim),
+    k2: new Vector(dim),
+    k3: new Vector(dim),
+    k4: new Vector(dim),
+    k5: new Vector(dim),
+    k6: new Vector(dim),
+    k7: new Vector(dim),
+    yTemp: new Vector(dim)
+  };
 }
 
 /**
@@ -82,87 +77,107 @@ function makeAdaptiveScratch(dim: number): AdaptiveScratch {
  * @throws {RangeError} If `method` is not a recognized adaptive method.
  */
 export function rungeKuttaAdaptiveStep(
-    method: RungeKuttaAdaptiveMethod,
-    f: DerivativeFunction,
-    t: number,
-    y: Vector,
-    h: number,
-    out: Vector,
-    scratch: AdaptiveScratch,
-    k1Ready: boolean = false
+  method: RungeKuttaAdaptiveMethod,
+  f: DerivativeFunction,
+  t: number,
+  y: Vector,
+  h: number,
+  out: Vector,
+  scratch: AdaptiveScratch,
+  k1Ready: boolean = false
 ): Vector {
-    const { k1, k2, k3, k4, k5, k6, k7, yTemp } = scratch;
+  const { k1, k2, k3, k4, k5, k6, k7, yTemp } = scratch;
 
-    if (!k1Ready) f(t, y, k1);
+  if (!k1Ready) f(t, y, k1);
 
-    switch (method) {
-        case 'rk23': {
-            // Bogacki-Shampine 3(2)
-            yTemp.set(y.data).addScaled(k1, h * 0.5);
-            f(t + 0.5 * h, yTemp, k2);
+  switch (method) {
+    case 'rk23': {
+      // Bogacki-Shampine 3(2)
+      yTemp.set(y.data).addScaled(k1, h * 0.5);
+      f(t + 0.5 * h, yTemp, k2);
 
-            yTemp.set(y.data).addScaled(k2, h * 0.75);
-            f(t + 0.75 * h, yTemp, k3);
+      yTemp.set(y.data).addScaled(k2, h * 0.75);
+      f(t + 0.75 * h, yTemp, k3);
 
-            out.set(y.data)
-                .addScaled(k1, h * (2 / 9))
-                .addScaled(k2, h * (1 / 3))
-                .addScaled(k3, h * (4 / 9));
+      out
+        .set(y.data)
+        .addScaled(k1, h * (2 / 9))
+        .addScaled(k2, h * (1 / 3))
+        .addScaled(k3, h * (4 / 9));
 
-            f(t + h, out, k4); // FSAL stage
-            break;
-        }
-
-        case 'rk45': {
-            // Dormand-Prince 5(4)
-            yTemp.set(y.data).addScaled(k1, h * (1 / 5));
-            f(t + (1 / 5) * h, yTemp, k2);
-
-            yTemp.set(y.data).addScaled(k1, h * (3 / 40)).addScaled(k2, h * (9 / 40));
-            f(t + (3 / 10) * h, yTemp, k3);
-
-            yTemp.set(y.data).addScaled(k1, h * (44 / 45)).addScaled(k2, h * (-56 / 15)).addScaled(k3, h * (32 / 9));
-            f(t + (4 / 5) * h, yTemp, k4);
-
-            yTemp.set(y.data).addScaled(k1, h * (19372 / 6561)).addScaled(k2, h * (-25360 / 2187)).addScaled(k3, h * (64448 / 6561)).addScaled(k4, h * (-212 / 729));
-            f(t + (8 / 9) * h, yTemp, k5);
-
-            yTemp.set(y.data).addScaled(k1, h * (9017 / 3168)).addScaled(k2, h * (-355 / 33)).addScaled(k3, h * (46732 / 5247)).addScaled(k4, h * (49 / 176)).addScaled(k5, h * (-5103 / 18656));
-            f(t + h, yTemp, k6); // c6 = 1
-
-            out.set(y.data)
-                .addScaled(k1, h * (35 / 384))
-                .addScaled(k3, h * (500 / 1113))
-                .addScaled(k4, h * (125 / 192))
-                .addScaled(k5, h * (-2187 / 6784))
-                .addScaled(k6, h * (11 / 84));
-
-            f(t + h, out, k7); // FSAL stage
-            break;
-        }
-
-        default:
-            throw new RangeError(`rungeKuttaAdaptiveStep: unknown method "${method satisfies never}"`);
+      f(t + h, out, k4); // FSAL stage
+      break;
     }
-    return out;
+
+    case 'rk45': {
+      // Dormand-Prince 5(4)
+      yTemp.set(y.data).addScaled(k1, h * (1 / 5));
+      f(t + (1 / 5) * h, yTemp, k2);
+
+      yTemp
+        .set(y.data)
+        .addScaled(k1, h * (3 / 40))
+        .addScaled(k2, h * (9 / 40));
+      f(t + (3 / 10) * h, yTemp, k3);
+
+      yTemp
+        .set(y.data)
+        .addScaled(k1, h * (44 / 45))
+        .addScaled(k2, h * (-56 / 15))
+        .addScaled(k3, h * (32 / 9));
+      f(t + (4 / 5) * h, yTemp, k4);
+
+      yTemp
+        .set(y.data)
+        .addScaled(k1, h * (19372 / 6561))
+        .addScaled(k2, h * (-25360 / 2187))
+        .addScaled(k3, h * (64448 / 6561))
+        .addScaled(k4, h * (-212 / 729));
+      f(t + (8 / 9) * h, yTemp, k5);
+
+      yTemp
+        .set(y.data)
+        .addScaled(k1, h * (9017 / 3168))
+        .addScaled(k2, h * (-355 / 33))
+        .addScaled(k3, h * (46732 / 5247))
+        .addScaled(k4, h * (49 / 176))
+        .addScaled(k5, h * (-5103 / 18656));
+      f(t + h, yTemp, k6); // c6 = 1
+
+      out
+        .set(y.data)
+        .addScaled(k1, h * (35 / 384))
+        .addScaled(k3, h * (500 / 1113))
+        .addScaled(k4, h * (125 / 192))
+        .addScaled(k5, h * (-2187 / 6784))
+        .addScaled(k6, h * (11 / 84));
+
+      f(t + h, out, k7); // FSAL stage
+      break;
+    }
+
+    default:
+      throw new RangeError(`rungeKuttaAdaptiveStep: unknown method "${method satisfies never}"`);
+  }
+  return out;
 }
 
 // Dense-output coefficients (rows: stages k1..ks; columns: powers x^1..x^p of the relative position
 // x = (t - t_n) / h in the step), from Bogacki & Shampine (cubic) and Shampine (1986) (quartic).
 const DENSE_RK23 = [
-    [1, -4 / 3, 5 / 9],
-    [0, 1, -2 / 3],
-    [0, 4 / 3, -8 / 9],
-    [0, -1, 1],
+  [1, -4 / 3, 5 / 9],
+  [0, 1, -2 / 3],
+  [0, 4 / 3, -8 / 9],
+  [0, -1, 1]
 ];
 const DENSE_RK45 = [
-    [1, -8048581381 / 2820520608, 8663915743 / 2820520608, -12715105075 / 11282082432],
-    [0, 0, 0, 0],
-    [0, 131558114200 / 32700410799, -68118460800 / 10900136933, 87487479700 / 32700410799],
-    [0, -1754552775 / 470086768, 14199869525 / 1410260304, -10690763975 / 1880347072],
-    [0, 127303824393 / 49829197408, -318862633887 / 49829197408, 701980252875 / 199316789632],
-    [0, -282668133 / 205662961, 2019193451 / 616988883, -1453857185 / 822651844],
-    [0, 40617522 / 29380423, -110615467 / 29380423, 69997945 / 29380423],
+  [1, -8048581381 / 2820520608, 8663915743 / 2820520608, -12715105075 / 11282082432],
+  [0, 0, 0, 0],
+  [0, 131558114200 / 32700410799, -68118460800 / 10900136933, 87487479700 / 32700410799],
+  [0, -1754552775 / 470086768, 14199869525 / 1410260304, -10690763975 / 1880347072],
+  [0, 127303824393 / 49829197408, -318862633887 / 49829197408, 701980252875 / 199316789632],
+  [0, -282668133 / 205662961, 2019193451 / 616988883, -1453857185 / 822651844],
+  [0, 40617522 / 29380423, -110615467 / 29380423, 69997945 / 29380423]
 ];
 
 /**
@@ -185,146 +200,162 @@ const DENSE_RK45 = [
  * length `y.size`; `p` is `3` for `'rk23'` and `4` for `'rk45'`. It is overwritten.
  */
 export function rungeKuttaAdaptiveDenseCoefficients(
-    method: RungeKuttaAdaptiveMethod,
-    y: Vector,
-    h: number,
-    scratch: AdaptiveScratch,
-    out: Float64Array
+  method: RungeKuttaAdaptiveMethod,
+  y: Vector,
+  h: number,
+  scratch: AdaptiveScratch,
+  out: Float64Array
 ): void {
-    const { k1, k2, k3, k4, k5, k6, k7 } = scratch;
-    const dim = y.size;
-    const table = method === 'rk23' ? DENSE_RK23 : DENSE_RK45;
-    const stages = method === 'rk23' ? [k1, k2, k3, k4] : [k1, k2, k3, k4, k5, k6, k7];
-    out.set(y.data);
-    out.fill(0, dim);
-    for (let i = 0; i < stages.length; i++) {
-        const row = table[i];
-        const kd = stages[i].data;
-        for (let j = 0; j < row.length; j++) {
-            const weight = h * row[j];
-            if (weight === 0) continue;
-            const offset = (j + 1) * dim;
-            for (let d = 0; d < dim; d++) out[offset + d] += weight * kd[d];
-        }
+  const { k1, k2, k3, k4, k5, k6, k7 } = scratch;
+  const dim = y.size;
+  const table = method === 'rk23' ? DENSE_RK23 : DENSE_RK45;
+  const stages = method === 'rk23' ? [k1, k2, k3, k4] : [k1, k2, k3, k4, k5, k6, k7];
+  out.set(y.data);
+  out.fill(0, dim);
+  for (let i = 0; i < stages.length; i++) {
+    const row = table[i];
+    const kd = stages[i].data;
+    for (let j = 0; j < row.length; j++) {
+      const weight = h * row[j];
+      if (weight === 0) continue;
+      const offset = (j + 1) * dim;
+      for (let d = 0; d < dim; d++) out[offset + d] += weight * kd[d];
     }
+  }
 }
 
 /**
  * Computes the weighted RMS local-error norm for an attempted step.
  */
 function adaptiveErrorNorm(
-    method: RungeKuttaAdaptiveMethod,
-    y: Vector,
-    out: Vector,
-    h: number,
-    scratch: AdaptiveScratch,
-    atol: number,
-    rtol: number
+  method: RungeKuttaAdaptiveMethod,
+  y: Vector,
+  out: Vector,
+  h: number,
+  scratch: AdaptiveScratch,
+  atol: number,
+  rtol: number
 ): number {
-    const dim = y.size;
-    const yd = y.data;
-    const od = out.data;
-    let sumSq = 0;
+  const dim = y.size;
+  const yd = y.data;
+  const od = out.data;
+  let sumSq = 0;
 
-    switch (method) {
-        case 'rk23': {
-            const { k1, k2, k3, k4 } = scratch;
-            const k1d = k1.data, k2d = k2.data, k3d = k3.data, k4d = k4.data;
-            for (let i = 0; i < dim; i++) {
-                const errI = h * ((-5 / 72) * k1d[i] + (1 / 12) * k2d[i] + (1 / 9) * k3d[i] - (1 / 8) * k4d[i]);
-                const scale = atol + rtol * Math.max(Math.abs(yd[i]), Math.abs(od[i]));
-                const e = errI / scale;
-                sumSq += e * e;
-            }
-            break;
-        }
-
-        case 'rk45': {
-            const { k1, k3, k4, k5, k6, k7 } = scratch;
-            const k1d = k1.data, k3d = k3.data, k4d = k4.data, k5d = k5.data, k6d = k6.data, k7d = k7.data;
-            for (let i = 0; i < dim; i++) {
-                const errI = h * ((71 / 57600) * k1d[i] - (71 / 16695) * k3d[i] + (71 / 1920) * k4d[i] - (17253 / 339200) * k5d[i] + (22 / 525) * k6d[i] - (1 / 40) * k7d[i]);
-                const scale = atol + rtol * Math.max(Math.abs(yd[i]), Math.abs(od[i]));
-                const e = errI / scale;
-                sumSq += e * e;
-            }
-            break;
-        }
-
-        default:
-            throw new RangeError(`adaptiveErrorNorm: unknown method "${method satisfies never}"`);
+  switch (method) {
+    case 'rk23': {
+      const { k1, k2, k3, k4 } = scratch;
+      const k1d = k1.data,
+        k2d = k2.data,
+        k3d = k3.data,
+        k4d = k4.data;
+      for (let i = 0; i < dim; i++) {
+        const errI =
+          h * ((-5 / 72) * k1d[i] + (1 / 12) * k2d[i] + (1 / 9) * k3d[i] - (1 / 8) * k4d[i]);
+        const scale = atol + rtol * Math.max(Math.abs(yd[i]), Math.abs(od[i]));
+        const e = errI / scale;
+        sumSq += e * e;
+      }
+      break;
     }
-    return Math.sqrt(sumSq / dim);
+
+    case 'rk45': {
+      const { k1, k3, k4, k5, k6, k7 } = scratch;
+      const k1d = k1.data,
+        k3d = k3.data,
+        k4d = k4.data,
+        k5d = k5.data,
+        k6d = k6.data,
+        k7d = k7.data;
+      for (let i = 0; i < dim; i++) {
+        const errI =
+          h *
+          ((71 / 57600) * k1d[i] -
+            (71 / 16695) * k3d[i] +
+            (71 / 1920) * k4d[i] -
+            (17253 / 339200) * k5d[i] +
+            (22 / 525) * k6d[i] -
+            (1 / 40) * k7d[i]);
+        const scale = atol + rtol * Math.max(Math.abs(yd[i]), Math.abs(od[i]));
+        const e = errI / scale;
+        sumSq += e * e;
+      }
+      break;
+    }
+
+    default:
+      throw new RangeError(`adaptiveErrorNorm: unknown method "${method satisfies never}"`);
+  }
+  return Math.sqrt(sumSq / dim);
 }
 
 /**
  * Optional tuning parameters for {@link rungeKuttaAdaptive}.
  */
 export interface RungeKuttaAdaptiveOptions {
-    /**
-     * Absolute error tolerance per state component.
-     * @default 1e-6
-     */
-    atol?: number;
-    /**
-     * Relative error tolerance per state component.
-     * @default 1e-3
-     */
-    rtol?: number;
-    /**
-     * Optional initial step-size magnitude. Its sign is ignored because the
-     * integration direction follows `tEnd - t0`. Estimated automatically when
-     * omitted.
-     */
-    h0?: number;
-    /**
-     * Maximum permitted step-size magnitude.
-     * @default Infinity
-     */
-    hMax?: number;
-    /**
-     * Minimum permitted step-size magnitude after a rejected step.
-     * @default 1e-12
-     */
-    hMin?: number;
-    /**
-     * Maximum number of attempted steps, including rejected steps.
-     * @default 1e5
-     */
-    maxSteps?: number;
-    /**
-     * Safety factor applied when scaling a step after error estimation. Must
-     * be in `(0, 1]`.
-     * @default 0.9
-     */
-    safety?: number;
-    /**
-     * Smallest allowed multiplier for the next step size.
-     * @default 0.2
-     */
-    minScale?: number;
-    /**
-     * Largest allowed multiplier for the next step size.
-     * @default 10
-     */
-    maxScale?: number;
-    /**
-     * Events to detect along the solution; see {@link OdeEvent}. Occurrences are
-     * located inside each accepted step from the step's dense output and reported
-     * in {@link OdeResult.events}.
-     * Detection does not change the step sequence. If omitted, no events are evaluated.
-     */
-    events?: OdeEvent[];
-    /**
-     * Whether to also return the dense output, a continuous approximation of the
-     * whole solution that can be evaluated at any time in the solved interval;
-     * see {@link OdeResult.denseOutput}. It is built from the step interpolants,
-     * which also serve the `events` option, at no further evaluations of `f`,
-     * and does not change the step sequence. It stores a few vectors per
-     * accepted step.
-     * @default false
-     */
-    denseOutput?: boolean;
+  /**
+   * Absolute error tolerance per state component.
+   * @default 1e-6
+   */
+  atol?: number;
+  /**
+   * Relative error tolerance per state component.
+   * @default 1e-3
+   */
+  rtol?: number;
+  /**
+   * Optional initial step-size magnitude. Its sign is ignored because the
+   * integration direction follows `tEnd - t0`. Estimated automatically when
+   * omitted.
+   */
+  h0?: number;
+  /**
+   * Maximum permitted step-size magnitude.
+   * @default Infinity
+   */
+  hMax?: number;
+  /**
+   * Minimum permitted step-size magnitude after a rejected step.
+   * @default 1e-12
+   */
+  hMin?: number;
+  /**
+   * Maximum number of attempted steps, including rejected steps.
+   * @default 1e5
+   */
+  maxSteps?: number;
+  /**
+   * Safety factor applied when scaling a step after error estimation. Must
+   * be in `(0, 1]`.
+   * @default 0.9
+   */
+  safety?: number;
+  /**
+   * Smallest allowed multiplier for the next step size.
+   * @default 0.2
+   */
+  minScale?: number;
+  /**
+   * Largest allowed multiplier for the next step size.
+   * @default 10
+   */
+  maxScale?: number;
+  /**
+   * Events to detect along the solution; see {@link OdeEvent}. Occurrences are
+   * located inside each accepted step from the step's dense output and reported
+   * in {@link OdeResult.events}.
+   * Detection does not change the step sequence. If omitted, no events are evaluated.
+   */
+  events?: OdeEvent[];
+  /**
+   * Whether to also return the dense output, a continuous approximation of the
+   * whole solution that can be evaluated at any time in the solved interval;
+   * see {@link OdeResult.denseOutput}. It is built from the step interpolants,
+   * which also serve the `events` option, at no further evaluations of `f`,
+   * and does not change the step sequence. It stores a few vectors per
+   * accepted step.
+   * @default false
+   */
+  denseOutput?: boolean;
 }
 
 /**
@@ -471,11 +502,11 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * Output:
  * ```text
- * { 
- *  message: 'Integration stopped by a terminal event.', 
- *  hitTime: 0.45152364098573017, 
- *  hitHeight: -1.1102230246251565e-16, 
- *  expectedTime: 0.4515236409857309 
+ * {
+ *  message: 'Integration stopped by a terminal event.',
+ *  hitTime: 0.45152364098573017,
+ *  hitHeight: -1.1102230246251565e-16,
+ *  expectedTime: 0.4515236409857309
  * }
  * ```
  *
@@ -522,9 +553,9 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * Output:
  * ```text
- * { 
- *  eventTime: 1.5707963266771703, 
- *  eventVelocity: -0.9999999993753101, 
+ * {
+ *  eventTime: 1.5707963266771703,
+ *  eventVelocity: -0.9999999993753101,
  *  expectedTime: 1.5707963267948966
  * }
  * ```
@@ -554,187 +585,225 @@ export interface RungeKuttaAdaptiveOptions {
  * ```
  */
 export function rungeKuttaAdaptive(
-    method: RungeKuttaAdaptiveMethod,
-    f: DerivativeFunction,
-    t0: number,
-    tEnd: number,
-    y0: Vector,
-    options: RungeKuttaAdaptiveOptions = {}
+  method: RungeKuttaAdaptiveMethod,
+  f: DerivativeFunction,
+  t0: number,
+  tEnd: number,
+  y0: Vector,
+  options: RungeKuttaAdaptiveOptions = {}
 ): OdeResult {
-    const {
-        atol = 1e-6,
-        rtol = 1e-3,
-        h0,
-        hMax = Infinity,
-        hMin = 1e-12,
-        maxSteps = 1e5,
-        safety = 0.9,
-        minScale = 0.2,
-        maxScale = 10,
-        events,
-        denseOutput = false,
-    } = options;
-    const dim = y0.size;
-    if (dim <= 0) throw new RangeError(`rungeKuttaAdaptive: y0 must have at least one component, got dimension ${dim}.`);
-    if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
-        throw new RangeError(`rungeKuttaAdaptive: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`);
-    }
-    if (atol === 0 && rtol === 0) throw new RangeError('rungeKuttaAdaptive: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.');
-    if (h0 !== undefined && h0 === 0) throw new RangeError('rungeKuttaAdaptive: h0 must be nonzero.');
-    if (!(hMin > 0)) throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must be positive.`);
-    if (!(hMax > 0)) throw new RangeError(`rungeKuttaAdaptive: hMax (${hMax}) must be positive.`);
-    if (hMin > hMax) throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must not exceed hMax (${hMax}).`);
-    if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
-        throw new RangeError(`rungeKuttaAdaptive: maxSteps (${maxSteps}) must be a positive integer.`);
-    }
-    if (!(safety > 0 && safety <= 1)) throw new RangeError(`rungeKuttaAdaptive: safety (${safety}) must be in (0, 1].`);
-    if (!(minScale > 0) || minScale > maxScale) {
-        throw new RangeError(`rungeKuttaAdaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`);
-    }
-    if (events !== undefined) validateEvents(events, 'rungeKuttaAdaptive');
+  const {
+    atol = 1e-6,
+    rtol = 1e-3,
+    h0,
+    hMax = Infinity,
+    hMin = 1e-12,
+    maxSteps = 1e5,
+    safety = 0.9,
+    minScale = 0.2,
+    maxScale = 10,
+    events,
+    denseOutput = false
+  } = options;
+  const dim = y0.size;
+  if (dim <= 0)
+    throw new RangeError(
+      `rungeKuttaAdaptive: y0 must have at least one component, got dimension ${dim}.`
+    );
+  if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
+    throw new RangeError(
+      `rungeKuttaAdaptive: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
+    );
+  }
+  if (atol === 0 && rtol === 0)
+    throw new RangeError(
+      'rungeKuttaAdaptive: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.'
+    );
+  if (h0 !== undefined && h0 === 0) throw new RangeError('rungeKuttaAdaptive: h0 must be nonzero.');
+  if (!(hMin > 0)) throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must be positive.`);
+  if (!(hMax > 0)) throw new RangeError(`rungeKuttaAdaptive: hMax (${hMax}) must be positive.`);
+  if (hMin > hMax)
+    throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must not exceed hMax (${hMax}).`);
+  if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
+    throw new RangeError(`rungeKuttaAdaptive: maxSteps (${maxSteps}) must be a positive integer.`);
+  }
+  if (!(safety > 0 && safety <= 1))
+    throw new RangeError(`rungeKuttaAdaptive: safety (${safety}) must be in (0, 1].`);
+  if (!(minScale > 0) || minScale > maxScale) {
+    throw new RangeError(
+      `rungeKuttaAdaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`
+    );
+  }
+  if (events !== undefined) validateEvents(events, 'rungeKuttaAdaptive');
 
-    if (tEnd === t0) {
-        const tVec = new Vector(1);
-        tVec.data[0] = t0;
-        const yMat = new Matrix(1, dim);
-        yMat.setRow(0, y0.data);
-        const trivial: OdeResult = {
-            method: method,
-            success: true,
-            message: 'Integration successful.',
-            evaluations: 0,
-            evaluationsJacobian: 0,
-            decompositions: 0,
-            t: tVec,
-            y: yMat,
-        };
-        if (events !== undefined) trivial.events = [];
-        if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0);
-        return trivial;
-    }
-
-    const dir = Math.sign(tEnd - t0) as 1 | -1;
-    const scratch = makeAdaptiveScratch(dim);
-
-    let methodOrder: number;
-    let errExp: number;
-    let fsalSource: Vector;
-    let stagesPerAttempt: number;
-    let denseDegree: number;
-    switch (method) {
-        case 'rk23':
-            methodOrder = 3;
-            errExp = -1 / 3;
-            fsalSource = scratch.k4;
-            stagesPerAttempt = 4;
-            denseDegree = DENSE_RK23[0].length;
-            break;
-
-        case 'rk45':
-            methodOrder = 5;
-            errExp = -1 / 5;
-            fsalSource = scratch.k7;
-            stagesPerAttempt = 7;
-            denseDegree = DENSE_RK45[0].length;
-            break;
-
-        default:
-            throw new RangeError(`rungeKuttaAdaptive: unknown method "${method satisfies never}"`);
-    }
-
-    let t = t0;
-    let y = y0.copy();
-    let next = new Vector(dim);
-    let evaluations = h0 === undefined ? 2 : 0;
-
-    let k1Ready = false;
-    let h: number;
-    if (h0 !== undefined) {
-        h = dir * Math.abs(h0);
-    } else {
-        h = estimateInitialStep(f, t0, y, dir, atol, rtol, methodOrder, scratch.k1, scratch.k2, scratch.yTemp);
-        k1Ready = true;
-    }
-    h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
-
-    const detector = events === undefined ? null : new EventDetector(events, t0, y);
-    // Continuous extension of the accepted step under evaluation. It is built lazily, on first use,
-    // from the loop variables as they are at that time, so it must be used before the state swap and
-    // the FSAL copy, which would destroy the step's stages.
-    const stepPolynomial = new StepPolynomial(dim, denseDegree, (c) => rungeKuttaAdaptiveDenseCoefficients(method, y, h, scratch, c));
-    const dense = denseOutput ? new OdeDenseOutput(t0, y) : null;
-
-    const tBuf: number[] = [t0];
-    const yBuf: Float64Array[] = [y.data.slice()];
-    const makeResult = (success: boolean, message: string): OdeResult => {
-        const tVec = new Vector(tBuf.length);
-        tVec.set(tBuf);
-        const yMat = new Matrix(tBuf.length, dim);
-        for (let i = 0; i < tBuf.length; i++) {
-            yMat.setRow(i, yBuf[i]);
-        }
-        const result: OdeResult = { method, success, message, evaluations, evaluationsJacobian: 0, decompositions: 0, t: tVec, y: yMat };
-        if (detector !== null) result.events = detector.occurrences;
-        if (dense !== null) result.denseOutput = dense;
-        return result;
+  if (tEnd === t0) {
+    const tVec = new Vector(1);
+    tVec.data[0] = t0;
+    const yMat = new Matrix(1, dim);
+    yMat.setRow(0, y0.data);
+    const trivial: OdeResult = {
+      method: method,
+      success: true,
+      message: 'Integration successful.',
+      evaluations: 0,
+      evaluationsJacobian: 0,
+      decompositions: 0,
+      t: tVec,
+      y: yMat
     };
+    if (events !== undefined) trivial.events = [];
+    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0);
+    return trivial;
+  }
 
-    let steps = 0;
-    while (t !== tEnd) {
-        const remaining = tEnd - t;
-        let isFinalStep = false;
-        if (Math.abs(h) >= Math.abs(remaining)) {
-            h = remaining;
-            isFinalStep = true;
-        }
+  const dir = Math.sign(tEnd - t0) as 1 | -1;
+  const scratch = makeAdaptiveScratch(dim);
 
-        rungeKuttaAdaptiveStep(method, f, t, y, h, next, scratch, k1Ready);
-        evaluations += stagesPerAttempt - (k1Ready ? 1 : 0);
-        k1Ready = true;
+  let methodOrder: number;
+  let errExp: number;
+  let fsalSource: Vector;
+  let stagesPerAttempt: number;
+  let denseDegree: number;
+  switch (method) {
+    case 'rk23':
+      methodOrder = 3;
+      errExp = -1 / 3;
+      fsalSource = scratch.k4;
+      stagesPerAttempt = 4;
+      denseDegree = DENSE_RK23[0].length;
+      break;
 
-        const err = adaptiveErrorNorm(method, y, next, h, scratch, atol, rtol);
+    case 'rk45':
+      methodOrder = 5;
+      errExp = -1 / 5;
+      fsalSource = scratch.k7;
+      stagesPerAttempt = 7;
+      denseDegree = DENSE_RK45[0].length;
+      break;
 
-        if (err <= 1) {
-            const tNew = isFinalStep ? tEnd : t + h;
-            stepPolynomial.reset(t, h);
-            if (detector !== null) {
-                // Before the state swap and the FSAL copy, which would destroy the step's stages.
-                const stop = detector.check(tNew, next, stepPolynomial.evaluate);
-                if (stop !== null) {
-                    dense?.append(stop.t, stepPolynomial);
-                    tBuf.push(stop.t);
-                    yBuf.push(stop.y.data.slice());
-                    return makeResult(true, 'Integration stopped by a terminal event.');
-                }
-            }
-            dense?.append(tNew, stepPolynomial);
-            t = tNew;
-            [y, next] = [next, y];
-            tBuf.push(t);
-            yBuf.push(y.data.slice());
+    default:
+      throw new RangeError(`rungeKuttaAdaptive: unknown method "${method satisfies never}"`);
+  }
 
-            scratch.k1.set(fsalSource.data);
+  let t = t0;
+  let y = y0.copy();
+  let next = new Vector(dim);
+  let evaluations = h0 === undefined ? 2 : 0;
 
-            const growth = err === 0 ? maxScale : clip(safety * Math.pow(err, errExp), minScale, maxScale);
-            h = dir * Math.min(Math.abs(h) * growth, hMax);
-        } else {
-            const shrink = clip(safety * Math.pow(err, errExp), minScale, maxScale);
-            const hNext = h * shrink;
-            if (!(Math.abs(hNext) >= hMin)) {
-                const message =
-                    `rungeKuttaAdaptive: step size underflowed below hMin (${hMin}) near t=${t}` +
-                    (Number.isNaN(hNext) ? ' (step size became NaN)' : '') +
-                    `; the problem may be stiff, or atol/rtol too tight.`;
-                return makeResult(false, message);
-            }
-            h = hNext;
-        }
+  let k1Ready = false;
+  let h: number;
+  if (h0 !== undefined) {
+    h = dir * Math.abs(h0);
+  } else {
+    h = estimateInitialStep(
+      f,
+      t0,
+      y,
+      dir,
+      atol,
+      rtol,
+      methodOrder,
+      scratch.k1,
+      scratch.k2,
+      scratch.yTemp
+    );
+    k1Ready = true;
+  }
+  h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
 
-        steps++;
-        if (t !== tEnd && steps >= maxSteps) {
-            return makeResult(false, `rungeKuttaAdaptive: exceeded maxSteps (${maxSteps}) without reaching tEnd.`);
-        }
+  const detector = events === undefined ? null : new EventDetector(events, t0, y);
+  // Continuous extension of the accepted step under evaluation. It is built lazily, on first use,
+  // from the loop variables as they are at that time, so it must be used before the state swap and
+  // the FSAL copy, which would destroy the step's stages.
+  const stepPolynomial = new StepPolynomial(dim, denseDegree, (c) =>
+    rungeKuttaAdaptiveDenseCoefficients(method, y, h, scratch, c)
+  );
+  const dense = denseOutput ? new OdeDenseOutput(t0, y) : null;
+
+  const tBuf: number[] = [t0];
+  const yBuf: Float64Array[] = [y.data.slice()];
+  const makeResult = (success: boolean, message: string): OdeResult => {
+    const tVec = new Vector(tBuf.length);
+    tVec.set(tBuf);
+    const yMat = new Matrix(tBuf.length, dim);
+    for (let i = 0; i < tBuf.length; i++) {
+      yMat.setRow(i, yBuf[i]);
+    }
+    const result: OdeResult = {
+      method,
+      success,
+      message,
+      evaluations,
+      evaluationsJacobian: 0,
+      decompositions: 0,
+      t: tVec,
+      y: yMat
+    };
+    if (detector !== null) result.events = detector.occurrences;
+    if (dense !== null) result.denseOutput = dense;
+    return result;
+  };
+
+  let steps = 0;
+  while (t !== tEnd) {
+    const remaining = tEnd - t;
+    let isFinalStep = false;
+    if (Math.abs(h) >= Math.abs(remaining)) {
+      h = remaining;
+      isFinalStep = true;
     }
 
-    return makeResult(true, 'Integration successful.');
+    rungeKuttaAdaptiveStep(method, f, t, y, h, next, scratch, k1Ready);
+    evaluations += stagesPerAttempt - (k1Ready ? 1 : 0);
+    k1Ready = true;
+
+    const err = adaptiveErrorNorm(method, y, next, h, scratch, atol, rtol);
+
+    if (err <= 1) {
+      const tNew = isFinalStep ? tEnd : t + h;
+      stepPolynomial.reset(t, h);
+      if (detector !== null) {
+        // Before the state swap and the FSAL copy, which would destroy the step's stages.
+        const stop = detector.check(tNew, next, stepPolynomial.evaluate);
+        if (stop !== null) {
+          dense?.append(stop.t, stepPolynomial);
+          tBuf.push(stop.t);
+          yBuf.push(stop.y.data.slice());
+          return makeResult(true, 'Integration stopped by a terminal event.');
+        }
+      }
+      dense?.append(tNew, stepPolynomial);
+      t = tNew;
+      [y, next] = [next, y];
+      tBuf.push(t);
+      yBuf.push(y.data.slice());
+
+      scratch.k1.set(fsalSource.data);
+
+      const growth =
+        err === 0 ? maxScale : clip(safety * Math.pow(err, errExp), minScale, maxScale);
+      h = dir * Math.min(Math.abs(h) * growth, hMax);
+    } else {
+      const shrink = clip(safety * Math.pow(err, errExp), minScale, maxScale);
+      const hNext = h * shrink;
+      if (!(Math.abs(hNext) >= hMin)) {
+        const message =
+          `rungeKuttaAdaptive: step size underflowed below hMin (${hMin}) near t=${t}` +
+          (Number.isNaN(hNext) ? ' (step size became NaN)' : '') +
+          `; the problem may be stiff, or atol/rtol too tight.`;
+        return makeResult(false, message);
+      }
+      h = hNext;
+    }
+
+    steps++;
+    if (t !== tEnd && steps >= maxSteps) {
+      return makeResult(
+        false,
+        `rungeKuttaAdaptive: exceeded maxSteps (${maxSteps}) without reaching tEnd.`
+      );
+    }
+  }
+
+  return makeResult(true, 'Integration successful.');
 }

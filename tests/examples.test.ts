@@ -10,18 +10,18 @@ import { collectExamples } from '../scripts/lib/examples.mjs';
 const examples = await collectExamples();
 
 const label = ({ file, code }: { file: string; code: string }) => {
-    const first = code.split('\n').find((line) => line.trim() !== '') ?? '';
-    return `${file}: ${first.trim().slice(0, 70)}`;
+  const first = code.split('\n').find((line) => line.trim() !== '') ?? '';
+  return `${file}: ${first.trim().slice(0, 70)}`;
 };
 
 describe('@example blocks', () => {
-    it('are found in the sources', () => {
-        expect(examples.length).toBeGreaterThan(0);
-    });
+  it('are found in the sources', () => {
+    expect(examples.length).toBeGreaterThan(0);
+  });
 
-    for (const example of examples) {
-        it(label(example), () => {
-            expect(example.diagnostics).toEqual([]);
-        });
-    }
+  for (const example of examples) {
+    it(label(example), () => {
+      expect(example.diagnostics).toEqual([]);
+    });
+  }
 });

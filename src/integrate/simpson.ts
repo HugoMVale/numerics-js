@@ -9,7 +9,10 @@ import { trapezoid } from './trapezoid.js';
  * (the symmetric 2-interval span then cancels odd-degree error terms).
  */
 function simpsonPair(y0: number, y1: number, y2: number, h0: number, h1: number): number {
-    return ((h0 + h1) / 6) * ((2 - h1 / h0) * y0 + ((h0 + h1) * (h0 + h1)) / (h0 * h1) * y1 + (2 - h0 / h1) * y2);
+  return (
+    ((h0 + h1) / 6) *
+    ((2 - h1 / h0) * y0 + (((h0 + h1) * (h0 + h1)) / (h0 * h1)) * y1 + (2 - h0 / h1) * y2)
+  );
 }
 
 /**
@@ -30,11 +33,17 @@ function simpsonPair(y0: number, y1: number, y2: number, h0: number, h1: number)
  * @param hPrev Width of the second-to-last interval (`h_{N-2}`).
  * @param hLast Width of the last interval (`h_{N-1}`).
  */
-function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number, hLast: number): number {
-    const alpha = (2 * hLast * hLast + 3 * hLast * hPrev) / (6 * (hPrev + hLast));
-    const beta = (hLast * hLast + 3 * hLast * hPrev) / (6 * hPrev);
-    const eta = (hLast * hLast * hLast) / (6 * hPrev * (hPrev + hLast));
-    return alpha * fN + beta * fN1 - eta * fN2;
+function trailingCorrection(
+  fN2: number,
+  fN1: number,
+  fN: number,
+  hPrev: number,
+  hLast: number
+): number {
+  const alpha = (2 * hLast * hLast + 3 * hLast * hPrev) / (6 * (hPrev + hLast));
+  const beta = (hLast * hLast + 3 * hLast * hPrev) / (6 * hPrev);
+  const eta = (hLast * hLast * hLast) / (6 * hPrev * (hPrev + hLast));
+  return alpha * fN + beta * fN1 - eta * fN2;
 }
 
 /**
@@ -42,7 +51,7 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
  *
  * If `x` is provided, the spacing between samples is taken from `x`
  * (which need not be uniform). Otherwise, samples are assumed to be
- * spaced `dx` apart. 
+ * spaced `dx` apart.
  *
  * @param y Sample values `y` to integrate. Must have `size >= 0`.
  * @param x Optional sample locations, same `size` as `y`. If omitted,
@@ -72,33 +81,33 @@ function trailingCorrection(fN2: number, fN1: number, fN: number, hPrev: number,
  * ```
  */
 export function simpson(y: Vector, x?: Vector, dx: number = 1): number {
-    const n = y.size;
-    if (n < 2) return 0;
+  const n = y.size;
+  if (n < 2) return 0;
 
-    if (x !== undefined && x.size !== n) {
-        throw new RangeError(`simpson: x and y must have the same size: ${x.size} vs ${n}`);
-    }
+  if (x !== undefined && x.size !== n) {
+    throw new RangeError(`simpson: x and y must have the same size: ${x.size} vs ${n}`);
+  }
 
-    if (n === 2) return trapezoid(y, x, dx);
+  if (n === 2) return trapezoid(y, x, dx);
 
-    const nIntervals = n - 1;
-    const nPairs = Math.floor(nIntervals / 2);
+  const nIntervals = n - 1;
+  const nPairs = Math.floor(nIntervals / 2);
 
-    let sum = 0;
-    for (let k = 0; k < nPairs; k++) {
-        const i0 = 2 * k;
-        const i1 = i0 + 1;
-        const i2 = i0 + 2;
-        const h0 = x !== undefined ? x.data[i1] - x.data[i0] : dx;
-        const h1 = x !== undefined ? x.data[i2] - x.data[i1] : dx;
-        sum += simpsonPair(y.data[i0], y.data[i1], y.data[i2], h0, h1);
-    }
+  let sum = 0;
+  for (let k = 0; k < nPairs; k++) {
+    const i0 = 2 * k;
+    const i1 = i0 + 1;
+    const i2 = i0 + 2;
+    const h0 = x !== undefined ? x.data[i1] - x.data[i0] : dx;
+    const h1 = x !== undefined ? x.data[i2] - x.data[i1] : dx;
+    sum += simpsonPair(y.data[i0], y.data[i1], y.data[i2], h0, h1);
+  }
 
-    if (nIntervals % 2 === 1) {
-        const hPrev = x !== undefined ? x.data[n - 2] - x.data[n - 3] : dx;
-        const hLast = x !== undefined ? x.data[n - 1] - x.data[n - 2] : dx;
-        sum += trailingCorrection(y.data[n - 3], y.data[n - 2], y.data[n - 1], hPrev, hLast);
-    }
+  if (nIntervals % 2 === 1) {
+    const hPrev = x !== undefined ? x.data[n - 2] - x.data[n - 3] : dx;
+    const hLast = x !== undefined ? x.data[n - 1] - x.data[n - 2] : dx;
+    sum += trailingCorrection(y.data[n - 3], y.data[n - 2], y.data[n - 1], hPrev, hLast);
+  }
 
-    return sum;
+  return sum;
 }

@@ -45,9 +45,6 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
  * }
  * ```
  */
-export function wrapAllocatingDerivative(
-    f: AllocatingDerivativeFunction
-): DerivativeFunction {
-    return (t: number, y: Vector, dydt: Vector): Vector =>
-        dydt.set(f(t, y).data);
+export function wrapAllocatingDerivative(f: AllocatingDerivativeFunction): DerivativeFunction {
+  return (t: number, y: Vector, dydt: Vector): Vector => dydt.set(f(t, y).data);
 }

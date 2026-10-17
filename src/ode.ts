@@ -37,17 +37,17 @@ export { wrapAllocatingDerivative } from './ode/adapters.js';
 export type { OdeDenseOutput } from './ode/denseOutput.js';
 
 export type {
-    DerivativeFunction,
-    AllocatingDerivativeFunction,
-    JacobianFunction,
-    OdeEvent,
-    OdeEventDirection,
-    OdeEventOccurrence,
-    OdeResult,
-    RungeKuttaFixedMethod,
-    RungeKuttaAdaptiveMethod,
-    TrBdf2Method,
-    OdeMethod,
+  DerivativeFunction,
+  AllocatingDerivativeFunction,
+  JacobianFunction,
+  OdeEvent,
+  OdeEventDirection,
+  OdeEventOccurrence,
+  OdeResult,
+  RungeKuttaFixedMethod,
+  RungeKuttaAdaptiveMethod,
+  TrBdf2Method,
+  OdeMethod
 } from './ode/types.js';
 
 export { createVelocityVerlet } from './ode/verlet.js';

@@ -8,26 +8,26 @@ import { Matrix } from '../linalg/Matrix.js';
  * All interpolation knot coordinates `xp` must be finite.
  */
 export interface Interp1DOptions {
-    /**
-     * Value to return for `x < xp[0]`.
-     * @default fp[0]
-     */
-    left?: number;
-    /**
-     * Value to return for `x > xp[xp.length - 1]`.
-     * @default fp[fp.length - 1]
-     */
-    right?: number;
-    /**
-     * Whether to verify that `xp` is monotonically increasing before
-     * interpolating. This check is `O(xp.size)`; pass
-     * `false` to skip it (e.g. in a hot loop where `xp` is reused and
-     * already known to be sorted). If `false` and `xp` is not actually
-     * sorted, results are unspecified, matching `numpy.interp`, which
-     * performs no such check at all.
-     * @default true
-     */
-    checkSorted?: boolean;
+  /**
+   * Value to return for `x < xp[0]`.
+   * @default fp[0]
+   */
+  left?: number;
+  /**
+   * Value to return for `x > xp[xp.length - 1]`.
+   * @default fp[fp.length - 1]
+   */
+  right?: number;
+  /**
+   * Whether to verify that `xp` is monotonically increasing before
+   * interpolating. This check is `O(xp.size)`; pass
+   * `false` to skip it (e.g. in a hot loop where `xp` is reused and
+   * already known to be sorted). If `false` and `xp` is not actually
+   * sorted, results are unspecified, matching `numpy.interp`, which
+   * performs no such check at all.
+   * @default true
+   */
+  checkSorted?: boolean;
 }
 
 /**
@@ -40,24 +40,24 @@ export interface Interp1DOptions {
  * broadcasts to every component.
  */
 export interface InterpNDOptions {
-    /**
-     * Value(s) to return for `x < xp[0]`. A single `number` broadcasts to
-     * every component; a `number[]`/`Vector` must have length `fp.cols`.
-     * @default fp.row(0)
-     */
-    left?: number | number[] | Vector;
-    /**
-     * Value(s) to return for `x > xp[xp.length - 1]`. A single `number`
-     * broadcasts to every component; a `number[]`/`Vector` must have length
-     * `fp.cols`.
-     * @default fp.row(fp.rows - 1)
-     */
-    right?: number | number[] | Vector;
-    /**
-     * Same meaning as {@link Interp1DOptions.checkSorted}.
-     * @default true
-     */
-    checkSorted?: boolean;
+  /**
+   * Value(s) to return for `x < xp[0]`. A single `number` broadcasts to
+   * every component; a `number[]`/`Vector` must have length `fp.cols`.
+   * @default fp.row(0)
+   */
+  left?: number | number[] | Vector;
+  /**
+   * Value(s) to return for `x > xp[xp.length - 1]`. A single `number`
+   * broadcasts to every component; a `number[]`/`Vector` must have length
+   * `fp.cols`.
+   * @default fp.row(fp.rows - 1)
+   */
+  right?: number | number[] | Vector;
+  /**
+   * Same meaning as {@link Interp1DOptions.checkSorted}.
+   * @default true
+   */
+  checkSorted?: boolean;
 }
 
 /**
@@ -65,10 +65,10 @@ export interface InterpNDOptions {
  * with the `left`/`right` clamp values resolved to concrete numbers.
  */
 interface PreparedInterp1D {
-    xp: Vector;
-    fp: Vector;
-    leftVal: number;
-    rightVal: number;
+  xp: Vector;
+  fp: Vector;
+  leftVal: number;
+  rightVal: number;
 }
 
 /**
@@ -78,19 +78,19 @@ interface PreparedInterp1D {
  * `Vector`s of length `fp.cols`.
  */
 interface PreparedInterpND {
-    xp: Vector;
-    fp: Matrix;
-    leftVal: Vector;
-    rightVal: Vector;
+  xp: Vector;
+  fp: Matrix;
+  leftVal: Vector;
+  rightVal: Vector;
 }
 
 /** Rejects non-finite knots; sortedness is controlled separately by `checkSorted`. */
 function checkFiniteKnots(xpv: Vector, caller: string): void {
-    for (let i = 0; i < xpv.size; i++) {
-        if (!Number.isFinite(xpv.data[i])) {
-            throw new RangeError(`${caller}: xp must contain only finite values`);
-        }
+  for (let i = 0; i < xpv.size; i++) {
+    if (!Number.isFinite(xpv.data[i])) {
+      throw new RangeError(`${caller}: xp must contain only finite values`);
     }
+  }
 }
 
 /**
@@ -99,23 +99,23 @@ function checkFiniteKnots(xpv: Vector, caller: string): void {
  * @throws {RangeError} If `xpv` is not monotonically increasing.
  */
 function checkMonotonic(xpv: Vector, caller: string): void {
-    for (let i = 1; i < xpv.size; i++) {
-        if (xpv.data[i] < xpv.data[i - 1]) {
-            throw new RangeError(`${caller}: xp must be monotonically increasing`);
-        }
+  for (let i = 1; i < xpv.size; i++) {
+    if (xpv.data[i] < xpv.data[i - 1]) {
+      throw new RangeError(`${caller}: xp must be monotonically increasing`);
     }
+  }
 }
 
 /** Integrates one constant-valued interval without producing `0 * Infinity`. */
 export function integrateConstant(width: number, value: number): number {
-    return width === Infinity && value === 0 ? 0 : width * value;
+  return width === Infinity && value === 0 ? 0 : width * value;
 }
 
 /** Adds a constant-valued interval component-wise without producing `0 * Infinity`. */
 export function addConstantIntegral(total: Vector, values: Vector, width: number): void {
-    for (let i = 0; i < total.size; i++) {
-        total.data[i] += integrateConstant(width, values.data[i]);
-    }
+  for (let i = 0; i < total.size; i++) {
+    total.data[i] += integrateConstant(width, values.data[i]);
+  }
 }
 
 /**
@@ -128,11 +128,11 @@ export function addConstantIntegral(total: Vector, values: Vector, width: number
  * @throws {RangeError} If any two consecutive `xp` entries are equal.
  */
 export function checkStrictlyIncreasing(xpv: Vector, caller: string): void {
-    for (let i = 1; i < xpv.size; i++) {
-        if (xpv.data[i] === xpv.data[i - 1]) {
-            throw new RangeError(`${caller}: xp must be strictly increasing`);
-        }
+  for (let i = 1; i < xpv.size; i++) {
+    if (xpv.data[i] === xpv.data[i - 1]) {
+      throw new RangeError(`${caller}: xp must be strictly increasing`);
     }
+  }
 }
 
 /**
@@ -154,14 +154,14 @@ export function checkStrictlyIncreasing(xpv: Vector, caller: string): void {
  * @returns The `[lo, hi]` bracketing indices.
  */
 export function findBracket(xi: number, xpData: Float64Array): [number, number] {
-    let lo = 0;
-    let hi = xpData.length - 1;
-    while (hi - lo > 1) {
-        const mid = (lo + hi) >>> 1;
-        if (xpData[mid] <= xi) lo = mid;
-        else hi = mid;
-    }
-    return [lo, hi];
+  let lo = 0;
+  let hi = xpData.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >>> 1;
+    if (xpData[mid] <= xi) lo = mid;
+    else hi = mid;
+  }
+  return [lo, hi];
 }
 
 /**
@@ -182,33 +182,35 @@ export function findBracket(xi: number, xpData: Float64Array): [number, number] 
  * `true`) if `xp` is not monotonically increasing.
  */
 export function prepareInterp1D(
-    xp: number[] | Vector,
-    fp: number[] | Vector,
-    left: number | undefined,
-    right: number | undefined,
-    checkSorted: boolean,
-    caller: string
+  xp: number[] | Vector,
+  fp: number[] | Vector,
+  left: number | undefined,
+  right: number | undefined,
+  checkSorted: boolean,
+  caller: string
 ): PreparedInterp1D {
-    const xpv = xp instanceof Vector ? xp : Vector.from(xp);
-    const fpv = fp instanceof Vector ? fp : Vector.from(fp);
+  const xpv = xp instanceof Vector ? xp : Vector.from(xp);
+  const fpv = fp instanceof Vector ? fp : Vector.from(fp);
 
-    if (xpv.size === 0) {
-        throw new RangeError(`${caller}: xp must have at least one element`);
-    }
-    if (xpv.size !== fpv.size) {
-        throw new RangeError(`${caller}: xp and fp must have the same length: ${xpv.size} vs ${fpv.size}`);
-    }
-    checkFiniteKnots(xpv, caller);
-    if (checkSorted) {
-        checkMonotonic(xpv, caller);
-    }
+  if (xpv.size === 0) {
+    throw new RangeError(`${caller}: xp must have at least one element`);
+  }
+  if (xpv.size !== fpv.size) {
+    throw new RangeError(
+      `${caller}: xp and fp must have the same length: ${xpv.size} vs ${fpv.size}`
+    );
+  }
+  checkFiniteKnots(xpv, caller);
+  if (checkSorted) {
+    checkMonotonic(xpv, caller);
+  }
 
-    return {
-        xp: xpv,
-        fp: fpv,
-        leftVal: left ?? fpv.get(0),
-        rightVal: right ?? fpv.get(fpv.size - 1),
-    };
+  return {
+    xp: xpv,
+    fp: fpv,
+    leftVal: left ?? fpv.get(0),
+    rightVal: right ?? fpv.get(fpv.size - 1)
+  };
 }
 
 /**
@@ -219,19 +221,21 @@ export function prepareInterp1D(
  * @throws {RangeError} If an explicit `number[]`/`Vector` doesn't have length `dim`.
  */
 function resolveClampVector(
-    val: number | number[] | Vector | undefined,
-    fallback: Vector,
-    dim: number,
-    paramName: string,
-    caller: string
+  val: number | number[] | Vector | undefined,
+  fallback: Vector,
+  dim: number,
+  paramName: string,
+  caller: string
 ): Vector {
-    if (val === undefined) return fallback;
-    if (typeof val === 'number') return Vector.full(dim, val);
-    const v = val instanceof Vector ? val : Vector.from(val);
-    if (v.size !== dim) {
-        throw new RangeError(`${caller}: ${paramName} must have length ${dim} (fp.cols), got ${v.size}`);
-    }
-    return v;
+  if (val === undefined) return fallback;
+  if (typeof val === 'number') return Vector.full(dim, val);
+  const v = val instanceof Vector ? val : Vector.from(val);
+  if (v.size !== dim) {
+    throw new RangeError(
+      `${caller}: ${paramName} must have length ${dim} (fp.cols), got ${v.size}`
+    );
+  }
+  return v;
 }
 
 /**
@@ -255,30 +259,32 @@ function resolveClampVector(
  * monotonically increasing.
  */
 export function prepareInterpND(
-    xp: number[] | Vector,
-    fp: Matrix,
-    left: number | number[] | Vector | undefined,
-    right: number | number[] | Vector | undefined,
-    checkSorted: boolean,
-    caller: string
+  xp: number[] | Vector,
+  fp: Matrix,
+  left: number | number[] | Vector | undefined,
+  right: number | number[] | Vector | undefined,
+  checkSorted: boolean,
+  caller: string
 ): PreparedInterpND {
-    const xpv = xp instanceof Vector ? xp : Vector.from(xp);
+  const xpv = xp instanceof Vector ? xp : Vector.from(xp);
 
-    if (xpv.size === 0) {
-        throw new RangeError(`${caller}: xp must have at least one element`);
-    }
-    if (xpv.size !== fp.rows) {
-        throw new RangeError(`${caller}: xp and fp must have the same length: ${xpv.size} vs ${fp.rows} (fp.rows)`);
-    }
-    checkFiniteKnots(xpv, caller);
-    if (checkSorted) {
-        checkMonotonic(xpv, caller);
-    }
+  if (xpv.size === 0) {
+    throw new RangeError(`${caller}: xp must have at least one element`);
+  }
+  if (xpv.size !== fp.rows) {
+    throw new RangeError(
+      `${caller}: xp and fp must have the same length: ${xpv.size} vs ${fp.rows} (fp.rows)`
+    );
+  }
+  checkFiniteKnots(xpv, caller);
+  if (checkSorted) {
+    checkMonotonic(xpv, caller);
+  }
 
-    return {
-        xp: xpv,
-        fp,
-        leftVal: resolveClampVector(left, fp.row(0), fp.cols, 'left', caller),
-        rightVal: resolveClampVector(right, fp.row(fp.rows - 1), fp.cols, 'right', caller),
-    };
+  return {
+    xp: xpv,
+    fp,
+    leftVal: resolveClampVector(left, fp.row(0), fp.cols, 'left', caller),
+    rightVal: resolveClampVector(right, fp.row(fp.rows - 1), fp.cols, 'right', caller)
+  };
 }

@@ -1,34 +1,29 @@
 {
-    "$schema": "https://typedoc.org/schema.json",
-    "entryPoints": [
-        "src/linalg.ts",
-        "src/integrate.ts",
-        "src/interpolate.ts",
-        "src/numdiff.ts",
-        "src/roots.ts",
-        "src/ode.ts",
-        "src/optimize.ts",
-        "src/special.ts",
-        "src/math.ts",
-    ],
-    "tsconfig": "tsconfig.build.json",
-    "out": "docs",
-    "readme": "README.md",
-    "name": "numerics-js API",
-    "navigationLinks": {
-        "GitHub": "https://github.com/HugoMVale/numerics-js"
-    },
-    "customJs": "docs-assets/site-customizations.js",
-    "plugin": [
-        "typedoc-material-theme"
-    ],
-    "includeVersion": true,
-    "excludeExternals": true,
-    "excludeInternal": true,
-    "excludePrivate": true,
-    "excludeProtected": true,
-    "intentionallyNotExported": [
-        "ComputeAccelerationFn",
-        "StepFn"
-    ]
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/linalg.ts",
+    "src/integrate.ts",
+    "src/interpolate.ts",
+    "src/numdiff.ts",
+    "src/roots.ts",
+    "src/ode.ts",
+    "src/optimize.ts",
+    "src/special.ts",
+    "src/math.ts"
+  ],
+  "tsconfig": "tsconfig.build.json",
+  "out": "docs",
+  "readme": "README.md",
+  "name": "numerics-js API",
+  "navigationLinks": {
+    "GitHub": "https://github.com/HugoMVale/numerics-js"
+  },
+  "customJs": "docs-assets/site-customizations.js",
+  "plugin": ["typedoc-material-theme"],
+  "includeVersion": true,
+  "excludeExternals": true,
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "intentionallyNotExported": ["ComputeAccelerationFn", "StepFn"]
 }

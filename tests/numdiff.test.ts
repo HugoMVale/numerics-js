@@ -4,72 +4,76 @@ import { Matrix } from '../src/linalg/Matrix.js';
 import { scaleVector, jacobianForward, derivativeCentered } from '../src/numdiff.js';
 
 describe('scaleX', () => {
-    it('generates an array of ones for a zero vector', () => {
-        const sclx = scaleVector(Vector.from([0.0, 0.0]));
-        expect(sclx.allClose(Vector.from([1.0, 1.0]))).toBe(true);
-    });
+  it('generates an array of ones for a zero vector', () => {
+    const sclx = scaleVector(Vector.from([0.0, 0.0]));
+    expect(sclx.allClose(Vector.from([1.0, 1.0]))).toBe(true);
+  });
 
-    it('scales accurately with zero and negative large values', () => {
-        const sclx = scaleVector(Vector.from([0.0, -1e2]));
-        expect(sclx.allClose(Vector.from([1e-1, 1e-2]))).toBe(true);
-    });
+  it('scales accurately with zero and negative large values', () => {
+    const sclx = scaleVector(Vector.from([0.0, -1e2]));
+    expect(sclx.allClose(Vector.from([1e-1, 1e-2]))).toBe(true);
+  });
 
-    it('scales accurately with mixed zero, small positive, and negative large values', () => {
-        const sclx = scaleVector(Vector.from([0.0, 0.1, -1e2]));
-        expect(sclx.allClose(Vector.from([1e2, 1e1, 1e-2]))).toBe(true);
-    });
+  it('scales accurately with mixed zero, small positive, and negative large values', () => {
+    const sclx = scaleVector(Vector.from([0.0, 0.1, -1e2]));
+    expect(sclx.allClose(Vector.from([1e2, 1e1, 1e-2]))).toBe(true);
+  });
 
-    it('scales accurately with zero and standard positive values', () => {
-        const sclx = scaleVector(Vector.from([0.0, 1.0, 5.0]));
-        expect(sclx.allClose(Vector.from([10.0, 0.2, 0.2]))).toBe(true);
-    });
+  it('scales accurately with zero and standard positive values', () => {
+    const sclx = scaleVector(Vector.from([0.0, 1.0, 5.0]));
+    expect(sclx.allClose(Vector.from([10.0, 0.2, 0.2]))).toBe(true);
+  });
 });
 
 describe('jacobianForward', () => {
-    // Target function: fnc3
-    const fnc3 = (x: Vector): Vector => {
-        const x1 = x.get(0);
-        const x2 = x.get(1);
-        const f1 = 0.5 * Math.cos(x1) + 0.1 * x2 + 0.5;
-        const f2 = Math.sin(x2) - 0.2 * x1 + 1.2;
+  // Target function: fnc3
+  const fnc3 = (x: Vector): Vector => {
+    const x1 = x.get(0);
+    const x2 = x.get(1);
+    const f1 = 0.5 * Math.cos(x1) + 0.1 * x2 + 0.5;
+    const f2 = Math.sin(x2) - 0.2 * x1 + 1.2;
 
-        return Vector.from([f1, f2]);
-    };
+    return Vector.from([f1, f2]);
+  };
 
-    it('calculates the numerical jacobian correctly within relative tolerance', () => {
-        const x = Vector.from([3.0, -2.0]);
-        const jacobian = jacobianForward(fnc3, x);
+  it('calculates the numerical jacobian correctly within relative tolerance', () => {
+    const x = Vector.from([3.0, -2.0]);
+    const jacobian = jacobianForward(fnc3, x);
 
-        const expectedMatrix = Matrix.from([
-            [-0.07055999, 0.1],
-            [-0.2, -0.41614682]
-        ]);
+    const expectedMatrix = Matrix.from([
+      [-0.07055999, 0.1],
+      [-0.2, -0.41614682]
+    ]);
 
-        // Utilizing Matrix.allClose with a relative tolerance (rtol) of 1e-6
-        expect(jacobian.allClose(expectedMatrix, 1e-6)).toBe(true);
-    });
+    // Utilizing Matrix.allClose with a relative tolerance (rtol) of 1e-6
+    expect(jacobian.allClose(expectedMatrix, 1e-6)).toBe(true);
+  });
 });
 
 describe('derivativeCentered', () => {
-    const square = (x: number): number => x * x;
+  const square = (x: number): number => x * x;
 
-    it('uses the automatic step when h is omitted', () => {
-        const [derivative] = derivativeCentered(square, 2.0);
+  it('uses the automatic step when h is omitted', () => {
+    const [derivative] = derivativeCentered(square, 2.0);
 
-        expect(derivative).toBeCloseTo(4.0, 8);
-    });
+    expect(derivative).toBeCloseTo(4.0, 8);
+  });
 
-    it('throws when h is explicitly zero', () => {
-        expect(() => derivativeCentered(square, 2.0, { h: 0 })).toThrow(RangeError);
-    });
+  it('throws when h is explicitly zero', () => {
+    expect(() => derivativeCentered(square, 2.0, { h: 0 })).toThrow(RangeError);
+  });
 
-    it('uses a supplied nonzero step without replacing it', () => {
-        const evaluationPoints: number[] = [];
-        derivativeCentered((x) => {
-            evaluationPoints.push(x);
-            return square(x);
-        }, 0.0, { h: 1e-12 });
+  it('uses a supplied nonzero step without replacing it', () => {
+    const evaluationPoints: number[] = [];
+    derivativeCentered(
+      (x) => {
+        evaluationPoints.push(x);
+        return square(x);
+      },
+      0.0,
+      { h: 1e-12 }
+    );
 
-        expect(evaluationPoints).toEqual([1e-12, -1e-12]);
-    });
+    expect(evaluationPoints).toEqual([1e-12, -1e-12]);
+  });
 });

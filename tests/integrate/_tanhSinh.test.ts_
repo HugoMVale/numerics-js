@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest';
+import { tanhSinh } from '../../src/integrate/tanhSinh.js';
+import {
+    fSin, fArctanDeriv, fIdentity, fEndpointSingularity, fBlowupMidpoint
+} from './testFunctions.js';
+
+describe('tanhSinh', () => {
+    it('integrates smooth standard functions accurately', () => {
+        const r1 = tanhSinh(fSin, 0, Math.PI, { tol: 1e-8 });
+        expect(r1.converged).toBe(true);
+        expect(r1.value).toBeCloseTo(2, 7);
+
+        const r2 = tanhSinh(fArctanDeriv, 0, 1, { tol: 1e-8 });
+        expect(r2.converged).toBe(true);
+        expect(r2.value).toBeCloseTo(Math.PI, 7);
+    });
+
+    it('integrates functions with endpoint singularities robustly', () => {
+        const r1 = tanhSinh(fEndpointSingularity, 0, 1, { tol: 1e-6 });
+        expect(r1.converged).toBe(true);
+        expect(r1.value).toBeCloseTo(2, 5);
+    });
+
+    it('handles identical integration bounds', () => {
+        const res = tanhSinh(fIdentity, 2, 2);
+        expect(res).toEqual({
+            value: 0,
+            error: 0,
+            evaluations: 0,
+            converged: true,
+            levels: 0,
+        });
+    });
+
+    it('supports reversed bounds (a > b)', () => {
+        const forward = tanhSinh(fSin, 0, Math.PI);
+        const reverse = tanhSinh(fSin, Math.PI, 0);
+
+        expect(reverse.value).toBeCloseTo(-forward.value, 10);
+        expect(reverse.evaluations).toBe(forward.evaluations);
+    });
+
+    it('respects maxLevels and sets converged to false when exceeded', () => {
+        const sharpPeak = (x: number) => Math.exp(-1000 * x * x);
+        const res = tanhSinh(sharpPeak, -1, 1, { tol: 1e-15, maxLevels: 3 });
+
+        expect(res.converged).toBe(false);
+        expect(res.levels).toBe(3);
+    });
+
+    it('throws TypeError for invalid integrand input', () => {
+        expect(() => tanhSinh('not a function' as any, 0, 1)).toThrow(TypeError);
+    });
+
+    it('throws RangeError for infinite or NaN integration limits', () => {
+        expect(() => tanhSinh(fSin, 0, Infinity)).toThrow(
+            'tanhSinh: a and b must be finite numbers'
+        );
+        expect(() => tanhSinh(fSin, NaN, 1)).toThrow(
+            'tanhSinh: a and b must be finite numbers'
+        );
+    });
+
+    it('throws an Error when the function produces non-finite values internally', () => {
+        expect(() => tanhSinh(fBlowupMidpoint, 0, 1)).toThrow(
+            /tanhSinh: f\(0\.5\) returned a non-finite value \(Infinity\); cannot integrate\./
+        );
+    });
+});

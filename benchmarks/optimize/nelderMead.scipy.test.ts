@@ -13,28 +13,24 @@ const F_TOLERANCE_FACTOR = 10;
 const EVALUATION_FACTOR = 1.1;
 
 describe('nelderMead vs scipy.optimize.minimize Nelder-Mead reference values', () => {
-    for (const fixture of fixtures) {
-        it(`matches SciPy Nelder-Mead for ${fixture.id}: ${fixture.description}`, () => {
-            const data = TEST_FUNCTIONS_MULTIVAR[fixture.id];
-            expect(data, `no matching test function registered for id "${fixture.id}"`).toBeDefined();
+  for (const fixture of fixtures) {
+    it(`matches SciPy Nelder-Mead for ${fixture.id}: ${fixture.description}`, () => {
+      const data = TEST_FUNCTIONS_MULTIVAR[fixture.id];
+      expect(data, `no matching test function registered for id "${fixture.id}"`).toBeDefined();
 
-            const x0 = data.initialPoint(N);
-            expect(Array.from(x0.data)).toEqual(fixture.x0);
+      const x0 = data.initialPoint(N);
+      expect(Array.from(x0.data)).toEqual(fixture.x0);
 
-            const result = nelderMead(data.fn, x0, { tolx: fixture.tolx, tolf: fixture.tolf });
+      const result = nelderMead(data.fn, x0, { tolx: fixture.tolx, tolf: fixture.tolf });
 
-            expect(result.success, result.message).toBe(true);
-            for (let i = 0; i < N; i++) {
-                expect(Math.abs(result.x.get(i) - fixture.scipyX[i])).toBeLessThanOrEqual(
-                    X_TOLERANCE
-                );
-            }
-            expect(Math.abs(result.fx - fixture.scipyFx)).toBeLessThanOrEqual(
-                F_TOLERANCE_FACTOR * fixture.tolf
-            );
-            expect(result.evaluations).toBeLessThanOrEqual(
-                fixture.scipyEvaluations * EVALUATION_FACTOR
-            );
-        });
-    }
+      expect(result.success, result.message).toBe(true);
+      for (let i = 0; i < N; i++) {
+        expect(Math.abs(result.x.get(i) - fixture.scipyX[i])).toBeLessThanOrEqual(X_TOLERANCE);
+      }
+      expect(Math.abs(result.fx - fixture.scipyFx)).toBeLessThanOrEqual(
+        F_TOLERANCE_FACTOR * fixture.tolf
+      );
+      expect(result.evaluations).toBeLessThanOrEqual(fixture.scipyEvaluations * EVALUATION_FACTOR);
+    });
+  }
 });

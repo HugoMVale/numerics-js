@@ -15,6 +15,11 @@
  *
  * @module interpolate
  */
-export { LinearInterpolator1D, LinearInterpolatorND, interp1D, interpND } from './interpolate/interp1.js';
+export {
+  LinearInterpolator1D,
+  LinearInterpolatorND,
+  interp1D,
+  interpND
+} from './interpolate/interp1.js';
 export { PchipInterpolator1D, PchipInterpolatorND } from './interpolate/pchip.js';
 export type { Interp1DOptions, InterpNDOptions } from './interpolate/common.js';

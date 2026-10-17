@@ -1,78 +1,62 @@
 /** Result of a {@link gaussKronrod} quadrature. */
 export interface GaussKronrodResult {
-    /** Estimated value of the definite integral. */
-    value: number;
-    /** Estimated absolute integration error. */
-    error: number;
-    /** Number of integrand evaluations performed. */
-    evaluations: number;
-    /** Whether the requested error tolerance was reached. */
-    converged: boolean;
-    /** Number of final subintervals used by the adaptive algorithm. */
-    subintervals: number;
+  /** Estimated value of the definite integral. */
+  value: number;
+  /** Estimated absolute integration error. */
+  error: number;
+  /** Number of integrand evaluations performed. */
+  evaluations: number;
+  /** Whether the requested error tolerance was reached. */
+  converged: boolean;
+  /** Number of final subintervals used by the adaptive algorithm. */
+  subintervals: number;
 }
 
 interface LocalGaussKronrodResult {
-    kronrod: number;
-    gauss: number;
-    error: number;
+  kronrod: number;
+  gauss: number;
+  error: number;
 }
 
 const KRONROD_NODES: readonly number[] = [
-    0.000000000000000000000000000000000,
-    0.207784955007898467600689403773245,
-    0.405845151377397166906606412076961,
-    0.586087235467691130294144838258730,
-    0.741531185599394439863864773280788,
-    0.864864423359769072789712788640926,
-    0.949107912342758524526189684047851,
-    0.991455371120812639206854697526329,
+  0.0, 0.207784955007898467600689403773245, 0.405845151377397166906606412076961,
+  0.58608723546769113029414483825873, 0.741531185599394439863864773280788,
+  0.864864423359769072789712788640926, 0.949107912342758524526189684047851,
+  0.991455371120812639206854697526329
 ];
 
 const KRONROD_WEIGHTS: readonly number[] = [
-    0.209482141084727828012999174891714,
-    0.204432940075298892414161999234649,
-    0.190350578064785409913256402421014,
-    0.169004726639267902826583426598550,
-    0.140653259715525918745189590510238,
-    0.104790010322250183839876322541518,
-    0.063092092629978553290700663189204,
-    0.022935322010529224963732008058970,
+  0.209482141084727828012999174891714, 0.204432940075298892414161999234649,
+  0.190350578064785409913256402421014, 0.16900472663926790282658342659855,
+  0.140653259715525918745189590510238, 0.104790010322250183839876322541518,
+  0.063092092629978553290700663189204, 0.02293532201052922496373200805897
 ];
 
 const GAUSS_WEIGHTS: readonly number[] = [
-    0.417959183673469387755102040816327,
-    0,
-    0.381830050505118944950369775488975,
-    0,
-    0.279705391489276667901467771423780,
-    0,
-    0.129484966168869693270611432679082,
-    0,
+  0.417959183673469387755102040816327, 0, 0.381830050505118944950369775488975, 0,
+  0.27970539148927666790146777142378, 0, 0.129484966168869693270611432679082, 0
 ];
 
 interface Panel {
-    a: number;
-    b: number;
-    kronrod: number;
-    error: number;
+  a: number;
+  b: number;
+  kronrod: number;
+  error: number;
 }
 
 function midpoint(a: number, b: number): number {
-    return (a < 0 && b > 0) || (a > 0 && b < 0)
-        ? (a + b) / 2
-        : a + (b - a) / 2;
+  return (a < 0 && b > 0) || (a > 0 && b < 0) ? (a + b) / 2 : a + (b - a) / 2;
 }
 
 function halfLength(a: number, b: number): number {
-    const length = b - a;
-    return Number.isFinite(length) ? length / 2 : b / 2 - a / 2;
+  const length = b - a;
+  return Number.isFinite(length) ? length / 2 : b / 2 - a / 2;
 }
 
 /**
  * Applies the 7-15 Gauss-Kronrod rule to one panel and returns the
  * embedded Gauss and Kronrod estimates.
- * 
+ *
  * @internal
  *
  * @param evalF Instrumented function evaluator.
@@ -81,45 +65,45 @@ function halfLength(a: number, b: number): number {
  * @returns Local quadrature estimates and estimated local error.
  */
 export function gaussKronrod15(
-    evalF: (x: number) => number,
-    a: number,
-    b: number
+  evalF: (x: number) => number,
+  a: number,
+  b: number
 ): LocalGaussKronrodResult {
-    const panelHalfLength = halfLength(a, b);
-    const center = midpoint(a, b);
+  const panelHalfLength = halfLength(a, b);
+  const center = midpoint(a, b);
 
-    let kronrodSum = 0;
-    let gaussSum = 0;
+  let kronrodSum = 0;
+  let gaussSum = 0;
 
-    for (let i = 0; i < KRONROD_NODES.length; i++) {
-        const dx = panelHalfLength * KRONROD_NODES[i];
-        const kw = KRONROD_WEIGHTS[i];
-        const gw = GAUSS_WEIGHTS[i];
+  for (let i = 0; i < KRONROD_NODES.length; i++) {
+    const dx = panelHalfLength * KRONROD_NODES[i];
+    const kw = KRONROD_WEIGHTS[i];
+    const gw = GAUSS_WEIGHTS[i];
 
-        if (i === 0) {
-            const f0 = evalF(center);
-            kronrodSum += kw * f0;
-            gaussSum += gw * f0;
-        } else {
-            const fPlus = evalF(center + dx);
-            const fMinus = evalF(center - dx);
-            kronrodSum += kw * (fPlus + fMinus);
-            gaussSum += gw * (fPlus + fMinus);
-        }
+    if (i === 0) {
+      const f0 = evalF(center);
+      kronrodSum += kw * f0;
+      gaussSum += gw * f0;
+    } else {
+      const fPlus = evalF(center + dx);
+      const fMinus = evalF(center - dx);
+      kronrodSum += kw * (fPlus + fMinus);
+      gaussSum += gw * (fPlus + fMinus);
     }
+  }
 
-    const kronrod = panelHalfLength * kronrodSum;
-    const gauss = panelHalfLength * gaussSum;
+  const kronrod = panelHalfLength * kronrodSum;
+  const gauss = panelHalfLength * gaussSum;
 
-    return { kronrod, gauss, error: Math.abs(kronrod - gauss) };
+  return { kronrod, gauss, error: Math.abs(kronrod - gauss) };
 }
 
 /**
  * Numerically integrate `f` over `[a, b]` using adaptive Gauss-Kronrod
  * (G7-K15) quadrature.
  *
- * This function is suitable for numerically integrating smooth functions over finite 
- * intervals. For functions with discontinuities or sharp features, or infinite domains, 
+ * This function is suitable for numerically integrating smooth functions over finite
+ * intervals. For functions with discontinuities or sharp features, or infinite domains,
  * use {@link quad} instead.
  *
  *
@@ -173,78 +157,84 @@ export function gaussKronrod15(
  * ```
  */
 export function gaussKronrod(
-    f: (x: number) => number,
-    a: number,
-    b: number,
-    options: {
-        tol?: number;
-        maxSubintervals?: number;
-    } = {}
+  f: (x: number) => number,
+  a: number,
+  b: number,
+  options: {
+    tol?: number;
+    maxSubintervals?: number;
+  } = {}
 ): GaussKronrodResult {
-    const { tol = 1e-8, maxSubintervals = 200 } = options;
+  const { tol = 1e-8, maxSubintervals = 200 } = options;
 
-    if (!Number.isFinite(a) || !Number.isFinite(b)) {
-        throw new RangeError('gaussKronrod: a and b must be finite numbers');
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    throw new RangeError('gaussKronrod: a and b must be finite numbers');
+  }
+  if (!Number.isFinite(tol) || tol < 0) {
+    throw new RangeError('gaussKronrod: tol must be a finite non-negative number');
+  }
+  if (
+    !Number.isFinite(maxSubintervals) ||
+    !Number.isInteger(maxSubintervals) ||
+    maxSubintervals < 1
+  ) {
+    throw new RangeError('gaussKronrod: maxSubintervals must be a finite positive integer');
+  }
+  if (a === b) {
+    return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
+  }
+
+  const sign = a > b ? -1 : 1;
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+
+  let evaluations = 0;
+  const evalF = (x: number): number => {
+    evaluations++;
+    const y = f(x);
+    if (!Number.isFinite(y)) {
+      throw new Error(
+        `gaussKronrod: f(${x}) returned a non-finite value (${y}); cannot integrate.`
+      );
     }
-    if (!Number.isFinite(tol) || tol < 0) {
-        throw new RangeError('gaussKronrod: tol must be a finite non-negative number');
-    }
-    if (!Number.isFinite(maxSubintervals) || !Number.isInteger(maxSubintervals) || maxSubintervals < 1) {
-        throw new RangeError('gaussKronrod: maxSubintervals must be a finite positive integer');
-    }
-    if (a === b) {
-        return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
-    }
+    return y;
+  };
 
-    const sign = a > b ? -1 : 1;
-    const lo = Math.min(a, b);
-    const hi = Math.max(a, b);
+  const first = gaussKronrod15(evalF, lo, hi);
+  const panels: Panel[] = [{ a: lo, b: hi, kronrod: first.kronrod, error: first.error }];
 
-    let evaluations = 0;
-    const evalF = (x: number): number => {
-        evaluations++;
-        const y = f(x);
-        if (!Number.isFinite(y)) {
-            throw new Error(`gaussKronrod: f(${x}) returned a non-finite value (${y}); cannot integrate.`);
-        }
-        return y;
-    };
+  let totalValue = first.kronrod;
+  let totalError = first.error;
+  let converged = true;
 
-    const first = gaussKronrod15(evalF, lo, hi);
-    const panels: Panel[] = [{ a: lo, b: hi, kronrod: first.kronrod, error: first.error }];
-
-    let totalValue = first.kronrod;
-    let totalError = first.error;
-    let converged = true;
-
-    while (totalError > tol) {
-        if (panels.length >= maxSubintervals) {
-            converged = false;
-            break;
-        }
-
-        let worstIdx = 0;
-        for (let i = 1; i < panels.length; i++) {
-            if (panels[i].error > panels[worstIdx].error) worstIdx = i;
-        }
-        const worst = panels[worstIdx];
-
-        const mid = midpoint(worst.a, worst.b);
-        const left = gaussKronrod15(evalF, worst.a, mid);
-        const right = gaussKronrod15(evalF, mid, worst.b);
-
-        totalValue += left.kronrod + right.kronrod - worst.kronrod;
-        totalError += left.error + right.error - worst.error;
-
-        panels[worstIdx] = { a: worst.a, b: mid, kronrod: left.kronrod, error: left.error };
-        panels.push({ a: mid, b: worst.b, kronrod: right.kronrod, error: right.error });
+  while (totalError > tol) {
+    if (panels.length >= maxSubintervals) {
+      converged = false;
+      break;
     }
 
-    return {
-        value: sign * totalValue,
-        error: totalError,
-        evaluations,
-        converged,
-        subintervals: panels.length,
-    };
+    let worstIdx = 0;
+    for (let i = 1; i < panels.length; i++) {
+      if (panels[i].error > panels[worstIdx].error) worstIdx = i;
+    }
+    const worst = panels[worstIdx];
+
+    const mid = midpoint(worst.a, worst.b);
+    const left = gaussKronrod15(evalF, worst.a, mid);
+    const right = gaussKronrod15(evalF, mid, worst.b);
+
+    totalValue += left.kronrod + right.kronrod - worst.kronrod;
+    totalError += left.error + right.error - worst.error;
+
+    panels[worstIdx] = { a: worst.a, b: mid, kronrod: left.kronrod, error: left.error };
+    panels.push({ a: mid, b: worst.b, kronrod: right.kronrod, error: right.error });
+  }
+
+  return {
+    value: sign * totalValue,
+    error: totalError,
+    evaluations,
+    converged,
+    subintervals: panels.length
+  };
 }

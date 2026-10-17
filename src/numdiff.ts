@@ -36,51 +36,51 @@ const EPS = Number.EPSILON;
  * ```
  */
 export function scaleVector(x: Vector): Vector {
-    const sclx = Vector.ones(x.size);
+  const sclx = Vector.ones(x.size);
 
-    let xmax = 0;
-    let xmin = Infinity;
-    let hasNonZero = false;
+  let xmax = 0;
+  let xmin = Infinity;
+  let hasNonZero = false;
 
-    // Single pass to find both xmax (max absolute value) and xmin (min non-zero absolute value)
-    for (let i = 0; i < x.size; i++) {
-        const val = Math.abs(x.get(i));
+  // Single pass to find both xmax (max absolute value) and xmin (min non-zero absolute value)
+  for (let i = 0; i < x.size; i++) {
+    const val = Math.abs(x.get(i));
 
-        if (val > xmax) {
-            xmax = val;
-        }
-
-        if (val > 0) {
-            hasNonZero = true;
-            if (val < xmin) {
-                xmin = val;
-            }
-        }
+    if (val > xmax) {
+      xmax = val;
     }
 
-    // If there are no non-zero elements, return the vector of ones
-    if (!hasNonZero) {
-        return sclx;
+    if (val > 0) {
+      hasNonZero = true;
+      if (val < xmin) {
+        xmin = val;
+      }
     }
+  }
 
-    const logRatio = Math.log10(xmax / xmin);
-
-    // Second pass to assign the appropriate scaling factors
-    for (let i = 0; i < x.size; i++) {
-        const val = x.get(i);
-
-        if (val === 0.0) {
-            sclx.set(i, 1e1 / xmin);
-        } else {
-            if (logRatio >= 1.0) {
-                sclx.set(i, 1.0 / Math.abs(val));
-            } else {
-                sclx.set(i, 1.0 / xmax);
-            }
-        }
-    }
-
+  // If there are no non-zero elements, return the vector of ones
+  if (!hasNonZero) {
     return sclx;
+  }
+
+  const logRatio = Math.log10(xmax / xmin);
+
+  // Second pass to assign the appropriate scaling factors
+  for (let i = 0; i < x.size; i++) {
+    const val = x.get(i);
+
+    if (val === 0.0) {
+      sclx.set(i, 1e1 / xmin);
+    } else {
+      if (logRatio >= 1.0) {
+        sclx.set(i, 1.0 / Math.abs(val));
+      } else {
+        sclx.set(i, 1.0 / xmax);
+      }
+    }
+  }
+
+  return sclx;
 }
 
 /**
@@ -124,52 +124,52 @@ export function scaleVector(x: Vector): Vector {
  * ```
  */
 export function jacobianForward(
-    f: (x: Vector) => Vector,
-    x: Vector,
-    options: {
-        /** Function values at `x`, if available. */
-        fx?: Vector;
-        /**
-         * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
-         * default, the factors are set internally based on the magnitudes of `x`.
-         */
-        sclx?: Vector;
-        /**
-         * Machine precision of the function values. If undefined, machine precision of 64-bit
-         * floating-point type is assumed. If the number of reliable base-10 digits in the
-         * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
-         */
-        epsf?: number;
-    } = {}
+  f: (x: Vector) => Vector,
+  x: Vector,
+  options: {
+    /** Function values at `x`, if available. */
+    fx?: Vector;
+    /**
+     * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
+     * default, the factors are set internally based on the magnitudes of `x`.
+     */
+    sclx?: Vector;
+    /**
+     * Machine precision of the function values. If undefined, machine precision of 64-bit
+     * floating-point type is assumed. If the number of reliable base-10 digits in the
+     * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
+     */
+    epsf?: number;
+  } = {}
 ): Matrix {
-    const fx = options.fx ?? f(x);
-    const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
+  const fx = options.fx ?? f(x);
+  const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
 
-    const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
-    const h0 = Math.sqrt(epsf);
+  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
+  const h0 = Math.sqrt(epsf);
 
-    const jacobian = new Matrix(fx.size, x.size);
-    const xh = x.copy();
+  const jacobian = new Matrix(fx.size, x.size);
+  const xh = x.copy();
 
-    for (let i = 0; i < x.size; i++) {
-        let h = h0 * Math.max(Math.abs(x.get(i)), 1.0 / sclx.get(i));
-        const xTemp = xh.get(i);
+  for (let i = 0; i < x.size; i++) {
+    let h = h0 * Math.max(Math.abs(x.get(i)), 1.0 / sclx.get(i));
+    const xTemp = xh.get(i);
 
-        xh.set(i, xTemp + h);
+    xh.set(i, xTemp + h);
 
-        // Recompute step size to minimize floating-point error
-        h = xh.get(i) - xTemp;
+    // Recompute step size to minimize floating-point error
+    h = xh.get(i) - xTemp;
 
-        const fxh = f(xh);
-        const col = fxh.sub(fx).div(h);
+    const fxh = f(xh);
+    const col = fxh.sub(fx).div(h);
 
-        jacobian.setCol(i, col);
+    jacobian.setCol(i, col);
 
-        // Restore the modified component
-        xh.set(i, xTemp);
-    }
+    // Restore the modified component
+    xh.set(i, xTemp);
+  }
 
-    return jacobian;
+  return jacobian;
 }
 /**
  * Calculate the numerical derivative of a scalar function `f(x)` using the centered
@@ -202,35 +202,35 @@ export function jacobianForward(
  * ```
  */
 export function derivativeCentered(
-    f: (x: number) => number,
-    x: number,
-    options: {
-        /** Machine precision of the function values. */
-        epsf?: number;
-        /** Finite-difference step. If omitted, the theoretical optimum is used. */
-        h?: number;
-    } = {}
+  f: (x: number) => number,
+  x: number,
+  options: {
+    /** Machine precision of the function values. */
+    epsf?: number;
+    /** Finite-difference step. If omitted, the theoretical optimum is used. */
+    h?: number;
+  } = {}
 ): [number, number] {
-    const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
-    const h0 = Math.cbrt(3 * epsf);
-    let h: number;
+  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
+  const h0 = Math.cbrt(3 * epsf);
+  let h: number;
 
-    if (options.h === undefined) {
-        h = h0;
-    } else {
-        if (options.h === 0) {
-            throw new RangeError('derivativeCentered: h must be nonzero');
-        }
-        h = options.h;
+  if (options.h === undefined) {
+    h = h0;
+  } else {
+    if (options.h === 0) {
+      throw new RangeError('derivativeCentered: h must be nonzero');
     }
-    h *= Math.max(1.0, Math.abs(x));
+    h = options.h;
+  }
+  h *= Math.max(1.0, Math.abs(x));
 
-    const xp = x + h;
-    const xm = x - h;
-    const fp = f(xp);
-    const fm = f(xm);
-    const df = (fp - fm) / (xp - xm);
-    const fx = (fp + fm) / 2.0;
+  const xp = x + h;
+  const xm = x - h;
+  const fp = f(xp);
+  const fm = f(xm);
+  const df = (fp - fm) / (xp - xm);
+  const fx = (fp + fm) / 2.0;
 
-    return [df, fx];
+  return [df, fx];
 }

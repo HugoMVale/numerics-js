@@ -26,9 +26,8 @@
  * ```
  */
 export function clip(x: number, low: number, high: number): number {
-    return x < low ? low : x > high ? high : x;
+  return x < low ? low : x > high ? high : x;
 }
-
 
 /**
  * Returns a value with the magnitude of `magnitude` and the sign of `sign`.
@@ -55,9 +54,8 @@ export function clip(x: number, low: number, high: number): number {
  * ```
  */
 export function copysign(magnitude: number, sign: number): number {
-    return sign < 0 ? -Math.abs(magnitude) : Math.abs(magnitude);
+  return sign < 0 ? -Math.abs(magnitude) : Math.abs(magnitude);
 }
-
 
 /**
  * Checks whether two numbers are approximately equal, mirroring numpy.isclose:
@@ -83,7 +81,7 @@ export function copysign(magnitude: number, sign: number): number {
  * ```
  */
 export function isClose(a: number, b: number, atol: number, rtol: number = 1e-5): boolean {
-    return Math.abs(a - b) <= atol + rtol * Math.abs(b);
+  return Math.abs(a - b) <= atol + rtol * Math.abs(b);
 }
 
 /** Supported pseudo-random generator algorithms for {@link rand}. */
@@ -115,17 +113,17 @@ export type RandMethod = 'mulberry32';
  * ```
  */
 export function rand(seed: number, method: RandMethod = 'mulberry32'): () => number {
-    if (!Number.isFinite(seed)) {
-        throw new RangeError(`rand: seed must be finite, got ${seed}`);
-    }
-    if (method === 'mulberry32') {
-        let a = seed | 0;
-        return (): number => {
-            a = (a + 0x6d2b79f5) | 0;
-            let t = Math.imul(a ^ (a >>> 15), 1 | a);
-            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-    }
-    throw new RangeError(`rand: unknown method '${String(method)}'`);
+  if (!Number.isFinite(seed)) {
+    throw new RangeError(`rand: seed must be finite, got ${seed}`);
+  }
+  if (method === 'mulberry32') {
+    let a = seed | 0;
+    return (): number => {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  throw new RangeError(`rand: unknown method '${String(method)}'`);
 }

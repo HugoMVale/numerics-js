@@ -4,70 +4,70 @@ import { Vector } from '../../src/linalg/Vector.js';
  * Multivariate test functions commonly used in optimize benchmarks.
  */
 export interface TestFunctionData {
-    /** The objective function to minimize. */
-    fn: (x: Vector) => number;
-    /** Returns a standard N-dimensional starting point for this function. */
-    initialPoint: (n: number) => Vector;
-    /** The known global minimum value. */
-    globalMinimum: number;
+  /** The objective function to minimize. */
+  fn: (x: Vector) => number;
+  /** Returns a standard N-dimensional starting point for this function. */
+  initialPoint: (n: number) => Vector;
+  /** The known global minimum value. */
+  globalMinimum: number;
 }
 
 /** Per-component weights for the `ellipsoid` test function. */
 function ellipsoidCoeffs(n: number): number[] {
-    const denom = n > 1 ? n - 1 : 1;
-    return Array.from({ length: n }, (_, i) => 1e6 ** (i / denom));
+  const denom = n > 1 ? n - 1 : 1;
+  return Array.from({ length: n }, (_, i) => 1e6 ** (i / denom));
 }
 
 /** `u(x) = 0.5 * sum((i+1) * x_i)`, shared by the `zakharov` function. */
 function zakharovU(x: Vector): number {
-    let u = 0;
-    for (let i = 0; i < x.size; i++) u += 0.5 * (i + 1) * x.get(i);
-    return u;
+  let u = 0;
+  for (let i = 0; i < x.size; i++) u += 0.5 * (i + 1) * x.get(i);
+  return u;
 }
 
 export const TEST_FUNCTIONS_MULTIVAR: Record<string, TestFunctionData> = {
-    sphere: {
-        fn: (x) => {
-            let s = 0;
-            for (let i = 0; i < x.size; i++) s += x.get(i) ** 2;
-            return s;
-        },
-        // Simple start to verify basic algorithm correctness
-        initialPoint: (n) => Vector.full(n, 5.0),
-        globalMinimum: 0,
+  sphere: {
+    fn: (x) => {
+      let s = 0;
+      for (let i = 0; i < x.size; i++) s += x.get(i) ** 2;
+      return s;
     },
-    ellipsoid: {
-        fn: (x) => {
-            const coeffs = ellipsoidCoeffs(x.size);
-            let s = 0;
-            for (let i = 0; i < x.size; i++) s += coeffs[i] * x.get(i) ** 2;
-            return s;
-        },
-        // Asymmetric start -> exposes conditioning issues
-        initialPoint: (n) => Vector.linspace(1.0, 2.0, n),
-        globalMinimum: 0,
+    // Simple start to verify basic algorithm correctness
+    initialPoint: (n) => Vector.full(n, 5.0),
+    globalMinimum: 0
+  },
+  ellipsoid: {
+    fn: (x) => {
+      const coeffs = ellipsoidCoeffs(x.size);
+      let s = 0;
+      for (let i = 0; i < x.size; i++) s += coeffs[i] * x.get(i) ** 2;
+      return s;
     },
-    rosenbrock: {
-        fn: (x) => {
-            let s = 0;
-            for (let i = 0; i < x.size - 1; i++) {
-                s += 100 * (x.get(i + 1) - x.get(i) ** 2) ** 2 + (1 - x.get(i)) ** 2;
-            }
-            return s;
-        },
-        // Classic challenging but not extreme start
-        initialPoint: (n) => Vector.full(n, -1.2),
-        globalMinimum: 0,
+    // Asymmetric start -> exposes conditioning issues
+    initialPoint: (n) => Vector.linspace(1.0, 2.0, n),
+    globalMinimum: 0
+  },
+  rosenbrock: {
+    fn: (x) => {
+      let s = 0;
+      for (let i = 0; i < x.size - 1; i++) {
+        s += 100 * (x.get(i + 1) - x.get(i) ** 2) ** 2 + (1 - x.get(i)) ** 2;
+      }
+      return s;
     },
-    zakharov: {
-        fn: (x) => {
-            let s = 0;
-            for (let i = 0; i < x.size; i++) s += x.get(i) ** 2;
-            const u = zakharovU(x);
-            return s + u ** 2 + u ** 4;
-        },
-        // Initial point recommended by standard benchmark literature
-        initialPoint: (n) => Vector.full(n, 1.5),
-        globalMinimum: 0,
+    // Classic challenging but not extreme start
+    initialPoint: (n) => Vector.full(n, -1.2),
+    globalMinimum: 0
+  },
+  zakharov: {
+    fn: (x) => {
+      let s = 0;
+      for (let i = 0; i < x.size; i++) s += x.get(i) ** 2;
+      const u = zakharovU(x);
+      return s + u ** 2 + u ** 4;
     },
+    // Initial point recommended by standard benchmark literature
+    initialPoint: (n) => Vector.full(n, 1.5),
+    globalMinimum: 0
+  }
 };

@@ -32,11 +32,11 @@ and computes the accumulated temperature above ambient.
 import { linalg, integrate, interpolate, ode } from 'numerics-js';
 
 const solution = ode.rungeKuttaAdaptive(
-    'rk45',
-    (_t, y, dydt) => dydt.set([-(y.data[0] - 20) * 0.4]),
-    0,
-    10,
-    new linalg.Vector([100]),
+  'rk45',
+  (_t, y, dydt) => dydt.set([-(y.data[0] - 20) * 0.4]),
+  0,
+  10,
+  new linalg.Vector([100])
 );
 
 const times = solution.t;

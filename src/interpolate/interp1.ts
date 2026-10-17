@@ -1,6 +1,14 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
-import { prepareInterp1D, prepareInterpND, findBracket, integrateConstant, addConstantIntegral, Interp1DOptions, InterpNDOptions } from './common.js';
+import {
+  prepareInterp1D,
+  prepareInterpND,
+  findBracket,
+  integrateConstant,
+  addConstantIntegral,
+  Interp1DOptions,
+  InterpNDOptions
+} from './common.js';
 
 /**
  * Interpolates a single scalar value, locating the bracketing interval in
@@ -12,23 +20,29 @@ import { prepareInterp1D, prepareInterpND, findBracket, integrateConstant, addCo
  * @param rightVal Value to return for `xi > xp[xp.size - 1]`.
  * @returns The interpolated (or clamped) value at `xi`.
  */
-function interpOne1D(xi: number, xp: Vector, fp: Vector, leftVal: number, rightVal: number): number {
-    const n = xp.size;
-    const xpd = xp.data;
-    const fpd = fp.data;
+function interpOne1D(
+  xi: number,
+  xp: Vector,
+  fp: Vector,
+  leftVal: number,
+  rightVal: number
+): number {
+  const n = xp.size;
+  const xpd = xp.data;
+  const fpd = fp.data;
 
-    // NaN propagates, matching Vector.min/max's NaN-wins convention.
-    if (Number.isNaN(xi)) return NaN;
-    if (xi < xpd[0]) return leftVal;
-    if (xi > xpd[n - 1]) return rightVal;
+  // NaN propagates, matching Vector.min/max's NaN-wins convention.
+  if (Number.isNaN(xi)) return NaN;
+  if (xi < xpd[0]) return leftVal;
+  if (xi > xpd[n - 1]) return rightVal;
 
-    const [lo, hi] = findBracket(xi, xpd);
+  const [lo, hi] = findBracket(xi, xpd);
 
-    const x0 = xpd[lo];
-    const x1 = xpd[hi];
-    if (x1 === x0) return fpd[lo]; // duplicate x-coordinates: avoid 0/0
-    const t = (xi - x0) / (x1 - x0);
-    return fpd[lo] + t * (fpd[hi] - fpd[lo]);
+  const x0 = xpd[lo];
+  const x1 = xpd[hi];
+  if (x1 === x0) return fpd[lo]; // duplicate x-coordinates: avoid 0/0
+  const t = (xi - x0) / (x1 - x0);
+  return fpd[lo] + t * (fpd[hi] - fpd[lo]);
 }
 
 /**
@@ -40,43 +54,49 @@ function interpOne1D(xi: number, xp: Vector, fp: Vector, leftVal: number, rightV
  * @param rightVal Value to return for components above `xp[xp.size - 1]`.
  * @returns The interpolated (or clamped) values, one per component of `x`.
  */
-function interpMany1D(x: number[] | Vector, xp: Vector, fp: Vector, leftVal: number, rightVal: number): Vector {
-    const xv = x instanceof Vector ? x : Vector.from(x);
-    const res = new Vector(xv.size);
-    const xdata = xv.data;
-    const rdata = res.data;
-    for (let i = 0; i < xv.size; i++) {
-        rdata[i] = interpOne1D(xdata[i], xp, fp, leftVal, rightVal);
-    }
-    return res;
+function interpMany1D(
+  x: number[] | Vector,
+  xp: Vector,
+  fp: Vector,
+  leftVal: number,
+  rightVal: number
+): Vector {
+  const xv = x instanceof Vector ? x : Vector.from(x);
+  const res = new Vector(xv.size);
+  const xdata = xv.data;
+  const rdata = res.data;
+  for (let i = 0; i < xv.size; i++) {
+    rdata[i] = interpOne1D(xdata[i], xp, fp, leftVal, rightVal);
+  }
+  return res;
 }
 
 /**
  * Evaluates the derivative of the piecewise-linear interpolant at one point.
  */
 function linearDerivativeOne1D(xi: number, xp: Vector, fp: Vector): number {
-    const n = xp.size;
-    const xpd = xp.data;
-    const fpd = fp.data;
+  const n = xp.size;
+  const xpd = xp.data;
+  const fpd = fp.data;
 
-    if (Number.isNaN(xi)) return NaN;
-    if (xi < xpd[0] || xi > xpd[n - 1]) return 0;
+  if (Number.isNaN(xi)) return NaN;
+  if (xi < xpd[0] || xi > xpd[n - 1]) return 0;
 
-    const [lo, hi] = findBracket(xi, xpd);
+  const [lo, hi] = findBracket(xi, xpd);
 
-    const h = xpd[hi] - xpd[lo];
-    return h === 0 ? 0 : (fpd[hi] - fpd[lo]) / h;
+  const h = xpd[hi] - xpd[lo];
+  return h === 0 ? 0 : (fpd[hi] - fpd[lo]) / h;
 }
 
 function linearDerivativeMany1D(x: number[] | Vector, xp: Vector, fp: Vector): Vector {
-    const xv = x instanceof Vector ? x : Vector.from(x);
-    const res = new Vector(xv.size);
-    const xdata = xv.data;
-    const rdata = res.data;
-    for (let i = 0; i < xv.size; i++) {
-        rdata[i] = linearDerivativeOne1D(xdata[i], xp, fp);
-    }
-    return res;
+  const xv = x instanceof Vector ? x : Vector.from(x);
+  const res = new Vector(xv.size);
+  const xdata = xv.data;
+  const rdata = res.data;
+  for (let i = 0; i < xv.size; i++) {
+    rdata[i] = linearDerivativeOne1D(xdata[i], xp, fp);
+  }
+  return res;
 }
 
 // -----------------------------------------------------------------
@@ -88,82 +108,104 @@ function linearDerivativeMany1D(x: number[] | Vector, xp: Vector, fp: Vector): V
 // of avoiding a per-component Vector allocation in the hot loop.
 // -----------------------------------------------------------------
 
-function interpOneND(xi: number, xp: Vector, fp: Matrix, leftVal: Vector, rightVal: Vector): Vector {
-    const n = xp.size;
-    const xpd = xp.data;
-    const m = fp.cols;
+function interpOneND(
+  xi: number,
+  xp: Vector,
+  fp: Matrix,
+  leftVal: Vector,
+  rightVal: Vector
+): Vector {
+  const n = xp.size;
+  const xpd = xp.data;
+  const m = fp.cols;
 
-    if (Number.isNaN(xi)) return Vector.full(m, NaN);
-    if (xi < xpd[0]) return leftVal.copy();
-    if (xi > xpd[n - 1]) return rightVal.copy();
+  if (Number.isNaN(xi)) return Vector.full(m, NaN);
+  if (xi < xpd[0]) return leftVal.copy();
+  if (xi > xpd[n - 1]) return rightVal.copy();
 
-    const [lo, hi] = findBracket(xi, xpd);
-    const x0 = xpd[lo];
-    const x1 = xpd[hi];
-    const loOff = fp.flatIndex(lo, 0);
-    const hiOff = fp.flatIndex(hi, 0);
+  const [lo, hi] = findBracket(xi, xpd);
+  const x0 = xpd[lo];
+  const x1 = xpd[hi];
+  const loOff = fp.flatIndex(lo, 0);
+  const hiOff = fp.flatIndex(hi, 0);
 
-    const res = new Vector(m);
-    if (x1 === x0) {
-        for (let j = 0; j < m; j++) res.data[j] = fp.data[loOff + j];
-        return res;
-    }
-    const t = (xi - x0) / (x1 - x0);
-    for (let j = 0; j < m; j++) {
-        const y0 = fp.data[loOff + j];
-        const y1 = fp.data[hiOff + j];
-        res.data[j] = y0 + t * (y1 - y0);
-    }
+  const res = new Vector(m);
+  if (x1 === x0) {
+    for (let j = 0; j < m; j++) res.data[j] = fp.data[loOff + j];
     return res;
+  }
+  const t = (xi - x0) / (x1 - x0);
+  for (let j = 0; j < m; j++) {
+    const y0 = fp.data[loOff + j];
+    const y1 = fp.data[hiOff + j];
+    res.data[j] = y0 + t * (y1 - y0);
+  }
+  return res;
 }
 
-function interpManyND(x: number[] | Vector, xp: Vector, fp: Matrix, leftVal: Vector, rightVal: Vector, caller: string): Matrix {
-    const xv = x instanceof Vector ? x : Vector.from(x);
-    if (xv.size === 0) {
-        throw new RangeError(`${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`);
-    }
-    const m = fp.cols;
-    const res = new Matrix(xv.size, m);
-    for (let i = 0; i < xv.size; i++) {
-        const row = interpOneND(xv.data[i], xp, fp, leftVal, rightVal);
-        res.setRow(i, row);
-    }
-    return res;
+function interpManyND(
+  x: number[] | Vector,
+  xp: Vector,
+  fp: Matrix,
+  leftVal: Vector,
+  rightVal: Vector,
+  caller: string
+): Matrix {
+  const xv = x instanceof Vector ? x : Vector.from(x);
+  if (xv.size === 0) {
+    throw new RangeError(
+      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
+    );
+  }
+  const m = fp.cols;
+  const res = new Matrix(xv.size, m);
+  for (let i = 0; i < xv.size; i++) {
+    const row = interpOneND(xv.data[i], xp, fp, leftVal, rightVal);
+    res.setRow(i, row);
+  }
+  return res;
 }
 
 function linearDerivativeOneND(xi: number, xp: Vector, fp: Matrix): Vector {
-    const n = xp.size;
-    const xpd = xp.data;
-    const m = fp.cols;
+  const n = xp.size;
+  const xpd = xp.data;
+  const m = fp.cols;
 
-    if (Number.isNaN(xi)) return Vector.full(m, NaN);
-    if (xi < xpd[0] || xi > xpd[n - 1]) return new Vector(m);
+  if (Number.isNaN(xi)) return Vector.full(m, NaN);
+  if (xi < xpd[0] || xi > xpd[n - 1]) return new Vector(m);
 
-    const [lo, hi] = findBracket(xi, xpd);
-    const h = xpd[hi] - xpd[lo];
+  const [lo, hi] = findBracket(xi, xpd);
+  const h = xpd[hi] - xpd[lo];
 
-    const res = new Vector(m);
-    if (h === 0) return res;
-    const loOff = fp.flatIndex(lo, 0);
-    const hiOff = fp.flatIndex(hi, 0);
-    for (let j = 0; j < m; j++) {
-        res.data[j] = (fp.data[hiOff + j] - fp.data[loOff + j]) / h;
-    }
-    return res;
+  const res = new Vector(m);
+  if (h === 0) return res;
+  const loOff = fp.flatIndex(lo, 0);
+  const hiOff = fp.flatIndex(hi, 0);
+  for (let j = 0; j < m; j++) {
+    res.data[j] = (fp.data[hiOff + j] - fp.data[loOff + j]) / h;
+  }
+  return res;
 }
 
-function linearDerivativeManyND(x: number[] | Vector, xp: Vector, fp: Matrix, caller: string): Matrix {
-    const xv = x instanceof Vector ? x : Vector.from(x);
-    if (xv.size === 0) {
-        throw new RangeError(`${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`);
-    }
-    const m = fp.cols;
-    const res = new Matrix(xv.size, m);
-    for (let i = 0; i < xv.size; i++) {
-        const row = linearDerivativeOneND(xv.data[i], xp, fp);
-        res.setRow(i, row);
-    }
-    return res;
+function linearDerivativeManyND(
+  x: number[] | Vector,
+  xp: Vector,
+  fp: Matrix,
+  caller: string
+): Matrix {
+  const xv = x instanceof Vector ? x : Vector.from(x);
+  if (xv.size === 0) {
+    throw new RangeError(
+      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
+    );
+  }
+  const m = fp.cols;
+  const res = new Matrix(xv.size, m);
+  for (let i = 0; i < xv.size; i++) {
+    const row = linearDerivativeOneND(xv.data[i], xp, fp);
+    res.setRow(i, row);
+  }
+  return res;
 }
 
 /**
@@ -199,134 +241,134 @@ function linearDerivativeManyND(x: number[] | Vector, xp: Vector, fp: Matrix, ca
  * ```
  */
 export class LinearInterpolator1D {
-    private readonly xp: Vector;
-    private readonly fp: Vector;
-    private readonly leftVal: number;
-    private readonly rightVal: number;
+  private readonly xp: Vector;
+  private readonly fp: Vector;
+  private readonly leftVal: number;
+  private readonly rightVal: number;
 
-    /**
-     * @param xp The `x`-coordinates of the data points. Must be
-    * monotonically increasing (duplicates allowed), finite, and non-empty.
-     * @param fp The `y`-coordinates of the data points. Must have the same
-     * length as `xp`.
-     * @param options Optional settings; see {@link Interp1DOptions}. Validation
-     * (matching lengths, non-empty, and, unless `options.checkSorted` is
-     * `false`, sorted) happens once, here in the constructor.
-     * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
-    * lengths, if `xp` contains non-finite values, or (when
-    * `options.checkSorted` is `true`) if `xp` is not monotonically increasing.
-     */
-    constructor(xp: number[] | Vector, fp: number[] | Vector, options: Interp1DOptions = {}) {
-        const { left, right, checkSorted = true } = options;
-        const p = prepareInterp1D(xp, fp, left, right, checkSorted, 'LinearInterpolator1D');
-        this.xp = p.xp;
-        this.fp = p.fp;
-        this.leftVal = p.leftVal;
-        this.rightVal = p.rightVal;
+  /**
+   * @param xp The `x`-coordinates of the data points. Must be
+   * monotonically increasing (duplicates allowed), finite, and non-empty.
+   * @param fp The `y`-coordinates of the data points. Must have the same
+   * length as `xp`.
+   * @param options Optional settings; see {@link Interp1DOptions}. Validation
+   * (matching lengths, non-empty, and, unless `options.checkSorted` is
+   * `false`, sorted) happens once, here in the constructor.
+   * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
+   * lengths, if `xp` contains non-finite values, or (when
+   * `options.checkSorted` is `true`) if `xp` is not monotonically increasing.
+   */
+  constructor(xp: number[] | Vector, fp: number[] | Vector, options: Interp1DOptions = {}) {
+    const { left, right, checkSorted = true } = options;
+    const p = prepareInterp1D(xp, fp, left, right, checkSorted, 'LinearInterpolator1D');
+    this.xp = p.xp;
+    this.fp = p.fp;
+    this.leftVal = p.leftVal;
+    this.rightVal = p.rightVal;
+  }
+
+  /**
+   * The number of data points backing this interpolant.
+   */
+  get size(): number {
+    return this.xp.size;
+  }
+
+  /**
+   * Evaluates the first derivative of the interpolant at `x`.
+   * Values outside the data range return `0`, the derivative of the
+   * constant clamping regions. At a knot, this returns the slope of the
+   * segment to its right (or the final segment at the right endpoint).
+   * @param x The x-coordinate(s) at which to evaluate. A single
+   * `number` returns a `number`; a plain array or `Vector` returns an
+   * `Vector`.
+   * @returns The derivative value(s), matching the shape of `x`.
+   */
+  derivative(x: number): number;
+  derivative(x: number[] | Vector): Vector;
+  derivative(x: number | number[] | Vector): number | Vector {
+    if (typeof x === 'number') {
+      return linearDerivativeOne1D(x, this.xp, this.fp);
+    }
+    return linearDerivativeMany1D(x, this.xp, this.fp);
+  }
+
+  /**
+   * Integrates the interpolant from `a` to `b` using the trapezoid rule.
+   *
+   * The integration includes every interpolation knot between the bounds,
+   * with `left`/`right` clamp values used outside the `xp` range. Since the
+   * interpolant is piecewise linear, applying the trapezoid rule at the
+   * interpolation knots is exact (up to floating-point rounding). Reversed
+   * bounds return the negative of the integral with the bounds swapped.
+   *
+   * @param a Lower integration bound `a`.
+   * @param b Upper integration bound `b`.
+   * @returns The integral of the interpolant over `[a, b]`.
+   * @throws {RangeError} If either bound is `NaN`.
+   */
+  integrate(a: number, b: number): number {
+    if (Number.isNaN(a) || Number.isNaN(b)) {
+      throw new RangeError('LinearInterpolator1D.integrate: bounds must not be NaN');
+    }
+    if (a === b) return 0;
+    if (b < a) return -this.integrate(b, a);
+
+    const n = this.xp.size;
+    const xpd = this.xp.data;
+    const fpd = this.fp.data;
+
+    let total = 0;
+
+    if (a < xpd[0]) {
+      const end = Math.min(b, xpd[0]);
+      total += integrateConstant(end - a, this.leftVal);
     }
 
-    /**
-     * The number of data points backing this interpolant.
-     */
-    get size(): number {
-        return this.xp.size;
+    const startX = Math.max(a, xpd[0]);
+    const endX = Math.min(b, xpd[n - 1]);
+    if (startX < endX) {
+      for (let i = 0; i < n - 1; i++) {
+        const x0 = xpd[i];
+        const xNext = xpd[i + 1];
+        if (xNext <= startX) continue;
+        if (x0 >= endX) break;
+
+        const current = Math.max(startX, x0);
+        const next = Math.min(endX, xNext);
+        const h = xNext - x0;
+        if (h <= 0 || current >= next) continue;
+
+        const t0 = (current - x0) / h;
+        const t1 = (next - x0) / h;
+        const y0 = fpd[i] + t0 * (fpd[i + 1] - fpd[i]);
+        const y1 = fpd[i] + t1 * (fpd[i + 1] - fpd[i]);
+        total += (next - current) * (y0 + y1) * 0.5;
+      }
     }
 
-    /**
-     * Evaluates the first derivative of the interpolant at `x`.
-     * Values outside the data range return `0`, the derivative of the
-     * constant clamping regions. At a knot, this returns the slope of the
-     * segment to its right (or the final segment at the right endpoint).
-     * @param x The x-coordinate(s) at which to evaluate. A single
-     * `number` returns a `number`; a plain array or `Vector` returns an
-     * `Vector`.
-     * @returns The derivative value(s), matching the shape of `x`.
-     */
-    derivative(x: number): number;
-    derivative(x: number[] | Vector): Vector;
-    derivative(x: number | number[] | Vector): number | Vector {
-        if (typeof x === 'number') {
-            return linearDerivativeOne1D(x, this.xp, this.fp);
-        }
-        return linearDerivativeMany1D(x, this.xp, this.fp);
+    if (b > xpd[n - 1]) {
+      const start = Math.max(a, xpd[n - 1]);
+      total += integrateConstant(b - start, this.rightVal);
     }
+    return total;
+  }
 
-    /**
-     * Integrates the interpolant from `a` to `b` using the trapezoid rule.
-     *
-     * The integration includes every interpolation knot between the bounds,
-     * with `left`/`right` clamp values used outside the `xp` range. Since the
-     * interpolant is piecewise linear, applying the trapezoid rule at the
-     * interpolation knots is exact (up to floating-point rounding). Reversed
-     * bounds return the negative of the integral with the bounds swapped.
-     *
-     * @param a Lower integration bound `a`.
-     * @param b Upper integration bound `b`.
-     * @returns The integral of the interpolant over `[a, b]`.
-     * @throws {RangeError} If either bound is `NaN`.
-     */
-    integrate(a: number, b: number): number {
-        if (Number.isNaN(a) || Number.isNaN(b)) {
-            throw new RangeError('LinearInterpolator1D.integrate: bounds must not be NaN');
-        }
-        if (a === b) return 0;
-        if (b < a) return -this.integrate(b, a);
-
-        const n = this.xp.size;
-        const xpd = this.xp.data;
-        const fpd = this.fp.data;
-
-        let total = 0;
-
-        if (a < xpd[0]) {
-            const end = Math.min(b, xpd[0]);
-            total += integrateConstant(end - a, this.leftVal);
-        }
-
-        const startX = Math.max(a, xpd[0]);
-        const endX = Math.min(b, xpd[n - 1]);
-        if (startX < endX) {
-            for (let i = 0; i < n - 1; i++) {
-                const x0 = xpd[i];
-                const xNext = xpd[i + 1];
-                if (xNext <= startX) continue;
-                if (x0 >= endX) break;
-
-                const current = Math.max(startX, x0);
-                const next = Math.min(endX, xNext);
-                const h = xNext - x0;
-                if (h <= 0 || current >= next) continue;
-
-                const t0 = (current - x0) / h;
-                const t1 = (next - x0) / h;
-                const y0 = fpd[i] + t0 * (fpd[i + 1] - fpd[i]);
-                const y1 = fpd[i] + t1 * (fpd[i + 1] - fpd[i]);
-                total += (next - current) * (y0 + y1) * 0.5;
-            }
-        }
-
-        if (b > xpd[n - 1]) {
-            const start = Math.max(a, xpd[n - 1]);
-            total += integrateConstant(b - start, this.rightVal);
-        }
-        return total;
+  /**
+   * Evaluates the interpolant at `x`.
+   * @param x The x-coordinate(s) at which to evaluate. A single
+   * `number` returns a `number`; a plain array or `Vector` returns an
+   * `Vector`.
+   * @returns The interpolated value(s), matching the shape of `x`.
+   */
+  eval(x: number): number;
+  eval(x: number[] | Vector): Vector;
+  eval(x: number | number[] | Vector): number | Vector {
+    if (typeof x === 'number') {
+      return interpOne1D(x, this.xp, this.fp, this.leftVal, this.rightVal);
     }
-
-    /**
-     * Evaluates the interpolant at `x`.
-     * @param x The x-coordinate(s) at which to evaluate. A single
-     * `number` returns a `number`; a plain array or `Vector` returns an
-     * `Vector`.
-     * @returns The interpolated value(s), matching the shape of `x`.
-     */
-    eval(x: number): number;
-    eval(x: number[] | Vector): Vector;
-    eval(x: number | number[] | Vector): number | Vector {
-        if (typeof x === 'number') {
-            return interpOne1D(x, this.xp, this.fp, this.leftVal, this.rightVal);
-        }
-        return interpMany1D(x, this.xp, this.fp, this.leftVal, this.rightVal);
-    }
+    return interpMany1D(x, this.xp, this.fp, this.leftVal, this.rightVal);
+  }
 }
 
 /**
@@ -340,7 +382,7 @@ export class LinearInterpolator1D {
  *
  * For interpolating a scalar-valued function (`number -> number`),
  * see {@link LinearInterpolator1D}.
- * 
+ *
  * @example
  * ```ts
  * import { Matrix } from 'numerics-js/linalg';
@@ -358,148 +400,155 @@ export class LinearInterpolator1D {
  * ```
  */
 export class LinearInterpolatorND {
-    private readonly xp: Vector;
-    private readonly fp: Matrix;
-    private readonly leftVal: Vector;
-    private readonly rightVal: Vector;
+  private readonly xp: Vector;
+  private readonly fp: Matrix;
+  private readonly leftVal: Vector;
+  private readonly rightVal: Vector;
 
-    /**
-     * @param xp The `x`-coordinates of the data points, shared by every
-    * output component. Must be monotonically increasing (duplicates
-    * allowed), finite, and non-empty.
-     * @param fp The vector-valued data points: row `i` is the value at
-     * `xp[i]`. Must have `fp.rows === xp.length`.
-     * @param options Optional settings; see {@link InterpNDOptions}.
-     * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
-     * if an explicit `options.left` or `options.right` array/`Vector` does
-     * not have length `fp.cols`, if `xp` contains non-finite values, or
-     * (when `options.checkSorted` is `true`) if `xp` is not monotonically
-     * increasing.
-     */
-    constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
-        const { left, right, checkSorted = true } = options;
-        const p = prepareInterpND(xp, fp, left, right, checkSorted, 'LinearInterpolatorND');
-        this.xp = p.xp;
-        this.fp = p.fp;
-        this.leftVal = p.leftVal;
-        this.rightVal = p.rightVal;
+  /**
+   * @param xp The `x`-coordinates of the data points, shared by every
+   * output component. Must be monotonically increasing (duplicates
+   * allowed), finite, and non-empty.
+   * @param fp The vector-valued data points: row `i` is the value at
+   * `xp[i]`. Must have `fp.rows === xp.length`.
+   * @param options Optional settings; see {@link InterpNDOptions}.
+   * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
+   * if an explicit `options.left` or `options.right` array/`Vector` does
+   * not have length `fp.cols`, if `xp` contains non-finite values, or
+   * (when `options.checkSorted` is `true`) if `xp` is not monotonically
+   * increasing.
+   */
+  constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
+    const { left, right, checkSorted = true } = options;
+    const p = prepareInterpND(xp, fp, left, right, checkSorted, 'LinearInterpolatorND');
+    this.xp = p.xp;
+    this.fp = p.fp;
+    this.leftVal = p.leftVal;
+    this.rightVal = p.rightVal;
+  }
+
+  /**
+   * The number of data points (knots) backing this interpolant.
+   */
+  get size(): number {
+    return this.xp.size;
+  }
+
+  /**
+   * The dimension of the interpolated output vector (`fp.cols`).
+   */
+  get dim(): number {
+    return this.fp.cols;
+  }
+
+  /**
+   * Evaluates the first derivative of the interpolant at `x`, component-wise.
+   * Values outside the data range return the zero vector, the derivative
+   * of the constant clamping regions.
+   * @param x The x-coordinate(s) at which to evaluate. A single `number`
+   * returns a `Vector`; a plain array or `Vector` returns a `Matrix`
+   * (one row per evaluation point).
+   * @returns The derivative value(s), matching the shape of `x`.
+   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * (`Matrix` cannot represent a result with `0` rows).
+   */
+  derivative(x: number): Vector;
+  derivative(x: number[] | Vector): Matrix;
+  derivative(x: number | number[] | Vector): Vector | Matrix {
+    if (typeof x === 'number') {
+      return linearDerivativeOneND(x, this.xp, this.fp);
+    }
+    return linearDerivativeManyND(x, this.xp, this.fp, 'LinearInterpolatorND.derivative');
+  }
+
+  /**
+   * Integrates the interpolant from `a` to `b`, component-wise, using
+   * the trapezoid rule. See `LinearInterpolator1D.integrate` for the
+   * algorithm; this applies it independently to each output component.
+   * @param a Lower integration bound `a`.
+   * @param b Upper integration bound `b`.
+   * @returns A `Vector` of length `dim`, the integral of each component over `[a, b]`.
+   * @throws {RangeError} If either bound is `NaN`.
+   */
+  integrate(a: number, b: number): Vector {
+    if (Number.isNaN(a) || Number.isNaN(b)) {
+      throw new RangeError('LinearInterpolatorND.integrate: bounds must not be NaN');
+    }
+    const m = this.dim;
+    if (a === b) return new Vector(m);
+    if (b < a) return this.integrate(b, a).mult(-1);
+
+    const n = this.xp.size;
+    const xpd = this.xp.data;
+    const fp = this.fp;
+
+    const total = new Vector(m);
+
+    if (a < xpd[0]) {
+      const end = Math.min(b, xpd[0]);
+      addConstantIntegral(total, this.leftVal, end - a);
     }
 
-    /**
-     * The number of data points (knots) backing this interpolant.
-     */
-    get size(): number {
-        return this.xp.size;
+    const startX = Math.max(a, xpd[0]);
+    const endX = Math.min(b, xpd[n - 1]);
+    if (startX < endX) {
+      for (let i = 0; i < n - 1; i++) {
+        const x0 = xpd[i];
+        const x1 = xpd[i + 1];
+        if (x1 <= startX) continue;
+        if (x0 >= endX) break;
+
+        const current = Math.max(startX, x0);
+        const next = Math.min(endX, x1);
+        const h = x1 - x0;
+        if (h <= 0 || current >= next) continue;
+
+        const t0 = (current - x0) / h;
+        const t1 = (next - x0) / h;
+        const row0 = fp.flatIndex(i, 0);
+        const row1 = fp.flatIndex(i + 1, 0);
+        const width = next - current;
+        for (let j = 0; j < m; j++) {
+          const y0 = fp.data[row0 + j];
+          const y1 = fp.data[row1 + j];
+          const value0 = y0 + t0 * (y1 - y0);
+          const value1 = y0 + t1 * (y1 - y0);
+          total.data[j] += width * (value0 + value1) * 0.5;
+        }
+      }
     }
 
-    /**
-     * The dimension of the interpolated output vector (`fp.cols`).
-     */
-    get dim(): number {
-        return this.fp.cols;
+    if (b > xpd[n - 1]) {
+      const start = Math.max(a, xpd[n - 1]);
+      addConstantIntegral(total, this.rightVal, b - start);
     }
+    return total;
+  }
 
-    /**
-     * Evaluates the first derivative of the interpolant at `x`, component-wise.
-     * Values outside the data range return the zero vector, the derivative
-     * of the constant clamping regions.
-     * @param x The x-coordinate(s) at which to evaluate. A single `number`
-     * returns a `Vector`; a plain array or `Vector` returns a `Matrix`
-     * (one row per evaluation point).
-     * @returns The derivative value(s), matching the shape of `x`.
-     * @throws {RangeError} If `x` is an array/`Vector` of length `0`
-     * (`Matrix` cannot represent a result with `0` rows).
-     */
-    derivative(x: number): Vector;
-    derivative(x: number[] | Vector): Matrix;
-    derivative(x: number | number[] | Vector): Vector | Matrix {
-        if (typeof x === 'number') {
-            return linearDerivativeOneND(x, this.xp, this.fp);
-        }
-        return linearDerivativeManyND(x, this.xp, this.fp, 'LinearInterpolatorND.derivative');
+  /**
+   * Evaluates the interpolant at `x`.
+   * @param x The x-coordinate(s) at which to evaluate. A single `number`
+   * returns a `Vector` (length `dim`); a plain array or `Vector` returns
+   * a `Matrix` (one row per evaluation point, `dim` columns).
+   * @returns The interpolated value(s), matching the shape of `x`.
+   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * (`Matrix` cannot represent a result with `0` rows).
+   */
+  eval(x: number): Vector;
+  eval(x: number[] | Vector): Matrix;
+  eval(x: number | number[] | Vector): Vector | Matrix {
+    if (typeof x === 'number') {
+      return interpOneND(x, this.xp, this.fp, this.leftVal, this.rightVal);
     }
-
-    /**
-     * Integrates the interpolant from `a` to `b`, component-wise, using
-     * the trapezoid rule. See `LinearInterpolator1D.integrate` for the
-     * algorithm; this applies it independently to each output component.
-     * @param a Lower integration bound `a`.
-     * @param b Upper integration bound `b`.
-     * @returns A `Vector` of length `dim`, the integral of each component over `[a, b]`.
-     * @throws {RangeError} If either bound is `NaN`.
-     */
-    integrate(a: number, b: number): Vector {
-        if (Number.isNaN(a) || Number.isNaN(b)) {
-            throw new RangeError('LinearInterpolatorND.integrate: bounds must not be NaN');
-        }
-        const m = this.dim;
-        if (a === b) return new Vector(m);
-        if (b < a) return this.integrate(b, a).mult(-1);
-
-        const n = this.xp.size;
-        const xpd = this.xp.data;
-        const fp = this.fp;
-
-        const total = new Vector(m);
-
-        if (a < xpd[0]) {
-            const end = Math.min(b, xpd[0]);
-            addConstantIntegral(total, this.leftVal, end - a);
-        }
-
-        const startX = Math.max(a, xpd[0]);
-        const endX = Math.min(b, xpd[n - 1]);
-        if (startX < endX) {
-            for (let i = 0; i < n - 1; i++) {
-                const x0 = xpd[i];
-                const x1 = xpd[i + 1];
-                if (x1 <= startX) continue;
-                if (x0 >= endX) break;
-
-                const current = Math.max(startX, x0);
-                const next = Math.min(endX, x1);
-                const h = x1 - x0;
-                if (h <= 0 || current >= next) continue;
-
-                const t0 = (current - x0) / h;
-                const t1 = (next - x0) / h;
-                const row0 = fp.flatIndex(i, 0);
-                const row1 = fp.flatIndex(i + 1, 0);
-                const width = next - current;
-                for (let j = 0; j < m; j++) {
-                    const y0 = fp.data[row0 + j];
-                    const y1 = fp.data[row1 + j];
-                    const value0 = y0 + t0 * (y1 - y0);
-                    const value1 = y0 + t1 * (y1 - y0);
-                    total.data[j] += width * (value0 + value1) * 0.5;
-                }
-            }
-        }
-
-        if (b > xpd[n - 1]) {
-            const start = Math.max(a, xpd[n - 1]);
-            addConstantIntegral(total, this.rightVal, b - start);
-        }
-        return total;
-    }
-
-    /**
-     * Evaluates the interpolant at `x`.
-     * @param x The x-coordinate(s) at which to evaluate. A single `number`
-     * returns a `Vector` (length `dim`); a plain array or `Vector` returns
-     * a `Matrix` (one row per evaluation point, `dim` columns).
-     * @returns The interpolated value(s), matching the shape of `x`.
-     * @throws {RangeError} If `x` is an array/`Vector` of length `0`
-     * (`Matrix` cannot represent a result with `0` rows).
-     */
-    eval(x: number): Vector;
-    eval(x: number[] | Vector): Matrix;
-    eval(x: number | number[] | Vector): Vector | Matrix {
-        if (typeof x === 'number') {
-            return interpOneND(x, this.xp, this.fp, this.leftVal, this.rightVal);
-        }
-        return interpManyND(x, this.xp, this.fp, this.leftVal, this.rightVal, 'LinearInterpolatorND.eval');
-    }
+    return interpManyND(
+      x,
+      this.xp,
+      this.fp,
+      this.leftVal,
+      this.rightVal,
+      'LinearInterpolatorND.eval'
+    );
+  }
 }
 
 /**
@@ -514,8 +563,8 @@ export class LinearInterpolatorND {
  *
  * A one-shot convenience function. If you need to evaluate the same
  * `(xp, fp)` pair more than once, construct a `LinearInterpolator1D` directly to
- * avoid re-validating `xp`/`fp` on every call. 
- * 
+ * avoid re-validating `xp`/`fp` on every call.
+ *
  * For a vector-valued `fp`, see {@link interpND}.
  *
  * @param x The `x`-coordinate(s) at which to evaluate the interpolated
@@ -550,37 +599,42 @@ export class LinearInterpolatorND {
  * ```
  */
 export function interp1D(
-    x: number,
-    xp: number[] | Vector,
-    fp: number[] | Vector,
-    options?: Interp1DOptions
+  x: number,
+  xp: number[] | Vector,
+  fp: number[] | Vector,
+  options?: Interp1DOptions
 ): number;
 export function interp1D(
-    x: number[] | Vector,
-    xp: number[] | Vector,
-    fp: number[] | Vector,
-    options?: Interp1DOptions
+  x: number[] | Vector,
+  xp: number[] | Vector,
+  fp: number[] | Vector,
+  options?: Interp1DOptions
 ): Vector;
 export function interp1D(
-    x: number | number[] | Vector,
-    xp: number[] | Vector,
-    fp: number[] | Vector,
-    options: Interp1DOptions = {}
+  x: number | number[] | Vector,
+  xp: number[] | Vector,
+  fp: number[] | Vector,
+  options: Interp1DOptions = {}
 ): number | Vector {
-    const { left, right, checkSorted = true } = options;
-    const { xp: xpv, fp: fpv, leftVal, rightVal } = prepareInterp1D(xp, fp, left, right, checkSorted, 'interp1D');
+  const { left, right, checkSorted = true } = options;
+  const {
+    xp: xpv,
+    fp: fpv,
+    leftVal,
+    rightVal
+  } = prepareInterp1D(xp, fp, left, right, checkSorted, 'interp1D');
 
-    if (typeof x === 'number') {
-        return interpOne1D(x, xpv, fpv, leftVal, rightVal);
-    }
-    return interpMany1D(x, xpv, fpv, leftVal, rightVal);
+  if (typeof x === 'number') {
+    return interpOne1D(x, xpv, fpv, leftVal, rightVal);
+  }
+  return interpMany1D(x, xpv, fpv, leftVal, rightVal);
 }
 
 /**
  * Linear interpolation of a vector-valued function (`number -> Vector`).
  *
  * The algorithm is similar to, and inspired by, `numpy.interp`.
- * 
+ *
  * The vector-valued counterpart of `interp1D`: given the discrete data
  * points `(xp[i], fp.row(i))`, with `xp` increasing, returns the linearly
  * interpolated vector(s) at `x`. For `x` outside the range of `xp`, the
@@ -624,28 +678,33 @@ export function interp1D(
  * ```
  */
 export function interpND(
-    x: number,
-    xp: number[] | Vector,
-    fp: Matrix,
-    options?: InterpNDOptions
+  x: number,
+  xp: number[] | Vector,
+  fp: Matrix,
+  options?: InterpNDOptions
 ): Vector;
 export function interpND(
-    x: number[] | Vector,
-    xp: number[] | Vector,
-    fp: Matrix,
-    options?: InterpNDOptions
+  x: number[] | Vector,
+  xp: number[] | Vector,
+  fp: Matrix,
+  options?: InterpNDOptions
 ): Matrix;
 export function interpND(
-    x: number | number[] | Vector,
-    xp: number[] | Vector,
-    fp: Matrix,
-    options: InterpNDOptions = {}
+  x: number | number[] | Vector,
+  xp: number[] | Vector,
+  fp: Matrix,
+  options: InterpNDOptions = {}
 ): Vector | Matrix {
-    const { left, right, checkSorted = true } = options;
-    const { xp: xpv, fp: fpv, leftVal, rightVal } = prepareInterpND(xp, fp, left, right, checkSorted, 'interpND');
+  const { left, right, checkSorted = true } = options;
+  const {
+    xp: xpv,
+    fp: fpv,
+    leftVal,
+    rightVal
+  } = prepareInterpND(xp, fp, left, right, checkSorted, 'interpND');
 
-    if (typeof x === 'number') {
-        return interpOneND(x, xpv, fpv, leftVal, rightVal);
-    }
-    return interpManyND(x, xpv, fpv, leftVal, rightVal, 'interpND');
+  if (typeof x === 'number') {
+    return interpOneND(x, xpv, fpv, leftVal, rightVal);
+  }
+  return interpManyND(x, xpv, fpv, leftVal, rightVal, 'interpND');
 }

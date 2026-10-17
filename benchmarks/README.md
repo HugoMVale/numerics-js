@@ -25,19 +25,19 @@ sync when changing a benchmark.
 
 ## Suites
 
-| Module                       | Algorithm                    | Reference                                                                                     |
-| ---------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------- |
-| [`integrate/`](./integrate/) | Adaptive quadrature          | [`quad.scipy.benchmark.md`](./integrate/quad.scipy.benchmark.md)                              |
-| [`linalg/`](./linalg/)       | Eigenvalues and eigenvectors | [`Matrix.eig.scipy.benchmark.md`](./linalg/Matrix.eig.scipy.benchmark.md)                     |
-| [`linalg/`](./linalg/)       | LU factorization             | [`Matrix.lu.scipy.benchmark.md`](./linalg/Matrix.lu.scipy.benchmark.md)                       |
-| [`linalg/`](./linalg/)       | QR factorization             | [`Matrix.qr.scipy.benchmark.md`](./linalg/Matrix.qr.scipy.benchmark.md)                       |
-| [`linalg/`](./linalg/)       | Pivoted QR (compact)         | [`Matrix.qrPivot.scipy.benchmark.md`](./linalg/Matrix.qrPivot.scipy.benchmark.md)             |
-| [`ode/`](./ode/)             | Adaptive Runge-Kutta         | [`rungeKuttaAdaptive.scipy.benchmark.md`](./ode/rungeKuttaAdaptive.scipy.benchmark.md)        |
-| [`ode/`](./ode/)             | Adaptive TR-BDF2 (stiff)     | [`trBdf2Adaptive.scipy.benchmark.md`](./ode/trBdf2Adaptive.scipy.benchmark.md)                |
-| [`optimize/`](./optimize/)   | Brent minimization           | [`brent.scipy.benchmark.md`](./optimize/brent.scipy.benchmark.md)                             |
-| [`optimize/`](./optimize/)   | Nelder-Mead minimization     | [`nelderMead.scipy.benchmark.md`](./optimize/nelderMead.scipy.benchmark.md)                   |
-| [`optimize/`](./optimize/)   | Levenberg-Marquardt          | [`levenbergMarquardt.scipy.benchmark.md`](./optimize/levenbergMarquardt.scipy.benchmark.md)   |
-| [`optimize/`](./optimize/)   | Nonlinear curve fitting      | [`curveFit.scipy.benchmark.md`](./optimize/curveFit.scipy.benchmark.md)                       |
-| [`roots/`](./roots/)         | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                    |
-| [`special/`](./special/)     | Bessel function `J_n(x)`     | [`besselJ.scipy.benchmark.md`](./special/besselJ.scipy.benchmark.md)                          |
-| [`special/`](./special/)     | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                  |
+| Module                       | Algorithm                    | Reference                                                                                   |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
+| [`integrate/`](./integrate/) | Adaptive quadrature          | [`quad.scipy.benchmark.md`](./integrate/quad.scipy.benchmark.md)                            |
+| [`linalg/`](./linalg/)       | Eigenvalues and eigenvectors | [`Matrix.eig.scipy.benchmark.md`](./linalg/Matrix.eig.scipy.benchmark.md)                   |
+| [`linalg/`](./linalg/)       | LU factorization             | [`Matrix.lu.scipy.benchmark.md`](./linalg/Matrix.lu.scipy.benchmark.md)                     |
+| [`linalg/`](./linalg/)       | QR factorization             | [`Matrix.qr.scipy.benchmark.md`](./linalg/Matrix.qr.scipy.benchmark.md)                     |
+| [`linalg/`](./linalg/)       | Pivoted QR (compact)         | [`Matrix.qrPivot.scipy.benchmark.md`](./linalg/Matrix.qrPivot.scipy.benchmark.md)           |
+| [`ode/`](./ode/)             | Adaptive Runge-Kutta         | [`rungeKuttaAdaptive.scipy.benchmark.md`](./ode/rungeKuttaAdaptive.scipy.benchmark.md)      |
+| [`ode/`](./ode/)             | Adaptive TR-BDF2 (stiff)     | [`trBdf2Adaptive.scipy.benchmark.md`](./ode/trBdf2Adaptive.scipy.benchmark.md)              |
+| [`optimize/`](./optimize/)   | Brent minimization           | [`brent.scipy.benchmark.md`](./optimize/brent.scipy.benchmark.md)                           |
+| [`optimize/`](./optimize/)   | Nelder-Mead minimization     | [`nelderMead.scipy.benchmark.md`](./optimize/nelderMead.scipy.benchmark.md)                 |
+| [`optimize/`](./optimize/)   | Levenberg-Marquardt          | [`levenbergMarquardt.scipy.benchmark.md`](./optimize/levenbergMarquardt.scipy.benchmark.md) |
+| [`optimize/`](./optimize/)   | Nonlinear curve fitting      | [`curveFit.scipy.benchmark.md`](./optimize/curveFit.scipy.benchmark.md)                     |
+| [`roots/`](./roots/)         | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                  |
+| [`special/`](./special/)     | Bessel function `J_n(x)`     | [`besselJ.scipy.benchmark.md`](./special/besselJ.scipy.benchmark.md)                        |
+| [`special/`](./special/)     | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                |

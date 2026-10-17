@@ -1,124 +1,127 @@
 {
-    "name": "numerics-js",
-    "version": "0.1.0",
-    "description": "A TypeScript numerical methods library",
-    "type": "module",
-    "browser": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "engines": {
-        "node": ">=18"
+  "name": "numerics-js",
+  "version": "0.1.0",
+  "description": "A TypeScript numerical methods library",
+  "type": "module",
+  "browser": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
-    "files": [
-        "dist"
-    ],
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "browser": "./dist/index.js",
-            "import": "./dist/index.js",
-            "default": "./dist/index.js"
-        },
-        "./linalg": {
-            "types": "./dist/linalg.d.ts",
-            "browser": "./dist/linalg.js",
-            "import": "./dist/linalg.js",
-            "default": "./dist/linalg.js"
-        },
-        "./special": {
-            "types": "./dist/special.d.ts",
-            "browser": "./dist/special.js",
-            "import": "./dist/special.js",
-            "default": "./dist/special.js"
-        },
-        "./special/bessel": {
-            "types": "./dist/special/bessel.d.ts",
-            "browser": "./dist/special/bessel.js",
-            "import": "./dist/special/bessel.js",
-            "default": "./dist/special/bessel.js"
-        },
-        "./math": {
-            "types": "./dist/math.d.ts",
-            "browser": "./dist/math.js",
-            "import": "./dist/math.js",
-            "default": "./dist/math.js"
-        },
-        "./roots": {
-            "types": "./dist/roots.d.ts",
-            "browser": "./dist/roots.js",
-            "import": "./dist/roots.js",
-            "default": "./dist/roots.js"
-        },
-        "./ode": {
-            "types": "./dist/ode.d.ts",
-            "browser": "./dist/ode.js",
-            "import": "./dist/ode.js",
-            "default": "./dist/ode.js"
-        },
-        "./ode/verlet": {
-            "types": "./dist/ode/verlet.d.ts",
-            "browser": "./dist/ode/verlet.js",
-            "import": "./dist/ode/verlet.js",
-            "default": "./dist/ode/verlet.js"
-        },
-        "./optimize": {
-            "types": "./dist/optimize.d.ts",
-            "browser": "./dist/optimize.js",
-            "import": "./dist/optimize.js",
-            "default": "./dist/optimize.js"
-        },
-        "./integrate": {
-            "types": "./dist/integrate.d.ts",
-            "browser": "./dist/integrate.js",
-            "import": "./dist/integrate.js",
-            "default": "./dist/integrate.js"
-        },
-        "./interpolate": {
-            "types": "./dist/interpolate.d.ts",
-            "browser": "./dist/interpolate.js",
-            "import": "./dist/interpolate.js",
-            "default": "./dist/interpolate.js"
-        },
-        "./numdiff": {
-            "types": "./dist/numdiff.d.ts",
-            "browser": "./dist/numdiff.js",
-            "import": "./dist/numdiff.js",
-            "default": "./dist/numdiff.js"
-        }
+    "./linalg": {
+      "types": "./dist/linalg.d.ts",
+      "browser": "./dist/linalg.js",
+      "import": "./dist/linalg.js",
+      "default": "./dist/linalg.js"
     },
-    "scripts": {
-        "clean": "node scripts/clean-dist.mjs",
-        "lint": "oxlint . --deny-warnings",
-        "test": "vitest run",
-        "test:benchmarks": "vitest run benchmarks",
-        "test:coverage": "vitest run --coverage",
-        "test:watch": "vitest",
-        "typecheck": "tsc --noEmit",
-        "build": "npm run clean && tsc -p tsconfig.build.json",
-        "docs": "typedoc",
-        "prepare": "husky",
-        "docs:playground": "node scripts/build-playground.mjs",
-        "docs:site": "npm run build && npm run docs && npm run docs:playground"
+    "./special": {
+      "types": "./dist/special.d.ts",
+      "browser": "./dist/special.js",
+      "import": "./dist/special.js",
+      "default": "./dist/special.js"
     },
-    "keywords": [
-        "numerical-methods",
-        "mathematics",
-        "algorithms",
-        "javascript",
-        "library"
-    ],
-    "license": "MIT",
-    "devDependencies": {
-        "@types/node": "^26.2.0",
-        "@vitest/coverage-v8": "^5.0.3",
-        "@vscode/markdown-it-katex": "^1.1.2",
-        "husky": "^9.1.7",
-        "katex": "^0.16.47",
-        "node-inspect-extracted": "^3.3.3",
-        "oxlint": "^1.88.0",
-        "typedoc": "^0.28.20",
-        "typedoc-material-theme": "^1.4.1",
-        "typescript": "^6.0.3",
-        "vite": "^7.3.7",
-        "vitest": "^5.0.3"
+    "./special/bessel": {
+      "types": "./dist/special/bessel.d.ts",
+      "browser": "./dist/special/bessel.js",
+      "import": "./dist/special/bessel.js",
+      "default": "./dist/special/bessel.js"
+    },
+    "./math": {
+      "types": "./dist/math.d.ts",
+      "browser": "./dist/math.js",
+      "import": "./dist/math.js",
+      "default": "./dist/math.js"
+    },
+    "./roots": {
+      "types": "./dist/roots.d.ts",
+      "browser": "./dist/roots.js",
+      "import": "./dist/roots.js",
+      "default": "./dist/roots.js"
+    },
+    "./ode": {
+      "types": "./dist/ode.d.ts",
+      "browser": "./dist/ode.js",
+      "import": "./dist/ode.js",
+      "default": "./dist/ode.js"
+    },
+    "./ode/verlet": {
+      "types": "./dist/ode/verlet.d.ts",
+      "browser": "./dist/ode/verlet.js",
+      "import": "./dist/ode/verlet.js",
+      "default": "./dist/ode/verlet.js"
+    },
+    "./optimize": {
+      "types": "./dist/optimize.d.ts",
+      "browser": "./dist/optimize.js",
+      "import": "./dist/optimize.js",
+      "default": "./dist/optimize.js"
+    },
+    "./integrate": {
+      "types": "./dist/integrate.d.ts",
+      "browser": "./dist/integrate.js",
+      "import": "./dist/integrate.js",
+      "default": "./dist/integrate.js"
+    },
+    "./interpolate": {
+      "types": "./dist/interpolate.d.ts",
+      "browser": "./dist/interpolate.js",
+      "import": "./dist/interpolate.js",
+      "default": "./dist/interpolate.js"
+    },
+    "./numdiff": {
+      "types": "./dist/numdiff.d.ts",
+      "browser": "./dist/numdiff.js",
+      "import": "./dist/numdiff.js",
+      "default": "./dist/numdiff.js"
     }
+  },
+  "scripts": {
+    "clean": "node scripts/clean-dist.mjs",
+    "lint": "oxlint . --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "test": "vitest run",
+    "test:benchmarks": "vitest run benchmarks",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "docs": "typedoc",
+    "prepare": "husky",
+    "docs:playground": "node scripts/build-playground.mjs",
+    "docs:site": "npm run build && npm run docs && npm run docs:playground"
+  },
+  "keywords": [
+    "numerical-methods",
+    "mathematics",
+    "algorithms",
+    "javascript",
+    "library"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^5.0.3",
+    "@vscode/markdown-it-katex": "^1.1.2",
+    "husky": "^9.1.7",
+    "katex": "^0.16.47",
+    "node-inspect-extracted": "^3.3.3",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "typedoc": "^0.28.20",
+    "typedoc-material-theme": "^1.4.1",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.7",
+    "vitest": "^5.0.3"
+  }
 }

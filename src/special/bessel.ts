@@ -14,9 +14,9 @@ const ZERO_SCAN_STEP = 2.5;
 const zerosCache = new Map<number, number[]>();
 
 function assertOrder(n: number): void {
-    if (!Number.isInteger(n) || n < 0 || n > MAX_ORDER) {
-        throw new RangeError(`Bessel order n must be an integer in [0, ${MAX_ORDER}], got ${n}.`);
-    }
+  if (!Number.isInteger(n) || n < 0 || n > MAX_ORDER) {
+    throw new RangeError(`Bessel order n must be an integer in [0, ${MAX_ORDER}], got ${n}.`);
+  }
 }
 
 /**
@@ -27,21 +27,21 @@ function assertOrder(n: number): void {
  * Underflow of the `(x/2)^n / n!` prefactor correctly yields 0.
  */
 function seriesJ(n: number, x: number): number {
-    const h = 0.5 * x;
-    let prefactor = 1;
-    for (let i = 1; i <= n; i++) {
-        prefactor *= h / i;
-        if (prefactor === 0) return 0;
-    }
-    const q = -h * h;
-    let term = 1;
-    let sum = 1;
-    for (let k = 1; k < 40; k++) {
-        term *= q / (k * (n + k));
-        sum += term;
-        if (Math.abs(term) <= 0.5 * Number.EPSILON * Math.abs(sum)) break;
-    }
-    return prefactor * sum;
+  const h = 0.5 * x;
+  let prefactor = 1;
+  for (let i = 1; i <= n; i++) {
+    prefactor *= h / i;
+    if (prefactor === 0) return 0;
+  }
+  const q = -h * h;
+  let term = 1;
+  let sum = 1;
+  for (let k = 1; k < 40; k++) {
+    term *= q / (k * (n + k));
+    sum += term;
+    if (Math.abs(term) <= 0.5 * Number.EPSILON * Math.abs(sum)) break;
+  }
+  return prefactor * sum;
 }
 
 /**
@@ -56,25 +56,25 @@ function seriesJ(n: number, x: number): number {
  * the transition region) plus a fixed margin.
  */
 function forwardJ(n: number, x: number): number {
-    const steps = Math.ceil(0.5 * (x + 8 * Math.cbrt(x) + 40)) + 4;
-    let sum0 = 0;
-    let sum1 = 0;
-    for (let i = 0; i <= steps; i++) {
-        const t = (Math.PI * i) / steps;
-        const arg = x * Math.sin(t);
-        const weight = i === 0 || i === steps ? 0.5 : 1;
-        sum0 += weight * Math.cos(arg);
-        sum1 += weight * Math.cos(t - arg);
-    }
-    let jPrev = sum0 / steps;
-    if (n === 0) return jPrev;
-    let jCurr = sum1 / steps;
-    for (let k = 1; k < n; k++) {
-        const jNext = ((2 * k) / x) * jCurr - jPrev;
-        jPrev = jCurr;
-        jCurr = jNext;
-    }
-    return jCurr;
+  const steps = Math.ceil(0.5 * (x + 8 * Math.cbrt(x) + 40)) + 4;
+  let sum0 = 0;
+  let sum1 = 0;
+  for (let i = 0; i <= steps; i++) {
+    const t = (Math.PI * i) / steps;
+    const arg = x * Math.sin(t);
+    const weight = i === 0 || i === steps ? 0.5 : 1;
+    sum0 += weight * Math.cos(arg);
+    sum1 += weight * Math.cos(t - arg);
+  }
+  let jPrev = sum0 / steps;
+  if (n === 0) return jPrev;
+  let jCurr = sum1 / steps;
+  for (let k = 1; k < n; k++) {
+    const jNext = ((2 * k) / x) * jCurr - jPrev;
+    jPrev = jCurr;
+    jCurr = jNext;
+  }
+  return jCurr;
 }
 
 /**
@@ -88,34 +88,34 @@ function forwardJ(n: number, x: number): number {
  * below round-off for every `x <= n`.
  */
 function millerJ(n: number, x: number): number {
-    let start = n + Math.ceil(Math.sqrt(160 * n)) + 10;
-    if (start % 2 !== 0) start++;
+  let start = n + Math.ceil(Math.sqrt(160 * n)) + 10;
+  if (start % 2 !== 0) start++;
 
-    let uNext = 0;
-    let uCurr = 1;
-    let uN = 0;
-    let sum = 0;
+  let uNext = 0;
+  let uCurr = 1;
+  let uN = 0;
+  let sum = 0;
 
-    for (let k = start; k >= 1; k--) {
-        const uPrev = ((2 * k) / x) * uCurr - uNext;
-        uNext = uCurr;
-        uCurr = uPrev;
+  for (let k = start; k >= 1; k--) {
+    const uPrev = ((2 * k) / x) * uCurr - uNext;
+    uNext = uCurr;
+    uCurr = uPrev;
 
-        const idx = k - 1;
-        if (idx === n) uN = uCurr;
-        if (idx % 2 === 0) sum += (idx === 0 ? 1 : 2) * uCurr;
+    const idx = k - 1;
+    if (idx === n) uN = uCurr;
+    if (idx % 2 === 0) sum += (idx === 0 ? 1 : 2) * uCurr;
 
-        // Rescale to avoid overflow during the descent.
-        if (Math.abs(uCurr) > 1e250) {
-            const scale = 1e-250;
-            uCurr *= scale;
-            uNext *= scale;
-            sum *= scale;
-            uN *= scale;
-        }
+    // Rescale to avoid overflow during the descent.
+    if (Math.abs(uCurr) > 1e250) {
+      const scale = 1e-250;
+      uCurr *= scale;
+      uNext *= scale;
+      sum *= scale;
+      uN *= scale;
     }
+  }
 
-    return uN / sum;
+  return uN / sum;
 }
 
 /**
@@ -158,12 +158,12 @@ function millerJ(n: number, x: number): number {
  * ```
  */
 export function besselJ(n: number, x: number): number {
-    assertOrder(n);
-    if (Number.isNaN(x)) return NaN;
-    if (x < 0) return (n % 2 === 0 ? 1 : -1) * besselJ(n, -x);
-    if (x === Infinity) return 0;
-    if (x < 1) return seriesJ(n, x);
-    return n < x ? forwardJ(n, x) : millerJ(n, x);
+  assertOrder(n);
+  if (Number.isNaN(x)) return NaN;
+  if (x < 0) return (n % 2 === 0 ? 1 : -1) * besselJ(n, -x);
+  if (x === Infinity) return 0;
+  if (x < 1) return seriesJ(n, x);
+  return n < x ? forwardJ(n, x) : millerJ(n, x);
 }
 
 /**
@@ -201,60 +201,62 @@ export function besselJ(n: number, x: number): number {
  * ```
  */
 export function besselJZero(n: number, m: number): number {
-    assertOrder(n);
-    if (!Number.isInteger(m) || m < 1) {
-        throw new RangeError(`Zero index m must be a positive integer (1-based), got ${m}.`);
+  assertOrder(n);
+  if (!Number.isInteger(m) || m < 1) {
+    throw new RangeError(`Zero index m must be a positive integer (1-based), got ${m}.`);
+  }
+
+  let zeros = zerosCache.get(n);
+  if (zeros === undefined) {
+    zeros = [];
+    zerosCache.set(n, zeros);
+  }
+  if (zeros.length >= m) return zeros[m - 1];
+
+  const f = (x: number): number => besselJ(n, x);
+
+  // J_n(n) > 0 because the first zero exceeds n; after a zero z, the next one
+  // lies more than ZERO_SCAN_STEP beyond z + 1, so z + 1 is a safe restart.
+  let a = zeros.length > 0 ? zeros[zeros.length - 1] + 1 : n;
+  let fa = f(a);
+
+  while (zeros.length < m) {
+    const b = a + ZERO_SCAN_STEP;
+    const fb = f(b);
+
+    let root: number | undefined;
+    if (fb === 0) {
+      root = b;
+    } else if (Math.sign(fa) !== Math.sign(fb)) {
+      const result = brent(f, a, b, { tolx: 1e-15, tolf: 0, maxIter: 100 });
+      if (!result.success) {
+        throw new Error(
+          `besselJZero: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}`
+        );
+      }
+      let r: number = result.x;
+      // Newton polish; J_n' = J_{n-1} - (n/x) J_n, and J_0' = -J_1.
+      for (let i = 0; i < 2; i++) {
+        const jn = f(r);
+        const dj: number = n === 0 ? -besselJ(1, r) : besselJ(n - 1, r) - (n / r) * jn;
+        const next: number = r - jn / dj;
+        if (!(next >= a && next <= b)) break;
+        r = next;
+      }
+      root = r;
     }
 
-    let zeros = zerosCache.get(n);
-    if (zeros === undefined) {
-        zeros = [];
-        zerosCache.set(n, zeros);
+    if (root !== undefined) {
+      zeros.push(root);
+      a = root + 1;
+      fa = f(a);
+    } else {
+      a = b;
+      fa = fb;
     }
-    if (zeros.length >= m) return zeros[m - 1];
+  }
 
-    const f = (x: number): number => besselJ(n, x);
-
-    // J_n(n) > 0 because the first zero exceeds n; after a zero z, the next one
-    // lies more than ZERO_SCAN_STEP beyond z + 1, so z + 1 is a safe restart.
-    let a = zeros.length > 0 ? zeros[zeros.length - 1] + 1 : n;
-    let fa = f(a);
-
-    while (zeros.length < m) {
-        const b = a + ZERO_SCAN_STEP;
-        const fb = f(b);
-
-        let root: number | undefined;
-        if (fb === 0) {
-            root = b;
-        } else if (Math.sign(fa) !== Math.sign(fb)) {
-            const result = brent(f, a, b, { tolx: 1e-15, tolf: 0, maxIter: 100 });
-            if (!result.success) {
-                throw new Error(`besselJZero: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}`);
-            }
-            let r: number = result.x;
-            // Newton polish; J_n' = J_{n-1} - (n/x) J_n, and J_0' = -J_1.
-            for (let i = 0; i < 2; i++) {
-                const jn = f(r);
-                const dj: number = n === 0 ? -besselJ(1, r) : besselJ(n - 1, r) - (n / r) * jn;
-                const next: number = r - jn / dj;
-                if (!(next >= a && next <= b)) break;
-                r = next;
-            }
-            root = r;
-        }
-
-        if (root !== undefined) {
-            zeros.push(root);
-            a = root + 1;
-            fa = f(a);
-        } else {
-            a = b;
-            fa = fb;
-        }
-    }
-
-    return zeros[m - 1];
+  return zeros[m - 1];
 }
 
 /**
@@ -263,5 +265,5 @@ export function besselJZero(n: number, m: number): number {
  * @internal
  */
 export function clearBesselCache(): void {
-    zerosCache.clear();
+  zerosCache.clear();
 }

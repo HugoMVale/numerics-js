@@ -1,4 +1,4 @@
-/** 
+/**
  * Common test integrands for quadrature validation.
  */
 export const fPolynomial = (x: number) => x * x;
