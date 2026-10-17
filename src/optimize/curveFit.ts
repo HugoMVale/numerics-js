@@ -15,8 +15,8 @@ export interface CurveFitResult {
   /** Message describing the result or error. */
   message: string;
   /**
-   * Number of evaluations of the vector of (weighted) residuals, i.e. of the
-   * model at all data points, including the finite-difference evaluations
+   * Number of evaluations of the vector of (weighted) residuals, i.e. number
+   * of calls to the model `f`, including the finite-difference evaluations
    * and, if `jacFinal` is `true`, the ones needed for the final Jacobian.
    */
   evaluationsFunction: number;
@@ -55,7 +55,7 @@ export interface CurveFitResult {
 export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' | 'sclx'> {
   /**
    * Standard deviations of the errors of `ydata`, used to weight the
-   * residuals as `(f(x, p) - y) / sigma`. Must be a `Vector` with strictly
+   * residuals as `(y - f(x, p)) / sigma`. Must be a `Vector` with strictly
    * positive components. By default, all points have the same weight.
    */
   sigma?: Vector;
@@ -75,13 +75,16 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
    */
   sclx?: Vector;
   /**
-   * Function returning the gradient of the model with respect to the
-   * parameters, `∂f/∂p` (an `n`-component `Vector`), at a single point `x`. By
-   * default, the Jacobian is approximated using forward finite differences.
+   * Function returning the Jacobian of the model with respect to the
+   * parameters, `∂f/∂p`, at all data points: an `m x n` `Matrix` whose entry
+   * `(i, j)` is `∂f_i/∂p_j`, where `f_i = f(x, p)_i`. Note that this is the
+   * Jacobian of the model, not of the residuals `y - f`, as in
+   * `scipy.optimize.curve_fit`. The arguments `x` and `p` must not be modified.
+   * By default, the Jacobian is approximated using forward finite differences.
    * Like in {@link levenbergMarquardt}, it is checked against finite
    * differences at `p0` if `jacCheck` is `true`.
    */
-  jac?: (x: number, p: Vector) => Vector;
+  jac?: (x: Vector, p: Vector) => Matrix;
   /**
    * Whether to evaluate the Jacobian at the returned parameters, to compute
    * the covariance from it. If `false`, the covariance is computed from the
@@ -96,40 +99,39 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
 }
 
 /**
- * Fits a model function to data by nonlinear least squares, using the
- * Levenberg-Marquardt algorithm ({@link levenbergMarquardt}).
+ * Fits a model function to data by nonlinear least squares, using the Levenberg-Marquardt
+ * algorithm ({@link levenbergMarquardt}).
  *
- * It finds the parameters `p` that minimize `sum(((f(x_i, p) - y_i) /
- * sigma_i)²)`, and estimates their covariance matrix from the Jacobian near
- * the solution: `cov = s² * inv(J^T J)`, where `J` is the (weighted)
- * Jacobian and `s² = rss/dof` — or `s² = 1` if `absoluteSigma` is `true` —
- * as in `scipy.optimize.curve_fit` (with `method='lm'`). By default, `J` is
- * the last Jacobian of the iterations, which is one step behind the solution
- * if the last step was accepted, like in SciPy; with `jacFinal: true`, it is
- * evaluated at the solution. `J^T J` is never formed: the inverse is computed
- * from the pivoted QR decomposition of `J`, which also detects rank deficiency.
+ * It finds the parameters `p` that minimize `sum(((y_i - f(x_i, p)) / sigma_i)²)`, and
+ * estimates their covariance matrix from the Jacobian near the solution:
+ * `cov = s² * inv(J^T J)`, where `J` is the (weighted) Jacobian and `s² = rss/dof` or
+ * `s² = 1` if `absoluteSigma` is `true`. By default, `J` is the last Jacobian of the
+ * iterations, which is one step behind the solution if the last step was accepted; with
+ * `jacFinal: true`, it is evaluated at the solution. `J^T J` is never formed: the inverse
+ * is computed from the pivoted QR decomposition of `J`, which also detects rank deficiency.
  *
- * The model must be defined at all parameter values visited by the
- * algorithm: a trial point at which the model is not finite is rejected and
- * the trust region is reduced. The parameter vector passed to `f` is reused
- * internally and must not be retained or modified. There must be at least as
- * many data points as parameters.
+ * The model is vectorized: it is called with all the data points at once, `f(xdata, p)`, and
+ * must return the predictions at all of them. The model must be defined at all parameter
+ * values visited by the algorithm: a trial point at which the model is not finite is rejected
+ * and the trust region is reduced. The vectors passed to `f` (and to `jac`) are reused
+ * internally and must not be retained or modified. There must be at least as many data points
+ * as parameters.
  *
- * Parameters are unbounded, and the reliability of the fit depends on the
- * quality of the initial guess `p0`.
+ * Parameters are unbounded, and the reliability of the fit depends on the quality of the
+ * initial guess `p0`.
  *
- * @param f Model function `f(x, p)`, returning the predicted `y` at `x` for
- * the parameter vector `p`.
+ * @param f Model function `f(x, p)`, returning a `Vector` with the predicted `y` at every
+ * point of `x` (the same length as `x`) for the parameter vector `p`.
  * @param xdata Independent variable values, `m` points in a `Vector`.
  * @param ydata Observed values, `m` points in a `Vector`.
  * @param p0 Initial guess for the parameters, a `Vector` with `n <= m` components.
  * @param options Configuration options; see {@link CurveFitOptions}.
- * @returns A {@link CurveFitResult} with the optimal parameters, their
- * covariance and diagnostics.
- * @throws {RangeError} If `xdata` and `ydata` (or `sigma`) have different
- * lengths, if `p0` has no components, if there are fewer data points than
- * parameters, if `jac` does not return `n` components, or for the invalid
- * options listed in {@link levenbergMarquardt}.
+ * @returns A {@link CurveFitResult} with the optimal parameters, their covariance and
+ * diagnostics.
+ * @throws {RangeError} If `xdata` and `ydata` (or `sigma`) have different lengths, if `p0`
+ * has no components, if there are fewer data points than parameters, if `f` does not return
+ * `m` components, if `jac` does not return an `m x n` matrix, or for the invalid options
+ * listed in {@link levenbergMarquardt}.
  * @throws {Error} If `sigma` or `sclx` contains a value that is not strictly positive.
  *
  * @example
@@ -140,7 +142,8 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * // Fit `y = a*exp(-b*t)` to noisy data.
  * const t = Vector.from([0, 1, 2, 3, 4, 5]);
  * const y = Vector.from([3.02, 1.81, 1.12, 0.66, 0.41, 0.24]);
- * const result = curveFit((t, p) => p.get(0) * Math.exp(-p.get(1) * t), t, y, Vector.from([1, 1]));
+ * const model = (t: Vector, p: Vector) => t.map((ti) => p.get(0) * Math.exp(-p.get(1) * ti));
+ * const result = curveFit(model, t, y, Vector.from([1, 1]));
  * console.log(result);
  * ```
  *
@@ -154,38 +157,38 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  *   evaluationsJacobian: 0,
  *   iterations: 7,
  *   p: Vector {
- *     data: Float64Array(2) [ 3.016152409051229, 0.5027330972776392 ]
+ *     data: Float64Array(2) [ 3.0161524090313265, 0.5027330972728501 ]
  *   },
  *   cov: Matrix {
  *     _rows: 2,
  *     _cols: 2,
  *     data: Float64Array(4) [
- *       0.00013339448311680178,
- *       0.00002183262912916831,
- *       0.00002183262912916831,
- *       0.000012867500387505947
+ *       0.00013339448303097227,
+ *       0.000021832629224564343,
+ *       0.000021832629224564343,
+ *       0.000012867500506506627
  *     ]
  *   },
  *   stderr: Vector {
- *     data: Float64Array(2) [ 0.011549652943565091, 0.0035871298258504593 ]
+ *     data: Float64Array(2) [ 0.011549652939849416, 0.0035871298424376315 ]
  *   },
  *   residuals: Vector {
  *     data: Float64Array(6) [
- *       0.0038475909487711846,
- *       -0.014395838987910414,
- *       0.01646817338272344,
- *       -0.007499051649247357,
- *       0.006246367158769306,
- *       -0.004220565751683336
+ *       0.0038475909686734866,
+ *       -0.014395838984609277,
+ *       0.016468173379435402,
+ *       -0.007499051654432876,
+ *       0.006246367153699139,
+ *       -0.004220565755919725
  *     ]
  *   },
- *   rss: 0.0006063109244228618,
+ *   rss: 0.0006063109244228651,
  *   dof: 4
  * }
  * ```
  */
 export function curveFit(
-  f: (x: number, p: Vector) => number,
+  f: (x: Vector, p: Vector) => Vector,
   xdata: Vector,
   ydata: Vector,
   p0: Vector,
@@ -236,28 +239,36 @@ export function curveFit(
   }
   const unweighted = sigmaOption === undefined;
 
-  // Weighted residuals, r_i = (f(x_i, p) - y_i)/sigma_i.
+  // Weighted residuals, r_i = (y_i - f(x_i, p))/sigma_i.
   const residualFunction = (p: Vector): Vector => {
+    const fx = f(x, p);
+    if (fx.size !== m) {
+      throw new RangeError(
+        `curveFit: f must return one value per data point (${m}), got ${fx.size}`
+      );
+    }
     const r = new Vector(m);
     for (let i = 0; i < m; i++) {
-      const ri = f(x.data[i], p) - y.data[i];
+      const ri = y.data[i] - fx.data[i];
       r.data[i] = unweighted ? ri : ri / sigma.data[i];
     }
     return r;
   };
 
-  // Weighted Jacobian, J_ij = (∂f/∂p_j)(x_i, p)/sigma_i.
+  // Jacobian of the weighted residuals, J_ij = -(∂f_i/∂p_j)(x, p)/sigma_i. The user-supplied `jac`
+  // returns ∂f/∂p, whereas the residuals are y - f, hence the minus sign.
   const jacobianFunction = jac
     ? (p: Vector): Matrix => {
+        const Jf = jac(x, p);
+        if (Jf.rows !== m || Jf.cols !== n) {
+          throw new RangeError(
+            `curveFit: jac must return a ${m}x${n} matrix, got ${Jf.rows}x${Jf.cols}`
+          );
+        }
         const J = new Matrix(m, n);
         for (let i = 0; i < m; i++) {
-          const g = jac(x.data[i], p);
-          const size = g.size;
-          if (size !== n) {
-            throw new RangeError(`curveFit: jac must return ${n} components, got ${size}`);
-          }
           const w = unweighted ? 1 : 1 / sigma.data[i];
-          for (let j = 0; j < n; j++) J.data[i * n + j] = g.data[j] * w;
+          for (let j = 0; j < n; j++) J.data[i * n + j] = -Jf.data[i * n + j] * w;
         }
         return J;
       }
@@ -273,7 +284,7 @@ export function curveFit(
   const dof = m - n;
   const rss = 2 * lm.cost;
   const residuals = new Vector(m);
-  for (let i = 0; i < m; i++) residuals.data[i] = -lm.fx.data[i] * (unweighted ? 1 : sigma.data[i]);
+  for (let i = 0; i < m; i++) residuals.data[i] = lm.fx.data[i] * (unweighted ? 1 : sigma.data[i]);
 
   // Weighted Jacobian at the solution (or at the last iteration, if `jacFinal` is `false`).
   // It is `null` only if the solver failed at the initial guess.

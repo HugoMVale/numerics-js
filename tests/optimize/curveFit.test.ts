@@ -8,8 +8,8 @@ const wobble = (i: number) =>
   0.05 * Math.sin(12.9898 * (i + 1)) + 0.03 * Math.cos(4.1414 * (i + 1));
 
 /** Straight line `y = p0 + p1*x`, whose least-squares problem has a closed-form solution. */
-const line = (x: number, p: Vector) => p.get(0) + p.get(1) * x;
-const lineJac = (x: number) => Vector.from([1, x]);
+const line = (x: Vector, p: Vector) => x.map((xi) => p.get(0) + p.get(1) * xi);
+const lineJac = (x: Vector) => new Matrix(x.size, 2).setCol(0, Vector.ones(x.size)).setCol(1, x);
 
 /** Closed-form weighted linear least squares: `p`, `inv(X^T W X)` and the weighted rss. */
 function linearReference(x: Vector, y: Vector, sigma: Vector) {
@@ -40,7 +40,7 @@ describe('curveFit — linear model against the closed-form solution', () => {
     expect(res.rss).toBeCloseTo(ref.rss, 10);
     expect(res.dof).toBe(m - 2);
     // residuals = y - f(x, p)
-    const expected = y.sub(x.map((xi) => line(xi, res.p)));
+    const expected = y.sub(line(x, res.p));
     expect(res.residuals.allClose(expected, 1e-9, 1e-12)).toBe(true);
     expect(res.residuals.normSq()).toBeCloseTo(res.rss, 10);
     expect(res.cov.isSymmetric(1e-12 * res.cov.normInf())).toBe(true);
@@ -94,7 +94,12 @@ describe('curveFit — nonlinear models', () => {
   it('fits an exponential decay to exact data, with a tiny residual', () => {
     const t = Vector.linspace(0, 4, 15);
     const y = t.map((ti) => 2.5 * Math.exp(-1.3 * ti));
-    const res = curveFit((ti, p) => p.get(0) * Math.exp(-p.get(1) * ti), t, y, Vector.from([1, 1]));
+    const res = curveFit(
+      (t, p) => t.map((ti) => p.get(0) * Math.exp(-p.get(1) * ti)),
+      t,
+      y,
+      Vector.from([1, 1])
+    );
 
     expect(res.success, res.message).toBe(true);
     expect(res.p.allClose(Vector.from([2.5, 1.3]), 1e-6, 1e-8)).toBe(true);
@@ -102,12 +107,19 @@ describe('curveFit — nonlinear models', () => {
     expect(res.stderr.max()).toBeLessThan(1e-6);
   });
 
-  const gauss = (x: number, p: Vector) =>
-    p.get(0) * Math.exp(-(((x - p.get(1)) / p.get(2)) ** 2) / 2);
-  const gaussJac = (x: number, p: Vector) => {
+  const gauss = (x: Vector, p: Vector) =>
+    x.map((xi) => p.get(0) * Math.exp(-(((xi - p.get(1)) / p.get(2)) ** 2) / 2));
+  const gaussJac = (x: Vector, p: Vector) => {
     const [a, mu, s] = [p.get(0), p.get(1), p.get(2)];
-    const e = Math.exp(-(((x - mu) / s) ** 2) / 2);
-    return Vector.from([e, (a * e * (x - mu)) / s ** 2, (a * e * (x - mu) ** 2) / s ** 3]);
+    const J = new Matrix(x.size, 3);
+    for (let i = 0; i < x.size; i++) {
+      const xi = x.get(i);
+      const e = Math.exp(-(((xi - mu) / s) ** 2) / 2);
+      J.set(i, 0, e);
+      J.set(i, 1, (a * e * (xi - mu)) / s ** 2);
+      J.set(i, 2, (a * e * (xi - mu) ** 2) / s ** 3);
+    }
+    return J;
   };
 
   it('fits a noisy Gaussian peak; analytic and finite-difference Jacobians agree and use fewer evaluations', () => {
@@ -160,7 +172,7 @@ describe('curveFit — nonlinear models', () => {
     const x = Vector.linspace(0, 20, 30);
     const y = x.map((xi, i) => 1000 / (1 + Math.exp(-0.6 * (xi - 9))) + 5 * wobble(i) * 10);
     const res = curveFit(
-      (xi, p) => p.get(0) / (1 + Math.exp(-p.get(1) * (xi - p.get(2)))),
+      (xv, p) => xv.map((xi) => p.get(0) / (1 + Math.exp(-p.get(1) * (xi - p.get(2))))),
       x,
       y,
       Vector.from([800, 0.3, 7]),
@@ -175,28 +187,30 @@ describe('curveFit — nonlinear models', () => {
     const x = Vector.linspace(0, 4, 15);
     const y = x.map((xi, i) => 2 * Math.exp(-xi) + wobble(i));
     let calls = 0;
-    const res = curveFit(
-      (xi, p) => {
-        calls++;
-        return p.get(0) * Math.exp(-p.get(1) * xi);
-      },
-      x,
-      y,
-      Vector.from([1, 0.5])
-    );
-    expect(res.evaluationsFunction * x.size).toBe(calls);
+    const model = (xv: Vector, p: Vector) => {
+      calls++;
+      // The model is called with all the data points at once, and with one parameter per `p0`.
+      expect(xv.size).toBe(x.size);
+      expect(p.size).toBe(2);
+      return xv.map((xi) => p.get(0) * Math.exp(-p.get(1) * xi));
+    };
+    const res = curveFit(model, x, y, Vector.from([1, 0.5]));
+    expect(res.evaluationsFunction).toBe(calls);
 
     calls = 0;
-    const model = (xi: number, p: Vector) => {
-      calls++;
-      return p.get(0) * Math.exp(-p.get(1) * xi);
-    };
     const resJac = curveFit(model, x, y, Vector.from([1, 0.5]), {
-      jac: (xi, p) =>
-        Vector.from([Math.exp(-p.get(1) * xi), -p.get(0) * xi * Math.exp(-p.get(1) * xi)]),
+      jac: (xv, p) => {
+        const J = new Matrix(xv.size, 2);
+        for (let i = 0; i < xv.size; i++) {
+          const xi = xv.get(i);
+          J.set(i, 0, Math.exp(-p.get(1) * xi));
+          J.set(i, 1, -p.get(0) * xi * Math.exp(-p.get(1) * xi));
+        }
+        return J;
+      },
       jacCheck: false
     });
-    expect(resJac.evaluationsFunction * x.size).toBe(calls);
+    expect(resJac.evaluationsFunction).toBe(calls);
     expect(resJac.evaluationsJacobian).toBeGreaterThan(1);
   });
 });
@@ -208,7 +222,7 @@ describe('curveFit — covariance edge cases', () => {
   it('reports an infinite covariance for redundant parameters', () => {
     // p0 + p1 enter only as their sum.
     const res = curveFit(
-      (xi, p) => p.get(0) + p.get(1) + p.get(2) * xi,
+      (xv, p) => xv.map((xi) => p.get(0) + p.get(1) + p.get(2) * xi),
       x,
       y,
       Vector.from([0, 0, 0])
@@ -265,7 +279,7 @@ describe('curveFit — jac option', () => {
   const x = Vector.linspace(0, 4, 10);
   const y = x.map((xi, i) => 1 + 2 * xi + wobble(i));
 
-  it('uses a Vector-valued gradient', () => {
+  it('uses a Matrix-valued Jacobian of the model, ∂f/∂p', () => {
     const fd = curveFit(line, x, y, Vector.from([0, 0]));
     const analytic = curveFit(line, x, y, Vector.from([0, 0]), { jac: lineJac });
     expect(analytic.success, analytic.message).toBe(true);
@@ -273,8 +287,18 @@ describe('curveFit — jac option', () => {
     expect(analytic.cov.allClose(fd.cov, 1e-7, 1e-9)).toBe(true);
   });
 
-  it('fails if the gradient is inconsistent with the model, unless jacCheck is disabled', () => {
-    const wrong = (xi: number) => Vector.from([1, 1.5 * xi]);
+  it('applies sigma to the Jacobian rows', () => {
+    const sigma = x.map((xi) => 0.5 + 0.4 * xi);
+    const fd = curveFit(line, x, y, Vector.from([0, 0]), { sigma });
+    const analytic = curveFit(line, x, y, Vector.from([0, 0]), { sigma, jac: lineJac });
+    expect(analytic.success, analytic.message).toBe(true);
+    expect(analytic.p.allClose(fd.p, 1e-7, 1e-9)).toBe(true);
+    expect(analytic.cov.allClose(fd.cov, 1e-6, 1e-9)).toBe(true);
+  });
+
+  it('fails if the Jacobian is inconsistent with the model, unless jacCheck is disabled', () => {
+    const wrong = (xv: Vector) =>
+      new Matrix(xv.size, 2).setCol(0, Vector.ones(xv.size)).setCol(1, xv.mult(1.5));
     const checked = curveFit(line, x, y, Vector.from([0, 0]), { jac: wrong });
     expect(checked.success).toBe(false);
     expect(checked.message).toMatch(/does not match finite-difference/);
@@ -286,10 +310,30 @@ describe('curveFit — jac option', () => {
     expect(unchecked.message).not.toMatch(/does not match/);
   });
 
-  it('throws if the gradient has the wrong number of components', () => {
+  it('expects the Jacobian of the model, not of the residuals (sign convention)', () => {
+    // The Jacobian of the residuals y - f is -∂f/∂p; passing it must be rejected by the check.
+    const residualJac = (xv: Vector) => lineJac(xv).mult(-1);
+    const res = curveFit(line, x, y, Vector.from([0, 0]), { jac: residualJac });
+    expect(res.success).toBe(false);
+    expect(res.message).toMatch(/does not match finite-difference/);
+  });
+
+  it('throws if the Jacobian has the wrong shape', () => {
+    // Wrong number of columns.
     expect(() =>
-      curveFit(line, x, y, Vector.from([0, 0]), { jac: () => Vector.from([1]) })
+      curveFit(line, x, y, Vector.from([0, 0]), { jac: (xv) => new Matrix(xv.size, 1) })
     ).toThrow(RangeError);
+    // Wrong number of rows, e.g. the gradient at a single point.
+    expect(() =>
+      curveFit(line, x, y, Vector.from([0, 0]), { jac: () => new Matrix(1, 2) })
+    ).toThrow(RangeError);
+  });
+
+  it('throws if the model does not return one value per data point', () => {
+    expect(() => curveFit((xv) => Vector.ones(xv.size + 1), x, y, Vector.from([0, 0]))).toThrow(
+      RangeError
+    );
+    expect(() => curveFit(() => Vector.from([1]), x, y, Vector.from([0, 0]))).toThrow(RangeError);
   });
 });
 
@@ -299,7 +343,7 @@ describe('curveFit — limits and validation', () => {
 
   it('passes the solver limits through, and reports non-convergence', () => {
     const res = curveFit(
-      (xi, p) => p.get(0) * Math.exp(-p.get(1) * xi),
+      (xv, p) => xv.map((xi) => p.get(0) * Math.exp(-p.get(1) * xi)),
       x,
       x.map((xi) => 3 * Math.exp(-2 * xi)),
       Vector.from([1, 0.1]),

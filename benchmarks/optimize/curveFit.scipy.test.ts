@@ -4,13 +4,13 @@ import { curveFit } from '../../src/optimize/curveFit.js';
 import fixtures from './curveFit.scipy.json' with { type: 'json' };
 
 // Must mirror the models in generate_curve_fit_fixtures.py.
-const MODELS: Record<string, (x: number, p: Vector) => number> = {
-  exp_decay: (x, p) => p.get(0) * Math.exp(-p.get(1) * x) + p.get(2),
-  gauss: (x, p) => p.get(0) * Math.exp(-(((x - p.get(1)) / p.get(2)) ** 2) / 2),
-  logistic_sigma: (x, p) => p.get(0) / (1 + Math.exp(-p.get(1) * (x - p.get(2)))),
-  line_absolute_sigma: (x, p) => p.get(0) + p.get(1) * x,
-  michaelis_menten_sigma: (x, p) => (p.get(0) * x) / (p.get(1) + x),
-  power_law: (x, p) => p.get(0) * x ** p.get(1)
+const MODELS: Record<string, (x: Vector, p: Vector) => Vector> = {
+  exp_decay: (x, p) => x.map((xi) => p.get(0) * Math.exp(-p.get(1) * xi) + p.get(2)),
+  gauss: (x, p) => x.map((xi) => p.get(0) * Math.exp(-(((xi - p.get(1)) / p.get(2)) ** 2) / 2)),
+  logistic_sigma: (x, p) => x.map((xi) => p.get(0) / (1 + Math.exp(-p.get(1) * (xi - p.get(2))))),
+  line_absolute_sigma: (x, p) => x.map((xi) => p.get(0) + p.get(1) * xi),
+  michaelis_menten_sigma: (x, p) => x.map((xi) => (p.get(0) * xi) / (p.get(1) + xi)),
+  power_law: (x, p) => x.map((xi) => p.get(0) * xi ** p.get(1))
 };
 
 const MIRROR_TOLERANCE = 1e-12;
@@ -31,11 +31,13 @@ describe('models mirror the SciPy reference models', () => {
       const model = MODELS[fixture.id];
       expect(model, `no matching model registered for id "${fixture.id}"`).toBeDefined();
 
+      const xdata = Vector.from(fixture.xdata);
       for (const point of fixture.mirrorPoints) {
-        const p = Vector.from(point.p);
-        fixture.xdata.forEach((x, i) => {
-          expect(Math.abs(model(x, p) - point.fx[i])).toBeLessThanOrEqual(
-            MIRROR_TOLERANCE * Math.max(Math.abs(point.fx[i]), 1)
+        const fx = model(xdata, Vector.from(point.p));
+        expect(fx.size).toBe(point.fx.length);
+        point.fx.forEach((expected, i) => {
+          expect(Math.abs(fx.get(i) - expected)).toBeLessThanOrEqual(
+            MIRROR_TOLERANCE * Math.max(Math.abs(expected), 1)
           );
         });
       }
