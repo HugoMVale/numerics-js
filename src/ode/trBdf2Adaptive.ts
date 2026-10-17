@@ -715,8 +715,8 @@ export function trBdf2Adaptive(
     if (J === null) refreshJacobian();
     let ok = luValid && h === luH ? true : factorize(h);
 
-    let iterations1 = 0;
-    let iterations2 = 0;
+    let iterations1: number;
+    let iterations2: number;
     if (ok) {
       const yd = y.data;
       const znd = zN.data;

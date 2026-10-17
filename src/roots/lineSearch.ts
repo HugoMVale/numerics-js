@@ -54,7 +54,7 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
   let fp = fc;
   let fpPrev = NaN;
   let lambda = 1.0;
-  let lambdaTemp = 0;
+  let lambdaTemp: number;
   let lambdaPrev = NaN;
   const A = new Matrix(2, 2);
   const B = new Vector(2);

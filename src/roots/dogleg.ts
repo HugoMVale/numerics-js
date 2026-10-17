@@ -54,8 +54,8 @@ export function dogleg(ctx: GlobalStepContext): GlobalStepResult {
   const newtLen = sclx.mult(p).norm();
 
   let first = true;
-  let isNewtStep = false;
-  let s = p;
+  let isNewtStep: boolean;
+  let s: Vector;
 
   while (state !== TrustState.Accepted && state !== TrustState.Convergence) {
     // Perform dogleg step to determine s

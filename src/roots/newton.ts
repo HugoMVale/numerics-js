@@ -419,15 +419,15 @@ export function quasiNewton(
   let consecutiveMaxSteps = 0;
   let trustLen = options.trustLen === undefined ? 0 : Math.min(options.trustLen, maxLen);
   let restart = true;
-  let nIter = 0;
+  let nIter: number;
   let Q!: Matrix;
   let R!: Matrix;
   let gc = new Vector(0);
-  let fNc = NaN;
+  let fNc: number;
   let message = '';
   let success = false;
-  let xp = xc;
-  let fp = fc;
+  let xp: Vector;
+  let fp: Vector;
   let broke = false;
 
   for (nIter = 1; nIter <= maxIter; nIter++) {

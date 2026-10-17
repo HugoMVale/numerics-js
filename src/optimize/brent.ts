@@ -105,9 +105,9 @@ export function brent(
       };
     }
 
-    let p = 0;
-    let q = 0;
-    let r = 0;
+    let p: number;
+    let q: number;
+    let r: number;
     let parabolic = false;
 
     if (Math.abs(e) > tol1) {

@@ -297,31 +297,29 @@ describe('Vector', () => {
   it('addSelf/subSelf/multSelf/divSelf accept either a vector or a scalar, in place', () => {
     const v: Vector = new Vector([2, 4, 6]);
 
-    let result = v.addSelf(1);
-    expect(result).toBe(v);
+    expect(v.addSelf(1)).toBe(v);
     expect(v.toArray()).toEqual([3, 5, 7]);
 
-    result = v.addSelf(new Vector([1, 1, 1]));
+    expect(v.addSelf(new Vector([1, 1, 1]))).toBe(v);
     expect(v.toArray()).toEqual([4, 6, 8]);
 
-    result = v.subSelf(2);
+    expect(v.subSelf(2)).toBe(v);
     expect(v.toArray()).toEqual([2, 4, 6]);
 
-    result = v.subSelf(new Vector([1, 1, 1]));
+    expect(v.subSelf(new Vector([1, 1, 1]))).toBe(v);
     expect(v.toArray()).toEqual([1, 3, 5]);
 
-    result = v.multSelf(2);
+    expect(v.multSelf(2)).toBe(v);
     expect(v.toArray()).toEqual([2, 6, 10]);
 
-    result = v.multSelf(new Vector([1, 2, 1]));
+    expect(v.multSelf(new Vector([1, 2, 1]))).toBe(v);
     expect(v.toArray()).toEqual([2, 12, 10]);
 
-    result = v.divSelf(2);
+    expect(v.divSelf(2)).toBe(v);
     expect(v.toArray()).toEqual([1, 6, 5]);
 
-    result = v.divSelf(new Vector([1, 2, 1]));
+    expect(v.divSelf(new Vector([1, 2, 1]))).toBe(v);
     expect(v.toArray()).toEqual([1, 3, 5]);
-    expect(result).toBe(v);
   });
 
   it('throws a dimension-mismatch RangeError from the in-place vector-argument overloads', () => {

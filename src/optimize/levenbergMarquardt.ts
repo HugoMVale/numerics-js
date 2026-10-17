@@ -411,7 +411,7 @@ export function levenbergMarquardt(
   let xnorm = 0;
   let delta = 0;
   let par = 0;
-  let gnorm = 0;
+  let gnorm: number;
   let iterations = 0;
   let info = 0;
   // Whether `x` has changed since `J` was evaluated.
