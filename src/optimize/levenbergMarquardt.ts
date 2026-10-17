@@ -142,6 +142,9 @@ export interface LevenbergMarquardtOptions {
  * Minimizes the sum of squares of a vector function, `0.5*||f(x)||²`, using a trust-region 
  * Levenberg-Marquardt algorithm.
  *
+ * The residual vector `f(x)` has `m >= n` components. The method uses derivative information,
+ * supplied through `jac` or approximated by finite differences.
+ * 
  * This is a MINPACK-style implementation (Moré, 1978): each step solves the damped 
  * least-squares problem `min ||J*p + f||² + par*||D*p||²` with the Levenberg-Marquardt 
  * parameter `par` chosen so that `||D*p||` fits inside a trust region whose radius is
@@ -149,9 +152,6 @@ export interface LevenbergMarquardtOptions {
  * factored by a pivoted QR decomposition ({@link Matrix.qrPivot}), so the cost per iteration
  * is `O(m*n²)` and the Jacobian is never squared. Rank-deficient Jacobians are handled
  * gracefully.
- *
- * The residual vector `f(x)` has `m >= n` components. The method uses derivative information,
- * supplied through `jac` or approximated by finite differences.
  *
  * A trial point at which `f` returns non-finite values (`NaN` or `±Infinity`) is treated as a
  * rejected step and the trust region is reduced. If `f(x0)` or a Jacobian is not finite, the 
@@ -191,12 +191,51 @@ export interface LevenbergMarquardtOptions {
  * const residuals = (p: Vector) =>
  *     Vector.from(t.map((ti, i) => p.get(0) * Math.exp(-p.get(1) * ti) - y[i]));
  * const result = levenbergMarquardt(residuals, Vector.from([1, 1]));
- * console.log(result.success, result.x.toString(), result.cost);
+ * console.log(result);
  * ```
  *
  * Output:
  * ```text
- * true Vector(3.016152409051229, 0.5027330972776392) 0.0003031554622114309
+ * {
+ *   method: 'Levenberg-Marquardt (Trust region, Adaptive scaling)',
+ *   success: true,
+ *   message: 'Both the actual and predicted relative reductions in ||f||² are at most tolf.',
+ *   evaluationsFunction: 23,
+ *   evaluationsJacobian: 0,
+ *   iterations: 7,
+ *   x: Vector {
+ *     data: Float64Array(2) [ 3.016152409051229, 0.5027330972776392 ]
+ *   },
+ *   fx: Vector {
+ *     data: Float64Array(6) [
+ *       -0.0038475909487711846,
+ *       0.014395838987910414,
+ *       -0.01646817338272344,
+ *       0.007499051649247357,
+ *       -0.006246367158769306,
+ *       0.004220565751683336
+ *     ]
+ *   },
+ *   cost: 0.0003031554622114309,
+ *   Jx: Matrix {
+ *     _rows: 6,
+ *     _cols: 2,
+ *     data: Float64Array(12) [
+ *       1,
+ *       0,
+ *       0.6048753122268176,
+ *       -1.8243959695100784,
+ *       0.3658741414182455,
+ *       -2.207064151763916,
+ *       0.2213082338240245,
+ *       -2.0024979040026665,
+ *       0.13386388853339576,
+ *       -1.6150153689086437,
+ *       0.0809709609297824,
+ *       -1.2211036495864391
+ *     ]
+ *   }
+ * }
  * ```
  */
 export function levenbergMarquardt(
