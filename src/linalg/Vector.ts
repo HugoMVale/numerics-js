@@ -58,6 +58,25 @@ export class Vector extends ArrayND {
    * never itself subclassed.
    * @param data The buffer to wrap directly. Not copied.
    * @returns A new Vector wrapping `data`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const buf = new Float64Array([1, 2, 3]);
+   * const v = Vector.wrapUnchecked(buf);
+   * buf[0] = 10;
+   * console.log(v.toString());
+   * console.log(v.size);
+   * console.log(v.data === buf);
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(10, 2, 3)
+   * 3
+   * true
+   * ```
    */
   static wrapUnchecked(data: Float64Array): Vector {
     const v = Object.create(Vector.prototype) as Vector;
@@ -91,6 +110,21 @@ export class Vector extends ArrayND {
    * Gets a component by its 0-based index.
    * @param i Component index (0-based).
    * @returns The component value.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([10, 20, 30]);
+   * console.log(v.get(0));
+   * console.log(v.get(2));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 10
+   * 30
+   * ```
    */
   get(i: number): number {
     this._checkIndex(i, 'get');
@@ -111,6 +145,23 @@ export class Vector extends ArrayND {
    * Defaults to ascending numeric order (unlike `Array.prototype.sort`'s
    * default, which sorts lexicographically).
    * @returns A new, sorted vector.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([3, 1, 10, 2]);
+   * console.log(v.sort().toString());
+   * console.log(v.sort((a, b) => b - a).toString());
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3, 10)
+   * Vector(10, 3, 2, 1)
+   * Vector(3, 1, 10, 2)
+   * ```
    */
   sort(compareFn?: (a: number, b: number) => number): Vector {
     const res = this.copy();
@@ -126,6 +177,21 @@ export class Vector extends ArrayND {
    * @param end End index, exclusive. Defaults to `size`. Negative values
    * count back from the end.
    * @returns A new, independent vector holding the selected components.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([0, 1, 2, 3, 4, 5]);
+   * console.log(v.slice(1, 4).toString());
+   * console.log(v.slice(-2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * Vector(4, 5)
+   * ```
    */
   slice(start?: number, end?: number): Vector {
     return new Vector(this.data.slice(start, end));
@@ -140,6 +206,19 @@ export class Vector extends ArrayND {
    * non-negative integer; `0` yields an empty vector.
    * @returns A new, independent vector of size `size * repeats`.
    * @throws {RangeError} If `repeats` is not a non-negative integer.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.repeat(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 1, 2, 2, 3, 3)
+   * ```
    */
   repeat(repeats: number): Vector {
     ArrayND._checkCount(repeats, 'Vector.repeat');
@@ -156,6 +235,19 @@ export class Vector extends ArrayND {
    * integer; `0` yields an empty vector.
    * @returns A new, independent vector of size `size * reps`.
    * @throws {RangeError} If `reps` is not a non-negative integer.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.tile(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3, 1, 2, 3)
+   * ```
    */
   tile(reps: number): Vector {
     ArrayND._checkCount(reps, 'Vector.tile', 'reps');
@@ -169,6 +261,19 @@ export class Vector extends ArrayND {
    * @param fn Called with each component's value and index; its return
    * value becomes the corresponding component of the result.
    * @returns A new vector, the same size as this one, holding the mapped values.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.map((x, i) => x * x + i).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 5, 11)
+   * ```
    */
   map(fn: (value: number, index: number) => number): Vector {
     const res = new Vector(this.size);
@@ -181,6 +286,21 @@ export class Vector extends ArrayND {
    * If this vector has zero length, returns a zero vector instead of
    * dividing by zero.
    * @returns The normalized vector, or a zero vector if this vector is zero.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([3, 4]);
+   * console.log(v.normalize().toString());
+   * console.log(Vector.zero(2).normalize().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0.6000000000000001, 0.8)
+   * Vector(0, 0)
+   * ```
    */
   normalize(): Vector {
     const m = this.norm();
@@ -198,6 +318,20 @@ export class Vector extends ArrayND {
    * @returns A new `this.size x v.size` matrix.
    * @throws {RangeError} If this vector or `v` is empty (`size === 0`)
    * — same restriction `Matrix` places on its own dimensions.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const u = Vector.from([1, 2]);
+   * const v = Vector.from([3, 4, 5]);
+   * console.log(u.outer(v).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[3, 4, 5], [6, 8, 10]]
+   * ```
    */
   outer(v: Vector): Matrix {
     const n = v.size;
@@ -214,6 +348,19 @@ export class Vector extends ArrayND {
   /**
    * Computes the sum of this vector's components.
    * @returns The sum, or `0` if `size === 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3, 4]);
+   * console.log(v.sum());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 10
+   * ```
    */
   sum(): number {
     return this._sumAll();
@@ -222,6 +369,19 @@ export class Vector extends ArrayND {
   /**
    * Computes the arithmetic mean of this vector's components.
    * @returns The mean, or `NaN` if `size === 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3, 4]);
+   * console.log(v.mean());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2.5
+   * ```
    */
   mean(): number {
     return this._meanAll();
@@ -234,6 +394,21 @@ export class Vector extends ArrayND {
    * Defaults to `0` (population variance); pass `1` for the unbiased
    * sample variance.
    * @returns The variance. `NaN` if `size - ddof <= 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3, 4]);
+   * console.log(v.variance());
+   * console.log(v.variance(1));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1.25
+   * 1.6666666666666667
+   * ```
    */
   variance(ddof: number = 0): number {
     return this._varianceAll(ddof);
@@ -245,6 +420,21 @@ export class Vector extends ArrayND {
    * Defaults to `0` (population standard deviation); pass `1` for the
    * unbiased sample standard deviation.
    * @returns The standard deviation. `NaN` if `size - ddof <= 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3, 4]);
+   * console.log(v.std());
+   * console.log(v.std(1));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1.118033988749895
+   * 1.2909944487358056
+   * ```
    */
   std(ddof: number = 0): number {
     return this._stdAll(ddof);
@@ -254,6 +444,19 @@ export class Vector extends ArrayND {
    * Computes the cumulative sum of this vector's components.
    * @returns A new vector of the same size where component `i` is the
    * sum of `this[0..i]`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3, 4]);
+   * console.log(v.cumsum().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 3, 6, 10)
+   * ```
    */
   cumsum(): Vector {
     const res = new Vector(this.size);
@@ -269,6 +472,19 @@ export class Vector extends ArrayND {
    * Finds the smallest component of this vector.
    * @returns The minimum value.
    * @throws {RangeError} If `size === 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([4, -1, 7, 2]);
+   * console.log(v.min());
+   * ```
+   *
+   * Output:
+   * ```text
+   * -1
+   * ```
    */
   min(): number {
     return this._minAll();
@@ -280,6 +496,19 @@ export class Vector extends ArrayND {
    * components take priority, matching `min()`'s NaN-propagation semantics.
    * @returns The index of the minimum value.
    * @throws {RangeError} If `size === 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([4, -1, 7, 2]);
+   * console.log(v.argmin());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1
+   * ```
    */
   argmin(): number {
     if (this.size === 0)
@@ -291,6 +520,19 @@ export class Vector extends ArrayND {
    * Finds the largest component of this vector.
    * @returns The maximum value.
    * @throws {RangeError} If `size === 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([4, -1, 7, 2]);
+   * console.log(v.max());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 7
+   * ```
    */
   max(): number {
     return this._maxAll();
@@ -302,6 +544,19 @@ export class Vector extends ArrayND {
    * components take priority, matching `max()`'s NaN-propagation semantics.
    * @returns The index of the maximum value.
    * @throws {RangeError} If `size === 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([4, -1, 7, 2]);
+   * console.log(v.argmax());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2
+   * ```
    */
   argmax(): number {
     if (this.size === 0)
@@ -312,6 +567,19 @@ export class Vector extends ArrayND {
   /**
    * Returns this vector's components as a plain array.
    * @returns The components, in order.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.toArray());
+   * ```
+   *
+   * Output:
+   * ```text
+   * [ 1, 2, 3 ]
+   * ```
    */
   toArray(): number[] {
     return Array.from(this.data);
@@ -320,6 +588,21 @@ export class Vector extends ArrayND {
   /**
    * Returns a human-readable string representation of this vector.
    * @returns e.g. `"Vector(1, 2, 3)"`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.toString());
+   * console.log(`v = ${v}`);
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * v = Vector(1, 2, 3)
+   * ```
    */
   toString(): string {
     return `Vector(${this.data.join(', ')})`;
@@ -327,6 +610,24 @@ export class Vector extends ArrayND {
 
   /**
    * Makes Vector iterable, e.g. `const [a, b, c] = someVector;` or `for (const x of v)`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * for (const x of v) console.log(x);
+   * const [a, b] = v;
+   * console.log(a + b);
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1
+   * 2
+   * 3
+   * 3
+   * ```
    */
   [Symbol.iterator](): IterableIterator<number> {
     return this.data[Symbol.iterator]();
@@ -340,6 +641,20 @@ export class Vector extends ArrayND {
    * Sets this vector's components directly, mutating it in place.
    * @param values Values to copy in; must have length `size`.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.zero(3);
+   * v.set([1, 2, 3]);
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * ```
    */
   set(values: number[] | Float64Array): this;
 
@@ -348,6 +663,20 @@ export class Vector extends ArrayND {
    * @param i Component index (0-based).
    * @param value Value to store.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.zero(3);
+   * v.set(1, 20);
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 20, 0)
+   * ```
    */
   set(i: number, value: number): this;
 
@@ -372,6 +701,21 @@ export class Vector extends ArrayND {
    * @param v The vector to scale and add. Must have the same `size` as this one.
    * @param s The scale factor applied to `v`.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const x = Vector.from([1, 2, 3]);
+   * const d = Vector.from([1, 0, -1]);
+   * x.addScaled(d, 0.5);
+   * console.log(x.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1.5, 2, 2.5)
+   * ```
    */
   addScaled(v: Vector, s: number): this {
     this._checkSameShape(v as this, 'addScaled');
@@ -385,6 +729,22 @@ export class Vector extends ArrayND {
    * @param a
    * @param b Must have the same `size` as `a` and as this vector.
    * @returns `this`, set to `a - b`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const a = Vector.from([5, 7, 9]);
+   * const b = Vector.from([1, 2, 3]);
+   * const out = Vector.zero(3);
+   * out.subVectors(a, b);
+   * console.log(out.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(4, 5, 6)
+   * ```
    */
   subVectors(a: Vector, b: Vector): this {
     this._checkSameShape(a as this, 'subVectors');
@@ -397,6 +757,18 @@ export class Vector extends ArrayND {
    * Creates a zero vector of the given dimension.
    * @param dim The number of components.
    * @returns A new zero vector.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.zero(3).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 0, 0)
+   * ```
    */
   static zero(dim: number): Vector {
     return new Vector(dim);
@@ -406,6 +778,18 @@ export class Vector extends ArrayND {
    * Creates a vector of the given dimension filled with `1`.
    * @param dim The number of components.
    * @returns A new vector of all ones.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.ones(3).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 1, 1)
+   * ```
    */
   static ones(dim: number): Vector {
     return new Vector(dim).fill(1);
@@ -416,6 +800,18 @@ export class Vector extends ArrayND {
    * @param dim The number of components.
    * @param value The value to fill with.
    * @returns A new vector with every component equal to `value`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.full(3, 2.5).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2.5, 2.5, 2.5)
+   * ```
    */
   static full(dim: number, value: number): Vector {
     return new Vector(dim).fill(value);
@@ -425,6 +821,19 @@ export class Vector extends ArrayND {
    * Creates a Vector from an array or typed array.
    * @param arr Source values.
    * @returns A new vector with dimension equal to `arr.length`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * ```
    */
   static from(arr: number[] | Float64Array): Vector {
     return new Vector(arr);
@@ -436,6 +845,18 @@ export class Vector extends ArrayND {
    * takes a sample *count* instead of a step size.
    * @param stop Exclusive upper bound, with `start` defaulting to `0` and `step` to `1`.
    * @returns A new vector of values `0, 1, 2, ..., stop - 1`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.arange(4).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 1, 2, 3)
+   * ```
    */
   static arange(stop: number): Vector;
 
@@ -449,6 +870,20 @@ export class Vector extends ArrayND {
    * (in which case `start` should be greater than `stop`). Defaults to `1`.
    * @returns A new vector of values `start, start + step, start + 2*step, ...` up to (excluding) `stop`.
    * @throws {RangeError} If `step === 0`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.arange(0, 1, 0.25).toString());
+   * console.log(Vector.arange(5, 0, -2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 0.25, 0.5, 0.75)
+   * Vector(5, 3, 1)
+   * ```
    */
   static arange(start: number, stop: number, step?: number): Vector;
 
@@ -470,6 +905,20 @@ export class Vector extends ArrayND {
    * @param endpoint Whether to include `stop` as the last sample. Defaults to `true`.
    * @returns A new vector of length `num`.
    * @throws {RangeError} If `num` is not a non-negative integer.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.linspace(0, 1, 5).toString());
+   * console.log(Vector.linspace(0, 1, 4, false).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 0.25, 0.5, 0.75, 1)
+   * Vector(0, 0.25, 0.5, 0.75)
+   * ```
    */
   static linspace(start: number, stop: number, num: number = 50, endpoint: boolean = true): Vector {
     if (!Number.isInteger(num) || num < 0) {
@@ -502,6 +951,20 @@ export class Vector extends ArrayND {
    * @param base The base of the log space. Defaults to `10`.
    * @returns A new vector of length `num`.
    * @throws {RangeError} If `num` is not a non-negative integer.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.logspace(0, 2, 3).toString());
+   * console.log(Vector.logspace(0, 3, 4, true, 2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 10, 100)
+   * Vector(1, 2, 4, 8)
+   * ```
    */
   static logspace(
     start: number,
