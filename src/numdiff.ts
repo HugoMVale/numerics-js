@@ -107,16 +107,20 @@ export function scaleVector(x: Vector): Vector {
  * import { Vector } from 'numerics-js/linalg';
  * import { jacobianForward } from 'numerics-js/numdiff';
  *
- * // Evaluate the numerical Jacobian of `f(x) = [x0**2 * x1**3]` at `(2, -2)`.
- * const f = (x: Vector) => Vector.from([Math.pow(x.get(0), 2) * Math.pow(x.get(1), 3)]);
- * const x = Vector.from([2.0, -2.0]);
+ * // Evaluate the numerical Jacobian of `f(x, y) = [x**2 + y**2, x * y]` at `(1, 2)`.
+ * const f = (x: Vector) => {
+ *     const x0 = x.get(0);
+ *     const x1 = x.get(1);
+ *     return Vector.from([x0 ** 2 + x1 ** 2, x0 * x1]);
+ * };
+ * const x = Vector.from([1.0, 2.0]);
  * const jacobian = jacobianForward(f, x);
  * console.log(jacobian.toString());
  * ```
  *
  * Output:
  * ```text
- * Matrix[[-32.00000023841858, 47.99999928474426]]
+ * Matrix[[2, 4], [2, 1]]
  * ```
  */
 export function jacobianForward(
