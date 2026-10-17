@@ -191,12 +191,14 @@ export function jacobianForward(
  * // Evaluate the numerical derivative of `f(x) = x**3` at `x = 1`.
  * const f = (x: number) => x ** 3;
  * const [df, fx] = derivativeCentered(f, 1.0);
- * console.log(df, fx);
+ * console.log('df:', df);
+ * console.log('fx:', fx);
  * ```
  *
  * Output:
  * ```text
- * 3.0000000000699174 1.0000000002288205
+ * df: 3.0000000000699174
+ * fx: 1.0000000002288205
  * ```
  */
 export function derivativeCentered(
