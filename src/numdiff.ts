@@ -25,13 +25,13 @@ const EPS = Number.EPSILON;
  *
  * const x = Vector.from([1e-2, 0.0, 1.0, 1e3]);
  * const sclx = scaleVector(x);
- * console.log('sclx:', sclx.toString());
+ * console.log('sclx  :', sclx.toString());
  * console.log('sclx*x:', sclx.mult(x).toString());
  * ```
  *
  * Output:
  * ```text
- * sclx: Vector(100, 1000, 1, 0.001)
+ * sclx  : Vector(100, 1000, 1, 0.001)
  * sclx*x: Vector(1, 0, 1, 1)
  * ```
  */
