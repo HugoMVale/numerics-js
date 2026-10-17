@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { rungeKuttaAdaptive, rungeKuttaAdaptiveStep } from '../../src/ode/rungeKuttaAdaptive.js';
-import type { DerivativeFunction } from '../../src/ode/types.js';
+import type { DerivativeFunction, RungeKuttaAdaptiveMethod } from '../../src/ode/types.js';
 
 const methods = ['rk23', 'rk45'] as const;
 
@@ -247,9 +247,17 @@ describe('rungeKuttaAdaptive additional coverage', () => {
       yTemp: new Vector(1)
     };
 
-    expect(() => rungeKuttaAdaptiveStep('bogus' as any, f, 0, y0, 0.1, out, scratch)).toThrow(
-      RangeError
-    );
+    expect(() =>
+      rungeKuttaAdaptiveStep(
+        'bogus' as unknown as RungeKuttaAdaptiveMethod,
+        f,
+        0,
+        y0,
+        0.1,
+        out,
+        scratch
+      )
+    ).toThrow(RangeError);
   });
 
   it('throws for an unrecognized method at the top level', () => {
@@ -259,7 +267,9 @@ describe('rungeKuttaAdaptive additional coverage', () => {
     };
     const y0 = new Vector([1]);
 
-    expect(() => rungeKuttaAdaptive('bogus' as any, f, 0, 1, y0)).toThrow(RangeError);
+    expect(() =>
+      rungeKuttaAdaptive('bogus' as unknown as RungeKuttaAdaptiveMethod, f, 0, 1, y0)
+    ).toThrow(RangeError);
   });
 
   it.each(methods)(

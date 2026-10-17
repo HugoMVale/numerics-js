@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { quad } from '../../src/integrate/quad.js';
+import type { QuadTransform } from '../../src/integrate/quad.js';
 import {
   fSin,
   fIdentity,
@@ -217,13 +218,22 @@ describe('quad - user-defined transform', () => {
   });
 
   it('validates the transform', () => {
-    expect(() => quad(fSin, 0, 1, { transform: { map: 1 as any, inverse: Math.sqrt } })).toThrow(
+    expect(() =>
+      quad(fSin, 0, 1, {
+        transform: { map: 1 as unknown as QuadTransform['map'], inverse: Math.sqrt }
+      })
+    ).toThrow(TypeError);
+    expect(() =>
+      quad(fSin, 0, 1, {
+        transform: {
+          map: sqrtTransform.map,
+          inverse: undefined as unknown as QuadTransform['inverse']
+        }
+      })
+    ).toThrow('transform.map and transform.inverse must be functions');
+    expect(() => quad(fSin, 0, 1, { transform: null as unknown as QuadTransform })).toThrow(
       TypeError
     );
-    expect(() =>
-      quad(fSin, 0, 1, { transform: { map: sqrtTransform.map, inverse: undefined as any } })
-    ).toThrow('transform.map and transform.inverse must be functions');
-    expect(() => quad(fSin, 0, 1, { transform: null as any })).toThrow(TypeError);
   });
 
   it('throws RangeError when inverse yields non-finite or equal t-limits', () => {

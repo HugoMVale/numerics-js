@@ -110,7 +110,9 @@ describe('gaussKronrod', () => {
   });
 
   it('throws TypeError for invalid integrand input', () => {
-    expect(() => gaussKronrod('not a function' as any, 0, 1)).toThrow(TypeError);
+    expect(() => gaussKronrod('not a function' as unknown as (x: number) => number, 0, 1)).toThrow(
+      TypeError
+    );
   });
 
   it('throws RangeError for infinite or NaN integration limits', () => {
