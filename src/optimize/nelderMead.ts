@@ -121,20 +121,20 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * Finds the minimum of a multivariate function `f(x)` using the Nelder-Mead simplex
  * algorithm.
  *
- * The Nelder-Mead simplex algorithm is a derivative-free optimize method
- * for unconstrained minimization of multivariate functions. It maintains a
- * simplex of `N+1` vertices in `N`-dimensional space and iteratively updates
- * this simplex based on the function values at the vertices.
+ * The Nelder-Mead simplex algorithm is a derivative-free method for unconstrained 
+ * minimization of multivariate functions. It maintains a simplex of `N+1` vertices in 
+ * `N`-dimensional space and iteratively updates this simplex based on the function values
+ * at the vertices.
  *
- * The initial simplex is aligned with the coordinate axes. For each
- * coordinate, the corresponding simplex vertex offset is:
+ * The initial simplex is aligned with the coordinate axes. For each coordinate, the 
+ * corresponding simplex vertex offset is:
  *
  * `dx_i = 0.05 * max(|x0_i|, 1/scale_i)`
  *
- * where `x0` is the initial guess and `scale_i` is the scaling factor
- * associated with variable `x_i`. Therefore, it is important that `x0`
- * and/or `sclx` reflect the expected scale of the variables. If `sclx` is
- * not provided, the variable scaling is inferred from `x0`.
+ * where `x0` is the initial guess and `scale_i` is the scaling factor associated with 
+ * variable `x_i`. Therefore, it is important that `x0` and/or `sclx` reflect the expected
+ * scale of the variables. If `sclx` is not provided, the variable scaling is inferred 
+ * from `x0`.
  *
  * Results are validated against `scipy.optimize.minimize` with `method="Nelder-Mead"`. 
  * See the [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/optimize/nelderMead.scipy.benchmark.md).
