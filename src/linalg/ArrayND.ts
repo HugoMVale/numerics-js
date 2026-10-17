@@ -25,6 +25,22 @@ export abstract class ArrayND {
    * The total number of elements in the underlying flat buffer. For
    * `Vector` this is the same as `size`/dimension; for `Matrix` this is
    * `rows * cols`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(v.size);
+   * console.log(A.size);
+   * ```
+   *
+   * Output:
+   * ```text
+   * 3
+   * 6
+   * ```
    */
   get size(): number {
     return this.data.length;
@@ -61,6 +77,20 @@ export abstract class ArrayND {
    * every element.
    * @param x The instance to add. Must be shape-compatible with this one.
    * @returns A new instance equal to `this + x`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const u = Vector.from([1, 2, 3]);
+   * const w = Vector.from([10, 20, 30]);
+   * console.log(u.add(w).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(11, 22, 33)
+   * ```
    */
   add(x: this): this;
 
@@ -68,6 +98,19 @@ export abstract class ArrayND {
    * Adds a scalar to every element.
    * @param s The scalar to add to every element.
    * @returns A new instance equal to `this + s`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.add(10).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(11, 12, 13)
+   * ```
    */
   add(s: number): this;
 
@@ -87,6 +130,20 @@ export abstract class ArrayND {
    * scalar from every element.
    * @param x The instance to subtract. Must be shape-compatible with this one.
    * @returns A new instance equal to `this - x`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const u = Vector.from([10, 20, 30]);
+   * const w = Vector.from([1, 2, 3]);
+   * console.log(u.sub(w).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(9, 18, 27)
+   * ```
    */
   sub(x: this): this;
 
@@ -94,6 +151,19 @@ export abstract class ArrayND {
    * Subtracts a scalar from every element.
    * @param s The scalar to subtract from every element.
    * @returns A new instance equal to `this - s`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.sub(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 1, 2)
+   * ```
    */
   sub(s: number): this;
 
@@ -113,6 +183,20 @@ export abstract class ArrayND {
    * product), or scales every element by a scalar.
    * @param x The instance to multiply by. Must be shape-compatible with this one.
    * @returns A new instance where each element is `this[i] * x[i]`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const u = Vector.from([1, 2, 3]);
+   * const w = Vector.from([4, 5, 6]);
+   * console.log(u.mult(w).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(4, 10, 18)
+   * ```
    */
   mult(x: this): this;
 
@@ -120,6 +204,19 @@ export abstract class ArrayND {
    * Scales every element by a scalar.
    * @param s The scale factor.
    * @returns A new instance equal to `this * s`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.mult(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2, 4, 6)
+   * ```
    */
   mult(s: number): this;
 
@@ -141,6 +238,20 @@ export abstract class ArrayND {
    * or `NaN`).
    * @param x The instance to divide by. Must be shape-compatible with this one.
    * @returns A new instance where each element is `this[i] / x[i]`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const u = Vector.from([2, 4, 6]);
+   * const w = Vector.from([1, 2, 3]);
+   * console.log(u.div(w).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2, 2, 2)
+   * ```
    */
   div(x: this): this;
 
@@ -150,6 +261,19 @@ export abstract class ArrayND {
    * semantics (`Infinity`, `-Infinity`, or `NaN`).
    * @param s The scalar to divide every element by.
    * @returns A new instance equal to `this / s`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(v.div(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0.5, 1, 1.5)
+   * ```
    */
   div(s: number): this;
 
@@ -167,6 +291,20 @@ export abstract class ArrayND {
   /**
    * Computes the elementwise absolute value.
    * @returns A new instance where each element is `|this[i]|`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([-1, 2, -3]).abs().toString());
+   * console.log(Matrix.from([[-1, 2], [-3, 4]]).abs().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * Matrix[[1, 2], [3, 4]]
+   * ```
    */
   abs(): this {
     const res = this._create(new Float64Array(this.data.length));
@@ -178,6 +316,20 @@ export abstract class ArrayND {
    * Raises each element to a power, elementwise.
    * @param exp The exponent.
    * @returns A new instance where each element is `this[i] ** exp`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, 2, 3]).pow(2).toString());
+   * console.log(Matrix.from([[1, 2], [3, 4]]).pow(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 4, 9)
+   * Matrix[[1, 4], [9, 16]]
+   * ```
    */
   pow(exp: number): this {
     const res = this._create(new Float64Array(this.data.length));
@@ -189,6 +341,20 @@ export abstract class ArrayND {
    * Computes the elementwise square root. Elements that are negative
    * produce `NaN`, matching `Math.sqrt`.
    * @returns A new instance where each element is `sqrt(this[i])`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([4, 9, -1]).sqrt().toString());
+   * console.log(Matrix.from([[1, 4], [9, 16]]).sqrt().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2, 3, NaN)
+   * Matrix[[1, 2], [3, 4]]
+   * ```
    */
   sqrt(): this {
     const res = this._create(new Float64Array(this.data.length));
@@ -202,6 +368,20 @@ export abstract class ArrayND {
    * @param max The upper bound.
    * @returns A new instance with every element clamped to `[min, max]`.
    * @throws {RangeError} If `min > max`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([-2, 0.5, 3]).clip(0, 1).toString());
+   * console.log(Matrix.from([[-2, 0.5], [3, 1]]).clip(0, 1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 0.5, 1)
+   * Matrix[[0, 0.5], [1, 1]]
+   * ```
    */
   clip(min: number, max: number): this {
     if (min > max) {
@@ -222,6 +402,20 @@ export abstract class ArrayND {
    * scalar to every element: `this += x`.
    * @param x The instance to add. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * v.addSelf(Vector.from([10, 20, 30]));
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(11, 22, 33)
+   * ```
    */
   addSelf(x: this): this;
 
@@ -229,6 +423,20 @@ export abstract class ArrayND {
    * Adds a scalar to every element in place: `this += s`.
    * @param s The scalar to add to every element.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * v.addSelf(10);
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(11, 12, 13)
+   * ```
    */
   addSelf(s: number): this;
 
@@ -247,6 +455,20 @@ export abstract class ArrayND {
    * subtracts a scalar from every element: `this -= x`.
    * @param x The instance to subtract. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([10, 20, 30]);
+   * v.subSelf(Vector.from([1, 2, 3]));
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(9, 18, 27)
+   * ```
    */
   subSelf(x: this): this;
 
@@ -254,6 +476,20 @@ export abstract class ArrayND {
    * Subtracts a scalar from every element in place: `this -= s`.
    * @param s The scalar to subtract from every element.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * v.subSelf(1);
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 1, 2)
+   * ```
    */
   subSelf(s: number): this;
 
@@ -272,6 +508,20 @@ export abstract class ArrayND {
    * (Hadamard product), or scales every element by a scalar: `this *= x`.
    * @param x The instance to multiply by. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * v.multSelf(Vector.from([4, 5, 6]));
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(4, 10, 18)
+   * ```
    */
   multSelf(x: this): this;
 
@@ -279,6 +529,20 @@ export abstract class ArrayND {
    * Scales every element by a scalar in place: `this *= s`.
    * @param s The scale factor.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * v.multSelf(2);
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2, 4, 6)
+   * ```
    */
   multSelf(s: number): this;
 
@@ -299,6 +563,20 @@ export abstract class ArrayND {
    * (`Infinity`, `-Infinity`, or `NaN`).
    * @param x The instance to divide by. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([2, 4, 6]);
+   * v.divSelf(Vector.from([1, 2, 3]));
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2, 2, 2)
+   * ```
    */
   divSelf(x: this): this;
 
@@ -308,6 +586,20 @@ export abstract class ArrayND {
    * standard floating-point semantics (`Infinity`, `-Infinity`, or `NaN`).
    * @param s The scalar to divide every element by.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * v.divSelf(2);
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0.5, 1, 1.5)
+   * ```
    */
   divSelf(s: number): this;
 
@@ -324,6 +616,24 @@ export abstract class ArrayND {
   /**
    * Takes the elementwise absolute value in place.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([-1, 2, -3]);
+   * v.absSelf();
+   * console.log(v.toString());
+   * const A = Matrix.from([[-1, 2], [-3, 4]]);
+   * A.absSelf();
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * Matrix[[1, 2], [3, 4]]
+   * ```
    */
   absSelf(): this {
     for (let i = 0; i < this.data.length; i++) this.data[i] = Math.abs(this.data[i]);
@@ -334,6 +644,24 @@ export abstract class ArrayND {
    * Raises each element to a power in place, elementwise.
    * @param exp The exponent.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * v.powSelf(2);
+   * console.log(v.toString());
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * A.powSelf(2);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 4, 9)
+   * Matrix[[1, 4], [9, 16]]
+   * ```
    */
   powSelf(exp: number): this {
     for (let i = 0; i < this.data.length; i++) this.data[i] = Math.pow(this.data[i], exp);
@@ -344,6 +672,24 @@ export abstract class ArrayND {
    * Takes the elementwise square root in place. Elements that are
    * negative become `NaN`, matching `Math.sqrt`.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([4, 9, -1]);
+   * v.sqrtSelf();
+   * console.log(v.toString());
+   * const A = Matrix.from([[1, 4], [9, 16]]);
+   * A.sqrtSelf();
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2, 3, NaN)
+   * Matrix[[1, 2], [3, 4]]
+   * ```
    */
   sqrtSelf(): this {
     for (let i = 0; i < this.data.length; i++) this.data[i] = Math.sqrt(this.data[i]);
@@ -356,6 +702,24 @@ export abstract class ArrayND {
    * @param max The upper bound.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `min > max`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([-2, 0.5, 3]);
+   * v.clipSelf(0, 1);
+   * console.log(v.toString());
+   * const A = Matrix.from([[-2, 0.5], [3, 1]]);
+   * A.clipSelf(0, 1);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 0.5, 1)
+   * Matrix[[0, 0.5], [1, 1]]
+   * ```
    */
   clipSelf(min: number, max: number): this {
     if (min > max) {
@@ -373,6 +737,20 @@ export abstract class ArrayND {
   /**
    * Tests each element for NaN.
    * @returns A boolean array, one entry per element of the flat buffer.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, NaN, 3]).isNaN());
+   * console.log(Matrix.from([[1, NaN], [3, 4]]).isNaN());
+   * ```
+   *
+   * Output:
+   * ```text
+   * [ false, true, false ]
+   * [ false, true, false, false ]
+   * ```
    */
   isNaN(): boolean[] {
     const result: boolean[] = new Array(this.data.length);
@@ -385,6 +763,20 @@ export abstract class ArrayND {
   /**
    * Tests each element for finiteness. NaN and either infinity are not finite.
    * @returns A boolean array, one entry per element of the flat buffer.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, Infinity, NaN]).isFinite());
+   * console.log(Matrix.from([[1, Infinity], [NaN, 4]]).isFinite());
+   * ```
+   *
+   * Output:
+   * ```text
+   * [ true, false, false ]
+   * [ true, false, false, true ]
+   * ```
    */
   isFinite(): boolean[] {
     const result: boolean[] = new Array(this.data.length);
@@ -397,6 +789,20 @@ export abstract class ArrayND {
   /**
    * Checks whether every element in the flat buffer is finite.
    * @returns `true` if every element is finite. Empty arrays return `true`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, 2, 3]).allFinite());
+   * console.log(Matrix.from([[1, NaN], [3, 4]]).allFinite());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
    */
   allFinite(): boolean {
     for (let i = 0; i < this.data.length; i++) {
@@ -427,6 +833,22 @@ export abstract class ArrayND {
    * @param atol Absolute tolerance.
    * @returns A boolean array, one entry per element of the flat buffer.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const u = Vector.from([1, 2, 3]);
+   * console.log(u.isClose(Vector.from([1.000001, 2, 3.1])));
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.isClose(Matrix.from([[1.000001, 2], [3, 4.1]])));
+   * ```
+   *
+   * Output:
+   * ```text
+   * [ true, true, false ]
+   * [ true, true, true, false ]
+   * ```
    */
   isClose(x: this, rtol: number = 1e-5, atol: number = 1e-8): boolean[] {
     this._checkSameShape(x, 'isClose');
@@ -449,6 +871,22 @@ export abstract class ArrayND {
    * @param atol Absolute tolerance.
    * @returns `true` if every element of `this` is close to the corresponding element of `x`.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const u = Vector.from([1, 2, 3]);
+   * console.log(u.allClose(Vector.from([1.000001, 2, 3])));
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.allClose(Matrix.from([[1, 2], [3, 4.1]])));
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
    */
   allClose(x: this, rtol: number = 1e-5, atol: number = 1e-8): boolean {
     this._checkSameShape(x, 'allClose');
@@ -467,6 +905,20 @@ export abstract class ArrayND {
    * `Vector`, the squared vector length; for `Matrix`, the squared
    * Frobenius norm). Cheaper than `norm()` since it avoids a square root.
    * @returns The sum of squares of every element.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([3, 4]).normSq());
+   * console.log(Matrix.from([[1, 2], [3, 4]]).normSq());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 25
+   * 30
+   * ```
    */
   normSq(): number {
     let sum = 0;
@@ -478,6 +930,20 @@ export abstract class ArrayND {
    * Computes the Euclidean norm of the flat buffer (for `Vector`, the
    * vector length; for `Matrix`, the Frobenius norm).
    * @returns `sqrt(normSq())`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([3, 4]).norm());
+   * console.log(Matrix.from([[1, 2], [3, 4]]).norm());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 5
+   * 5.477225575051661
+   * ```
    */
   norm(): number {
     return Math.sqrt(this.normSq());
@@ -491,6 +957,18 @@ export abstract class ArrayND {
    * sum) instead, which is the conventional meaning for matrices — see
    * `Matrix.normInf()`.
    * @returns The largest absolute entry, or `0` for an all-zero array.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, -5, 3]).normInf());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 5
+   * ```
    */
   normInf(): number {
     let m = 0;
@@ -507,6 +985,21 @@ export abstract class ArrayND {
    * @param x The other instance. Must be shape-compatible with this one.
    * @returns The scalar `this · x`, summed over every element of the flat buffer.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, 2, 3]).dot(Vector.from([4, 5, 6])));
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.dot(Matrix.from([[5, 6], [7, 8]])));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 32
+   * 70
+   * ```
    */
   dot(x: this): number {
     this._checkSameShape(x, 'dot');
@@ -522,6 +1015,21 @@ export abstract class ArrayND {
    * @param x The other instance. Must be shape-compatible with this one.
    * @returns The distance between `this` and `x`.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([0, 0]).dist(Vector.from([3, 4])));
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.dist(Matrix.identity(2)));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 5
+   * 4.69041575982343
+   * ```
    */
   dist(x: this): number {
     this._checkSameShape(x, 'dist');
@@ -794,6 +1302,30 @@ export abstract class ArrayND {
   /**
    * Creates an independent copy of this instance.
    * @returns A new instance of the same concrete type, with the same values.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * const w = v.copy();
+   * w.set(0, 99);
+   * console.log(v.toString());
+   * console.log(w.toString());
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const B = A.copy();
+   * B.set(0, 0, 99);
+   * console.log(A.toString());
+   * console.log(B.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * Vector(99, 2, 3)
+   * Matrix[[1, 2], [3, 4]]
+   * Matrix[[99, 2], [3, 4]]
+   * ```
    */
   copy(): this {
     return this._create(this.data.slice());
@@ -803,6 +1335,20 @@ export abstract class ArrayND {
    * Sets every element of the flat buffer to `value`, in place.
    * @param value The value to fill with.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.zero(3).fill(7).toString());
+   * console.log(Matrix.zero(2, 2).fill(7).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(7, 7, 7)
+   * Matrix[[7, 7], [7, 7]]
+   * ```
    */
   fill(value: number): this {
     this.data.fill(value);
