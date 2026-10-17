@@ -129,10 +129,10 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * The initial simplex is aligned with the coordinate axes. For each coordinate, the
  * corresponding simplex vertex offset is:
  *
- * `dx_i = 0.05 * max(|x0_i|, 1/scale_i)`
+ * `dx[i] = 0.05 * max(|x0[i]|, 1/scale[i])`
  *
- * where `x0` is the initial guess and `scale_i` is the scaling factor associated with
- * variable `x_i`. Therefore, it is important that `x0` and/or `sclx` reflect the expected
+ * where `x0` is the initial guess and `scale[i]` is the scaling factor associated with
+ * variable `x[i]`. Therefore, it is important that `x0` and/or `sclx` reflect the expected
  * scale of the variables. If `sclx` is not provided, the variable scaling is inferred
  * from `x0`.
  *
