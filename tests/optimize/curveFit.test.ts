@@ -123,6 +123,30 @@ describe('curveFit — nonlinear models', () => {
         expect(fd.evaluationsJacobian).toBe(0);
     });
 
+    it('by default, computes the covariance from the last Jacobian of the iterations; `jacFinal: true` evaluates it at the solution', () => {
+        const x = Vector.linspace(-3, 5, 40);
+        const y = x.map((xi, i) => 4 * Math.exp(-(((xi - 1) / 0.8) ** 2) / 2) + wobble(i));
+        const p0 = Vector.from([3, 0.5, 1]);
+
+        // With the analytic Jacobian, the exact covariance is available as a reference.
+        const stale = curveFit(gauss, x, y, p0, { jac: gaussJac });
+        const exact = curveFit(gauss, x, y, p0, { jac: gaussJac, jacFinal: true });
+        const reference = curveFit(gauss, x, y, exact.p, { jac: gaussJac, maxIter: 1, jacCheck: false });
+        expect(exact.success, exact.message).toBe(true);
+        expect(stale.success, stale.message).toBe(true);
+        expect(stale.p.allClose(exact.p, 0, 0)).toBe(true);
+        expect(exact.cov.allClose(reference.cov, 1e-8, 1e-8 * exact.cov.normInf())).toBe(true);
+        // The last Jacobian is one step behind: slightly different covariance, one evaluation less.
+        expect(stale.cov.allClose(exact.cov, 1e-3, 1e-3 * exact.cov.normInf())).toBe(true);
+        expect(stale.evaluationsJacobian).toBe(exact.evaluationsJacobian - 1);
+
+        // Same with finite differences, where the saving is `n` evaluations of the residuals.
+        const fdStale = curveFit(gauss, x, y, p0);
+        const fdExact = curveFit(gauss, x, y, p0, { jacFinal: true });
+        expect(fdStale.evaluationsFunction).toBe(fdExact.evaluationsFunction - p0.size);
+        expect(fdStale.cov.allClose(fdExact.cov, 1e-3, 1e-3 * fdExact.cov.normInf())).toBe(true);
+    });
+
     it('fits a logistic curve with fixed parameter scaling', () => {
         const x = Vector.linspace(0, 20, 30);
         const y = x.map((xi, i) => 1000 / (1 + Math.exp(-0.6 * (xi - 9))) + 5 * wobble(i) * 10);
@@ -138,7 +162,7 @@ describe('curveFit — nonlinear models', () => {
         expect(res.p.allClose(Vector.from([1000, 0.6, 9]), 0.05, 0.1)).toBe(true);
     });
 
-    it('counts evaluations of the whole residual vector, including the final Jacobian', () => {
+    it('counts evaluations of the whole residual vector, including those of the finite-difference Jacobian', () => {
         const x = Vector.linspace(0, 4, 15);
         const y = x.map((xi, i) => 2 * Math.exp(-xi) + wobble(i));
         let calls = 0;

@@ -68,6 +68,46 @@ describe('levenbergMarquardt — result consistency', () => {
         expect(resJac.evaluationsJacobian).toBeGreaterThan(0);
     });
 
+    it('by default, does not evaluate the Jacobian at the solution; with `jacFinal`, it does', () => {
+        const options = { jac: beale.jac, jacCheck: false };
+        const stale = levenbergMarquardt(beale.f, beale.x0, options);
+        const exact = levenbergMarquardt(beale.f, beale.x0, { ...options, jacFinal: true });
+
+        // Same iterations; only the last Jacobian differs.
+        expect(exact.x.allClose(stale.x, 0, 0)).toBe(true);
+        expect(exact.iterations).toBe(stale.iterations);
+        expect(exact.Jx!.allClose(beale.jac!(exact.x), 0, 0)).toBe(true);
+        // The last iteration ended with an accepted step, so `jacFinal` costs one Jacobian evaluation.
+        expect(stale.Jx!.allClose(beale.jac!(stale.x), 0, 0)).toBe(false);
+        expect(exact.evaluationsJacobian).toBe(stale.evaluationsJacobian + 1);
+        expect(exact.evaluationsFunction).toBe(stale.evaluationsFunction);
+    });
+
+    it('with `jacFinal` and a finite-difference Jacobian, counts the extra evaluations of f', () => {
+        let calls = 0;
+        const f = (x: Vector) => { calls++; return beale.f(x); };
+        const stale = levenbergMarquardt(f, beale.x0);
+
+        calls = 0;
+        const exact = levenbergMarquardt(f, beale.x0, { jacFinal: true });
+        expect(exact.evaluationsFunction).toBe(calls);
+        expect(exact.evaluationsFunction).toBe(stale.evaluationsFunction + beale.x0.size);
+        expect(exact.Jx!.allClose(beale.jac!(exact.x), 1e-5, 1e-5)).toBe(true);
+    });
+
+    it('does not re-evaluate the Jacobian with `jacFinal` if it was evaluated at the solution already', () => {
+        // x0 is an exact solution, so the solver stops right after the Jacobian at x0.
+        const x0 = Vector.from([1, 1]);
+        const analytic = levenbergMarquardt(rosenbrock.f, x0, { jac: rosenbrock.jac, jacCheck: false, jacFinal: true });
+        expect(analytic.success, analytic.message).toBe(true);
+        expect(analytic.iterations).toBe(0);
+        expect(analytic.evaluationsJacobian).toBe(1);
+
+        const fd = levenbergMarquardt(rosenbrock.f, x0);
+        const fdFinal = levenbergMarquardt(rosenbrock.f, x0, { jacFinal: true });
+        expect(fdFinal.evaluationsFunction).toBe(fd.evaluationsFunction);
+    });
+
     it('does not modify x0', () => {
         const x0 = Vector.from([-1.2, 1]);
         const before = x0.copy();

@@ -34,7 +34,8 @@ export interface LevenbergMarquardtResult {
     message: string;
     /**
      * Number of evaluations of `f`, including those made by the
-     * finite-difference Jacobian and by `jacCheck`.
+     * finite-difference Jacobian (also the final one, if `jacFinal` is
+     * `true`) and by `jacCheck`.
      */
     evaluationsFunction: number;
     /** Number of user-supplied Jacobian evaluations. */
@@ -48,9 +49,12 @@ export interface LevenbergMarquardtResult {
     /** Cost function `0.5*||f(x)||²` at the returned solution. */
     cost: number;
     /**
-     * Last evaluated Jacobian matrix (`m x n`). It may be one iteration
-     * behind `x` and `fx`, because the Jacobian is evaluated at the start of
-     * each iteration; it is `null` if no Jacobian was evaluated.
+     * Last evaluated Jacobian matrix (`m x n`). By default, it may be one
+     * iteration behind `x` and `fx`, because the Jacobian is evaluated at the
+     * start of each iteration. If the option `jacFinal` is `true`, it is
+     * evaluated at the returned `x` (and may then contain non-finite values,
+     * without this affecting `success`). It is `null` if no Jacobian was
+     * evaluated.
      */
     Jx: Matrix | null;
 }
@@ -136,6 +140,17 @@ export interface LevenbergMarquardtOptions {
      * @default true
      */
     jacCheck?: boolean;
+    /**
+     * Whether to make sure that the returned Jacobian `Jx` is evaluated at the returned
+     * solution `x`. If `false`, `Jx` is the last Jacobian evaluated during the iterations,
+     * which is one step behind `x` whenever the last iteration ended with an accepted step; no
+     * extra evaluations are made. If `true`, the Jacobian is evaluated at `x` after the
+     * iterations have ended, unless it already was, at the cost of `n` evaluations of `f` (or
+     * one call to `jac`). This extra evaluation is not subject to `maxFunEvals`. An exact
+     * Jacobian is useful, e.g., to estimate the covariance of the solution.
+     * @default false
+     */
+    jacFinal?: boolean;
 }
 
 /**
@@ -374,6 +389,8 @@ export function levenbergMarquardt(
     let gnorm = 0;
     let iterations = 0;
     let info = 0;
+    // Whether `x` has changed since `J` was evaluated.
+    let jacStale = false;
 
     outer: for (; ;) {
         // Jacobian at the current iterate.
@@ -386,6 +403,7 @@ export function levenbergMarquardt(
                 return { ...failure('Jacobian at the current iterate contains non-finite values.'), iterations };
             }
         }
+        jacStale = false;
 
         // Pivoted QR decomposition of the Jacobian, and norms of its columns.
         J.qrPivot(dec);
@@ -498,6 +516,7 @@ export function levenbergMarquardt(
                 xnorm = enorm(w1, n);
                 fnorm = fnorm1;
                 iterations += 1;
+                jacStale = true;
             }
 
             // Tests for convergence.
@@ -518,6 +537,11 @@ export function levenbergMarquardt(
                 break outer;
             }
         } while (ratio < P0001);
+    }
+
+    // Jacobian at the returned solution, unless the last one was evaluated there already.
+    if (options.jacFinal && jacStale) {
+        J = evaluateJacobian(x, fvec);
     }
 
     let success = true;

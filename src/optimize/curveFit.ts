@@ -1,6 +1,5 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
-import { jacobianForward, scaleVector } from '../numdiff.js';
 import { levenbergMarquardt, type LevenbergMarquardtOptions } from './levenbergMarquardt.js';
 
 const EPS = Number.EPSILON;
@@ -18,10 +17,13 @@ export interface CurveFitResult {
     /**
      * Number of evaluations of the vector of (weighted) residuals, i.e. of the
      * model at all data points, including the finite-difference evaluations
-     * and the ones needed for the final Jacobian.
+     * and, if `jacFinal` is `true`, the ones needed for the final Jacobian.
      */
     evaluationsFunction: number;
-    /** Number of user-supplied Jacobian evaluations, including the one for the final covariance. */
+    /**
+     * Number of user-supplied Jacobian evaluations, including, if `jacFinal`
+     * is `true`, the one at the solution (for the covariance).
+     */
     evaluationsJacobian: number;
     /** Number of accepted Levenberg-Marquardt steps. */
     iterations: number;
@@ -80,6 +82,17 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
      * differences at `p0` if `jacCheck` is `true`.
      */
     jac?: (x: number, p: Vector) => Vector;
+    /**
+     * Whether to evaluate the Jacobian at the returned parameters, to compute
+     * the covariance from it. If `false`, the covariance is computed from the
+     * last Jacobian evaluated during the iterations, which may be one step
+     * behind the solution (as in `scipy.optimize.curve_fit`), at no extra
+     * cost. If `true`, the covariance is exact, at the cost of `n`
+     * evaluations of the residuals (or one call to `jac`). See
+     * {@link LevenbergMarquardtOptions.jacFinal}.
+     * @default false
+     */
+    jacFinal?: boolean;
 }
 
 /**
@@ -87,12 +100,14 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * Levenberg-Marquardt algorithm ({@link levenbergMarquardt}).
  *
  * It finds the parameters `p` that minimize `sum(((f(x_i, p) - y_i) /
- * sigma_i)²)`, and estimates their covariance matrix from the Jacobian at
+ * sigma_i)²)`, and estimates their covariance matrix from the Jacobian near
  * the solution: `cov = s² * inv(J^T J)`, where `J` is the (weighted)
  * Jacobian and `s² = rss/dof` — or `s² = 1` if `absoluteSigma` is `true` —
- * as in `scipy.optimize.curve_fit` (with `method='lm'`). `J^T J` is
- * never formed: the inverse is computed from the pivoted QR decomposition of
- * `J`, which also detects rank deficiency.
+ * as in `scipy.optimize.curve_fit` (with `method='lm'`). By default, `J` is
+ * the last Jacobian of the iterations, which is one step behind the solution
+ * if the last step was accepted, like in SciPy; with `jacFinal: true`, it is
+ * evaluated at the solution. `J^T J` is never formed: the inverse is computed
+ * from the pivoted QR decomposition of `J`, which also detects rank deficiency.
  *
  * The model must be defined at all parameter values visited by the
  * algorithm: a trial point at which the model is not finite is rejected and
@@ -133,7 +148,7 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * Output:
  * ```text
  * Vector(3.016152409051229, 0.5027330972776392)
- * Vector(0.01154965335247648, 0.0035871308494804487)
+ * Vector(0.011549652943565091, 0.0035871298258504593)
  * ```
  */
 export function curveFit(
@@ -160,7 +175,7 @@ export function curveFit(
     }
 
     // Weights, 1/sigma.
-    const { sigma: sigmaOption, absoluteSigma = false, jac, ...lmOptions } = options;
+    const { sigma: sigmaOption, absoluteSigma = false, jac, jacFinal = false, ...lmOptions } = options;
     let sigma: Vector;
     if (sigmaOption === undefined) {
         sigma = Vector.ones(m);
@@ -202,9 +217,7 @@ export function curveFit(
           }
         : undefined;
 
-    const lm = levenbergMarquardt(residualFunction, p0v, { ...lmOptions, jac: jacobianFunction });
-    let nFev = lm.evaluationsFunction;
-    let nJev = lm.evaluationsJacobian;
+    const lm = levenbergMarquardt(residualFunction, p0v, { ...lmOptions, jac: jacobianFunction, jacFinal });
 
     const p = lm.x;
     const dof = m - n;
@@ -212,32 +225,20 @@ export function curveFit(
     const residuals = new Vector(m);
     for (let i = 0; i < m; i++) residuals.data[i] = -lm.fx.data[i] * (unweighted ? 1 : sigma.data[i]);
 
-    // Jacobian at the solution (the one stored in the result may be one iteration behind).
-    let J: Matrix;
-    if (jacobianFunction) {
-        J = jacobianFunction(p);
-        nJev += 1;
-    } else {
-        const jacobianSclx = lmOptions.sclx ?? scaleVector(p0v);
-        J = jacobianForward(
-            (pv) => {
-                nFev += 1;
-                return residualFunction(pv);
-            },
-            p,
-            { fx: lm.fx, sclx: jacobianSclx, epsf: lmOptions.epsf }
-        );
-    }
+    // Weighted Jacobian at the solution (or at the last iteration, if `jacFinal` is `false`).
+    // It is `null` only if the solver failed at the initial guess.
+    const J = lm.Jx;
 
-    const cov = parameterCovariance(J, rss, dof, absoluteSigma, residuals.allFinite() && J.allFinite());
+    const finite = J !== null && J.allFinite() && residuals.allFinite();
+    const cov = finite ? parameterCovariance(J, rss, dof, absoluteSigma) : new Matrix(n, n).fill(NaN);
     const stderr = cov.diag().sqrt();
 
     return {
         method: lm.method.replace('Levenberg-Marquardt', 'Curve fit by Levenberg-Marquardt'),
         success: lm.success,
         message: lm.message,
-        evaluationsFunction: nFev,
-        evaluationsJacobian: nJev,
+        evaluationsFunction: lm.evaluationsFunction,
+        evaluationsJacobian: lm.evaluationsJacobian,
         iterations: lm.iterations,
         p,
         cov,
@@ -252,19 +253,17 @@ export function curveFit(
  * Covariance matrix of the parameters, `s² * inv(J^T J)`, from the pivoted QR
  * decomposition `J P = Q R`, as `P inv(R) inv(R)^T P^T`.
  *
- * @param J Weighted Jacobian (`m x n`, `m >= n`).
- * @param rss Weighted residual sum of squares.
+ * @param J Weighted Jacobian (`m x n`, `m >= n`), with finite entries.
+ * @param rss Weighted residual sum of squares, finite.
  * @param dof Degrees of freedom, `m - n`.
  * @param absoluteSigma If `true`, `s² = 1`; otherwise `s² = rss/dof`.
- * @param finite Whether the residuals and the Jacobian are finite; if not, the result is `NaN`.
  * @returns The `n x n` covariance matrix; `Infinity` entries if `J` is rank-deficient or if
- * `s²` is undefined (`dof = 0` and not `absoluteSigma`); `NaN` entries if not `finite`.
+ * `s²` is undefined (`dof = 0` and not `absoluteSigma`).
  */
-function parameterCovariance(J: Matrix, rss: number, dof: number, absoluteSigma: boolean, finite: boolean): Matrix {
+function parameterCovariance(J: Matrix, rss: number, dof: number, absoluteSigma: boolean): Matrix {
     const n = J.cols;
     const filled = (value: number) => new Matrix(n, n).fill(value);
 
-    if (!finite) return filled(NaN);
     if (!absoluteSigma && dof === 0) return filled(Infinity);
 
     const dec = J.qrPivot();

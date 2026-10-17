@@ -16,12 +16,11 @@ const MODELS: Record<string, (x: number, p: Vector) => number> = {
 const MIRROR_TOLERANCE = 1e-12;
 const P_TOLERANCE = 1e-6;
 const RSS_TOLERANCE = 1e-9;
-// SciPy's covariance is computed from the finite-difference Jacobian of the last iteration, which
-// is evaluated one step before the solution. On these cases it deviates from the exact covariance
-// (analytic Jacobian at SciPy's own solution) by up to 1.5e-5, scaled by sqrt(cov_ii*cov_jj), whereas
-// numerics-js, which recomputes the Jacobian at the solution, deviates by less than 2e-8 (see the
-// benchmark report). The tolerance is set accordingly.
-const COV_TOLERANCE = 1e-4;
+// Like SciPy, curveFit computes the covariance from the Jacobian of the last iteration by default
+// (`jacFinal: false`), so the two agree to ~1e-7 or better on these cases (see the benchmark report).
+// This is not the exact covariance, which deviates from SciPy's by up to 1.5e-5, scaled by
+// sqrt(cov_ii*cov_jj), as SciPy's Jacobian is evaluated one step before the solution.
+const COV_TOLERANCE = 1e-6;
 // Both solvers stop within their tolerances (~1.5e-8) of the minimum, so the fitted curves agree to
 // that level relative to the scale of the data.
 const CURVE_TOLERANCE = 1e-7;
