@@ -10,5 +10,8 @@
   "js/ts.preferences.importModuleSpecifier": "shortest",
   "files.exclude": {
     "**/node_modules": true
+  },
+  "chat.tools.terminal.autoApprove": {
+    "npx oxlint": true
   }
 }
