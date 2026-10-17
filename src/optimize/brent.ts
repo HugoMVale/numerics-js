@@ -72,7 +72,7 @@ export function brent(
   const { tolx = 1e-8, maxIter = 50 } = options;
 
   // Golden ratio constant: (3 - sqrt(5)) / 2
-  const GOLDEN = 0.38196601125010515179;
+  const GOLDEN = 0.38196601125010515;
   const EPS = Number.EPSILON;
 
   let a = Math.min(xa, xb);
