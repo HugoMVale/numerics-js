@@ -141,14 +141,47 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * const t = Vector.from([0, 1, 2, 3, 4, 5]);
  * const y = Vector.from([3.02, 1.81, 1.12, 0.66, 0.41, 0.24]);
  * const result = curveFit((t, p) => p.get(0) * Math.exp(-p.get(1) * t), t, y, Vector.from([1, 1]));
- * console.log(result.p.toString());
- * console.log(result.stderr.toString());
+ * console.log(result);
  * ```
  *
  * Output:
  * ```text
- * Vector(3.016152409051229, 0.5027330972776392)
- * Vector(0.011549652943565091, 0.0035871298258504593)
+ * {
+ *   method: 'Curve fit by Levenberg-Marquardt (Trust region, Adaptive scaling)',
+ *   success: true,
+ *   message: 'Both the actual and predicted relative reductions in ||f||² are at most tolf.',
+ *   evaluationsFunction: 23,
+ *   evaluationsJacobian: 0,
+ *   iterations: 7,
+ *   p: Vector {
+ *     data: Float64Array(2) [ 3.016152409051229, 0.5027330972776392 ]
+ *   },
+ *   cov: Matrix {
+ *     _rows: 2,
+ *     _cols: 2,
+ *     data: Float64Array(4) [
+ *       0.00013339448311680178,
+ *       0.00002183262912916831,
+ *       0.00002183262912916831,
+ *       0.000012867500387505947
+ *     ]
+ *   },
+ *   stderr: Vector {
+ *     data: Float64Array(2) [ 0.011549652943565091, 0.0035871298258504593 ]
+ *   },
+ *   residuals: Vector {
+ *     data: Float64Array(6) [
+ *       0.0038475909487711846,
+ *       -0.014395838987910414,
+ *       0.01646817338272344,
+ *       -0.007499051649247357,
+ *       0.006246367158769306,
+ *       -0.004220565751683336
+ *     ]
+ *   },
+ *   rss: 0.0006063109244228618,
+ *   dof: 4
+ * }
  * ```
  */
 export function curveFit(
@@ -203,18 +236,18 @@ export function curveFit(
     // Weighted Jacobian, J_ij = (∂f/∂p_j)(x_i, p)/sigma_i.
     const jacobianFunction = jac
         ? (p: Vector): Matrix => {
-              const J = new Matrix(m, n);
-              for (let i = 0; i < m; i++) {
-                  const g = jac(x.data[i], p);
-                  const size = g.size;
-                  if (size !== n) {
-                      throw new RangeError(`curveFit: jac must return ${n} components, got ${size}`);
-                  }
-                  const w = unweighted ? 1 : 1 / sigma.data[i];
-                  for (let j = 0; j < n; j++) J.data[i * n + j] = g.data[j] * w;
-              }
-              return J;
-          }
+            const J = new Matrix(m, n);
+            for (let i = 0; i < m; i++) {
+                const g = jac(x.data[i], p);
+                const size = g.size;
+                if (size !== n) {
+                    throw new RangeError(`curveFit: jac must return ${n} components, got ${size}`);
+                }
+                const w = unweighted ? 1 : 1 / sigma.data[i];
+                for (let j = 0; j < n; j++) J.data[i * n + j] = g.data[j] * w;
+            }
+            return J;
+        }
         : undefined;
 
     const lm = levenbergMarquardt(residualFunction, p0v, { ...lmOptions, jac: jacobianFunction, jacFinal });
