@@ -108,6 +108,22 @@ export class Matrix extends ArrayND {
   /**
    * Checks whether this matrix is square (`rows === cols`).
    * @returns `true` if `rows === cols`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * const B = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.isSquare());
+   * console.log(B.isSquare());
+   * ```
+   *
+   * Output:
+   * ```text
+   * false
+   * true
+   * ```
    */
   isSquare(): boolean {
     return this.rows === this.cols;
@@ -121,6 +137,22 @@ export class Matrix extends ArrayND {
    * @param tol Absolute tolerance: a pair `(i, j)`/`(j, i)` counts as
    * equal if `|this[i][j] - this[j][i]| <= tol`. Defaults to `0` (exact).
    * @returns `true` if this matrix is symmetric within `tol`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const S = Matrix.from([[1, 2], [2, 3]]);
+   * const N = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(S.isSymmetric());
+   * console.log(N.isSymmetric());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
    */
   isSymmetric(tol: number = 0): boolean {
     if (!this.isSquare()) return false;
@@ -141,6 +173,21 @@ export class Matrix extends ArrayND {
    * @param tol Absolute tolerance: an entry above the diagonal counts as
    * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
    * @returns `true` if every entry above the main diagonal is zero within `tol`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const L = Matrix.from([[1, 0], [2, 3]]);
+   * console.log(L.isLowerTriangular());
+   * console.log(Matrix.from([[1, 2], [0, 3]]).isLowerTriangular());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
    */
   isLowerTriangular(tol: number = 0): boolean {
     for (let i = 0; i < this.rows; i++) {
@@ -159,6 +206,21 @@ export class Matrix extends ArrayND {
    * @param tol Absolute tolerance: an entry below the diagonal counts as
    * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
    * @returns `true` if every entry below the main diagonal is zero within `tol`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const U = Matrix.from([[1, 2], [0, 3]]);
+   * console.log(U.isUpperTriangular());
+   * console.log(Matrix.from([[1, 0], [2, 3]]).isUpperTriangular());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
    */
   isUpperTriangular(tol: number = 0): boolean {
     for (let i = 1; i < this.rows; i++) {
@@ -208,6 +270,21 @@ export class Matrix extends ArrayND {
    * @param cols Number of columns.
    * @param data The buffer to wrap directly. Not copied. Must have length `rows * cols`.
    * @returns A new Matrix wrapping `data`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const buf = new Float64Array([1, 2, 3, 4]);
+   * const A = Matrix.wrapUnchecked(2, 2, buf);
+   * buf[0] = 10;
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[10, 2], [3, 4]]
+   * ```
    */
   static wrapUnchecked(rows: number, cols: number, data: Float64Array): Matrix {
     const m = Object.create(Matrix.prototype) as Matrix;
@@ -255,6 +332,21 @@ export class Matrix extends ArrayND {
    * @param i Row index (0-based).
    * @param j Column index (0-based).
    * @returns The flat, 0-based index.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.flatIndex(0, 2));
+   * console.log(A.flatIndex(1, 0));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2
+   * 3
+   * ```
    */
   flatIndex(i: number, j: number): number {
     return i * this.cols + j;
@@ -273,6 +365,19 @@ export class Matrix extends ArrayND {
    * @param i Row index (0-based). Must be valid; not checked.
    * @param j Column index (0-based). Must be valid; not checked.
    * @returns The value at `(i, j)`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.getUnchecked(1, 0));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 3
+   * ```
    */
   getUnchecked(i: number, j: number): number {
     return this.data[this.flatIndex(i, j)];
@@ -290,6 +395,20 @@ export class Matrix extends ArrayND {
    * @param i Row index (0-based). Must be valid; not checked.
    * @param j Column index (0-based). Must be valid; not checked.
    * @param value The value to store.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.zero(2, 2);
+   * A.setUnchecked(0, 1, 7);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0, 7], [0, 0]]
+   * ```
    */
   setUnchecked(i: number, j: number, value: number): void {
     this.data[this.flatIndex(i, j)] = value;
@@ -304,6 +423,21 @@ export class Matrix extends ArrayND {
    * @param i Row index (0-based).
    * @param j Column index (0-based).
    * @returns The value at `(i, j)`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.get(0, 1));
+   * console.log(A.get(1, 1));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2
+   * 4
+   * ```
    */
   get(i: number, j: number): number {
     this._checkBounds(i, j);
@@ -316,6 +450,20 @@ export class Matrix extends ArrayND {
    * @param j Column index (0-based).
    * @param value The value to store.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.zero(2, 2);
+   * A.set(0, 1, 5).set(1, 0, 6);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0, 5], [6, 0]]
+   * ```
    */
   set(i: number, j: number, value: number): this {
     this._checkBounds(i, j);
@@ -327,6 +475,19 @@ export class Matrix extends ArrayND {
    * Extracts row `i` as a vector.
    * @param i Row index (0-based).
    * @returns A new vector with `this.cols` components.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.row(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(4, 5, 6)
+   * ```
    */
   row(i: number): Vector {
     if (i < 0 || i >= this.rows)
@@ -340,6 +501,19 @@ export class Matrix extends ArrayND {
    * Extracts column `j` as a vector.
    * @param j Column index (0-based).
    * @returns A new vector with `this.rows` components.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.col(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(3, 6)
+   * ```
    */
   col(j: number): Vector {
     if (j < 0 || j >= this.cols)
@@ -359,6 +533,19 @@ export class Matrix extends ArrayND {
    * already follow.
    * @returns A new vector of length `min(rows, cols)` holding the
    * diagonal entries.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.diag().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 4)
+   * ```
    */
   diag(): Vector {
     const n = Math.min(this.rows, this.cols);
@@ -373,6 +560,20 @@ export class Matrix extends ArrayND {
    * @param values Values to copy in; must have length `cols`.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `i` is out of bounds, or `values.length !== cols`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.zero(2, 3);
+   * A.setRow(0, [1, 2, 3]);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2, 3], [0, 0, 0]]
+   * ```
    */
   setRow(i: number, values: Vector | ArrayLike<number>): this {
     if (i < 0 || i >= this.rows)
@@ -393,6 +594,20 @@ export class Matrix extends ArrayND {
    * @param values Values to copy in; must have length `rows`.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `j` is out of bounds, or `values.length !== rows`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.zero(2, 3);
+   * A.setCol(1, Vector.from([7, 8]));
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0, 7, 0], [0, 8, 0]]
+   * ```
    */
   setCol(j: number, values: Vector | ArrayLike<number>): this {
     if (j < 0 || j >= this.cols)
@@ -420,6 +635,20 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns A new matrix equal to `this + x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const B = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.add(B).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[11, 22], [33, 44]]
+   * ```
    */
   add(x: this): this;
 
@@ -427,6 +656,19 @@ export class Matrix extends ArrayND {
    * Adds a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this + s`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.add(10).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[11, 12], [13, 14]]
+   * ```
    */
   add(s: number): this;
 
@@ -441,6 +683,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.add(Vector.from([10, 20])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[11, 22], [13, 24]]
+   * ```
    */
   add(v: Vector): this;
 
@@ -454,6 +709,22 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const B = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.addSelf(B).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[11, 22], [33, 44]]
+   * Matrix[[11, 22], [33, 44]]
+   * ```
    */
   addSelf(x: this): this;
 
@@ -461,6 +732,21 @@ export class Matrix extends ArrayND {
    * Adds a scalar in place, applied to every element: `this += s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.addSelf(10).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[11, 12], [13, 14]]
+   * Matrix[[11, 12], [13, 14]]
+   * ```
    */
   addSelf(s: number): this;
 
@@ -472,6 +758,21 @@ export class Matrix extends ArrayND {
    * `v.size === 1`, in which case it acts as a scalar (as in numpy).
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `add(v)`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.addSelf(Vector.from([10, 20])).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[11, 22], [13, 24]]
+   * Matrix[[11, 22], [13, 24]]
+   * ```
    */
   addSelf(v: Vector): this;
 
@@ -485,6 +786,20 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns A new matrix equal to `this - x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * const B = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.sub(B).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[9, 18], [27, 36]]
+   * ```
    */
   sub(x: this): this;
 
@@ -492,6 +807,19 @@ export class Matrix extends ArrayND {
    * Subtracts a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this - s`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.sub(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0, 1], [2, 3]]
+   * ```
    */
   sub(s: number): this;
 
@@ -506,6 +834,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.sub(Vector.from([1, 2])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[9, 18], [29, 38]]
+   * ```
    */
   sub(v: Vector): this;
 
@@ -519,6 +860,22 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * const B = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.subSelf(B).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[9, 18], [27, 36]]
+   * Matrix[[9, 18], [27, 36]]
+   * ```
    */
   subSelf(x: this): this;
 
@@ -526,6 +883,21 @@ export class Matrix extends ArrayND {
    * Subtracts a scalar in place, applied to every element: `this -= s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.subSelf(1).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0, 1], [2, 3]]
+   * Matrix[[0, 1], [2, 3]]
+   * ```
    */
   subSelf(s: number): this;
 
@@ -537,6 +909,21 @@ export class Matrix extends ArrayND {
    * `v.size === 1`, in which case it acts as a scalar (as in numpy).
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `sub(v)`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.subSelf(Vector.from([1, 2])).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[9, 18], [29, 38]]
+   * Matrix[[9, 18], [29, 38]]
+   * ```
    */
   subSelf(v: Vector): this;
 
@@ -550,6 +937,20 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns A new matrix equal to `this * x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const B = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.mult(B).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[10, 40], [90, 160]]
+   * ```
    */
   mult(x: this): this;
 
@@ -557,6 +958,19 @@ export class Matrix extends ArrayND {
    * Multiplies this matrix with a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this * s`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.mult(3).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[3, 6], [9, 12]]
+   * ```
    */
   mult(s: number): this;
 
@@ -571,6 +985,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.mult(Vector.from([10, 20])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[10, 40], [30, 80]]
+   * ```
    */
   mult(v: Vector): this;
 
@@ -584,6 +1011,22 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const B = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.multSelf(B).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[10, 40], [90, 160]]
+   * Matrix[[10, 40], [90, 160]]
+   * ```
    */
   multSelf(x: this): this;
 
@@ -591,6 +1034,21 @@ export class Matrix extends ArrayND {
    * Multiplies this matrix with a scalar in place, applied to every element: `this *= s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.multSelf(3).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[3, 6], [9, 12]]
+   * Matrix[[3, 6], [9, 12]]
+   * ```
    */
   multSelf(s: number): this;
 
@@ -602,6 +1060,21 @@ export class Matrix extends ArrayND {
    * `v.size === 1`, in which case it acts as a scalar (as in numpy).
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `mult(v)`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.multSelf(Vector.from([10, 20])).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[10, 40], [30, 80]]
+   * Matrix[[10, 40], [30, 80]]
+   * ```
    */
   multSelf(v: Vector): this;
 
@@ -615,6 +1088,20 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns A new matrix equal to `this / x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * const B = Matrix.from([[2, 4], [5, 8]]);
+   * console.log(A.div(B).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[5, 5], [6, 5]]
+   * ```
    */
   div(x: this): this;
 
@@ -622,6 +1109,19 @@ export class Matrix extends ArrayND {
    * Divides this matrix by a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this / s`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.div(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0.5, 1], [1.5, 2]]
+   * ```
    */
   div(s: number): this;
 
@@ -636,6 +1136,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `v.size` is neither `1` nor `this.cols`; or
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.div(Vector.from([2, 4])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[5, 5], [15, 10]]
+   * ```
    */
   div(v: Vector): this;
 
@@ -649,6 +1162,22 @@ export class Matrix extends ArrayND {
    * @param x The matrix. Must have the same shape as this one.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * const B = Matrix.from([[2, 4], [5, 8]]);
+   * console.log(A.divSelf(B).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[5, 5], [6, 5]]
+   * Matrix[[5, 5], [6, 5]]
+   * ```
    */
   divSelf(x: this): this;
 
@@ -656,6 +1185,21 @@ export class Matrix extends ArrayND {
    * Divides this matrix by a scalar in place, applied to every element: `this /= s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.divSelf(2).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0.5, 1], [1.5, 2]]
+   * Matrix[[0.5, 1], [1.5, 2]]
+   * ```
    */
   divSelf(s: number): this;
 
@@ -667,6 +1211,21 @@ export class Matrix extends ArrayND {
    * `v.size === 1`, in which case it acts as a scalar (as in numpy).
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `div(v)`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[10, 20], [30, 40]]);
+   * console.log(A.divSelf(Vector.from([2, 4])).toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[5, 5], [15, 10]]
+   * Matrix[[5, 5], [15, 10]]
+   * ```
    */
   divSelf(v: Vector): this;
 
@@ -772,6 +1331,19 @@ export class Matrix extends ArrayND {
    * @param fn Called with each element's value, row index, and column
    * index; its return value becomes the corresponding element of the result.
    * @returns A new matrix, the same shape as this one, holding the mapped values.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.map((x) => x * x).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 4], [9, 16]]
+   * ```
    */
   map(fn: (value: number, i: number, j: number) => number): Matrix {
     const res = new Matrix(this.rows, this.cols);
@@ -788,6 +1360,20 @@ export class Matrix extends ArrayND {
    * product.
    * @param m The right-hand matrix. Must have `m.rows === this.cols`.
    * @returns A new `this.rows x m.cols` matrix.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const B = Matrix.from([[0, 1], [1, 0]]);
+   * console.log(A.matmul(B).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[2, 1], [4, 3]]
+   * ```
    */
   matmul(m: Matrix): Matrix {
     if (this.cols !== m.rows) {
@@ -814,6 +1400,19 @@ export class Matrix extends ArrayND {
    * Multiplies this matrix by a column vector: `this * v`.
    * @param v The vector. Must have `v.size === this.cols`.
    * @returns A new vector with `this.rows` components.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.mulVec(Vector.from([1, 1])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(3, 7)
+   * ```
    */
   mulVec(v: Vector): Vector {
     if (v.size !== this.cols) {
@@ -834,6 +1433,19 @@ export class Matrix extends ArrayND {
   /**
    * Computes the transpose of this matrix.
    * @returns A new `this.cols x this.rows` matrix equal to `this^T`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.transpose().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 4], [2, 5], [3, 6]]
+   * ```
    */
   transpose(): Matrix {
     const res = new Matrix(this.cols, this.rows);
@@ -848,6 +1460,19 @@ export class Matrix extends ArrayND {
    * Computes the trace (sum of diagonal elements) of this matrix.
    * @returns The trace.
    * @throws {RangeError} If this matrix is not square.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.trace());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 5
+   * ```
    */
   trace(): number {
     if (this.rows !== this.cols)
@@ -871,6 +1496,19 @@ export class Matrix extends ArrayND {
    * operator norm above, which is the conventional meaning of "infinity
    * norm" for a matrix.
    * @returns The largest absolute row sum, or `0` for a matrix of all zeros.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, -2], [-3, 4]]);
+   * console.log(A.normInf());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 7
+   * ```
    */
   normInf(): number {
     let maxRowSum = 0;
@@ -890,6 +1528,19 @@ export class Matrix extends ArrayND {
    * always holds. Accumulates all column sums in a single pass over the
    * buffer, rather than summing each column separately.
    * @returns The largest absolute column sum, or `0` for a matrix of all zeros.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, -2], [-3, 4]]);
+   * console.log(A.norm1());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 6
+   * ```
    */
   norm1(): number {
     const colSums = new Float64Array(this.cols);
@@ -911,6 +1562,22 @@ export class Matrix extends ArrayND {
    * @param tol Absolute tolerance below which a pivot is treated as
    * zero; auto-scaled to this matrix's magnitude if omitted.
    * @returns The rank, between `0` and `min(rows, cols)`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [2, 4]]);
+   * const B = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.rank());
+   * console.log(B.rank());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1
+   * 2
+   * ```
    */
   rank(tol?: number): number {
     return linalg.rank(this, tol);
@@ -921,6 +1588,19 @@ export class Matrix extends ArrayND {
    * with partial pivoting: see `linalg.determinant()` for the algorithm.
    * @returns The determinant.
    * @throws {RangeError} If this matrix is not square.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.determinant());
+   * ```
+   *
+   * Output:
+   * ```text
+   * -2
+   * ```
    */
   determinant(): number {
     return linalg.determinant(this);
@@ -933,6 +1613,19 @@ export class Matrix extends ArrayND {
    *   floating-point error) the identity matrix.
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If this matrix is singular (not invertible).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[4, 7], [2, 6]]);
+   * console.log(A.inverse().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0.6000000000000001, -0.7000000000000001], [-0.2, 0.4]]
+   * ```
    */
   inverse(): Matrix {
     return linalg.inverse(this);
@@ -954,6 +1647,24 @@ export class Matrix extends ArrayND {
    * match its size, or if this matrix is `out.L`.
    * @throws {Error} If this matrix is singular (some column's largest
    * available pivot is exactly `0`).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const dec = A.lu();
+   * console.log(dec.L.toString());
+   * console.log(dec.U.toString());
+   * console.log(dec.perm);
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 0], [0.3333333333333333, 1]]
+   * Matrix[[3, 4], [0, 0.6666666666666667]]
+   * [ 1, 0 ]
+   * ```
    */
   lu(out?: LUDecomposition): LUDecomposition {
     return linalg.lu(this, out);
@@ -973,6 +1684,20 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `b` or `out` does not match the size of the
    * factorization, or if `out` is `b`.
    * @throws {Error} If `U` has a zero diagonal entry.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * const dec = A.lu();
+   * console.log(Matrix.luSolve(dec, Vector.from([5, 11])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2)
+   * ```
    */
   static luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
     return linalg.luSolve(decomposition, b, out);
@@ -992,6 +1717,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square, `b.size !== this.rows`,
    *   or `out.size !== this.rows`.
    * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const L = Matrix.from([[2, 0], [1, 3]]);
+   * console.log(L.solveLower(Vector.from([2, 5])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 1.3333333333333333)
+   * ```
    */
   solveLower(b: Vector, unitDiagonal = false, out?: Vector): Vector {
     return linalg.solveLower(this, b, unitDiagonal, out);
@@ -1009,6 +1747,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square, `b.size !== this.rows`,
    *   or `out.size !== this.rows`.
    * @throws {Error} If a zero diagonal entry is encountered.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const U = Matrix.from([[2, 1], [0, 3]]);
+   * console.log(U.solveUpper(Vector.from([4, 6])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2)
+   * ```
    */
   solveUpper(b: Vector, out?: Vector): Vector {
     return linalg.solveUpper(this, b, out);
@@ -1026,6 +1777,19 @@ export class Matrix extends ArrayND {
    *   floating-point error) equal to `b`.
    * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
    * @throws {Error} If this matrix is singular (no unique solution).
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[4, 1], [2, 3]]);
+   * console.log(A.solve(Vector.from([9, 13])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1.4, 3.4)
+   * ```
    */
   solve(b: Vector): Vector {
     return linalg.solve(this, b);
@@ -1046,6 +1810,19 @@ export class Matrix extends ArrayND {
    * @returns The 1-norm condition number, or `Infinity` if this matrix
    *   is (numerically) singular.
    * @throws {RangeError} If this matrix is not square.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[4, 1], [2, 3]]);
+   * console.log(A.cond1());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 3
+   * ```
    */
   cond1(): number {
     return linalg.cond1(this);
@@ -1062,6 +1839,19 @@ export class Matrix extends ArrayND {
    * @returns The 1-norm condition number estimate, or `Infinity` if this
    *   matrix has a zero 1-norm.
    * @throws {RangeError} If this matrix is not square.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const U = Matrix.from([[2, 1], [0, 3]]);
+   * console.log(U.cond1Upper());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2
+   * ```
    */
   cond1Upper(): number {
     return linalg.cond1Upper(this);
@@ -1080,6 +1870,19 @@ export class Matrix extends ArrayND {
    * @returns The 1-norm condition number estimate, or `Infinity` if this
    *   matrix has a zero 1-norm.
    * @throws {RangeError} If this matrix is not square.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const L = Matrix.from([[2, 0], [1, 3]]);
+   * console.log(L.cond1Lower());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1.6666666666666667
+   * ```
    */
   cond1Lower(unitDiagonal = false): number {
     return linalg.cond1Lower(this, unitDiagonal);
@@ -1099,6 +1902,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If this matrix is not positive definite (some
    * leading principal minor is not strictly positive).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const S = Matrix.from([[4, 2], [2, 3]]);
+   * console.log(S.cholesky().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[2, 0], [1, 1.4142135623730951]]
+   * ```
    */
   cholesky(): Matrix {
     return linalg.cholesky(this);
@@ -1116,6 +1932,19 @@ export class Matrix extends ArrayND {
    * error) equal to `b`.
    * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
    * @throws {Error} If this matrix has a zero diagonal entry.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const S = Matrix.from([[4, 2], [2, 3]]);
+   * console.log(S.choleskySolve(Vector.from([8, 8])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0.2777777777777778, 0.4444444444444444)
+   * ```
    */
   choleskySolve(b: Vector): Vector {
     return linalg.choleskySolve(this, b);
@@ -1131,6 +1960,22 @@ export class Matrix extends ArrayND {
    * R`, with `Q` orthogonal and `R` upper triangular (trapezoidal if
    * `this.rows > this.cols`).
    * @returns The `{ Q, R }` factorization.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+   * const dec = A.qr();
+   * console.log(dec.Q.toString());
+   * console.log(dec.R.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[-0.16903085094570325, 0.8970852271450607, 0.4082482904638628], [-0.50709255283711, 0.2760262237369415, -0.816496580927726], [-0.8451542547285166, -0.3450327796711769, 0.4082482904638632]]
+   * Matrix[[-5.916079783099616, -7.437357441610946], [0, 0.8280786712108261], [0, 0]]
+   * ```
    */
   qr(): QRDecomposition {
     return linalg.qr(this);
@@ -1186,6 +2031,20 @@ export class Matrix extends ArrayND {
    * vector. For a tall matrix, the norm of the entries beyond the first
    * `min(rows, cols)` is the least-squares residual norm.
    * @throws {RangeError} If `b` or `out` does not match the factorization.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+   * const dec = A.qrPivot();
+   * console.log(Matrix.qrPivotMulQt(dec, Vector.from([1, 2, 3])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(-3.7416573867739418, 9.447285969364182e-16, 3.0588234610191476e-16)
+   * ```
    */
   static qrPivotMulQt(decomposition: QRPivotDecomposition, b: Vector, out?: Vector): Vector {
     return linalg.qrPivotMulQt(decomposition, b, out);
@@ -1196,6 +2055,20 @@ export class Matrix extends ArrayND {
    * pivoted QR factorization: see `linalg.qrPivotQ()`.
    * @param decomposition A factorization, as returned by `qrPivot()`.
    * @returns A new matrix with orthonormal columns.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+   * const dec = A.qrPivot();
+   * console.log(Matrix.qrPivotQ(dec).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[-0.2672612419124243, 0.8728715609439696], [-0.5345224838248488, 0.21821789023599258], [-0.8017837257372732, -0.43643578047198484]]
+   * ```
    */
   static qrPivotQ(decomposition: QRPivotDecomposition): Matrix {
     return linalg.qrPivotQ(decomposition);
@@ -1206,6 +2079,20 @@ export class Matrix extends ArrayND {
    * of a pivoted QR factorization: see `linalg.qrPivotR()`.
    * @param decomposition A factorization, as returned by `qrPivot()`.
    * @returns A new matrix with exact zeros below the diagonal.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+   * const dec = A.qrPivot();
+   * console.log(Matrix.qrPivotR(dec).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[-7.483314773547883, -5.879747322073337], [0, -0.6546536707079759]]
+   * ```
    */
   static qrPivotR(decomposition: QRPivotDecomposition): Matrix {
     return linalg.qrPivotR(decomposition);
@@ -1225,6 +2112,21 @@ export class Matrix extends ArrayND {
    * @returns `qr` itself, mutated in place, for chaining.
    * @throws {RangeError} If `Q` isn't square, or `Q`/`R`/`u`/`v`'s shapes
    * are inconsistent with each other.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 0], [0, 1], [0, 0]]);
+   * const dec = A.qr();
+   * Matrix.qrUpdateSelf(dec, Vector.from([0, 0, 1]), Vector.from([1, 0]));
+   * console.log(dec.Q.matmul(dec.R).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0.9999999999999998, 0], [0, 1], [0.9999999999999998, 0]]
+   * ```
    */
   static qrUpdateSelf(qr: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
     return linalg.qrUpdateSelf(qr, u, v);
@@ -1240,6 +2142,23 @@ export class Matrix extends ArrayND {
    * (up to floating-point error) `qr.Q.matmul(qr.R)`'s value plus the
    * outer product of `u` and `v`.
    * @throws {RangeError} Same conditions as `qrUpdateSelf`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 0], [0, 1], [0, 0]]);
+   * const dec = A.qr();
+   * const updated = Matrix.qrUpdate(dec, Vector.from([0, 0, 1]), Vector.from([1, 0]));
+   * console.log(updated.Q.matmul(updated.R).toString());
+   * console.log(dec.Q.matmul(dec.R).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0.9999999999999998, 0], [0, 1], [0.9999999999999998, 0]]
+   * Matrix[[1, 0], [0, 1], [0, 0]]
+   * ```
    */
   static qrUpdate(qr: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
     return linalg.qrUpdate(qr, u, v);
@@ -1262,6 +2181,19 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If the iteration budget is exhausted before every
    * block deflates (e.g. for a pathologically slow-converging matrix).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[2, 1], [1, 2]]);
+   * console.log(A.eigenvalues());
+   * ```
+   *
+   * Output:
+   * ```text
+   * [ { re: 3, im: 0 }, { re: 1, im: 0 } ]
+   * ```
    */
   eigenvalues(options?: { maxIterations?: number; tol?: number }): Eigenvalue[] {
     return linalg.eigenvalues(this, options);
@@ -1282,6 +2214,22 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If the iteration budget is exhausted before every
    * block deflates.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[0, -1], [1, 0]]);
+   * for (const { value, vectorRe, vectorIm } of A.eig()) {
+   *   console.log(value, vectorRe.toString(), vectorIm.toString());
+   * }
+   * ```
+   *
+   * Output:
+   * ```text
+   * { re: 0, im: 1 } Vector(0.7071067811865475, 0) Vector(0, -0.7071067811865475)
+   * { re: 0, im: -1 } Vector(0.7071067811865475, 0) Vector(0, 0.7071067811865475)
+   * ```
    */
   eig(options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
     return linalg.eig(this, options);
@@ -1331,12 +2279,40 @@ export class Matrix extends ArrayND {
   /**
    * Sums this matrix's elements to a scalar.
    * @returns The sum, or `0` if the buffer is empty.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.sum());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 21
+   * ```
    */
   sum(axis?: undefined): number;
   /**
    * Sums this matrix's elements along one axis. `0` sums down each
    * column, returning an `Vector` of length `cols`; `1` sums across
    * each row, returning an `Vector` of length `rows`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.sum(0).toString());
+   * console.log(A.sum(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(5, 7, 9)
+   * Vector(6, 15)
+   * ```
    */
   sum(axis: 0 | 1): Vector;
   sum(axis?: 0 | 1): number | Vector {
@@ -1346,11 +2322,39 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the arithmetic mean of this matrix's elements to a scalar.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.mean());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 3.5
+   * ```
    */
   mean(axis?: undefined): number;
   /**
    * Computes the arithmetic mean along one axis. `0` averages down each
    * column; `1` averages across each row.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.mean(0).toString());
+   * console.log(A.mean(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2.5, 3.5, 4.5)
+   * Vector(2, 5)
+   * ```
    */
   mean(axis: 0 | 1): Vector;
   mean(axis?: 0 | 1): number | Vector {
@@ -1361,12 +2365,40 @@ export class Matrix extends ArrayND {
   /**
    * Finds the smallest element of this matrix. NaN wins the comparison
    * so it propagates, matching `Math.min`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.min());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1
+   * ```
    */
   min(axis?: undefined): number;
   /**
    * Finds the smallest element along one axis. `0` finds the minimum of
    * each column; `1` finds the minimum of each row. NaN propagates, as
    * in the no-axis form.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.min(0).toString());
+   * console.log(A.min(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2, 3)
+   * Vector(1, 4)
+   * ```
    */
   min(axis: 0 | 1): Vector;
   min(axis?: 0 | 1): number | Vector {
@@ -1377,12 +2409,40 @@ export class Matrix extends ArrayND {
   /**
    * Finds the largest element of this matrix. NaN wins the comparison
    * so it propagates, matching `Math.max`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.max());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 6
+   * ```
    */
   max(axis?: undefined): number;
   /**
    * Finds the largest element along one axis. `0` finds the maximum of
    * each column; `1` finds the maximum of each row. NaN propagates, as
    * in the no-axis form.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.max(0).toString());
+   * console.log(A.max(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(4, 5, 6)
+   * Vector(3, 6)
+   * ```
    */
   max(axis: 0 | 1): Vector;
   max(axis?: 0 | 1): number | Vector {
@@ -1396,6 +2456,21 @@ export class Matrix extends ArrayND {
    * @param ddof Delta degrees of freedom. The divisor used is
    * `n - ddof`. Defaults to `0` (population variance); pass `1` for the
    * unbiased sample variance.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.variance());
+   * console.log(A.variance(undefined, 1));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2.9166666666666665
+   * 3.5
+   * ```
    */
   variance(axis?: undefined, ddof?: number): number;
   /**
@@ -1403,6 +2478,21 @@ export class Matrix extends ArrayND {
    * each column; `1` computes the variance of each row.
    * @param ddof Delta degrees of freedom, as in the no-axis form, applied
    * per row/column.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.variance(0).toString());
+   * console.log(A.variance(1, 1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(2.25, 2.25, 2.25)
+   * Vector(1, 1)
+   * ```
    */
   variance(axis: 0 | 1, ddof?: number): Vector;
   variance(axis?: 0 | 1, ddof: number = 0): number | Vector {
@@ -1413,12 +2503,42 @@ export class Matrix extends ArrayND {
   /**
    * Computes the standard deviation of this matrix's elements to a scalar.
    * @param ddof Delta degrees of freedom, forwarded to `variance()`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.std());
+   * console.log(A.std(undefined, 1));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 1.707825127659933
+   * 1.8708286933869707
+   * ```
    */
   std(axis?: undefined, ddof?: number): number;
   /**
    * Computes the standard deviation along one axis. `0` computes it for
    * each column; `1` for each row.
    * @param ddof Delta degrees of freedom, forwarded to `variance()`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.std(0).toString());
+   * console.log(A.std(1, 1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1.5, 1.5, 1.5)
+   * Vector(1, 1)
+   * ```
    */
   std(axis: 0 | 1, ddof?: number): Vector;
   std(axis?: 0 | 1, ddof: number = 0): number | Vector {
@@ -1430,6 +2550,19 @@ export class Matrix extends ArrayND {
    * Computes the cumulative sum of this matrix's elements, flattened in
    * row-major order first (row 0 followed by row 1, etc.): a single
    * running total over that sequence, as an `Vector` of length `rows * cols`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.cumsum().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 3, 6, 10, 15, 21)
+   * ```
    */
   cumsum(axis?: undefined): Vector;
   /**
@@ -1437,6 +2570,21 @@ export class Matrix extends ArrayND {
    * shape. `0` accumulates down each column independently, restarting
    * the running total at the top of each column. `1` accumulates across
    * each row independently, restarting at the start of each row.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * console.log(A.cumsum(0).toString());
+   * console.log(A.cumsum(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2, 3], [5, 7, 9]]
+   * Matrix[[1, 3, 6], [4, 9, 15]]
+   * ```
    */
   cumsum(axis: 0 | 1): Matrix;
   cumsum(axis?: 0 | 1): Vector | Matrix {
@@ -1476,6 +2624,19 @@ export class Matrix extends ArrayND {
    * index into the matrix flattened in row-major order. If multiple
    * elements tie for the minimum, the first flat index is returned. NaN
    * elements take priority, matching `min()`'s NaN-propagation semantics.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[3, 1, 2], [4, 5, 0]]);
+   * console.log(A.argmin());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 5
+   * ```
    */
   argmin(axis?: undefined): number;
   /**
@@ -1485,6 +2646,21 @@ export class Matrix extends ArrayND {
    * each row, the *column* index (`0` to `cols - 1`) of that row's
    * minimum, as an `Vector` of length `rows`. Ties and NaN priority
    * follow the no-axis form, applied per row/column.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[3, 1, 2], [4, 5, 0]]);
+   * console.log(A.argmin(0).toString());
+   * console.log(A.argmin(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 0, 1)
+   * Vector(1, 2)
+   * ```
    */
   argmin(axis: 0 | 1): Vector;
   argmin(axis?: 0 | 1): number | Vector {
@@ -1497,6 +2673,19 @@ export class Matrix extends ArrayND {
    * index into the matrix flattened in row-major order. If multiple
    * elements tie for the maximum, the first flat index is returned. NaN
    * elements take priority, matching `max()`'s NaN-propagation semantics.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[3, 1, 2], [4, 5, 0]]);
+   * console.log(A.argmax());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 4
+   * ```
    */
   argmax(axis?: undefined): number;
   /**
@@ -1506,6 +2695,21 @@ export class Matrix extends ArrayND {
    * each row, the *column* index (`0` to `cols - 1`) of that row's
    * maximum, as an `Vector` of length `rows`. Ties and NaN priority
    * follow the no-axis form, applied per row/column.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[3, 1, 2], [4, 5, 0]]);
+   * console.log(A.argmax(0).toString());
+   * console.log(A.argmax(1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 1, 0)
+   * Vector(0, 1)
+   * ```
    */
   argmax(axis: 0 | 1): Vector;
   argmax(axis?: 0 | 1): number | Vector {
@@ -1533,6 +2737,21 @@ export class Matrix extends ArrayND {
    * default, which sorts lexicographically).
    * @returns A new matrix, the same shape as this one, with each row or
    * column sorted independently.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[9, 1, 5], [3, 7, 2]]);
+   * console.log(A.sort().toString());
+   * console.log(A.sort(0).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 5, 9], [2, 3, 7]]
+   * Matrix[[3, 1, 2], [9, 7, 5]]
+   * ```
    */
   sort(axis: 0 | 1 = 1, compareFn?: (a: number, b: number) => number): Matrix {
     const res = this.copy();
@@ -1593,6 +2812,21 @@ export class Matrix extends ArrayND {
    * @returns A new, independent matrix holding the selected rows and columns.
    * @throws {RangeError} If the resolved row or column range is empty
    * (Matrix cannot represent a matrix with 0 rows or 0 columns).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+   * console.log(A.slice(0, 2, 1).toString());
+   * console.log(A.slice(-1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[2, 3], [5, 6]]
+   * Matrix[[7, 8, 9]]
+   * ```
    */
   slice(rowStart?: number, rowEnd?: number, colStart?: number, colEnd?: number): Matrix {
     const { start: rs, end: re } = Matrix._resolveRange(rowStart, rowEnd, this.rows);
@@ -1620,6 +2854,19 @@ export class Matrix extends ArrayND {
    * @param repeats Must be a non-negative integer; `0` yields an empty vector.
    * @returns A new vector of length `rows * cols * repeats`.
    * @throws {RangeError} If `repeats` is not a non-negative integer.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.repeat(2).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 1, 2, 2, 3, 3, 4, 4)
+   * ```
    */
   repeat(repeats: number, axis?: undefined): Vector;
   /**
@@ -1634,6 +2881,21 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `repeats` is not a non-negative integer, `axis`
    * is not `0`/`1`, or `repeats` is `0` (Matrix cannot represent a matrix
    * with 0 rows or 0 columns).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.repeat(2, 0).toString());
+   * console.log(A.repeat(2, 1).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2], [1, 2], [3, 4], [3, 4]]
+   * Matrix[[1, 1, 2, 2], [3, 3, 4, 4]]
+   * ```
    */
   repeat(repeats: number, axis: 0 | 1): Matrix;
   repeat(repeats: number, axis?: 0 | 1): Vector | Matrix {
@@ -1683,6 +2945,21 @@ export class Matrix extends ArrayND {
    * @returns A new, independent `rows * rowReps x cols * colReps` matrix.
    * @throws {RangeError} If a count is not a non-negative integer, or is
    * `0` (Matrix cannot represent a matrix with 0 rows or 0 columns).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.tile(2).toString());
+   * console.log(A.tile([2, 1]).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2, 1, 2], [3, 4, 3, 4]]
+   * Matrix[[1, 2], [3, 4], [1, 2], [3, 4]]
+   * ```
    */
   tile(reps: number | [number, number]): Matrix {
     const [rowReps, colReps] = typeof reps === 'number' ? [1, reps] : reps;
@@ -1715,6 +2992,19 @@ export class Matrix extends ArrayND {
   /**
    * Returns this matrix's elements as an array of row arrays.
    * @returns An array of `rows` arrays, each with `cols` numbers.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.toArray());
+   * ```
+   *
+   * Output:
+   * ```text
+   * [ [ 1, 2 ], [ 3, 4 ] ]
+   * ```
    */
   toArray(): number[][] {
     const out: number[][] = [];
@@ -1725,6 +3015,19 @@ export class Matrix extends ArrayND {
   /**
    * Returns a human-readable string representation of this matrix, one row per line.
    * @returns e.g. `"Matrix[[1, 2], [3, 4]]"`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2], [3, 4]]
+   * ```
    */
   toString(): string {
     const rows = this.toArray().map((r) => `[${r.join(', ')}]`);
@@ -1747,6 +3050,20 @@ export class Matrix extends ArrayND {
    * Transposes a square matrix in place.
    * @returns `this`, for chaining.
    * @throws {RangeError} If this matrix is not square.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * A.transposeSelf();
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 3], [2, 4]]
+   * ```
    */
   transposeSelf(): this {
     if (this.rows !== this.cols)
@@ -1770,6 +3087,20 @@ export class Matrix extends ArrayND {
    * @param j Second row index (0-based).
    * @returns `this`, for chaining.
    * @throws {RangeError} If `i` or `j` is out of bounds.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+   * A.swapRows(0, 2);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[5, 6], [3, 4], [1, 2]]
+   * ```
    */
   swapRows(i: number, j: number): this {
     if (i < 0 || i >= this.rows)
@@ -1793,6 +3124,20 @@ export class Matrix extends ArrayND {
    * @param s The scale factor.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `i` is out of bounds.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * A.scaleRow(1, 10);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2], [30, 40]]
+   * ```
    */
   scaleRow(i: number, s: number): this {
     if (i < 0 || i >= this.rows)
@@ -1808,6 +3153,20 @@ export class Matrix extends ArrayND {
    * @param s The scale factor.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `j` is out of bounds.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * A.scaleCol(0, -1);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[-1, 2], [-3, 4]]
+   * ```
    */
   scaleCol(j: number, s: number): this {
     if (j < 0 || j >= this.cols)
@@ -1824,6 +3183,20 @@ export class Matrix extends ArrayND {
    * @param s The scale factor applied to row `j`.
    * @returns `this`, for chaining.
    * @throws {RangeError} If `i` or `j` is out of bounds.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * A.addScaledRow(1, 0, -3);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2], [0, -2]]
+   * ```
    */
   addScaledRow(i: number, j: number, s: number): this {
     if (i < 0 || i >= this.rows)
@@ -1841,6 +3214,18 @@ export class Matrix extends ArrayND {
    * @param rows Number of rows.
    * @param cols Number of columns.
    * @returns A new zero matrix.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * console.log(Matrix.zero(2, 3).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0, 0, 0], [0, 0, 0]]
+   * ```
    */
   static zero(rows: number, cols: number): Matrix {
     return new Matrix(rows, cols);
@@ -1850,6 +3235,18 @@ export class Matrix extends ArrayND {
    * Creates an `n x n` identity matrix.
    * @param n The matrix dimension.
    * @returns A new identity matrix.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * console.log(Matrix.identity(3).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+   * ```
    */
   static identity(n: number): Matrix {
     const res = new Matrix(n, n);
@@ -1866,6 +3263,18 @@ export class Matrix extends ArrayND {
    * @param v The diagonal entries.
    * @returns A new `v.size x v.size` matrix.
    * @throws {RangeError} If `v` is empty (`size === 0`).
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Matrix.diag(Vector.from([1, 2, 3])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 0, 0], [0, 2, 0], [0, 0, 3]]
+   * ```
    */
   static diag(v: Vector): Matrix {
     if (v.size === 0) {
@@ -1882,6 +3291,18 @@ export class Matrix extends ArrayND {
    * Creates an Matrix from an array of row arrays.
    * @param rows Source data; each inner array must have the same length.
    * @returns A new matrix with shape `rows.length x rows[0].length`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * console.log(Matrix.from([[1, 2, 3], [4, 5, 6]]).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2, 3], [4, 5, 6]]
+   * ```
    */
   static from(rows: number[][]): Matrix {
     if (rows.length === 0) {
@@ -1912,6 +3333,20 @@ export class Matrix extends ArrayND {
    * every input's `cols`.
    * @throws {RangeError} If `matrices` is empty, or if any matrix's
    * `rows` doesn't match the first matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1], [2]]);
+   * const B = Matrix.from([[3, 4], [5, 6]]);
+   * console.log(Matrix.hstack([A, B]).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 3, 4], [2, 5, 6]]
+   * ```
    */
   static hstack(matrices: Matrix[]): Matrix {
     if (matrices.length === 0) {
@@ -1948,6 +3383,20 @@ export class Matrix extends ArrayND {
    * `matrices[0].cols` columns.
    * @throws {RangeError} If `matrices` is empty, or if any matrix's
    * `cols` doesn't match the first matrix's.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2]]);
+   * const B = Matrix.from([[3, 4], [5, 6]]);
+   * console.log(Matrix.vstack([A, B]).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2], [3, 4], [5, 6]]
+   * ```
    */
   static vstack(matrices: Matrix[]): Matrix {
     if (matrices.length === 0) {
