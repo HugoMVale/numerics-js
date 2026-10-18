@@ -49,11 +49,11 @@ const grid = (a: number, b: number, n: number): number[] =>
 
 /** Largest component error of `eval` against `exact` on the given times. */
 function maxError(
-  eval_: (t: number[]) => { get(i: number, j: number): number },
+  eval_: (t: Vector) => { get(i: number, j: number): number },
   exact: (t: number) => number[],
   times: number[]
 ): number {
-  const y = eval_(times);
+  const y = eval_(Vector.from(times));
   let error = 0;
   times.forEach((t, i) =>
     exact(t).forEach((e, j) => (error = Math.max(error, Math.abs(y.get(i, j) - e))))
@@ -150,7 +150,7 @@ describe.each(solvers)('denseOutput of %s', (_name, solve) => {
     const dense = solve(oscillator, 0, 5, y0(), { ...tol, denseOutput: true }).denseOutput!;
     const times = [3.3, 0, 5, 1.7];
 
-    for (const argument of [times, new Vector(times)]) {
+    for (const argument of [Vector.from(times), new Vector(times)]) {
       const y = dense.eval(argument);
       expect(y.rows).toBe(4);
       expect(y.cols).toBe(2);
@@ -164,7 +164,7 @@ describe.each(solvers)('denseOutput of %s', (_name, solve) => {
     const dense = solve(oscillator, 0, 5, y0(), { denseOutput: true }).denseOutput!;
     expect(() => dense.eval(-1e-9)).toThrow(RangeError);
     expect(() => dense.eval(5 + 1e-9)).toThrow(RangeError);
-    expect(() => dense.eval([1, 6])).toThrow(RangeError);
+    expect(() => dense.eval(Vector.from([1, 6]))).toThrow(RangeError);
   });
 
   it('works for backward integration', () => {

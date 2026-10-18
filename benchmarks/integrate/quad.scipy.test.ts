@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { quad } from '../../src/integrate/quad.js';
+import { Vector } from '../../src/linalg/Vector.js';
 import fixtures from './quad.scipy.json' with { type: 'json' };
 
 // Must mirror the CASES list in generate_quad_fixtures.py (same id, math, bounds).
@@ -37,7 +38,7 @@ describe('quad vs SciPy reference values', () => {
 
       // Uses gaussKronrod's own default tol, matching TOL in generate_quad_fixtures.py,
       // so evaluation counts reflect the library's representative use case.
-      const result = quad(f, a, b, { breakpoints: fixture.breakpoints });
+      const result = quad(f, a, b, { breakpoints: Vector.from(fixture.breakpoints) });
       expect(result.converged).toBe(true);
 
       // Tolerance accounts for both SciPy's and our own reported error estimates.

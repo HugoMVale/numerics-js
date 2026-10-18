@@ -5,15 +5,17 @@ import { Matrix } from '../../src/linalg/Matrix.js';
 
 describe('PchipInterpolator1D', () => {
   it('produces the values shown in its documentation example', () => {
-    const pchip = new PchipInterpolator1D([1, 2, 3], [3, 2, 0]);
+    const pchip = new PchipInterpolator1D(Vector.from([1, 2, 3]), Vector.from([3, 2, 0]));
 
     expect(pchip.eval(2.5)).toBeCloseTo(1.1458333333333333);
-    expect(pchip.eval([0, 1.5, 3.14]).data).toEqual(new Float64Array([3, 2.6041666666666665, 0]));
+    expect(pchip.eval(Vector.from([0, 1.5, 3.14])).data).toEqual(
+      new Float64Array([3, 2.6041666666666665, 0])
+    );
   });
 
   it('evaluates exactly at the knots', () => {
-    const xp = [0, 1, 2, 3, 4];
-    const fp = [0, 2, 0, -1, 3];
+    const xp = Vector.from([0, 1, 2, 3, 4]);
+    const fp = Vector.from([0, 2, 0, -1, 3]);
     const pchip = new PchipInterpolator1D(xp, fp);
 
     expect(pchip.eval(0)).toBe(0);
@@ -23,8 +25,8 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('preserves monotonicity and prevents overshoots (step function)', () => {
-    const xp = [0, 1, 2, 3, 4];
-    const fp = [0, 0, 1, 1, 1]; // Step function
+    const xp = Vector.from([0, 1, 2, 3, 4]);
+    const fp = Vector.from([0, 0, 1, 1, 1]); // Step function
     const pchip = new PchipInterpolator1D(xp, fp);
 
     // Before the step, should be exactly 0
@@ -39,8 +41,8 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('returns zero derivative in flat regions and clamped bounds', () => {
-    const xp = [0, 1, 2, 3];
-    const fp = [5, 5, 2, 0];
+    const xp = Vector.from([0, 1, 2, 3]);
+    const fp = Vector.from([5, 5, 2, 0]);
     const pchip = new PchipInterpolator1D(xp, fp);
 
     // Derivative between two equal values must be 0
@@ -57,8 +59,8 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('applies left and right clamping for evaluation', () => {
-    const xp = [0, 1, 2];
-    const fp = [10, 20, 30];
+    const xp = Vector.from([0, 1, 2]);
+    const fp = Vector.from([10, 20, 30]);
     const pchip = new PchipInterpolator1D(xp, fp, { left: 5, right: 35 }); // Custom bounds
 
     expect(pchip.eval(-1)).toBe(5);
@@ -70,11 +72,11 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('handles vectorization (array inputs) for eval and derivative', () => {
-    const xp = [0, 1, 2];
-    const fp = [0, 1, 8];
+    const xp = Vector.from([0, 1, 2]);
+    const fp = Vector.from([0, 1, 8]);
     const pchip = new PchipInterpolator1D(xp, fp);
 
-    const xQuery = [0, 1, 2, 3];
+    const xQuery = Vector.from([0, 1, 2, 3]);
 
     const evalRes = pchip.eval(xQuery);
     expect(evalRes).toBeInstanceOf(Vector);
@@ -89,8 +91,8 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('falls back to linear interpolation for exactly 2 points', () => {
-    const xp = [0, 2];
-    const fp = [0, 10];
+    const xp = Vector.from([0, 2]);
+    const fp = Vector.from([0, 10]);
     const pchip = new PchipInterpolator1D(xp, fp);
 
     expect(pchip.eval(1)).toBeCloseTo(5);
@@ -100,29 +102,34 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('supports one point as a constant interpolant', () => {
-    const pchip = new PchipInterpolator1D([2], [7]);
+    const pchip = new PchipInterpolator1D(Vector.from([2]), Vector.from([7]));
     expect(pchip.size).toBe(1);
     expect(pchip.eval(2)).toBe(7);
-    expect(pchip.eval([0, 2, 4]).toArray()).toEqual([7, 7, 7]);
+    expect(pchip.eval(Vector.from([0, 2, 4])).toArray()).toEqual([7, 7, 7]);
     expect(pchip.derivative(2)).toBe(0);
     expect(pchip.integrate(0, 4)).toBe(28);
   });
 
   it('rejects duplicate x-coordinates because PCHIP requires distinct knots', () => {
-    expect(() => new PchipInterpolator1D([0, 1, 1], [0, 1, 2])).toThrow(RangeError);
+    expect(() => new PchipInterpolator1D(Vector.from([0, 1, 1]), Vector.from([0, 1, 2]))).toThrow(
+      RangeError
+    );
   });
 
   it('rejects non-finite knots even when checkSorted is false', () => {
     for (const knot of [NaN, Infinity, -Infinity]) {
-      expect(() => new PchipInterpolator1D([0, knot], [0, 1], { checkSorted: false })).toThrow(
-        RangeError
-      );
+      expect(
+        () =>
+          new PchipInterpolator1D(Vector.from([0, knot]), Vector.from([0, 1]), {
+            checkSorted: false
+          })
+      ).toThrow(RangeError);
     }
   });
 
   it('integrates exact cubic segments over bounds', () => {
-    const xp = [0, 1, 2];
-    const fp = [0, 1, 0]; // Triangular-shaped data
+    const xp = Vector.from([0, 1, 2]);
+    const fp = Vector.from([0, 1, 0]); // Triangular-shaped data
     const pchip = new PchipInterpolator1D(xp, fp);
 
     // PCHIP fits a smooth curve, so the area differs from standard
@@ -139,8 +146,8 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('computes exact rectangular areas for constant out-of-bounds integration', () => {
-    const xp = [0, 2];
-    const fp = [10, 10]; // Flat line
+    const xp = Vector.from([0, 2]);
+    const fp = Vector.from([10, 10]); // Flat line
     const pchip = new PchipInterpolator1D(xp, fp, { left: 10, right: 10 });
 
     // Interior
@@ -157,20 +164,20 @@ describe('PchipInterpolator1D', () => {
   });
 
   it('integrates infinite clamp tails without zero-times-infinity NaNs', () => {
-    const pchip = new PchipInterpolator1D([0, 1], [0, 1], { right: 0 });
+    const pchip = new PchipInterpolator1D(Vector.from([0, 1]), Vector.from([0, 1]), { right: 0 });
     expect(pchip.integrate(-Infinity, 0)).toBe(0);
     expect(pchip.integrate(1, Infinity)).toBe(0);
     expect(pchip.integrate(-Infinity, Infinity)).toBeCloseTo(0.5);
   });
 
   it('returns 0 for zero-width integration intervals', () => {
-    const pchip = new PchipInterpolator1D([0, 1, 2], [1, 5, 2]);
+    const pchip = new PchipInterpolator1D(Vector.from([0, 1, 2]), Vector.from([1, 5, 2]));
     expect(pchip.integrate(1, 1)).toBe(0);
     expect(pchip.integrate(-5, -5)).toBe(0);
   });
 
   it('throws RangeError for NaN integration bounds', () => {
-    const pchip = new PchipInterpolator1D([0, 1], [0, 1]);
+    const pchip = new PchipInterpolator1D(Vector.from([0, 1]), Vector.from([0, 1]));
     expect(() => pchip.integrate(NaN, 1)).toThrow(RangeError);
     expect(() => pchip.integrate(0, NaN)).toThrow(RangeError);
   });
@@ -183,9 +190,9 @@ describe('PchipInterpolatorND', () => {
   // shape-preserving step function, chosen so a column mix-up (reading
   // the wrong column, or reusing fpA's derivatives for fpB) would be
   // caught by the componentwise comparison.
-  const xp = [1, 2, 3];
-  const fpA = [3, 2, 0];
-  const fpB = [0, 0, 5];
+  const xp = Vector.from([1, 2, 3]);
+  const fpA = Vector.from([3, 2, 0]);
+  const fpB = Vector.from([0, 0, 5]);
   const fp = Matrix.from([
     [3, 0],
     [2, 0],
@@ -219,7 +226,7 @@ describe('PchipInterpolatorND', () => {
   });
 
   it('applies left/right clamping, scalar and per-component', () => {
-    const f = new PchipInterpolatorND(xp, fp, { left: -1, right: [9, 8] });
+    const f = new PchipInterpolatorND(xp, fp, { left: -1, right: Vector.from([9, 8]) });
     expect(f.eval(0).toArray()).toEqual([-1, -1]);
     expect(f.eval(4).toArray()).toEqual([9, 8]);
   });
@@ -229,7 +236,7 @@ describe('PchipInterpolatorND', () => {
     const fA = new PchipInterpolator1D(xp, fpA);
     const fB = new PchipInterpolator1D(xp, fpB);
 
-    const evalRes = f.eval([0, 1, 2.5, 4]);
+    const evalRes = f.eval(Vector.from([0, 1, 2.5, 4]));
     expect(evalRes).toBeInstanceOf(Matrix);
     expect(evalRes.rows).toBe(4);
     expect(evalRes.cols).toBe(2);
@@ -239,7 +246,7 @@ describe('PchipInterpolatorND', () => {
       expect(evalRes.row(i).toArray()[1]).toBeCloseTo(fB.eval(x));
     }
 
-    const derivRes = f.derivative([0, 1, 2.5, 4]);
+    const derivRes = f.derivative(Vector.from([0, 1, 2.5, 4]));
     for (let i = 0; i < 4; i++) {
       const x = [0, 1, 2.5, 4][i];
       expect(derivRes.row(i).toArray()[0]).toBeCloseTo(fA.derivative(x));
@@ -249,13 +256,13 @@ describe('PchipInterpolatorND', () => {
 
   it('throws for an empty query array (Matrix cannot have 0 rows)', () => {
     const f = new PchipInterpolatorND(xp, fp);
-    expect(() => f.eval([])).toThrow(RangeError);
-    expect(() => f.derivative([])).toThrow(RangeError);
+    expect(() => f.eval(Vector.from([]))).toThrow(RangeError);
+    expect(() => f.derivative(Vector.from([]))).toThrow(RangeError);
   });
 
   it('falls back to linear interpolation for exactly 2 points', () => {
     const f = new PchipInterpolatorND(
-      [0, 2],
+      Vector.from([0, 2]),
       Matrix.from([
         [0, 10],
         [10, 0]
@@ -266,7 +273,7 @@ describe('PchipInterpolatorND', () => {
   });
 
   it('supports one point as a constant interpolant', () => {
-    const f = new PchipInterpolatorND([2], Matrix.from([[7, -3]]));
+    const f = new PchipInterpolatorND(Vector.from([2]), Matrix.from([[7, -3]]));
     expect(f.size).toBe(1);
     expect(f.eval(2).toArray()).toEqual([7, -3]);
     expect(f.derivative(2).toArray()).toEqual([0, 0]);
@@ -277,7 +284,7 @@ describe('PchipInterpolatorND', () => {
     expect(
       () =>
         new PchipInterpolatorND(
-          [0, 1, 1],
+          Vector.from([0, 1, 1]),
           Matrix.from([
             [0, 0],
             [1, 1],
@@ -291,7 +298,7 @@ describe('PchipInterpolatorND', () => {
     for (const knot of [NaN, Infinity, -Infinity]) {
       expect(
         () =>
-          new PchipInterpolatorND([0, knot], Matrix.from([[0], [1]]), {
+          new PchipInterpolatorND(Vector.from([0, knot]), Matrix.from([[0], [1]]), {
             checkSorted: false
           })
       ).toThrow(RangeError);
@@ -325,12 +332,12 @@ describe('PchipInterpolatorND', () => {
 
     it('computes exact rectangular areas for constant out-of-bounds integration', () => {
       const f = new PchipInterpolatorND(
-        [0, 2],
+        Vector.from([0, 2]),
         Matrix.from([
           [10, 1],
           [10, 1]
         ]),
-        { left: [10, 1], right: [10, 1] }
+        { left: Vector.from([10, 1]), right: Vector.from([10, 1]) }
       );
       expect(f.integrate(-2, 0).toArray()).toEqual([20, 2]);
       expect(f.integrate(2, 5).toArray()).toEqual([30, 3]);
@@ -338,12 +345,12 @@ describe('PchipInterpolatorND', () => {
 
     it('integrates infinite clamp tails component-wise', () => {
       const f = new PchipInterpolatorND(
-        [0, 1],
+        Vector.from([0, 1]),
         Matrix.from([
           [0, 1],
           [1, 1]
         ]),
-        { left: [0, 1], right: [0, -1] }
+        { left: Vector.from([0, 1]), right: Vector.from([0, -1]) }
       );
       const result = f.integrate(-Infinity, Infinity);
       expect(result.data[0]).toBeCloseTo(0.5);
