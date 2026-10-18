@@ -55,8 +55,8 @@ export class Matrix extends ArrayND {
   /**
    * @param rows Number of rows (must be a positive integer).
    * @param cols Number of columns (must be a positive integer).
-   * @param input Optional initial data in
-   *   row-major order (i.e. row 0 followed by row 1, etc.), length `rows * cols`.
+   * @param input Optional initial data in row-major order
+   *   (i.e. row 0 followed by row 1, etc.), length `rows * cols`.
    *   If omitted, the matrix is initialized to all zeros.
    * @throws {RangeError} If `rows` or `cols` is not a positive integer, or
    *   if `input` is provided and its length is not exactly `rows * cols`.
@@ -2941,7 +2941,7 @@ export class Matrix extends ArrayND {
    * `reps` tiles along the columns only (numpy promotes it to `(1, reps)`);
    * a `[rowReps, colReps]` pair tiles along both axes. Contrast with
    * `repeat()`, which repeats each row/column in place.
-   * @param reps Non-negative integer(s). Must both be `>= 1` here.
+   * @param reps Repetition counts; both must be `>= 1` here.
    * @returns A new, independent `rows * rowReps x cols * colReps` matrix.
    * @throws {RangeError} If a count is not a non-negative integer, or is
    * `0` (Matrix cannot represent a matrix with 0 rows or 0 columns).
