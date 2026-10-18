@@ -434,13 +434,10 @@ export interface TrBdf2AdaptiveOptions {
  *     rtol: 1e-8,
  *     denseOutput: true,
  * });
- * const times = Array.from({ length: 101 }, (_, i) => i / 100);
- * const y = result.denseOutput!.eval(times);
- * let maxError = 0;
- * times.forEach((t, i) => {
- *     maxError = Math.max(maxError, Math.abs(y.get(i, 0) - exact(t)));
- * });
- * console.log({ steps: result.t.size - 1, points: times.length, maxError });
+ * const times = Vector.linspace(0, 1, 101);
+ * const y = result.denseOutput!.eval(times).col(0);
+ * const errors = y.sub(times.map(exact)).abs();
+ * console.log({ steps: result.t.size - 1, points: times.size, maxError: errors.max() });
  * ```
  *
  * Output:
