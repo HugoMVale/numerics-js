@@ -1,4 +1,5 @@
 import { gaussKronrod } from './gaussKronrod.js';
+import { Vector } from '../linalg/Vector.js';
 
 /** Result of a {@link quad} numerical integration. */
 export interface QuadResult {
@@ -66,7 +67,7 @@ export interface QuadOptions {
    * is split at these points. Breakpoints outside the integration limits
    * are ignored.
    */
-  breakpoints?: number[];
+  breakpoints?: Vector;
   /**
    * Optional user-defined change of variables (see {@link QuadTransform}),
    * e.g. to remove an endpoint singularity or to handle an infinite domain
@@ -168,9 +169,12 @@ function getFullyInfiniteTransform(): QuadTransform {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { quad } from 'numerics-js/integrate';
+ *
  * // Split the interval at a known discontinuity.
  * const result = quad(x => (x < 1 ? 1 : 2), 0, 2, {
- *     breakpoints: [1]
+ *     breakpoints: Vector.from([1])
  * });
  * console.log(result);
  * ```
@@ -260,7 +264,8 @@ export function quad(
   b: number,
   options: QuadOptions = {}
 ): QuadResult {
-  const { breakpoints = [], transform: userTransform, ...gkOptions } = options;
+  const { breakpoints: breakpointVector, transform: userTransform, ...gkOptions } = options;
+  const breakpoints = breakpointVector?.toArray() ?? [];
 
   if (Number.isNaN(a) || Number.isNaN(b)) {
     throw new RangeError('quad: a and b must not be NaN');
