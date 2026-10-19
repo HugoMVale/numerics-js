@@ -14,8 +14,8 @@ export interface Interp1DOptions {
    */
   left?: number;
   /**
-   * Value to return for `x > xp[xp.length - 1]`.
-   * @default fp[fp.length - 1]
+   * Value to return for `x > xp[xp.size - 1]`.
+   * @default fp[fp.size - 1]
    */
   right?: number;
   /**
@@ -42,17 +42,16 @@ export interface Interp1DOptions {
 export interface InterpNDOptions {
   /**
    * Value(s) to return for `x < xp[0]`. A single `number` broadcasts to
-   * every component; a `number[]`/`Vector` must have length `fp.cols`.
+   * every component; per-component values must have length `fp.cols`.
    * @default fp.row(0)
    */
-  left?: number | number[] | Vector;
+  left?: number | Vector;
   /**
-   * Value(s) to return for `x > xp[xp.length - 1]`. A single `number`
-   * broadcasts to every component; a `number[]`/`Vector` must have length
-   * `fp.cols`.
+   * Value(s) to return for `x > xp[xp.size - 1]`. A single `number`
+   * broadcasts to every component; per-component values must have length `fp.cols`.
    * @default fp.row(fp.rows - 1)
    */
-  right?: number | number[] | Vector;
+  right?: number | Vector;
   /**
    * Same meaning as {@link Interp1DOptions.checkSorted}.
    * @default true
@@ -182,15 +181,15 @@ export function findBracket(xi: number, xpData: Float64Array): [number, number] 
  * `true`) if `xp` is not monotonically increasing.
  */
 export function prepareInterp1D(
-  xp: number[] | Vector,
-  fp: number[] | Vector,
+  xp: Vector,
+  fp: Vector,
   left: number | undefined,
   right: number | undefined,
   checkSorted: boolean,
   caller: string
 ): PreparedInterp1D {
-  const xpv = xp instanceof Vector ? xp : Vector.from(xp);
-  const fpv = fp instanceof Vector ? fp : Vector.from(fp);
+  const xpv = xp;
+  const fpv = fp;
 
   if (xpv.size === 0) {
     throw new RangeError(`${caller}: xp must have at least one element`);
@@ -215,13 +214,13 @@ export function prepareInterp1D(
 
 /**
  * Resolves an `InterpNDOptions.left`/`right` value against `fp`'s column
- * count: `undefined` falls back to `fallback` (a row of `fp`), a bare
- * `number` broadcasts to every component, and a `number[]`/`Vector` is
- * validated to have exactly `dim` entries.
- * @throws {RangeError} If an explicit `number[]`/`Vector` doesn't have length `dim`.
+ * count: `undefined` falls back to `fallback` (a row of `fp`), a single
+ * value broadcasts to every component, and per-component values must have
+ * exactly `dim` entries.
+ * @throws {RangeError} If explicit per-component values don't have length `dim`.
  */
 function resolveClampVector(
-  val: number | number[] | Vector | undefined,
+  val: number | Vector | undefined,
   fallback: Vector,
   dim: number,
   paramName: string,
@@ -229,7 +228,7 @@ function resolveClampVector(
 ): Vector {
   if (val === undefined) return fallback;
   if (typeof val === 'number') return Vector.full(dim, val);
-  const v = val instanceof Vector ? val : Vector.from(val);
+  const v = val;
   if (v.size !== dim) {
     throw new RangeError(
       `${caller}: ${paramName} must have length ${dim} (fp.cols), got ${v.size}`
@@ -240,9 +239,9 @@ function resolveClampVector(
 
 /**
  * Normalizes and validates `xp`/`fp`/`left`/`right` for vector-valued
- * (ND) interpolation. The ND counterpart of `prepareInterp`: `fp` is a
- * `Matrix` (row `i` is the vector value at `xp[i]`) rather than a
- * `Vector`, and `left`/`right` resolve to `Vector`s of length `fp.cols`
+ * (ND) interpolation. The ND counterpart of `prepareInterp`: `xp` is a
+ * `Vector` and `fp` is a `Matrix` (row `i` is the vector value at
+ * `xp[i]`), and `left`/`right` resolve to `Vector`s of length `fp.cols`
  * rather than plain numbers. Shared by `interpND` and
  * `LinearInterpolatorND`/`PchipInterpolatorND`.
  * @param xp The x-coordinates of the data points (the shared knots for
@@ -254,19 +253,19 @@ function resolveClampVector(
  * @param caller Name of the public entry point invoking this check.
  * @returns The validated `xp` (`Vector`) and `fp` (`Matrix`), plus resolved clamp vectors.
  * @throws {RangeError} If `xp` is empty, if `xp.size !== fp.rows`, if an
- * explicit `left`/`right` doesn't have length `fp.cols`, if `xp` contains
+ * explicit `left`/`right` values don't have length `fp.cols`, if `xp` contains
  * a non-finite value, or (when `checkSorted` is `true`) if `xp` is not
  * monotonically increasing.
  */
 export function prepareInterpND(
-  xp: number[] | Vector,
+  xp: Vector,
   fp: Matrix,
-  left: number | number[] | Vector | undefined,
-  right: number | number[] | Vector | undefined,
+  left: number | Vector | undefined,
+  right: number | Vector | undefined,
   checkSorted: boolean,
   caller: string
 ): PreparedInterpND {
-  const xpv = xp instanceof Vector ? xp : Vector.from(xp);
+  const xpv = xp;
 
   if (xpv.size === 0) {
     throw new RangeError(`${caller}: xp must have at least one element`);

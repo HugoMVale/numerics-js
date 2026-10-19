@@ -148,7 +148,7 @@ function pchipOne1D(
 }
 
 function pchipMany1D(
-  x: number[] | Vector,
+  x: Vector,
   xp: Vector,
   fp: Vector,
   d: Float64Array,
@@ -156,7 +156,7 @@ function pchipMany1D(
   rightVal: number,
   computeDerivative: boolean
 ): Vector {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+  const xv = x;
   const res = new Vector(xv.size);
   const xdata = xv.data;
   const rdata = res.data;
@@ -242,7 +242,7 @@ function pchipOneND(
 }
 
 function pchipManyND(
-  x: number[] | Vector,
+  x: Vector,
   xp: Vector,
   fp: Matrix,
   d: Matrix,
@@ -251,7 +251,7 @@ function pchipManyND(
   computeDerivative: boolean,
   caller: string
 ): Matrix {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+  const xv = x;
   if (xv.size === 0) {
     throw new RangeError(
       `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
@@ -297,11 +297,12 @@ function computeMonotonicDerivativesND(xp: Vector, fp: Matrix): Matrix {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
  * import { PchipInterpolator1D } from 'numerics-js/interpolate';
  *
- * const f = new PchipInterpolator1D([1, 2, 3], [3, 2, 0]);
+ * const f = new PchipInterpolator1D(Vector.from([1, 2, 3]), Vector.from([3, 2, 0]));
  * console.log(f.eval(2.5));
- * console.log(f.eval([0, 1.5, 3.14]).toString());
+ * console.log(f.eval(Vector.from([0, 1.5, 3.14])).toString());
  * ```
  *
  * Output:
@@ -332,7 +333,7 @@ export class PchipInterpolator1D {
    * lengths, if `xp` contains non-finite values, or (when
    * `options.checkSorted` is `true`) if `xp` is not strictly increasing.
    */
-  constructor(xp: number[] | Vector, fp: number[] | Vector, options: Interp1DOptions = {}) {
+  constructor(xp: Vector, fp: Vector, options: Interp1DOptions = {}) {
     const { left, right, checkSorted = true } = options;
     const p = prepareInterp1D(xp, fp, left, right, checkSorted, 'PchipInterpolator1D');
     if (checkSorted) {
@@ -354,13 +355,13 @@ export class PchipInterpolator1D {
 
   /**
    * Evaluates the shape-preserving cubic interpolant at `x`.
-   * @param x The x-coordinate(s) at which to evaluate. A single `number` returns a `number`;
-   * a plain array or `Vector` returns a `Vector`.
+   * @param x The coordinate(s) at which to evaluate. A single coordinate returns one value;
+   * multiple coordinates return one value per coordinate.
    * @returns The interpolated or clamped value(s), matching the shape of `x`.
    */
   eval(x: number): number;
-  eval(x: number[] | Vector): Vector;
-  eval(x: number | number[] | Vector): number | Vector {
+  eval(x: Vector): Vector;
+  eval(x: number | Vector): number | Vector {
     if (typeof x === 'number') {
       return pchipOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
     }
@@ -371,13 +372,13 @@ export class PchipInterpolator1D {
    * Evaluates the first derivative of the interpolant at `x`.
    * Values outside the data range return `0`, the derivative of the
    * constant clamping regions.
-   * @param x The `x`-coordinate(s) at which to evaluate. A single
-   * `number` returns a `number`; a plain array or `Vector` returns an `Vector`.
+   * @param x The `x`-coordinate(s) at which to evaluate. A single coordinate returns one value;
+   * multiple coordinates return one derivative per coordinate.
    * @returns The derivative value(s), matching the shape of `x`.
    */
   derivative(x: number): number;
-  derivative(x: number[] | Vector): Vector;
-  derivative(x: number | number[] | Vector): number | Vector {
+  derivative(x: Vector): Vector;
+  derivative(x: number | Vector): number | Vector {
     if (typeof x === 'number') {
       return pchipOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
     }
@@ -477,10 +478,10 @@ export class PchipInterpolator1D {
  *
  * @example
  * ```ts
- * import { Matrix } from 'numerics-js/linalg';
+ * import { Matrix, Vector } from 'numerics-js/linalg';
  * import { PchipInterpolatorND } from 'numerics-js/interpolate';
  *
- * const f = new PchipInterpolatorND([1, 2, 3], Matrix.from([[3, 0], [2, 1], [0, 4]]));
+ * const f = new PchipInterpolatorND(Vector.from([1, 2, 3]), Matrix.from([[3, 0], [2, 1], [0, 4]]));
  * console.log(f.eval(2.5).toString());
  * ```
  *
@@ -501,15 +502,15 @@ export class PchipInterpolatorND {
    * output component. Must be strictly increasing, finite, and non-empty. A
    * single point defines a constant interpolant.
    * @param fp The vector-valued data points: row `i` is the value at
-   * `xp[i]`. Must have `fp.rows === xp.length`.
+   * `xp[i]`. Must have `fp.rows === xp.size`.
    * @param options Optional settings; see {@link InterpNDOptions}.
-   * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
-   * if an explicit `options.left` or `options.right` array/`Vector` does
-   * not have length `fp.cols`, if `xp` contains non-finite values, or
+   * @throws {RangeError} If `xp` is empty, if `xp.size !== fp.rows`,
+   * if explicit `options.left` or `options.right` values do not have
+   * length `fp.cols`, if `xp` contains non-finite values, or
    * (when `options.checkSorted` is `true`) if `xp` is not strictly
    * increasing.
    */
-  constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
+  constructor(xp: Vector, fp: Matrix, options: InterpNDOptions = {}) {
     const { left, right, checkSorted = true } = options;
     const p = prepareInterpND(xp, fp, left, right, checkSorted, 'PchipInterpolatorND');
     if (checkSorted) {
@@ -538,16 +539,15 @@ export class PchipInterpolatorND {
 
   /**
    * Evaluates the shape-preserving cubic interpolant at `x`.
-   * @param x The x-coordinate(s) at which to evaluate. A single `number`
-   * returns a `Vector` (length `dim`); a plain array or `Vector` returns
-   * a `Matrix` (one row per evaluation point, `dim` columns).
+   * @param x The x-coordinate(s) at which to evaluate. A single coordinate returns
+   * the interpolated value; multiple coordinates return one row per point.
    * @returns The interpolated or clamped value(s), matching the shape of `x`.
-   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * @throws {RangeError} If no evaluation points are provided
    * (`Matrix` cannot represent a result with `0` rows).
    */
   eval(x: number): Vector;
-  eval(x: number[] | Vector): Matrix;
-  eval(x: number | number[] | Vector): Vector | Matrix {
+  eval(x: Vector): Matrix;
+  eval(x: number | Vector): Vector | Matrix {
     if (typeof x === 'number') {
       return pchipOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
     }
@@ -567,15 +567,15 @@ export class PchipInterpolatorND {
    * Evaluates the first derivative of the interpolant at `x`, component-wise.
    * Values outside the data range return the zero vector, the derivative
    * of the constant clamping regions.
-   * @param x The `x`-coordinate(s) at which to evaluate. A single
-   * `number` returns a `Vector`; a plain array or `Vector` returns a `Matrix`.
+   * @param x The `x`-coordinate(s) at which to evaluate. A single coordinate returns
+   * the derivative; multiple coordinates return one row per point.
    * @returns The derivative value(s), matching the shape of `x`.
-   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * @throws {RangeError} If no evaluation points are provided
    * (`Matrix` cannot represent a result with `0` rows).
    */
   derivative(x: number): Vector;
-  derivative(x: number[] | Vector): Matrix;
-  derivative(x: number | number[] | Vector): Vector | Matrix {
+  derivative(x: Vector): Matrix;
+  derivative(x: number | Vector): Vector | Matrix {
     if (typeof x === 'number') {
       return pchipOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
     }

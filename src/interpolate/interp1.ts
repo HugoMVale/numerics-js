@@ -55,13 +55,13 @@ function interpOne1D(
  * @returns The interpolated (or clamped) values, one per component of `x`.
  */
 function interpMany1D(
-  x: number[] | Vector,
+  x: Vector,
   xp: Vector,
   fp: Vector,
   leftVal: number,
   rightVal: number
 ): Vector {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+  const xv = x;
   const res = new Vector(xv.size);
   const xdata = xv.data;
   const rdata = res.data;
@@ -88,8 +88,8 @@ function linearDerivativeOne1D(xi: number, xp: Vector, fp: Vector): number {
   return h === 0 ? 0 : (fpd[hi] - fpd[lo]) / h;
 }
 
-function linearDerivativeMany1D(x: number[] | Vector, xp: Vector, fp: Vector): Vector {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+function linearDerivativeMany1D(x: Vector, xp: Vector, fp: Vector): Vector {
+  const xv = x;
   const res = new Vector(xv.size);
   const xdata = xv.data;
   const rdata = res.data;
@@ -144,14 +144,14 @@ function interpOneND(
 }
 
 function interpManyND(
-  x: number[] | Vector,
+  x: Vector,
   xp: Vector,
   fp: Matrix,
   leftVal: Vector,
   rightVal: Vector,
   caller: string
 ): Matrix {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+  const xv = x;
   if (xv.size === 0) {
     throw new RangeError(
       `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
@@ -187,13 +187,8 @@ function linearDerivativeOneND(xi: number, xp: Vector, fp: Matrix): Vector {
   return res;
 }
 
-function linearDerivativeManyND(
-  x: number[] | Vector,
-  xp: Vector,
-  fp: Matrix,
-  caller: string
-): Matrix {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+function linearDerivativeManyND(x: Vector, xp: Vector, fp: Matrix, caller: string): Matrix {
+  const xv = x;
   if (xv.size === 0) {
     throw new RangeError(
       `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
@@ -227,11 +222,12 @@ function linearDerivativeManyND(
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
  * import { LinearInterpolator1D } from 'numerics-js/interpolate';
  *
- * const f = new LinearInterpolator1D([1, 2, 3], [3, 2, 0]);
+ * const f = new LinearInterpolator1D(Vector.from([1, 2, 3]), Vector.from([3, 2, 0]));
  * console.log(f.eval(2.5));
- * console.log(f.eval([0, 1.5, 3.14]).toString());
+ * console.log(f.eval(Vector.from([0, 1.5, 3.14])).toString());
  * ```
  *
  * Output:
@@ -258,7 +254,7 @@ export class LinearInterpolator1D {
    * lengths, if `xp` contains non-finite values, or (when
    * `options.checkSorted` is `true`) if `xp` is not monotonically increasing.
    */
-  constructor(xp: number[] | Vector, fp: number[] | Vector, options: Interp1DOptions = {}) {
+  constructor(xp: Vector, fp: Vector, options: Interp1DOptions = {}) {
     const { left, right, checkSorted = true } = options;
     const p = prepareInterp1D(xp, fp, left, right, checkSorted, 'LinearInterpolator1D');
     this.xp = p.xp;
@@ -279,14 +275,14 @@ export class LinearInterpolator1D {
    * Values outside the data range return `0`, the derivative of the
    * constant clamping regions. At a knot, this returns the slope of the
    * segment to its right (or the final segment at the right endpoint).
-   * @param x The x-coordinate(s) at which to evaluate. A single
-   * `number` returns a `number`; a plain array or `Vector` returns an
+   * @param x The x-coordinate(s) at which to evaluate. A single coordinate
+   * returns a `number`; multiple coordinates return a
    * `Vector`.
    * @returns The derivative value(s), matching the shape of `x`.
    */
   derivative(x: number): number;
-  derivative(x: number[] | Vector): Vector;
-  derivative(x: number | number[] | Vector): number | Vector {
+  derivative(x: Vector): Vector;
+  derivative(x: number | Vector): number | Vector {
     if (typeof x === 'number') {
       return linearDerivativeOne1D(x, this.xp, this.fp);
     }
@@ -357,13 +353,13 @@ export class LinearInterpolator1D {
   /**
    * Evaluates the interpolant at `x`.
    * @param x The x-coordinate(s) at which to evaluate. A single
-   * `number` returns a `number`; a plain array or `Vector` returns an
+   * a single coordinate returns a `number`; multiple coordinates return a
    * `Vector`.
    * @returns The interpolated value(s), matching the shape of `x`.
    */
   eval(x: number): number;
-  eval(x: number[] | Vector): Vector;
-  eval(x: number | number[] | Vector): number | Vector {
+  eval(x: Vector): Vector;
+  eval(x: number | Vector): number | Vector {
     if (typeof x === 'number') {
       return interpOne1D(x, this.xp, this.fp, this.leftVal, this.rightVal);
     }
@@ -385,12 +381,12 @@ export class LinearInterpolator1D {
  *
  * @example
  * ```ts
- * import { Matrix } from 'numerics-js/linalg';
+ * import { Matrix, Vector } from 'numerics-js/linalg';
  * import { LinearInterpolatorND } from 'numerics-js/interpolate';
  *
- * const f = new LinearInterpolatorND([0, 1, 2], Matrix.from([[0, 0], [1, 2], [4, 2]]));
+ * const f = new LinearInterpolatorND(Vector.from([0, 1, 2]), Matrix.from([[0, 0], [1, 2], [4, 2]]));
  * console.log(f.eval(0.5).toString());
- * console.log(f.eval([0, 1.5]).toString());
+ * console.log(f.eval(Vector.from([0, 1.5])).toString());
  * ```
  *
  * Output:
@@ -410,15 +406,15 @@ export class LinearInterpolatorND {
    * output component. Must be monotonically increasing (duplicates
    * allowed), finite, and non-empty.
    * @param fp The vector-valued data points: row `i` is the value at
-   * `xp[i]`. Must have `fp.rows === xp.length`.
+   * `xp[i]`. Must have `fp.rows === xp.size`.
    * @param options Optional settings; see {@link InterpNDOptions}.
-   * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
-   * if an explicit `options.left` or `options.right` array/`Vector` does
-   * not have length `fp.cols`, if `xp` contains non-finite values, or
+   * @throws {RangeError} If `xp` is empty, if `xp.size !== fp.rows`,
+   * if explicit `options.left` or `options.right` values do not have
+   * length `fp.cols`, if `xp` contains non-finite values, or
    * (when `options.checkSorted` is `true`) if `xp` is not monotonically
    * increasing.
    */
-  constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
+  constructor(xp: Vector, fp: Matrix, options: InterpNDOptions = {}) {
     const { left, right, checkSorted = true } = options;
     const p = prepareInterpND(xp, fp, left, right, checkSorted, 'LinearInterpolatorND');
     this.xp = p.xp;
@@ -445,16 +441,15 @@ export class LinearInterpolatorND {
    * Evaluates the first derivative of the interpolant at `x`, component-wise.
    * Values outside the data range return the zero vector, the derivative
    * of the constant clamping regions.
-   * @param x The x-coordinate(s) at which to evaluate. A single `number`
-   * returns a `Vector`; a plain array or `Vector` returns a `Matrix`
-   * (one row per evaluation point).
+   * @param x The x-coordinate(s) at which to evaluate. A single coordinate
+   * returns one derivative vector; multiple coordinates return one row per point.
    * @returns The derivative value(s), matching the shape of `x`.
-   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * @throws {RangeError} If no evaluation points are provided
    * (`Matrix` cannot represent a result with `0` rows).
    */
   derivative(x: number): Vector;
-  derivative(x: number[] | Vector): Matrix;
-  derivative(x: number | number[] | Vector): Vector | Matrix {
+  derivative(x: Vector): Matrix;
+  derivative(x: number | Vector): Vector | Matrix {
     if (typeof x === 'number') {
       return linearDerivativeOneND(x, this.xp, this.fp);
     }
@@ -528,15 +523,15 @@ export class LinearInterpolatorND {
   /**
    * Evaluates the interpolant at `x`.
    * @param x The x-coordinate(s) at which to evaluate. A single `number`
-   * returns a `Vector` (length `dim`); a plain array or `Vector` returns
+   * returns a `Vector` (length `dim`); a `Vector` returns
    * a `Matrix` (one row per evaluation point, `dim` columns).
    * @returns The interpolated value(s), matching the shape of `x`.
-   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * @throws {RangeError} If `x` is a `Vector` of length `0`
    * (`Matrix` cannot represent a result with `0` rows).
    */
   eval(x: number): Vector;
-  eval(x: number[] | Vector): Matrix;
-  eval(x: number | number[] | Vector): Vector | Matrix {
+  eval(x: Vector): Matrix;
+  eval(x: number | Vector): Vector | Matrix {
     if (typeof x === 'number') {
       return interpOneND(x, this.xp, this.fp, this.leftVal, this.rightVal);
     }
@@ -568,8 +563,7 @@ export class LinearInterpolatorND {
  * For a vector-valued `fp`, see {@link interpND}.
  *
  * @param x The `x`-coordinate(s) at which to evaluate the interpolated
- * value(s). A single `number` returns a `number`; a plain array or
- * `Vector` returns a `Vector`.
+ * value(s). A single coordinate returns a `number`; multiple coordinates return a `Vector`.
  * @param xp The `x`-coordinates of the data points. Must be monotonically
  * increasing (duplicates allowed), finite, and non-empty.
  * @param fp The `y`-coordinates of the data points. Must have the same
@@ -582,12 +576,13 @@ export class LinearInterpolatorND {
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
  * import { interp1D } from 'numerics-js/interpolate';
  *
- * const xp = [1, 2, 3];
- * const fp = [3, 2, 0];
+ * const xp = Vector.from([1, 2, 3]);
+ * const fp = Vector.from([3, 2, 0]);
  * console.log(interp1D(2.5, xp, fp));
- * console.log(interp1D([0, 1, 1.5, 2.72, 3.14], xp, fp).toString());
+ * console.log(interp1D(Vector.from([0, 1, 1.5, 2.72, 3.14]), xp, fp).toString());
  * console.log(interp1D(0, xp, fp, { left: -1 }));
  * ```
  *
@@ -598,22 +593,12 @@ export class LinearInterpolatorND {
  * -1
  * ```
  */
+export function interp1D(x: number, xp: Vector, fp: Vector, options?: Interp1DOptions): number;
+export function interp1D(x: Vector, xp: Vector, fp: Vector, options?: Interp1DOptions): Vector;
 export function interp1D(
-  x: number,
-  xp: number[] | Vector,
-  fp: number[] | Vector,
-  options?: Interp1DOptions
-): number;
-export function interp1D(
-  x: number[] | Vector,
-  xp: number[] | Vector,
-  fp: number[] | Vector,
-  options?: Interp1DOptions
-): Vector;
-export function interp1D(
-  x: number | number[] | Vector,
-  xp: number[] | Vector,
-  fp: number[] | Vector,
+  x: number | Vector,
+  xp: Vector,
+  fp: Vector,
   options: Interp1DOptions = {}
 ): number | Vector {
   const { left, right, checkSorted = true } = options;
@@ -647,27 +632,27 @@ export function interp1D(
  *
  * For a scalar-valued `fp`, see {@link interp1D}.
  *
- * @param x The `x`-coordinate(s) at which to evaluate. A single `number`
- * returns a `Vector`; a plain array or `Vector` returns a `Matrix`.
+ * @param x The `x`-coordinate(s) at which to evaluate. A single coordinate
+ * returns a `Vector`; multiple coordinates return a `Matrix`.
  * @param xp The `x`-coordinates of the data points, shared by every
  * output component. Must be monotonically increasing (duplicates
  * allowed), finite, and non-empty.
  * @param fp The vector-valued data points: row `i` is the value at `xp[i]`.
- * Must have `fp.rows === xp.length`.
+ * Must have `fp.rows === xp.size`.
  * @param options Optional settings; see {@link InterpNDOptions}.
  * @returns The interpolated value(s), matching the shape of `x`.
- * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`, if
- * an explicit `options.left` or `options.right` array/`Vector` does not
- * have length `fp.cols`, if `x` is an array/`Vector` of length `0`, if
+ * @throws {RangeError} If `xp` is empty, if `xp.size !== fp.rows`, if
+ * explicit `options.left` or `options.right` values do not have
+ * length `fp.cols`, if no evaluation points are provided, if
  * `xp` contains non-finite values, or (when `options.checkSorted` is
  * `true`) if `xp` is not monotonically increasing.
  *
  * @example
  * ```ts
- * import { Matrix } from 'numerics-js/linalg';
+ * import { Matrix, Vector } from 'numerics-js/linalg';
  * import { interpND } from 'numerics-js/interpolate';
  *
- * const xp = [0, 1, 2];
+ * const xp = Vector.from([0, 1, 2]);
  * const fp = Matrix.from([[0, 0], [1, 2], [4, 2]]);
  * console.log(interpND(0.5, xp, fp).toString());
  * ```
@@ -677,21 +662,11 @@ export function interp1D(
  * Vector(0.5, 1)
  * ```
  */
+export function interpND(x: number, xp: Vector, fp: Matrix, options?: InterpNDOptions): Vector;
+export function interpND(x: Vector, xp: Vector, fp: Matrix, options?: InterpNDOptions): Matrix;
 export function interpND(
-  x: number,
-  xp: number[] | Vector,
-  fp: Matrix,
-  options?: InterpNDOptions
-): Vector;
-export function interpND(
-  x: number[] | Vector,
-  xp: number[] | Vector,
-  fp: Matrix,
-  options?: InterpNDOptions
-): Matrix;
-export function interpND(
-  x: number | number[] | Vector,
-  xp: number[] | Vector,
+  x: number | Vector,
+  xp: Vector,
   fp: Matrix,
   options: InterpNDOptions = {}
 ): Vector | Matrix {

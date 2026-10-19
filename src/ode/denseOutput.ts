@@ -170,22 +170,22 @@ export class OdeDenseOutput {
    *
    * @param t Time(s) at which to evaluate, which must lie within the solved interval, i.e.
    * between {@link OdeDenseOutput.tStart} and {@link OdeDenseOutput.tEnd}, both included. A
-   * single `number` returns a `Vector`; a plain array or `Vector` returns a `Matrix`.
+   * a single time returns the state; multiple times return one state per row.
    * @returns The state at `t`, a `Vector` of length `dim`; or, for several times, a `Matrix`
    * with one row per time, in the given order, and `dim` columns, like {@link OdeResult.y}.
    * @throws {RangeError} If a time is `NaN` or outside the solved interval, or if `t` is an
-   * array/`Vector` of length `0` (`Matrix` cannot represent a result with `0` rows).
+   * no evaluation times are provided (`Matrix` cannot represent a result with `0` rows).
    */
   eval(t: number): Vector;
-  eval(t: number[] | Vector): Matrix;
-  eval(t: number | number[] | Vector): Vector | Matrix {
+  eval(t: Vector): Matrix;
+  eval(t: number | Vector): Vector | Matrix {
     const dim = this.dim;
     if (typeof t === 'number') {
       const out = new Vector(dim);
       this.evalInto(t, out.data);
       return out;
     }
-    const tv = t instanceof Vector ? t : Vector.from(t);
+    const tv = t;
     if (tv.size === 0) {
       throw new RangeError(
         'OdeDenseOutput.eval: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows'
