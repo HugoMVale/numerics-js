@@ -9,7 +9,7 @@
 
 ## Commands
 
-- `npm test` runs the complete Vitest suite.
+- `npm test` runs the complete Vitest suite. Use `npm test -- --reporter=verbose` for per-example progress and failures labeled with the offending example. `tests/examples.test.ts` warms the shared checker in a `beforeAll` with a 120 s timeout so slow startup does not make the first example hit Vitest's 5 s default timeout.
 - `npm run lint` runs Oxlint; this also runs from the pre-commit hook.
 - `npm run format` formats the project with oxfmt (configured in `.oxfmtrc.json`); `npm run format:check` verifies formatting without writing and runs in CI. Generated outputs (`dist/`, `docs/`, `coverage/`, and the benchmark JSON/Markdown reports) are excluded.
 - `npm run typecheck` runs TypeScript without emitting files.
