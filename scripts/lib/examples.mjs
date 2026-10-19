@@ -249,17 +249,12 @@ function buildProgram(codes, k, homeModule, exportsByName) {
 }
 
 /**
- * Type-checks a generated program against the compiled library (`dist/`).
- * Returns the names of unresolved identifiers, which means the program cannot run
- * (typically an example that refers to something that is not public API).
-
-/**
  * Type-checks programs against the library sources (`src/`, as `numerics-js`).
  * Returns every diagnostic, and whether any is an unresolved name or module,
  * which means the program cannot run (typically it uses something that is not
  * public API).
  */
-function createChecker() {
+export function createChecker() {
   const options = {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ESNext,
@@ -275,18 +270,28 @@ function createChecker() {
   const canonicalFileName = ts.createGetCanonicalFileName(ts.sys.useCaseSensitiveFileNames);
   const virtualPath = canonicalFileName(ts.normalizePath(virtual));
   const isVirtual = (fileName) => canonicalFileName(ts.normalizePath(fileName)) === virtualPath;
+
+  // One host for all examples. Parsed library/source files are cached, so the (large)
+  // `lib.*.d.ts` and `src/` files are parsed and bound once instead of once per example,
+  // and passing the previous program lets TypeScript reuse their structure.
+  let code = '';
+  const host = ts.createCompilerHost(options);
+  const readFile = host.readFile.bind(host);
+  const fileExists = host.fileExists.bind(host);
+  const getSourceFile = host.getSourceFile.bind(host);
+  const cache = new Map();
+  host.readFile = (f) => (isVirtual(f) ? code : readFile(f));
+  host.fileExists = (f) => isVirtual(f) || fileExists(f);
+  host.getSourceFile = (f, languageVersion, ...rest) => {
+    if (isVirtual(f)) return ts.createSourceFile(f, code, languageVersion, true);
+    let file = cache.get(f);
+    if (!file) cache.set(f, (file = getSourceFile(f, languageVersion, ...rest)));
+    return file;
+  };
+
   let previous;
-  return (code) => {
-    const host = ts.createCompilerHost(options);
-    const readFile = host.readFile.bind(host);
-    const fileExists = host.fileExists.bind(host);
-    const getSourceFile = host.getSourceFile.bind(host);
-    host.readFile = (f) => (isVirtual(f) ? code : readFile(f));
-    host.fileExists = (f) => isVirtual(f) || fileExists(f);
-    host.getSourceFile = (f, languageVersion, ...rest) =>
-      isVirtual(f)
-        ? ts.createSourceFile(f, code, languageVersion, true)
-        : getSourceFile(f, languageVersion, ...rest);
+  return (program_) => {
+    code = program_;
     const program = ts.createProgram([virtual], options, host, previous);
     previous = program;
     const diagnostics = ts.getPreEmitDiagnostics(program, program.getSourceFile(virtual));
@@ -304,12 +309,11 @@ function createChecker() {
 }
 
 /**
- * Every `@example` in `src/` as `{ file, code, program, diagnostics, unresolved }`:
- * `code` is the example as written, `program` its self-contained version.
+ * Every `@example` in `src/` as `{ file, code, program }` (no type-checking, so this is
+ * fast): `code` is the example as written, `program` its self-contained version.
  */
-export async function collectExamples() {
+export async function extractExamples() {
   const exportsByName = loadExports();
-  const check = createChecker();
   const examples = [];
   for (const path of (await walk(src)).filter((p) => p.endsWith('.ts')).sort()) {
     const rel = posix(relative(src, path));
@@ -323,9 +327,18 @@ export async function collectExamples() {
     for (const codes of extractExampleGroups(file)) {
       codes.forEach((code, k) => {
         const program = buildProgram(codes, k, homeModule, exportsByName);
-        examples.push({ file: `src/${rel}`, code, program, ...check(program) });
+        examples.push({ file: `src/${rel}`, code, program });
       });
     }
   }
   return examples;
+}
+
+/**
+ * Every `@example` in `src/` as `{ file, code, program, diagnostics, unresolved }`,
+ * i.e. `extractExamples()` plus the type-check result of each `program`.
+ */
+export async function collectExamples() {
+  const check = createChecker();
+  return (await extractExamples()).map((example) => ({ ...example, ...check(example.program) }));
 }
