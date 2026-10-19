@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { quad } from '../../src/integrate/quad.js';
 import type { QuadTransform } from '../../src/integrate/quad.js';
-import { Vector } from '../../src/linalg/Vector.js';
 import {
   fSin,
   fIdentity,
@@ -22,20 +21,20 @@ describe('quad - finite domains', () => {
 
   it('integrates a piecewise function exactly using breakpoints', () => {
     const fPiecewise = (x: number) => (x < 1 ? 1 : 2);
-    const res = quad(fPiecewise, 0, 2, { breakpoints: Vector.from([1]), tol: 1e-10 });
+    const res = quad(fPiecewise, 0, 2, { breakpoints: [1], tol: 1e-10 });
     expect(res.value).toBeCloseTo(3, 10);
     expect(res.converged).toBe(true);
   });
 
   it('filters out-of-bounds breakpoints and sorts the rest', () => {
-    const res = quad(fIdentity, 0, 2, { breakpoints: Vector.from([1.5, -1, 0.5, 3]) });
+    const res = quad(fIdentity, 0, 2, { breakpoints: [1.5, -1, 0.5, 3] });
     expect(res.value).toBeCloseTo(2, 10);
     expect(res.subintervals).toBeGreaterThanOrEqual(3);
   });
 
   it('supports reversed bounds (a > b) while processing breakpoints', () => {
-    const forward = quad(fIdentity, 0, 2, { breakpoints: Vector.from([1]) });
-    const reverse = quad(fIdentity, 2, 0, { breakpoints: Vector.from([1]) });
+    const forward = quad(fIdentity, 0, 2, { breakpoints: [1] });
+    const reverse = quad(fIdentity, 2, 0, { breakpoints: [1] });
     expect(reverse.value).toBeCloseTo(-forward.value, 10);
   });
 
@@ -76,7 +75,7 @@ describe('quad - infinite domains', () => {
     // The derivative is discontinuous at x = 0, so adding 0 as a breakpoint
     // ensures the underlying adaptive logic cleanly resolves the sharp peak.
     const res = quad(fExpMinusAbsX, -Infinity, Infinity, {
-      breakpoints: Vector.from([0]),
+      breakpoints: [0],
       tol: 1e-10
     });
 
@@ -168,7 +167,7 @@ describe('quad - user-defined transform', () => {
     const fPiecewise = (x: number) => (x < 1 ? 1 : 2);
     const res = quad(fPiecewise, 0, 2, {
       transform: sqrtTransform,
-      breakpoints: Vector.from([1]),
+      breakpoints: [1],
       tol: 1e-10
     });
     expect(res.value).toBeCloseTo(3, 10);
@@ -183,11 +182,7 @@ describe('quad - user-defined transform', () => {
       map: (t: number) => ({ x: 1 / t, dxDt: -1 / (t * t) }),
       inverse: (x: number) => 1 / x
     };
-    const res = quad(f, 0.5, Infinity, {
-      transform: decreasing,
-      breakpoints: Vector.from([1]),
-      tol: 1e-10
-    });
+    const res = quad(f, 0.5, Infinity, { transform: decreasing, breakpoints: [1], tol: 1e-10 });
     expect(res.value).toBeCloseTo(2 - Math.exp(-0.5), 9);
     expect(res.converged).toBe(true);
   });
@@ -195,7 +190,7 @@ describe('quad - user-defined transform', () => {
   it('ignores breakpoints that do not map strictly inside the t-interval', () => {
     const res = quad(fEndpointSingularity, 0, 1, {
       transform: sqrtTransform,
-      breakpoints: Vector.from([0, 1, -3, 7, NaN, Infinity])
+      breakpoints: [0, 1, -3, 7, NaN, Infinity]
     });
     expect(res.value).toBeCloseTo(2, 12);
     expect(res.subintervals).toBe(1);
@@ -210,7 +205,7 @@ describe('quad - user-defined transform', () => {
         map: sqrtTransform.map,
         inverse: (x: number) => (x === 0.5 ? bad : Math.sqrt(x))
       };
-      const res = quad(f, 0, 1, { transform: sloppy, breakpoints: Vector.from([0.5]) });
+      const res = quad(f, 0, 1, { transform: sloppy, breakpoints: [0.5] });
       expect(res.value).toBe(baseline.value);
       expect(res.subintervals).toBe(baseline.subintervals);
     }

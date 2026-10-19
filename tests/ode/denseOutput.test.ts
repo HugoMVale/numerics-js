@@ -85,14 +85,14 @@ describe('OdeDenseOutput', () => {
       expect(output.eval(3).get(0)).toBeCloseTo(9, 14);
     });
 
-    it('returns a Vector for a number and a Matrix, one row per time, for a Vector', () => {
+    it('returns a Vector for a number and a Matrix, one row per time, for an array or Vector', () => {
       const ts = [2.5, 0, 1, 3, 0.25];
 
       const single = output.eval(1);
       expect(single).toBeInstanceOf(Vector);
       expect(single.size).toBe(1);
 
-      for (const arg of [Vector.from(ts), new Vector(ts)]) {
+      for (const arg of [ts, new Vector(ts)]) {
         const many = output.eval(arg);
         expect(many).toBeInstanceOf(Matrix);
         expect(many.rows).toBe(5);
@@ -155,7 +155,7 @@ describe('OdeDenseOutput', () => {
       expect(y.get(0)).toBeCloseTo(2, 15);
       expect(y.get(1)).toBeCloseTo(-0.75, 15);
 
-      const m = output.eval(Vector.from([0, 1, 2]));
+      const m = output.eval([0, 1, 2]);
       expect(m.rows).toBe(3);
       expect(m.cols).toBe(2);
       expect(m.get(2, 0)).toBeCloseTo(3, 15);
@@ -184,7 +184,7 @@ describe('OdeDenseOutput', () => {
       expect(output.tStart).toBe(5);
       expect(output.tEnd).toBe(5);
       expect(output.eval(5).toString()).toBe('Vector(1, 2)');
-      expect(output.eval(Vector.from([5, 5])).rows).toBe(2);
+      expect(output.eval([5, 5]).rows).toBe(2);
       expect(() => output.eval(5.1)).toThrow(RangeError);
       expect(() => output.eval(4.9)).toThrow(RangeError);
     });
@@ -219,16 +219,16 @@ describe('OdeDenseOutput', () => {
 
     it('rejects NaN', () => {
       expect(() => output.eval(NaN)).toThrow(RangeError);
-      expect(() => output.eval(Vector.from([0.5, NaN]))).toThrow(RangeError);
+      expect(() => output.eval([0.5, NaN])).toThrow(RangeError);
     });
 
     it('rejects an array in which any time is out of range', () => {
-      expect(() => output.eval(Vector.from([0.5, 1, 2.5]))).toThrow(RangeError);
+      expect(() => output.eval([0.5, 1, 2.5])).toThrow(RangeError);
       expect(() => output.eval(new Vector([-0.5, 1]))).toThrow(RangeError);
     });
 
     it('rejects an empty array or Vector', () => {
-      expect(() => output.eval(Vector.from([]))).toThrow(RangeError);
+      expect(() => output.eval([])).toThrow(RangeError);
       expect(() => output.eval(new Vector(0))).toThrow(RangeError);
     });
   });

@@ -9,8 +9,8 @@ import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 
 describe('interp1D', () => {
-  const xp = Vector.from([1, 2, 3]);
-  const fp = Vector.from([3, 2, 0]);
+  const xp = [1, 2, 3];
+  const fp = [3, 2, 0];
 
   describe('scalar x', () => {
     it('returns the exact fp value at a knot', () => {
@@ -27,8 +27,8 @@ describe('interp1D', () => {
     it('interpolates correctly across unevenly-spaced intervals', () => {
       // the [1,5] interval is 4x wider than [0,1], so a naive
       // "average slope" assumption would give the wrong answer here
-      const uxp = Vector.from([0, 1, 5]);
-      const ufp = Vector.from([0, 10, 10]);
+      const uxp = [0, 1, 5];
+      const ufp = [0, 10, 10];
       expect(interp1D(3, uxp, ufp)).toBeCloseTo(10); // flat second segment
       expect(interp1D(0.5, uxp, ufp)).toBeCloseTo(5); // steep first segment
     });
@@ -56,20 +56,20 @@ describe('interp1D', () => {
     });
 
     it('handles a single-point xp/fp as a constant function', () => {
-      expect(interp1D(5, Vector.from([2]), Vector.from([7]))).toBe(7);
-      expect(interp1D(2, Vector.from([2]), Vector.from([7]))).toBe(7);
-      expect(interp1D(-5, Vector.from([2]), Vector.from([7]))).toBe(7);
+      expect(interp1D(5, [2], [7])).toBe(7);
+      expect(interp1D(2, [2], [7])).toBe(7);
+      expect(interp1D(-5, [2], [7])).toBe(7);
     });
 
     it('handles duplicate x-coordinates without dividing by zero', () => {
       // ties resolve to the later (rightmost) knot with that x-value
-      expect(interp1D(2, Vector.from([1, 2, 2, 3]), Vector.from([0, 10, 20, 30]))).toBe(20);
+      expect(interp1D(2, [1, 2, 2, 3], [0, 10, 20, 30])).toBe(20);
     });
   });
 
-  describe('Vector x', () => {
-    it('accepts a Vector and returns a Vector', () => {
-      const result = interp1D(Vector.from([0, 1, 1.5, 2.72, 3.14]), xp, fp);
+  describe('array x', () => {
+    it('accepts a plain array and returns an Vector', () => {
+      const result = interp1D([0, 1, 1.5, 2.72, 3.14], xp, fp);
       expect(result).toBeInstanceOf(Vector);
       expect(result.toArray()[0]).toBeCloseTo(3);
       expect(result.toArray()[1]).toBeCloseTo(3);
@@ -83,52 +83,46 @@ describe('interp1D', () => {
       expect(result.toArray()).toEqual([2.5, 1]);
     });
 
-    it('accepts Vector for xp, fp, and x', () => {
-      const result = interp1D(Vector.from([1.5, 2.5]), xp, fp);
+    it('accepts Vector for xp and fp as well', () => {
+      const result = interp1D([1.5, 2.5], Vector.from(xp), Vector.from(fp));
       expect(result.toArray()).toEqual([2.5, 1]);
     });
 
     it('returns an empty Vector for empty x', () => {
-      const result = interp1D(Vector.from([]), xp, fp);
+      const result = interp1D([], xp, fp);
       expect(result.size).toBe(0);
     });
   });
 
   describe('validation', () => {
     it('throws if xp is empty', () => {
-      expect(() => interp1D(1, Vector.from([]), Vector.from([]))).toThrow(RangeError);
+      expect(() => interp1D(1, [], [])).toThrow(RangeError);
     });
 
     it('throws if xp and fp have different lengths', () => {
-      expect(() => interp1D(1, Vector.from([1, 2]), Vector.from([1]))).toThrow(RangeError);
+      expect(() => interp1D(1, [1, 2], [1])).toThrow(RangeError);
     });
 
     it('throws by default if xp is not monotonically increasing', () => {
-      expect(() => interp1D(1, Vector.from([3, 2, 1]), Vector.from([1, 2, 3]))).toThrow(RangeError);
+      expect(() => interp1D(1, [3, 2, 1], [1, 2, 3])).toThrow(RangeError);
     });
 
     it('allows non-decreasing xp (duplicates are not an error)', () => {
-      expect(() => interp1D(1, Vector.from([1, 1, 2]), Vector.from([1, 2, 3]))).not.toThrow();
+      expect(() => interp1D(1, [1, 1, 2], [1, 2, 3])).not.toThrow();
     });
 
     it('skips the sortedness check when checkSorted is false', () => {
       // xp is not actually sorted; result is unspecified, but it must
       // not throw and must still return a number.
-      expect(() =>
-        interp1D(1, Vector.from([3, 2, 1]), Vector.from([1, 2, 3]), { checkSorted: false })
-      ).not.toThrow();
-      expect(
-        typeof interp1D(1, Vector.from([3, 2, 1]), Vector.from([1, 2, 3]), { checkSorted: false })
-      ).toBe('number');
+      expect(() => interp1D(1, [3, 2, 1], [1, 2, 3], { checkSorted: false })).not.toThrow();
+      expect(typeof interp1D(1, [3, 2, 1], [1, 2, 3], { checkSorted: false })).toBe('number');
     });
 
     it('rejects non-finite knots even when checkSorted is false', () => {
       for (const knot of [NaN, Infinity, -Infinity]) {
+        expect(() => interp1D(1, [0, knot], [0, 1], { checkSorted: false })).toThrow(RangeError);
         expect(() =>
-          interp1D(1, Vector.from([0, knot]), Vector.from([0, 1]), { checkSorted: false })
-        ).toThrow(RangeError);
-        expect(() =>
-          interpND(1, Vector.from([0, knot]), Matrix.from([[0], [1]]), { checkSorted: false })
+          interpND(1, [0, knot], Matrix.from([[0], [1]]), { checkSorted: false })
         ).toThrow(RangeError);
       }
     });
@@ -136,8 +130,8 @@ describe('interp1D', () => {
 });
 
 describe('LinearInterpolator1D', () => {
-  const xp = Vector.from([1, 2, 3]);
-  const fp = Vector.from([3, 2, 0]);
+  const xp = [1, 2, 3];
+  const fp = [3, 2, 0];
 
   it('evaluates a scalar the same way as interp', () => {
     const f = new LinearInterpolator1D(xp, fp);
@@ -147,8 +141,8 @@ describe('LinearInterpolator1D', () => {
 
   it('evaluates an array the same way as interp', () => {
     const f = new LinearInterpolator1D(xp, fp);
-    const result = f.eval(Vector.from([0, 1, 1.5, 2.72, 3.14]));
-    const expected = interp1D(Vector.from([0, 1, 1.5, 2.72, 3.14]), xp, fp);
+    const result = f.eval([0, 1, 1.5, 2.72, 3.14]);
+    const expected = interp1D([0, 1, 1.5, 2.72, 3.14], xp, fp);
     expect(result.toArray()).toEqual(expected.toArray());
   });
 
@@ -160,7 +154,7 @@ describe('LinearInterpolator1D', () => {
 
   it('exposes the number of underlying data points via size', () => {
     expect(new LinearInterpolator1D(xp, fp).size).toBe(3);
-    expect(new LinearInterpolator1D(Vector.from([2]), Vector.from([7])).size).toBe(1);
+    expect(new LinearInterpolator1D([2], [7]).size).toBe(1);
   });
 
   it('respects custom left/right clamp values', () => {
@@ -178,26 +172,19 @@ describe('LinearInterpolator1D', () => {
   });
 
   it('throws in the constructor for invalid input, not on eval', () => {
-    expect(() => new LinearInterpolator1D(Vector.from([]), Vector.from([]))).toThrow(RangeError);
-    expect(() => new LinearInterpolator1D(Vector.from([1, 2]), Vector.from([1]))).toThrow(
-      RangeError
-    );
-    expect(() => new LinearInterpolator1D(Vector.from([3, 2, 1]), Vector.from([1, 2, 3]))).toThrow(
-      RangeError
-    );
+    expect(() => new LinearInterpolator1D([], [])).toThrow(RangeError);
+    expect(() => new LinearInterpolator1D([1, 2], [1])).toThrow(RangeError);
+    expect(() => new LinearInterpolator1D([3, 2, 1], [1, 2, 3])).toThrow(RangeError);
   });
 
   it('skips the sortedness check when checkSorted is false', () => {
     expect(
-      () =>
-        new LinearInterpolator1D(Vector.from([3, 2, 1]), Vector.from([1, 2, 3]), {
-          checkSorted: false
-        })
+      () => new LinearInterpolator1D([3, 2, 1], [1, 2, 3], { checkSorted: false })
     ).not.toThrow();
   });
 
   it('accepts Vector directly for xp and fp', () => {
-    const f = new LinearInterpolator1D(xp, fp);
+    const f = new LinearInterpolator1D(Vector.from(xp), Vector.from(fp));
     expect(f.eval(2.5)).toBeCloseTo(1);
   });
 
@@ -212,7 +199,7 @@ describe('LinearInterpolator1D', () => {
 
     it('preserves the input shape and propagates NaN', () => {
       const f = new LinearInterpolator1D(xp, fp);
-      expect(f.derivative(Vector.from([1.5, 2.5])).toArray()).toEqual([-1, -2]);
+      expect(f.derivative([1.5, 2.5]).toArray()).toEqual([-1, -2]);
       expect(f.derivative(NaN)).toBeNaN();
     });
   });
@@ -255,24 +242,24 @@ describe('LinearInterpolator1D', () => {
     });
 
     it('integrates infinite clamp tails and finite interior separately', () => {
-      const f = new LinearInterpolator1D(Vector.from([0, 1]), Vector.from([0, 1]), { right: 0 });
+      const f = new LinearInterpolator1D([0, 1], [0, 1], { right: 0 });
       expect(f.integrate(-Infinity, 0)).toBe(0);
       expect(f.integrate(1, Infinity)).toBe(0);
       expect(f.integrate(-Infinity, Infinity)).toBeCloseTo(0.5);
 
-      const divergent = new LinearInterpolator1D(Vector.from([0, 1]), Vector.from([0, 1]));
+      const divergent = new LinearInterpolator1D([0, 1], [0, 1]);
       expect(divergent.integrate(1, Infinity)).toBe(Infinity);
       expect(divergent.integrate(Infinity, 1)).toBe(-Infinity);
     });
 
     it('handles unevenly-spaced intervals correctly', () => {
-      const f = new LinearInterpolator1D(Vector.from([0, 1, 5]), Vector.from([0, 10, 10]));
+      const f = new LinearInterpolator1D([0, 1, 5], [0, 10, 10]);
       // [0,1]: triangle area 5; [1,5]: flat rectangle area 40
       expect(f.integrate(0, 5)).toBeCloseTo(45);
     });
 
     it('is exact for a constant (single-point) interpolant', () => {
-      const f = new LinearInterpolator1D(Vector.from([2]), Vector.from([7]));
+      const f = new LinearInterpolator1D([2], [7]);
       expect(f.integrate(0, 4)).toBeCloseTo(28);
     });
 
@@ -287,9 +274,9 @@ describe('LinearInterpolator1D', () => {
 describe('interpND', () => {
   // Two independent scalar series packed as columns, so every ND result
   // can be cross-checked against the already-verified interp1D/scalar path.
-  const xp = Vector.from([1, 2, 3]);
-  const fpA = Vector.from([3, 2, 0]);
-  const fpB = Vector.from([10, 20, 40]);
+  const xp = [1, 2, 3];
+  const fpA = [3, 2, 0];
+  const fpB = [10, 20, 40];
   const fp = Matrix.from([
     [3, 10],
     [2, 20],
@@ -322,18 +309,18 @@ describe('interpND', () => {
     });
 
     it('accepts a per-component vector for left/right', () => {
-      const v = interpND(0, xp, fp, { left: Vector.from([-1, -2]) });
+      const v = interpND(0, xp, fp, { left: [-1, -2] });
       expect(v.toArray()).toEqual([-1, -2]);
     });
 
     it('rejects a left/right vector of the wrong length', () => {
-      expect(() => interpND(0, xp, fp, { left: Vector.from([-1, -2, -3]) })).toThrow(RangeError);
+      expect(() => interpND(0, xp, fp, { left: [-1, -2, -3] })).toThrow(RangeError);
     });
   });
 
   describe('array x', () => {
     it('returns a Matrix with one row per query point', () => {
-      const m = interpND(Vector.from([1, 1.5, 3]), xp, fp);
+      const m = interpND([1, 1.5, 3], xp, fp);
       expect(m).toBeInstanceOf(Matrix);
       expect(m.rows).toBe(3);
       expect(m.cols).toBe(2);
@@ -342,23 +329,23 @@ describe('interpND', () => {
     });
 
     it('throws for an empty query (Matrix cannot have 0 rows)', () => {
-      expect(() => interpND(Vector.from([]), xp, fp)).toThrow(RangeError);
+      expect(() => interpND([], xp, fp)).toThrow(RangeError);
     });
   });
 
   describe('validation', () => {
     it('throws if xp.length !== fp.rows', () => {
-      expect(() => interpND(1, Vector.from([1, 2]), fp)).toThrow(RangeError);
+      expect(() => interpND(1, [1, 2], fp)).toThrow(RangeError);
     });
 
     it('throws by default if xp is not monotonically increasing', () => {
-      expect(() => interpND(1, Vector.from([3, 2, 1]), fp)).toThrow(RangeError);
+      expect(() => interpND(1, [3, 2, 1], fp)).toThrow(RangeError);
     });
 
     it('rejects non-finite knots even when checkSorted is false', () => {
       for (const knot of [NaN, Infinity, -Infinity]) {
         expect(() =>
-          interpND(1, Vector.from([0, knot]), Matrix.from([[0], [1]]), { checkSorted: false })
+          interpND(1, [0, knot], Matrix.from([[0], [1]]), { checkSorted: false })
         ).toThrow(RangeError);
       }
     });
@@ -366,9 +353,9 @@ describe('interpND', () => {
 });
 
 describe('LinearInterpolatorND', () => {
-  const xp = Vector.from([1, 2, 3]);
-  const fpA = Vector.from([3, 2, 0]);
-  const fpB = Vector.from([10, 20, 40]);
+  const xp = [1, 2, 3];
+  const fpA = [3, 2, 0];
+  const fpB = [10, 20, 40];
   const fp = Matrix.from([
     [3, 10],
     [2, 20],
@@ -382,8 +369,8 @@ describe('LinearInterpolatorND', () => {
 
   it('evaluates an array the same way as interpND', () => {
     const f = new LinearInterpolatorND(xp, fp);
-    const result = f.eval(Vector.from([0, 1.5, 3.14]));
-    const expected = interpND(Vector.from([0, 1.5, 3.14]), xp, fp);
+    const result = f.eval([0, 1.5, 3.14]);
+    const expected = interpND([0, 1.5, 3.14], xp, fp);
     expect(result.toArray()).toEqual(expected.toArray());
   });
 
@@ -394,17 +381,14 @@ describe('LinearInterpolatorND', () => {
   });
 
   it('respects custom left/right clamp values', () => {
-    const f = new LinearInterpolatorND(xp, fp, {
-      left: Vector.from([-1, -2]),
-      right: Vector.from([99, 98])
-    });
+    const f = new LinearInterpolatorND(xp, fp, { left: [-1, -2], right: [99, 98] });
     expect(f.eval(0).toArray()).toEqual([-1, -2]);
     expect(f.eval(4).toArray()).toEqual([99, 98]);
   });
 
   it('throws in the constructor for invalid input, not on eval', () => {
-    expect(() => new LinearInterpolatorND(Vector.from([1, 2]), fp)).toThrow(RangeError);
-    expect(() => new LinearInterpolatorND(Vector.from([3, 2, 1]), fp)).toThrow(RangeError);
+    expect(() => new LinearInterpolatorND([1, 2], fp)).toThrow(RangeError);
+    expect(() => new LinearInterpolatorND([3, 2, 1], fp)).toThrow(RangeError);
   });
 
   describe('derivative', () => {
@@ -421,7 +405,7 @@ describe('LinearInterpolatorND', () => {
 
     it('throws for an empty query array', () => {
       const f = new LinearInterpolatorND(xp, fp);
-      expect(() => f.derivative(Vector.from([]))).toThrow(RangeError);
+      expect(() => f.derivative([])).toThrow(RangeError);
     });
   });
 
@@ -438,12 +422,12 @@ describe('LinearInterpolatorND', () => {
 
     it('integrates infinite clamp tails component-wise', () => {
       const f = new LinearInterpolatorND(
-        Vector.from([0, 1]),
+        [0, 1],
         Matrix.from([
           [0, 1],
           [1, 1]
         ]),
-        { left: Vector.from([0, 1]), right: Vector.from([0, -1]) }
+        { left: [0, 1], right: [0, -1] }
       );
       const result = f.integrate(-Infinity, Infinity);
       expect(result.data[0]).toBeCloseTo(0.5);
