@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   linalg,
   integrate,
@@ -17,6 +17,10 @@ describe('public API', () => {
     expect(linalg.Vec3).toBeTypeOf('function');
     expect(linalg.Vector).toBeTypeOf('function');
     expect(linalg.Matrix).toBeTypeOf('function');
+    expect(linalg.Vector.asVector).toBeTypeOf('function');
+    expectTypeOf<linalg.VectorLike>().toEqualTypeOf<
+      linalg.Vector | readonly number[] | Float64Array
+    >();
     expect(typeof integrate.trapezoid).toBe('function');
     expect(typeof integrate.simpson).toBe('function');
     expect(typeof integrate.gaussKronrod).toBe('function');

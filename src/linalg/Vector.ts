@@ -2,6 +2,13 @@ import { ArrayND } from './ArrayND.js';
 import { Matrix } from './Matrix.js';
 
 /**
+ * Anything that can be used as a numeric vector input: a {@link Vector}, a plain (possibly
+ * read-only) `number[]`, or a `Float64Array`. Public functions that take a numeric sequence
+ * accept this type and normalize it once with {@link Vector.asVector}.
+ */
+export type VectorLike = Vector | readonly number[] | Float64Array;
+
+/**
  * An N-component vector utilizing Float64Array for performance.
  *
  */
@@ -837,6 +844,43 @@ export class Vector extends ArrayND {
    */
   static from(arr: number[] | Float64Array): Vector {
     return new Vector(arr);
+  }
+
+  /**
+   * Normalizes a {@link VectorLike} input to a `Vector`, in the spirit of `numpy.asarray`.
+   * A `Vector` is returned as is (the same instance, no copy); a `number[]`, read-only array or
+   * `Float64Array` is copied into a new `Vector`. Contrast with {@link Vector.from}, which always
+   * returns a fresh copy. Only the container type is validated, not the individual elements.
+   * @param x A `Vector`, a plain `number[]` (possibly read-only) or a `Float64Array`.
+   * @returns `x` itself if it is a `Vector`, otherwise a new vector with the same components.
+   * @throws {TypeError} If `x` is not a `Vector`, `number[]` or `Float64Array`.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const v = Vector.from([1, 2, 3]);
+   * console.log(Vector.asVector(v) === v);
+   * console.log(Vector.asVector([4, 5, 6]).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * Vector(4, 5, 6)
+   * ```
+   */
+  static asVector(x: VectorLike): Vector {
+    if (x instanceof Vector) return x;
+    if (Array.isArray(x) || x instanceof Float64Array) {
+      const v = new Vector(x.length);
+      v.data.set(x);
+      return v;
+    }
+    const got = x === null ? 'null' : typeof x === 'object' ? x.constructor?.name : typeof x;
+    throw new TypeError(
+      `Vector.asVector: expected a Vector, number[] or Float64Array, got ${got ?? 'object'}`
+    );
   }
 
   /**

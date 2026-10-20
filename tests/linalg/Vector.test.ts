@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { Vector } from '../../src/linalg/Vector.js';
+import { describe, it, expect, expectTypeOf } from 'vitest';
+import { Vector, type VectorLike } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 
 describe('Vector', () => {
@@ -663,6 +663,84 @@ describe('Vector', () => {
         expect(() => v.tile(bad)).toThrowError(RangeError);
       }
       expect(() => v.tile(-1)).toThrowError(/Vector\.tile/);
+    });
+  });
+  describe('asVector()', () => {
+    it('returns the same Vector instance, without copying', () => {
+      const v = Vector.from([1, 2, 3]);
+      const w = Vector.asVector(v);
+      expect(w).toBe(v);
+      w.set(0, 99);
+      expect(v.get(0)).toBe(99);
+    });
+
+    it('builds a new Vector from a plain array, a read-only array and a Float64Array', () => {
+      const arr = [1, 2, 3];
+      const ro = [4, 5, 6] as const;
+      const f64 = new Float64Array([7, 8, 9]);
+      for (const [src, expected] of [
+        [arr, [1, 2, 3]],
+        [ro, [4, 5, 6]],
+        [f64, [7, 8, 9]]
+      ] as const) {
+        const v = Vector.asVector(src);
+        expect(v).toBeInstanceOf(Vector);
+        expect(v.toArray()).toEqual(expected);
+      }
+    });
+
+    it('copies array inputs, so later mutation of the source does not affect the result', () => {
+      const arr = [1, 2, 3];
+      const f64 = new Float64Array([1, 2, 3]);
+      const va = Vector.asVector(arr);
+      const vf = Vector.asVector(f64);
+      arr[0] = 100;
+      f64[0] = 100;
+      expect(va.get(0)).toBe(1);
+      expect(vf.get(0)).toBe(1);
+      expect(vf.data).not.toBe(f64);
+    });
+
+    it('handles empty inputs', () => {
+      expect(Vector.asVector([]).size).toBe(0);
+      expect(Vector.asVector(new Float64Array(0)).size).toBe(0);
+      expect(Vector.asVector(new Vector(0)).size).toBe(0);
+    });
+
+    it('throws a clear TypeError for unsupported inputs', () => {
+      const bad: unknown[] = [
+        null,
+        undefined,
+        5,
+        'abc',
+        {},
+        new Float32Array(2),
+        new Set([1, 2]),
+        Matrix.zero(2, 2)
+      ];
+      for (const x of bad) {
+        expect(() => Vector.asVector(x as never)).toThrowError(TypeError);
+        expect(() => Vector.asVector(x as never)).toThrowError(
+          /Vector\.asVector: expected a Vector, number\[\] or Float64Array, got /
+        );
+      }
+      expect(() => Vector.asVector(null as never)).toThrowError(/got null$/);
+      expect(() => Vector.asVector(5 as never)).toThrowError(/got number$/);
+    });
+
+    it('leaves Vector.from as an always-copying constructor', () => {
+      const f64 = new Float64Array([1, 2]);
+      expect(Vector.from(f64).data).not.toBe(f64);
+    });
+
+    it('is typed so that VectorLike accepts the documented forms and returns Vector', () => {
+      expectTypeOf(Vector.asVector).parameter(0).toEqualTypeOf<VectorLike>();
+      expectTypeOf(Vector.asVector).returns.toEqualTypeOf<Vector>();
+      expectTypeOf<Vector>().toExtend<VectorLike>();
+      expectTypeOf<number[]>().toExtend<VectorLike>();
+      expectTypeOf<readonly number[]>().toExtend<VectorLike>();
+      expectTypeOf<Float64Array>().toExtend<VectorLike>();
+      expectTypeOf<Float32Array>().not.toExtend<VectorLike>();
     });
   });
 });
