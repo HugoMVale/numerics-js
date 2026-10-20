@@ -728,6 +728,41 @@ describe('Vector', () => {
       expect(() => Vector.asVector(5 as never)).toThrowError(/got number$/);
     });
 
+    it('returns an independent copy of a Vector when copy is true', () => {
+      const v = Vector.from([1, 2, 3]);
+      const w = Vector.asVector(v, true);
+      expect(w).not.toBe(v);
+      expect(w.data).not.toBe(v.data);
+      expect(w.toArray()).toEqual([1, 2, 3]);
+      w.set(0, 99);
+      expect(v.get(0)).toBe(1);
+      v.set(1, -5);
+      expect(w.get(1)).toBe(2);
+    });
+
+    it('does not copy a Vector when copy is false or omitted', () => {
+      const v = Vector.from([1, 2, 3]);
+      expect(Vector.asVector(v, false)).toBe(v);
+      expect(Vector.asVector(v)).toBe(v);
+    });
+
+    it('gives the same result for arrays whatever the value of copy', () => {
+      const arr = [1, 2, 3];
+      const f64 = new Float64Array([4, 5, 6]);
+      for (const copy of [false, true]) {
+        const va = Vector.asVector(arr, copy);
+        const vf = Vector.asVector(f64, copy);
+        expect(va.toArray()).toEqual([1, 2, 3]);
+        expect(vf.toArray()).toEqual([4, 5, 6]);
+        expect(vf.data).not.toBe(f64);
+      }
+    });
+
+    it('still throws a TypeError for unsupported inputs when copy is true', () => {
+      expect(() => Vector.asVector(null as never, true)).toThrowError(TypeError);
+      expect(() => Vector.asVector(new Float32Array(2) as never, true)).toThrowError(TypeError);
+    });
+
     it('leaves Vector.from as an always-copying constructor', () => {
       const f64 = new Float64Array([1, 2]);
       expect(Vector.from(f64).data).not.toBe(f64);
@@ -735,6 +770,7 @@ describe('Vector', () => {
 
     it('is typed so that VectorLike accepts the documented forms and returns Vector', () => {
       expectTypeOf(Vector.asVector).parameter(0).toEqualTypeOf<VectorLike>();
+      expectTypeOf(Vector.asVector).parameter(1).toEqualTypeOf<boolean | undefined>();
       expectTypeOf(Vector.asVector).returns.toEqualTypeOf<Vector>();
       expectTypeOf<Vector>().toExtend<VectorLike>();
       expectTypeOf<number[]>().toExtend<VectorLike>();

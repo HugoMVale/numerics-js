@@ -85,16 +85,6 @@ interface PreparedInterpND {
   rightVal: Vector;
 }
 
-/**
- * `Vector.asVector(x)`, except that when `copy` is `true` a caller-owned `Vector` is copied too,
- * so that data stored by an interpolator can never be changed from outside after construction.
- * Arrays and typed arrays are always copied by `Vector.asVector`.
- */
-function asVectorOwned(x: VectorLike, copy: boolean): Vector {
-  const v = Vector.asVector(x);
-  return copy && v === x ? v.copy() : v;
-}
-
 /** Rejects non-finite knots; sortedness is controlled separately by `checkSorted`. */
 function checkFiniteKnots(xpv: Vector, caller: string): void {
   for (let i = 0; i < xpv.size; i++) {
@@ -204,8 +194,8 @@ export function prepareInterp1D(
   caller: string,
   copy: boolean = false
 ): PreparedInterp1D {
-  const xpv = asVectorOwned(xp, copy);
-  const fpv = asVectorOwned(fp, copy);
+  const xpv = Vector.asVector(xp, copy);
+  const fpv = Vector.asVector(fp, copy);
 
   if (xpv.size === 0) {
     throw new RangeError(`${caller}: xp must have at least one element`);
@@ -245,7 +235,7 @@ function resolveClampVector(
 ): Vector {
   if (val === undefined) return fallback;
   if (typeof val === 'number') return Vector.full(dim, val);
-  const v = asVectorOwned(val, copy);
+  const v = Vector.asVector(val, copy);
   if (v.size !== dim) {
     throw new RangeError(
       `${caller}: ${paramName} must have length ${dim} (fp.cols), got ${v.size}`
@@ -287,7 +277,7 @@ export function prepareInterpND(
   caller: string,
   copy: boolean = false
 ): PreparedInterpND {
-  const xpv = asVectorOwned(xp, copy);
+  const xpv = Vector.asVector(xp, copy);
 
   if (xpv.size === 0) {
     throw new RangeError(`${caller}: xp must have at least one element`);

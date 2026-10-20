@@ -848,11 +848,18 @@ export class Vector extends ArrayND {
 
   /**
    * Normalizes a {@link VectorLike} input to a `Vector`, in the spirit of `numpy.asarray`.
-   * A `Vector` is returned as is (the same instance, no copy); a `number[]`, read-only array or
-   * `Float64Array` is copied into a new `Vector`. Contrast with {@link Vector.from}, which always
-   * returns a fresh copy. Only the container type is validated, not the individual elements.
+   * By default, a `Vector` is returned as is (the same instance, no copy), while a `number[]`,
+   * read-only array or `Float64Array` is copied into a new `Vector`. With `copy = true` the
+   * result is always an independent vector, so that changes to it never affect `x` and vice
+   * versa; use this when the data will be stored or modified. Contrast with {@link Vector.from},
+   * which always returns a fresh copy and does not accept a `Vector`. Only the container type
+   * is validated, not the individual elements.
    * @param x A `Vector`, a plain `number[]` (possibly read-only) or a `Float64Array`.
-   * @returns `x` itself if it is a `Vector`, otherwise a new vector with the same components.
+   * @param copy Whether to return a copy even if `x` is already a `Vector`. Arrays and typed
+   * arrays are always copied, so they are never copied twice.
+   * @default false
+   * @returns `x` itself if it is a `Vector` and `copy` is `false`, otherwise a new vector with
+   * the same components.
    * @throws {TypeError} If `x` is not a `Vector`, `number[]` or `Float64Array`.
    *
    * @example
@@ -861,17 +868,19 @@ export class Vector extends ArrayND {
    *
    * const v = Vector.from([1, 2, 3]);
    * console.log(Vector.asVector(v) === v);
+   * console.log(Vector.asVector(v, true) === v);
    * console.log(Vector.asVector([4, 5, 6]).toString());
    * ```
    *
    * Output:
    * ```text
    * true
+   * false
    * Vector(4, 5, 6)
    * ```
    */
-  static asVector(x: VectorLike): Vector {
-    if (x instanceof Vector) return x;
+  static asVector(x: VectorLike, copy: boolean = false): Vector {
+    if (x instanceof Vector) return copy ? x.copy() : x;
     if (Array.isArray(x) || x instanceof Float64Array) {
       const v = new Vector(x.length);
       v.data.set(x);
