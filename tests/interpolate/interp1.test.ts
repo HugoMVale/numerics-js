@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   interp1D,
   LinearInterpolator1D,
@@ -7,6 +7,7 @@ import {
 } from '../../src/interpolate/interp1.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
+import { clobber, mutableVectorLikeForms, vectorLikeForms } from '../vectorLikeForms.js';
 
 describe('interp1D', () => {
   const xp = [1, 2, 3];
@@ -452,5 +453,159 @@ describe('LinearInterpolatorND', () => {
       expect(() => f.integrate(NaN, 2)).toThrow(RangeError);
       expect(() => f.integrate(1, NaN)).toThrow(RangeError);
     });
+  });
+});
+
+describe('interp1D with VectorLike inputs', () => {
+  const xpRaw = [1, 2, 3];
+  const fpRaw = [3, 2, 0];
+  const xRaw = [0, 1.5, 2.5, 4];
+  const expected = interp1D(Vector.from(xRaw), Vector.from(xpRaw), Vector.from(fpRaw)).toArray();
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts x, xp and fp as ${name}`, () => {
+      const res = interp1D(make(xRaw), make(xpRaw), make(fpRaw));
+      expect(res).toBeInstanceOf(Vector);
+      expect(res.toArray()).toEqual(expected);
+      expect(interp1D(2.5, make(xpRaw), make(fpRaw))).toBe(1);
+    });
+
+    it(`accepts ${name} for the data with a scalar x, returning a number`, () => {
+      expect(interp1D(1.5, make(xpRaw), make(fpRaw))).toBe(2.5);
+    });
+  }
+
+  it('keeps the overloads: number -> number, VectorLike -> Vector', () => {
+    expectTypeOf(interp1D(1, xpRaw, fpRaw)).toEqualTypeOf<number>();
+    expectTypeOf(interp1D([1, 2], xpRaw, fpRaw)).toEqualTypeOf<Vector>();
+    expectTypeOf(interp1D(Vector.from([1, 2]), xpRaw, fpRaw)).toEqualTypeOf<Vector>();
+    expectTypeOf(interp1D(new Float64Array(2), xpRaw, fpRaw)).toEqualTypeOf<Vector>();
+  });
+
+  it('does not copy or mutate a Vector argument', () => {
+    const x = Vector.from(xRaw);
+    const xp = Vector.from(xpRaw);
+    const fp = Vector.from(fpRaw);
+    interp1D(x, xp, fp);
+    expect(x.toArray()).toEqual(xRaw);
+    expect(xp.toArray()).toEqual(xpRaw);
+    expect(fp.toArray()).toEqual(fpRaw);
+  });
+
+  it('throws a TypeError at the boundary for unsupported inputs', () => {
+    expect(() => interp1D(null as never, xpRaw, fpRaw)).toThrowError(TypeError);
+    expect(() => interp1D([1], 'abc' as never, fpRaw)).toThrowError(/Vector\.asVector/);
+    expect(() => interp1D([1], xpRaw, {} as never)).toThrowError(TypeError);
+    expect(() => interp1D([1], new Float32Array(3) as never, fpRaw)).toThrowError(TypeError);
+  });
+});
+
+describe('LinearInterpolator1D with VectorLike inputs', () => {
+  const xpRaw = [1, 2, 3];
+  const fpRaw = [3, 2, 0];
+  const xRaw = [0, 1.5, 2.5, 4];
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts xp and fp as ${name}, and eval/derivative inputs as ${name}`, () => {
+      const f = new LinearInterpolator1D(make(xpRaw), make(fpRaw));
+      expect(f.eval(make(xRaw)).toArray()).toEqual([3, 2.5, 1, 0]);
+      expect(f.derivative(make(xRaw)).toArray()).toEqual([0, -1, -2, 0]);
+      expect(f.eval(1.5)).toBe(2.5);
+      expect(f.derivative(1.5)).toBe(-1);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`copies ${name} data: mutating the inputs after construction has no effect`, () => {
+      const xp = make(xpRaw);
+      const fp = make(fpRaw);
+      const f = new LinearInterpolator1D(xp, fp);
+      const before = f.eval(Vector.from(xRaw)).toArray();
+      clobber(xp);
+      clobber(fp);
+      expect(f.eval(Vector.from(xRaw)).toArray()).toEqual(before);
+    });
+  }
+
+  it('keeps the overloads: number -> number, VectorLike -> Vector', () => {
+    const f = new LinearInterpolator1D(xpRaw, fpRaw);
+    expectTypeOf(f.eval(1)).toEqualTypeOf<number>();
+    expectTypeOf(f.eval([1, 2])).toEqualTypeOf<Vector>();
+    expectTypeOf(f.eval(Vector.from([1, 2]))).toEqualTypeOf<Vector>();
+    expectTypeOf(f.derivative(1)).toEqualTypeOf<number>();
+    expectTypeOf(f.derivative(new Float64Array(2))).toEqualTypeOf<Vector>();
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => new LinearInterpolator1D('abc' as never, fpRaw)).toThrowError(TypeError);
+    expect(() => new LinearInterpolator1D(xpRaw, null as never)).toThrowError(TypeError);
+    const f = new LinearInterpolator1D(xpRaw, fpRaw);
+    expect(() => f.eval(null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => f.derivative({} as never)).toThrowError(TypeError);
+  });
+});
+
+describe('interpND and LinearInterpolatorND with VectorLike inputs', () => {
+  const xpRaw = [1, 2, 3];
+  const fp = Matrix.from([
+    [0, 10],
+    [1, 20],
+    [4, 40]
+  ]);
+  const xRaw = [0, 1.5, 4];
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts x, xp, left and right as ${name}`, () => {
+      const left = make([-1, -2]);
+      const right = make([7, 8]);
+      const res = interpND(make(xRaw), make(xpRaw), fp, { left, right });
+      expect(res.row(0).toArray()).toEqual([-1, -2]);
+      expect(res.row(1).toArray()).toEqual([0.5, 15]);
+      expect(res.row(2).toArray()).toEqual([7, 8]);
+
+      const f = new LinearInterpolatorND(make(xpRaw), fp, { left, right });
+      expect(f.eval(make(xRaw)).toArray()).toEqual(res.toArray());
+      expect(f.derivative(make(xRaw)).row(1).toArray()).toEqual([1, 10]);
+      expect(f.eval(0).toArray()).toEqual([-1, -2]);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`copies ${name} knots and clamp values: mutation after construction has no effect`, () => {
+      const xp = make(xpRaw);
+      const left = make([-1, -2]);
+      const f = new LinearInterpolatorND(xp, fp, { left });
+      const before = f.eval(Vector.from(xRaw)).toArray();
+      clobber(xp);
+      clobber(left);
+      expect(f.eval(Vector.from(xRaw)).toArray()).toEqual(before);
+    });
+  }
+
+  it('keeps a scalar left/right broadcasting to every component', () => {
+    const f = new LinearInterpolatorND(xpRaw, fp, { left: 5, right: 6 });
+    expect(f.eval(0).toArray()).toEqual([5, 5]);
+    expect(f.eval(10).toArray()).toEqual([6, 6]);
+  });
+
+  it('keeps the overloads: number -> Vector, VectorLike -> Matrix', () => {
+    const f = new LinearInterpolatorND(xpRaw, fp);
+    expectTypeOf(f.eval(1)).toEqualTypeOf<Vector>();
+    expectTypeOf(f.eval([1, 2])).toEqualTypeOf<Matrix>();
+    expectTypeOf(f.derivative(1)).toEqualTypeOf<Vector>();
+    expectTypeOf(f.derivative(Vector.from([1]))).toEqualTypeOf<Matrix>();
+    expectTypeOf(interpND(1, xpRaw, fp)).toEqualTypeOf<Vector>();
+    expectTypeOf(interpND(new Float64Array(1), xpRaw, fp)).toEqualTypeOf<Matrix>();
+  });
+
+  it('throws a TypeError for unsupported inputs and RangeError for a wrong length', () => {
+    expect(() => interpND([1], 'abc' as never, fp)).toThrowError(TypeError);
+    expect(() => interpND(null as never, xpRaw, fp)).toThrowError(TypeError);
+    expect(() => new LinearInterpolatorND(xpRaw, fp, { left: 'a' as never })).toThrowError(
+      TypeError
+    );
+    expect(() => new LinearInterpolatorND(xpRaw, fp, { left: new Float64Array(3) })).toThrowError(
+      RangeError
+    );
   });
 });

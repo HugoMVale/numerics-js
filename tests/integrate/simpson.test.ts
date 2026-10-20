@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { simpson } from '../../src/integrate/simpson.js';
+import { vectorLikeForms } from '../vectorLikeForms.js';
 
 describe('simpson', () => {
   describe('degenerate sizes', () => {
@@ -142,5 +143,53 @@ describe('simpson', () => {
       expect(() => simpson(y, x)).toThrow(RangeError);
       expect(() => simpson(y, x)).toThrow(/same size/);
     });
+  });
+});
+
+describe('simpson with VectorLike inputs', () => {
+  const xRaw = [0, 1, 3];
+  const yRaw = [0, 1, 9];
+  const y5 = [0, 1, 4, 9, 16];
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts y and x as ${name} (non-uniform, y = x^2)`, () => {
+      expect(simpson(make(yRaw), make(xRaw))).toBe(9);
+    });
+
+    it(`accepts y as ${name} with uniform spacing`, () => {
+      expect(simpson(make(y5))).toBe(simpson(Vector.from(y5)));
+      expect(simpson(make(y5), undefined, 2)).toBe(simpson(Vector.from(y5), undefined, 2));
+    });
+
+    it(`handles the degenerate sizes with ${name}`, () => {
+      expect(simpson(make([]))).toBe(0);
+      expect(simpson(make([5]))).toBe(0);
+      expect(simpson(make([1, 3]), make([0, 2]))).toBe(4);
+    });
+  }
+
+  it('accepts different forms for y and x, including an even number of points', () => {
+    const x = [0, 1, 2, 3];
+    const y = [0, 1, 4, 9];
+    expect(simpson(new Float64Array(y), x)).toBe(simpson(Vector.from(y), Vector.from(x)));
+  });
+
+  it('does not mutate Vector arguments', () => {
+    const y = Vector.from(yRaw);
+    const x = Vector.from(xRaw);
+    simpson(y, x);
+    expect(y.toArray()).toEqual(yRaw);
+    expect(x.toArray()).toEqual(xRaw);
+  });
+
+  it('throws a RangeError for different lengths, whatever the form', () => {
+    expect(() => simpson(yRaw, [0, 1])).toThrowError(RangeError);
+    expect(() => simpson(new Float64Array(yRaw), Vector.from([0, 1]))).toThrowError(RangeError);
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => simpson('abc' as never)).toThrowError(TypeError);
+    expect(() => simpson(null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => simpson(yRaw, {} as never)).toThrowError(TypeError);
   });
 });

@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, expectTypeOf } from 'vitest';
 import { PchipInterpolator1D, PchipInterpolatorND } from '../../src/interpolate/pchip.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
+import { clobber, mutableVectorLikeForms, vectorLikeForms } from '../vectorLikeForms.js';
 
 describe('PchipInterpolator1D', () => {
   it('produces the values shown in its documentation example', () => {
@@ -360,5 +361,96 @@ describe('PchipInterpolatorND', () => {
       expect(() => f.integrate(NaN, 1)).toThrow(RangeError);
       expect(() => f.integrate(0, NaN)).toThrow(RangeError);
     });
+  });
+});
+
+describe('Pchip interpolators with VectorLike inputs', () => {
+  const xpRaw = [1, 2, 3, 4];
+  const fpRaw = [3, 2, 0, 1];
+  const xRaw = [0, 1.5, 2.5, 3.9, 5];
+  const fpMat = Matrix.from([
+    [0, 10],
+    [1, 20],
+    [4, 40],
+    [5, 30]
+  ]);
+  const ref1D = new PchipInterpolator1D(Vector.from(xpRaw), Vector.from(fpRaw));
+  const refND = new PchipInterpolatorND(Vector.from(xpRaw), fpMat);
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`PchipInterpolator1D accepts xp, fp, and eval/derivative inputs as ${name}`, () => {
+      const f = new PchipInterpolator1D(make(xpRaw), make(fpRaw));
+      expect(f.eval(make(xRaw)).toArray()).toEqual(ref1D.eval(Vector.from(xRaw)).toArray());
+      expect(f.derivative(make(xRaw)).toArray()).toEqual(
+        ref1D.derivative(Vector.from(xRaw)).toArray()
+      );
+      expect(f.eval(2.5)).toBe(ref1D.eval(2.5));
+      expect(f.derivative(2.5)).toBe(ref1D.derivative(2.5));
+    });
+
+    it(`PchipInterpolatorND accepts xp, left, right and eval/derivative inputs as ${name}`, () => {
+      const left = make([-1, -2]);
+      const right = make([7, 8]);
+      const f = new PchipInterpolatorND(make(xpRaw), fpMat, { left, right });
+      const ref = new PchipInterpolatorND(Vector.from(xpRaw), fpMat, {
+        left: Vector.from([-1, -2]),
+        right: Vector.from([7, 8])
+      });
+      expect(f.eval(make(xRaw)).toArray()).toEqual(ref.eval(Vector.from(xRaw)).toArray());
+      expect(f.derivative(make(xRaw)).toArray()).toEqual(
+        ref.derivative(Vector.from(xRaw)).toArray()
+      );
+      expect(f.eval(0).toArray()).toEqual([-1, -2]);
+      expect(f.eval(5).toArray()).toEqual([7, 8]);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`PchipInterpolator1D copies ${name} data: mutation after construction has no effect`, () => {
+      const xp = make(xpRaw);
+      const fp = make(fpRaw);
+      const f = new PchipInterpolator1D(xp, fp);
+      const before = f.eval(Vector.from(xRaw)).toArray();
+      clobber(xp);
+      clobber(fp);
+      expect(f.eval(Vector.from(xRaw)).toArray()).toEqual(before);
+    });
+
+    it(`PchipInterpolatorND copies ${name} knots and clamp values`, () => {
+      const xp = make(xpRaw);
+      const left = make([-1, -2]);
+      const right = make([7, 8]);
+      const f = new PchipInterpolatorND(xp, fpMat, { left, right });
+      const before = f.eval(Vector.from(xRaw)).toArray();
+      clobber(xp);
+      clobber(left);
+      clobber(right);
+      expect(f.eval(Vector.from(xRaw)).toArray()).toEqual(before);
+    });
+  }
+
+  it('keeps the overloads: number -> number/Vector, VectorLike -> Vector/Matrix', () => {
+    expectTypeOf(ref1D.eval(1)).toEqualTypeOf<number>();
+    expectTypeOf(ref1D.eval([1, 2])).toEqualTypeOf<Vector>();
+    expectTypeOf(ref1D.eval(new Float64Array(2))).toEqualTypeOf<Vector>();
+    expectTypeOf(ref1D.derivative(1)).toEqualTypeOf<number>();
+    expectTypeOf(ref1D.derivative(Vector.from([1]))).toEqualTypeOf<Vector>();
+    expectTypeOf(refND.eval(1)).toEqualTypeOf<Vector>();
+    expectTypeOf(refND.eval([1, 2])).toEqualTypeOf<Matrix>();
+    expectTypeOf(refND.derivative(1)).toEqualTypeOf<Vector>();
+    expectTypeOf(refND.derivative(Vector.from([1]))).toEqualTypeOf<Matrix>();
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => new PchipInterpolator1D('abc' as never, fpRaw)).toThrowError(TypeError);
+    expect(() => new PchipInterpolator1D(xpRaw, null as never)).toThrowError(TypeError);
+    expect(() => new PchipInterpolatorND({} as never, fpMat)).toThrowError(TypeError);
+    expect(() => new PchipInterpolatorND(xpRaw, fpMat, { right: 'a' as never })).toThrowError(
+      TypeError
+    );
+    expect(() => ref1D.eval(null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => ref1D.derivative({} as never)).toThrowError(TypeError);
+    expect(() => refND.eval(undefined as never)).toThrowError(TypeError);
+    expect(() => refND.derivative('x' as never)).toThrowError(TypeError);
   });
 });

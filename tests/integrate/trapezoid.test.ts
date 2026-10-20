@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { trapezoid } from '../../src/integrate/trapezoid.js';
+import { vectorLikeForms } from '../vectorLikeForms.js';
 
 describe('trapz', () => {
   describe('degenerate sizes', () => {
@@ -89,5 +90,55 @@ describe('trapz', () => {
       expect(() => trapezoid(y, x)).toThrow(RangeError);
       expect(() => trapezoid(y, x)).toThrow(/same size/);
     });
+  });
+});
+
+describe('trapezoid with VectorLike inputs', () => {
+  const yRaw = [0, 1, 4, 9];
+  const xRaw = [0, 1, 3, 4];
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts y and x as ${name}`, () => {
+      expect(trapezoid(make(yRaw), make(xRaw))).toBe(
+        trapezoid(Vector.from(yRaw), Vector.from(xRaw))
+      );
+      expect(trapezoid(make(yRaw), make(xRaw))).toBe(((0 + 1) * 1 + (1 + 4) * 2 + (4 + 9) * 1) / 2);
+    });
+
+    it(`accepts y as ${name} with uniform spacing`, () => {
+      expect(trapezoid(make([0, 1, 2, 3, 4]))).toBe(8);
+      expect(trapezoid(make([0, 1, 2, 3, 4]), undefined, 0.5)).toBe(4);
+    });
+
+    it(`treats an empty or single-point ${name} as having no area`, () => {
+      expect(trapezoid(make([]))).toBe(0);
+      expect(trapezoid(make([5]))).toBe(0);
+    });
+  }
+
+  it('accepts different forms for y and x', () => {
+    expect(trapezoid(yRaw, new Float64Array(xRaw))).toBe(trapezoid(Vector.from(yRaw), xRaw));
+  });
+
+  it('does not mutate Vector arguments', () => {
+    const y = Vector.from(yRaw);
+    const x = Vector.from(xRaw);
+    trapezoid(y, x);
+    expect(y.toArray()).toEqual(yRaw);
+    expect(x.toArray()).toEqual(xRaw);
+  });
+
+  it('throws a RangeError for different lengths, whatever the form', () => {
+    expect(() => trapezoid(yRaw, [0, 1, 2])).toThrowError(RangeError);
+    expect(() => trapezoid(new Float64Array(yRaw), Vector.from([0, 1, 2]))).toThrowError(
+      RangeError
+    );
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => trapezoid('abc' as never)).toThrowError(TypeError);
+    expect(() => trapezoid(null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => trapezoid(yRaw, {} as never)).toThrowError(TypeError);
+    expect(() => trapezoid(yRaw, new Float32Array(4) as never)).toThrowError(TypeError);
   });
 });

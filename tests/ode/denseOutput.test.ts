@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { OdeDenseOutput, StepPolynomial } from '../../src/ode/denseOutput.js';
+import { vectorLikeForms } from '../vectorLikeForms.js';
 
 // Segment of y(t) = t^2 starting at `a` with signed size `h`: y(a + h x) = a^2 + 2 a h x + h^2 x^2.
 function squareStep(a: number, h: number): StepPolynomial {
@@ -231,5 +232,40 @@ describe('OdeDenseOutput', () => {
       expect(() => output.eval([])).toThrow(RangeError);
       expect(() => output.eval(new Vector(0))).toThrow(RangeError);
     });
+  });
+});
+
+describe('OdeDenseOutput.eval with VectorLike times', () => {
+  const output = squareOutput([0, 1, 2]);
+  const tRaw = [0.5, 1.5, 2, 0];
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts the times as ${name}`, () => {
+      const res = output.eval(make(tRaw));
+      expect(res).toBeInstanceOf(Matrix);
+      expect(res.rows).toBe(4);
+      expect(res.cols).toBe(1);
+      expect(res.col(0).toArray()).toEqual(tRaw.map((t) => t * t));
+    });
+  }
+
+  it('does not mutate a Vector of times', () => {
+    const t = Vector.from(tRaw);
+    output.eval(t);
+    expect(t.toArray()).toEqual(tRaw);
+  });
+
+  it('keeps the overloads: number -> Vector, VectorLike -> Matrix', () => {
+    expectTypeOf(output.eval(0.5)).toEqualTypeOf<Vector>();
+    expectTypeOf(output.eval([0.5])).toEqualTypeOf<Matrix>();
+    expectTypeOf(output.eval(new Float64Array(1))).toEqualTypeOf<Matrix>();
+    expectTypeOf(output.eval(Vector.from([0.5]))).toEqualTypeOf<Matrix>();
+  });
+
+  it('throws a TypeError for unsupported input and a RangeError for an empty one', () => {
+    expect(() => output.eval(null as never)).toThrowError(TypeError);
+    expect(() => output.eval('abc' as never)).toThrowError(/Vector\.asVector/);
+    expect(() => output.eval([])).toThrowError(RangeError);
+    expect(() => output.eval(new Float64Array(0))).toThrowError(RangeError);
   });
 });

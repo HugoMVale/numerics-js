@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { curveFit } from '../../src/optimize/curveFit.js';
+import { vectorLikeForms } from '../vectorLikeForms.js';
 
 // Deterministic "noise" without a random generator.
 const wobble = (i: number) =>
@@ -385,5 +386,84 @@ describe('curveFit — limits and validation', () => {
     expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sclx: Vector.from([1, -1]) })).toThrow(
       Error
     );
+  });
+});
+
+describe('curveFit with VectorLike data', () => {
+  const xRaw = Array.from({ length: 12 }, (_, i) => (5 * i) / 11);
+  const yRaw = xRaw.map((xi, i) => 1 + 2 * xi + wobble(i));
+  const sigmaRaw = xRaw.map((_, i) => 0.5 + 0.1 * i);
+  const p0 = Vector.from([0, 0]);
+  const ref = curveFit(line, Vector.from(xRaw), Vector.from(yRaw), p0, {
+    sigma: Vector.from(sigmaRaw)
+  });
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts xdata, ydata and sigma as ${name}`, () => {
+      const res = curveFit(line, make(xRaw), make(yRaw), p0, { sigma: make(sigmaRaw) });
+      expect(res.success, res.message).toBe(true);
+      expect(res.p.toArray()).toEqual(ref.p.toArray());
+      expect(res.cov.toArray()).toEqual(ref.cov.toArray());
+      expect(res.rss).toBe(ref.rss);
+    });
+
+    it(`accepts xdata and ydata as ${name} without sigma`, () => {
+      const unweighted = curveFit(line, Vector.from(xRaw), Vector.from(yRaw), p0);
+      const res = curveFit(line, make(xRaw), make(yRaw), p0);
+      expect(res.p.toArray()).toEqual(unweighted.p.toArray());
+    });
+  }
+
+  it('passes the independent variable to the model and the Jacobian as a Vector', () => {
+    const seen: unknown[] = [];
+    const model = (x: Vector, p: Vector) => {
+      seen.push(x);
+      return line(x, p);
+    };
+    const jac = (x: Vector) => {
+      seen.push(x);
+      return lineJac(x);
+    };
+    curveFit(model, xRaw, yRaw, p0, { jac });
+    expect(seen.length).toBeGreaterThan(0);
+    for (const x of seen) expect(x).toBeInstanceOf(Vector);
+  });
+
+  it('does not copy a Vector xdata passed to the model', () => {
+    const x = Vector.from(xRaw);
+    let received: Vector | undefined;
+    curveFit(
+      (xi, p) => {
+        received = xi;
+        return line(xi, p);
+      },
+      x,
+      yRaw,
+      p0
+    );
+    expect(received).toBe(x);
+  });
+
+  it('does not mutate Vector inputs', () => {
+    const x = Vector.from(xRaw);
+    const y = Vector.from(yRaw);
+    const sigma = Vector.from(sigmaRaw);
+    curveFit(line, x, y, p0, { sigma });
+    expect(x.toArray()).toEqual(xRaw);
+    expect(y.toArray()).toEqual(yRaw);
+    expect(sigma.toArray()).toEqual(sigmaRaw);
+  });
+
+  it('throws a RangeError for mismatched lengths, whatever the form', () => {
+    expect(() => curveFit(line, xRaw, yRaw.slice(1), p0)).toThrowError(RangeError);
+    expect(() => curveFit(line, xRaw, yRaw, p0, { sigma: new Float64Array(3) })).toThrowError(
+      RangeError
+    );
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => curveFit(line, 'abc' as never, yRaw, p0)).toThrowError(TypeError);
+    expect(() => curveFit(line, xRaw, null as never, p0)).toThrowError(/Vector\.asVector/);
+    expect(() => curveFit(line, xRaw, yRaw, p0, { sigma: {} as never })).toThrowError(TypeError);
   });
 });

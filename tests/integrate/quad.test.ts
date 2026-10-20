@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { quad } from '../../src/integrate/quad.js';
+import { Vector } from '../../src/linalg/Vector.js';
+import { vectorLikeForms } from '../vectorLikeForms.js';
 import type { QuadTransform } from '../../src/integrate/quad.js';
 import {
   fSin,
@@ -268,5 +270,38 @@ describe('quad - user-defined transform', () => {
       converged: true,
       subintervals: 0
     });
+  });
+});
+
+describe('quad breakpoints as VectorLike', () => {
+  const fPiecewise = (x: number) => (x < 1 ? 1 : 2);
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts breakpoints as ${name}`, () => {
+      const res = quad(fPiecewise, 0, 2, { breakpoints: make([1]), tol: 1e-10 });
+      expect(res.value).toBeCloseTo(3, 10);
+      expect(res.converged).toBe(true);
+    });
+
+    it(`filters out-of-bounds and non-finite breakpoints given as ${name}`, () => {
+      const ref = quad(fIdentity, 0, 2, { breakpoints: [1.5, -1, 0.5, 3, NaN] });
+      const res = quad(fIdentity, 0, 2, { breakpoints: make([1.5, -1, 0.5, 3, NaN]) });
+      expect(res.value).toBe(ref.value);
+      expect(res.subintervals).toBe(ref.subintervals);
+    });
+  }
+
+  it('does not mutate a Vector of breakpoints', () => {
+    const bp = Vector.from([1.5, 0.5]);
+    quad(fIdentity, 0, 2, { breakpoints: bp });
+    expect(bp.toArray()).toEqual([1.5, 0.5]);
+  });
+
+  it('throws a TypeError for unsupported breakpoints', () => {
+    expect(() => quad(fIdentity, 0, 1, { breakpoints: 'abc' as never })).toThrowError(TypeError);
+    expect(() => quad(fIdentity, 0, 1, { breakpoints: 1 as never })).toThrowError(
+      /Vector\.asVector/
+    );
+    expect(() => quad(fIdentity, 0, 1, { breakpoints: null as never })).toThrowError(TypeError);
   });
 });
