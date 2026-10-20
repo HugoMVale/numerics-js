@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { trapezoid } from './trapezoid.js';
 
 /**
@@ -53,15 +53,17 @@ function trailingCorrection(
  * (which need not be uniform). Otherwise, samples are assumed to be
  * spaced `dx` apart.
  *
- * @param y Sample values `y` to integrate. Must have `size >= 0`.
- * @param x Optional sample locations, same `size` as `y`. If omitted,
+ * @param y Sample values `y` to integrate: a `Vector`, a plain `number[]` or a `Float64Array`.
+ * May be empty.
+ * @param x Optional sample locations, same forms and same length as `y`. If omitted,
  * uniform spacing of `dx` is assumed.
  * @param dx Spacing between samples, used only when `x` is omitted.
  * Defaults to `1`.
  * @returns The approximate definite integral of `y`. Returns `0` if
  * `y.size` is `0` or `1`. Falls back to the trapezoidal rule if
  * `y.size` is `2`, since Simpson's rule needs at least 3 points.
- * @throws {RangeError} If `x` is provided and `x.size !== y.size`.
+ * @throws {TypeError} If `y` or `x` is not a `VectorLike`.
+ * @throws {RangeError} If `x` is provided and has a different length than `y`.
  *
  * @example
  * ```ts
@@ -80,15 +82,17 @@ function trailingCorrection(
  * integral = 9
  * ```
  */
-export function simpson(y: Vector, x?: Vector, dx: number = 1): number {
-  const n = y.size;
+export function simpson(y: VectorLike, x?: VectorLike, dx: number = 1): number {
+  const yv = Vector.asVector(y);
+  const xv = x === undefined ? undefined : Vector.asVector(x);
+  const n = yv.size;
   if (n < 2) return 0;
 
-  if (x !== undefined && x.size !== n) {
-    throw new RangeError(`simpson: x and y must have the same size: ${x.size} vs ${n}`);
+  if (xv !== undefined && xv.size !== n) {
+    throw new RangeError(`simpson: x and y must have the same size: ${xv.size} vs ${n}`);
   }
 
-  if (n === 2) return trapezoid(y, x, dx);
+  if (n === 2) return trapezoid(yv, xv, dx);
 
   const nIntervals = n - 1;
   const nPairs = Math.floor(nIntervals / 2);
@@ -98,15 +102,15 @@ export function simpson(y: Vector, x?: Vector, dx: number = 1): number {
     const i0 = 2 * k;
     const i1 = i0 + 1;
     const i2 = i0 + 2;
-    const h0 = x !== undefined ? x.data[i1] - x.data[i0] : dx;
-    const h1 = x !== undefined ? x.data[i2] - x.data[i1] : dx;
-    sum += simpsonPair(y.data[i0], y.data[i1], y.data[i2], h0, h1);
+    const h0 = xv !== undefined ? xv.data[i1] - xv.data[i0] : dx;
+    const h1 = xv !== undefined ? xv.data[i2] - xv.data[i1] : dx;
+    sum += simpsonPair(yv.data[i0], yv.data[i1], yv.data[i2], h0, h1);
   }
 
   if (nIntervals % 2 === 1) {
-    const hPrev = x !== undefined ? x.data[n - 2] - x.data[n - 3] : dx;
-    const hLast = x !== undefined ? x.data[n - 1] - x.data[n - 2] : dx;
-    sum += trailingCorrection(y.data[n - 3], y.data[n - 2], y.data[n - 1], hPrev, hLast);
+    const hPrev = xv !== undefined ? xv.data[n - 2] - xv.data[n - 3] : dx;
+    const hLast = xv !== undefined ? xv.data[n - 1] - xv.data[n - 2] : dx;
+    sum += trailingCorrection(yv.data[n - 3], yv.data[n - 2], yv.data[n - 1], hPrev, hLast);
   }
 
   return sum;

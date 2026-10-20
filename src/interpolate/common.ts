@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 
 /**
@@ -42,17 +42,18 @@ export interface Interp1DOptions {
 export interface InterpNDOptions {
   /**
    * Value(s) to return for `x < xp[0]`. A single `number` broadcasts to
-   * every component; a `number[]`/`Vector` must have length `fp.cols`.
+   * every component; a `VectorLike` (`Vector`, `number[]` or `Float64Array`) must have
+   * length `fp.cols`.
    * @default fp.row(0)
    */
-  left?: number | number[] | Vector;
+  left?: number | VectorLike;
   /**
    * Value(s) to return for `x > xp[xp.length - 1]`. A single `number`
-   * broadcasts to every component; a `number[]`/`Vector` must have length
-   * `fp.cols`.
+   * broadcasts to every component; a `VectorLike` (`Vector`, `number[]` or
+   * `Float64Array`) must have length `fp.cols`.
    * @default fp.row(fp.rows - 1)
    */
-  right?: number | number[] | Vector;
+  right?: number | VectorLike;
   /**
    * Same meaning as {@link Interp1DOptions.checkSorted}.
    * @default true
@@ -82,6 +83,16 @@ interface PreparedInterpND {
   fp: Matrix;
   leftVal: Vector;
   rightVal: Vector;
+}
+
+/**
+ * `Vector.asVector(x)`, except that when `copy` is `true` a caller-owned `Vector` is copied too,
+ * so that data stored by an interpolator can never be changed from outside after construction.
+ * Arrays and typed arrays are always copied by `Vector.asVector`.
+ */
+function asVectorOwned(x: VectorLike, copy: boolean): Vector {
+  const v = Vector.asVector(x);
+  return copy && v === x ? v.copy() : v;
 }
 
 /** Rejects non-finite knots; sortedness is controlled separately by `checkSorted`. */
@@ -169,28 +180,32 @@ export function findBracket(xi: number, xpData: Float64Array): [number, number] 
  * interpolation. Shared by `interp1D` and `LinearInterpolator1D`/
  * `PchipInterpolator1D` so validation and defaulting logic exists in
  * exactly one place, without either public API depending on the other.
- * @param xp The x-coordinates of the data points.
- * @param fp The y-coordinates of the data points.
+ * @param xp The x-coordinates of the data points: a `Vector`, a plain `number[]` or a `Float64Array`.
+ * @param fp The y-coordinates of the data points, same forms as `xp`.
  * @param left Value to return for `x < xp[0]`, or `undefined` to default to `fp[0]`.
  * @param right Value to return for `x > xp[last]`, or `undefined` to default to `fp[last]`.
  * @param checkSorted Whether to verify that `xp` is monotonically increasing.
  * @param caller Name of the public entry point invoking this check, used
  * to produce a precise error message (e.g. `"interp1D"` or `"LinearInterpolator1D"`).
+ * @param copy Whether `xp`/`fp` given as `Vector`s must be copied (arrays are always copied by
+ * normalization). The interpolator classes pass `true` because they store the data; the one-shot
+ * `interp1D` does not need to.
  * @returns The validated `xp`/`fp` as `Vector`, plus resolved clamp values.
  * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
  * lengths, if `xp` contains a non-finite value, or (when `checkSorted` is
  * `true`) if `xp` is not monotonically increasing.
  */
 export function prepareInterp1D(
-  xp: number[] | Vector,
-  fp: number[] | Vector,
+  xp: VectorLike,
+  fp: VectorLike,
   left: number | undefined,
   right: number | undefined,
   checkSorted: boolean,
-  caller: string
+  caller: string,
+  copy: boolean = false
 ): PreparedInterp1D {
-  const xpv = xp instanceof Vector ? xp : Vector.from(xp);
-  const fpv = fp instanceof Vector ? fp : Vector.from(fp);
+  const xpv = asVectorOwned(xp, copy);
+  const fpv = asVectorOwned(fp, copy);
 
   if (xpv.size === 0) {
     throw new RangeError(`${caller}: xp must have at least one element`);
@@ -216,20 +231,21 @@ export function prepareInterp1D(
 /**
  * Resolves an `InterpNDOptions.left`/`right` value against `fp`'s column
  * count: `undefined` falls back to `fallback` (a row of `fp`), a bare
- * `number` broadcasts to every component, and a `number[]`/`Vector` is
- * validated to have exactly `dim` entries.
- * @throws {RangeError} If an explicit `number[]`/`Vector` doesn't have length `dim`.
+ * `number` broadcasts to every component, and a `VectorLike` is
+ * validated to have exactly `dim` entries (and copied if `copy` is set and it is a `Vector`).
+ * @throws {RangeError} If an explicit `VectorLike` doesn't have length `dim`.
  */
 function resolveClampVector(
-  val: number | number[] | Vector | undefined,
+  val: number | VectorLike | undefined,
   fallback: Vector,
   dim: number,
   paramName: string,
-  caller: string
+  caller: string,
+  copy: boolean
 ): Vector {
   if (val === undefined) return fallback;
   if (typeof val === 'number') return Vector.full(dim, val);
-  const v = val instanceof Vector ? val : Vector.from(val);
+  const v = asVectorOwned(val, copy);
   if (v.size !== dim) {
     throw new RangeError(
       `${caller}: ${paramName} must have length ${dim} (fp.cols), got ${v.size}`
@@ -246,12 +262,16 @@ function resolveClampVector(
  * rather than plain numbers. Shared by `interpND` and
  * `LinearInterpolatorND`/`PchipInterpolatorND`.
  * @param xp The x-coordinates of the data points (the shared knots for
- * every output component).
+ * every output component): a `Vector`, a plain `number[]` or a `Float64Array`.
  * @param fp The vector-valued data points, one row per knot in `xp`.
- * @param left Value(s) to return for `x < xp[0]`, or `undefined` to default to `fp.row(0)`.
- * @param right Value(s) to return for `x > xp[last]`, or `undefined` to default to `fp.row(fp.rows - 1)`.
+ * @param left Value(s) to return for `x < xp[0]`: a `number` (broadcast), a `VectorLike` of length
+ * `fp.cols`, or `undefined` to default to `fp.row(0)`.
+ * @param right Value(s) to return for `x > xp[last]`, same forms as `left`, or `undefined` to
+ * default to `fp.row(fp.rows - 1)`.
  * @param checkSorted Whether to verify that `xp` is monotonically increasing.
  * @param caller Name of the public entry point invoking this check.
+ * @param copy Whether `xp`, `left` and `right` given as `Vector`s must be copied (arrays are always
+ * copied by normalization). The interpolator classes pass `true` because they store them.
  * @returns The validated `xp` (`Vector`) and `fp` (`Matrix`), plus resolved clamp vectors.
  * @throws {RangeError} If `xp` is empty, if `xp.size !== fp.rows`, if an
  * explicit `left`/`right` doesn't have length `fp.cols`, if `xp` contains
@@ -259,14 +279,15 @@ function resolveClampVector(
  * monotonically increasing.
  */
 export function prepareInterpND(
-  xp: number[] | Vector,
+  xp: VectorLike,
   fp: Matrix,
-  left: number | number[] | Vector | undefined,
-  right: number | number[] | Vector | undefined,
+  left: number | VectorLike | undefined,
+  right: number | VectorLike | undefined,
   checkSorted: boolean,
-  caller: string
+  caller: string,
+  copy: boolean = false
 ): PreparedInterpND {
-  const xpv = xp instanceof Vector ? xp : Vector.from(xp);
+  const xpv = asVectorOwned(xp, copy);
 
   if (xpv.size === 0) {
     throw new RangeError(`${caller}: xp must have at least one element`);
@@ -284,7 +305,7 @@ export function prepareInterpND(
   return {
     xp: xpv,
     fp,
-    leftVal: resolveClampVector(left, fp.row(0), fp.cols, 'left', caller),
-    rightVal: resolveClampVector(right, fp.row(fp.rows - 1), fp.cols, 'right', caller)
+    leftVal: resolveClampVector(left, fp.row(0), fp.cols, 'left', caller, copy),
+    rightVal: resolveClampVector(right, fp.row(fp.rows - 1), fp.cols, 'right', caller, copy)
   };
 }

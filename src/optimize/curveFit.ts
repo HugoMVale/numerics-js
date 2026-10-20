@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import { levenbergMarquardt, type LevenbergMarquardtOptions } from './levenbergMarquardt.js';
 
@@ -55,10 +55,11 @@ export interface CurveFitResult {
 export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' | 'sclx'> {
   /**
    * Standard deviations of the errors of `ydata`, used to weight the
-   * residuals as `(y - f(x, p)) / sigma`. Must be a `Vector` with strictly
-   * positive components. By default, all points have the same weight.
+   * residuals as `(y - f(x, p)) / sigma`. A `Vector`, a plain `number[]` or a
+   * `Float64Array`, with strictly positive components and the same length as `ydata`.
+   * By default, all points have the same weight.
    */
-  sigma?: Vector;
+  sigma?: VectorLike;
   /**
    * Whether `sigma` holds absolute standard deviations, so that the
    * covariance is `inv(J^T J)`. If `false`, `sigma` only gives relative
@@ -122,12 +123,14 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  *
  * @param f Model function `f(x, p)`, returning a `Vector` with the predicted `y` at every
  * point of `x` (the same length as `x`) for the parameter vector `p`.
- * @param xdata Independent variable values, `m` points in a `Vector`.
- * @param ydata Observed values, `m` points in a `Vector`.
+ * @param xdata Independent variable values, `m` points: a `Vector`, a plain `number[]` or a
+ * `Float64Array`. The model `f` receives them as a `Vector`.
+ * @param ydata Observed values, `m` points, in any of the forms accepted for `xdata`.
  * @param p0 Initial guess for the parameters, a `Vector` with `n <= m` components.
  * @param options Configuration options; see {@link CurveFitOptions}.
  * @returns A {@link CurveFitResult} with the optimal parameters, their covariance and
  * diagnostics.
+ * @throws {TypeError} If `xdata`, `ydata` or `options.sigma` is not a `VectorLike`.
  * @throws {RangeError} If `xdata` and `ydata` (or `sigma`) have different lengths, if `p0`
  * has no components, if there are fewer data points than parameters, if `f` does not return
  * `m` components, if `jac` does not return an `m x n` matrix, or for the invalid options
@@ -189,13 +192,13 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  */
 export function curveFit(
   f: (x: Vector, p: Vector) => Vector,
-  xdata: Vector,
-  ydata: Vector,
+  xdata: VectorLike,
+  ydata: VectorLike,
   p0: Vector,
   options: CurveFitOptions = {}
 ): CurveFitResult {
-  const x = xdata;
-  const y = ydata;
+  const x = Vector.asVector(xdata);
+  const y = Vector.asVector(ydata);
   const p0v = p0.copy();
   const m = x.size;
   const n = p0v.size;
@@ -226,7 +229,7 @@ export function curveFit(
   if (sigmaOption === undefined) {
     sigma = Vector.ones(m);
   } else {
-    sigma = sigmaOption;
+    sigma = Vector.asVector(sigmaOption);
     if (sigma.size !== m) {
       throw new RangeError(
         `curveFit: sigma must have the same length as ydata (${m}), got ${sigma.size}`

@@ -1,3 +1,4 @@
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { gaussKronrod } from './gaussKronrod.js';
 
 /** Result of a {@link quad} numerical integration. */
@@ -64,9 +65,10 @@ export interface QuadOptions {
    * Specific points within the integration interval where the function
    * might have discontinuities or sharp features. The integration interval
    * is split at these points. Breakpoints outside the integration limits
-   * are ignored.
+   * are ignored. A `Vector`, a plain `number[]` or a `Float64Array`.
+   * @default []
    */
-  breakpoints?: number[];
+  breakpoints?: VectorLike;
   /**
    * Optional user-defined change of variables (see {@link QuadTransform}),
    * e.g. to remove an endpoint singularity or to handle an infinite domain
@@ -142,7 +144,8 @@ function getFullyInfiniteTransform(): QuadTransform {
  * returns non-finite or equal values for the integration limits, or, when
  * `a !== b`, if `tol` is not finite and non-negative or `maxSubintervals`
  * is not a finite positive integer.
- * @throws {TypeError} If `transform` is given but `map` or `inverse` is not a function.
+ * @throws {TypeError} If `transform` is given but `map` or `inverse` is not a function, or if
+ * `options.breakpoints` is not a `VectorLike`.
  * @throws {Error} If `f` evaluates to a non-finite value. When a transform is
  * active, the message reports the untransformed `x`, not the internal `t`.
  *
@@ -261,6 +264,7 @@ export function quad(
   options: QuadOptions = {}
 ): QuadResult {
   const { breakpoints = [], transform: userTransform, ...gkOptions } = options;
+  const breakpointsv = Vector.asVector(breakpoints);
 
   if (Number.isNaN(a) || Number.isNaN(b)) {
     throw new RangeError('quad: a and b must not be NaN');
@@ -295,7 +299,9 @@ export function quad(
   let tB = hi;
   let targetF = f;
 
-  let validBreakpoints = breakpoints.filter((bp) => Number.isFinite(bp) && bp > lo && bp < hi);
+  let validBreakpoints = Array.from(breakpointsv.data).filter(
+    (bp) => Number.isFinite(bp) && bp > lo && bp < hi
+  );
 
   if (transform) {
     const { map, inverse } = transform;

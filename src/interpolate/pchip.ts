@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import {
   prepareInterp1D,
@@ -148,7 +148,7 @@ function pchipOne1D(
 }
 
 function pchipMany1D(
-  x: number[] | Vector,
+  x: VectorLike,
   xp: Vector,
   fp: Vector,
   d: Float64Array,
@@ -156,7 +156,7 @@ function pchipMany1D(
   rightVal: number,
   computeDerivative: boolean
 ): Vector {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+  const xv = Vector.asVector(x);
   const res = new Vector(xv.size);
   const xdata = xv.data;
   const rdata = res.data;
@@ -242,7 +242,7 @@ function pchipOneND(
 }
 
 function pchipManyND(
-  x: number[] | Vector,
+  x: VectorLike,
   xp: Vector,
   fp: Matrix,
   d: Matrix,
@@ -251,7 +251,7 @@ function pchipManyND(
   computeDerivative: boolean,
   caller: string
 ): Matrix {
-  const xv = x instanceof Vector ? x : Vector.from(x);
+  const xv = Vector.asVector(x);
   if (xv.size === 0) {
     throw new RangeError(
       `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
@@ -318,23 +318,25 @@ export class PchipInterpolator1D {
   private readonly d: Float64Array; // Precomputed slopes at knots
 
   /**
-   * @param xp The `x`-coordinates of the data points. Must be
-   * strictly increasing, finite, and non-empty. A single point defines a constant
-   * interpolant.
-   * @param fp The `y`-coordinates of the data points. Must have the same
-   * length as `xp`.
+   * @param xp The `x`-coordinates of the data points: a `Vector`, a plain `number[]` or a
+   * `Float64Array`. Must be strictly increasing, finite, and non-empty. A single point defines a
+   * constant interpolant. The data is copied, so later changes to the input do not affect the
+   * interpolator.
+   * @param fp The `y`-coordinates of the data points: a `Vector`, a plain `number[]` or a
+   * `Float64Array`, with the same length as `xp`. Copied like `xp`.
    * @param options Optional settings; see {@link Interp1DOptions}. Validation
    * (matching lengths, non-empty, and, unless `options.checkSorted` is
    * `false`, strictly increasing) happens once, here in the constructor.
    * If `options.checkSorted` is `false` and `xp` is not actually sorted,
    * `eval`, `derivative`, and `integrate` results are unspecified.
+   * @throws {TypeError} If `xp` or `fp` is not a `VectorLike`.
    * @throws {RangeError} If `xp` is empty, if `xp` and `fp` have different
    * lengths, if `xp` contains non-finite values, or (when
    * `options.checkSorted` is `true`) if `xp` is not strictly increasing.
    */
-  constructor(xp: number[] | Vector, fp: number[] | Vector, options: Interp1DOptions = {}) {
+  constructor(xp: VectorLike, fp: VectorLike, options: Interp1DOptions = {}) {
     const { left, right, checkSorted = true } = options;
-    const p = prepareInterp1D(xp, fp, left, right, checkSorted, 'PchipInterpolator1D');
+    const p = prepareInterp1D(xp, fp, left, right, checkSorted, 'PchipInterpolator1D', true);
     if (checkSorted) {
       checkStrictlyIncreasing(p.xp, 'PchipInterpolator1D');
     }
@@ -355,12 +357,14 @@ export class PchipInterpolator1D {
   /**
    * Evaluates the shape-preserving cubic interpolant at `x`.
    * @param x The x-coordinate(s) at which to evaluate. A single `number` returns a `number`;
-   * a plain array or `Vector` returns a `Vector`.
+   * a `VectorLike` (a `Vector`,
+   * plain `number[]` or `Float64Array`) returns a `Vector`.
    * @returns The interpolated or clamped value(s), matching the shape of `x`.
+   * @throws {TypeError} If `x` is neither a `number` nor a `VectorLike`.
    */
   eval(x: number): number;
-  eval(x: number[] | Vector): Vector;
-  eval(x: number | number[] | Vector): number | Vector {
+  eval(x: VectorLike): Vector;
+  eval(x: number | VectorLike): number | Vector {
     if (typeof x === 'number') {
       return pchipOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
     }
@@ -372,12 +376,14 @@ export class PchipInterpolator1D {
    * Values outside the data range return `0`, the derivative of the
    * constant clamping regions.
    * @param x The `x`-coordinate(s) at which to evaluate. A single
-   * `number` returns a `number`; a plain array or `Vector` returns an `Vector`.
+   * `number` returns a `number`; a `VectorLike` (a `Vector`,
+   * plain `number[]` or `Float64Array`) returns an `Vector`.
    * @returns The derivative value(s), matching the shape of `x`.
+   * @throws {TypeError} If `x` is neither a `number` nor a `VectorLike`.
    */
   derivative(x: number): number;
-  derivative(x: number[] | Vector): Vector;
-  derivative(x: number | number[] | Vector): number | Vector {
+  derivative(x: VectorLike): Vector;
+  derivative(x: number | VectorLike): number | Vector {
     if (typeof x === 'number') {
       return pchipOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
     }
@@ -498,20 +504,23 @@ export class PchipInterpolatorND {
 
   /**
    * @param xp The `x`-coordinates of the data points, shared by every
-   * output component. Must be strictly increasing, finite, and non-empty. A
-   * single point defines a constant interpolant.
+   * output component: a `Vector`, a plain `number[]` or a `Float64Array`. Must be strictly
+   * increasing, finite, and non-empty. A single point defines a constant interpolant. Copied, like
+   * any `Vector` passed as `options.left`/`options.right`, so later changes to the inputs do not
+   * affect the interpolator.
    * @param fp The vector-valued data points: row `i` is the value at
    * `xp[i]`. Must have `fp.rows === xp.length`.
    * @param options Optional settings; see {@link InterpNDOptions}.
+   * @throws {TypeError} If `xp` (or an explicit `options.left`/`options.right`) is not a `VectorLike`.
    * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,
-   * if an explicit `options.left` or `options.right` array/`Vector` does
+   * if an explicit `options.left` or `options.right` `VectorLike` does
    * not have length `fp.cols`, if `xp` contains non-finite values, or
    * (when `options.checkSorted` is `true`) if `xp` is not strictly
    * increasing.
    */
-  constructor(xp: number[] | Vector, fp: Matrix, options: InterpNDOptions = {}) {
+  constructor(xp: VectorLike, fp: Matrix, options: InterpNDOptions = {}) {
     const { left, right, checkSorted = true } = options;
-    const p = prepareInterpND(xp, fp, left, right, checkSorted, 'PchipInterpolatorND');
+    const p = prepareInterpND(xp, fp, left, right, checkSorted, 'PchipInterpolatorND', true);
     if (checkSorted) {
       checkStrictlyIncreasing(p.xp, 'PchipInterpolatorND');
     }
@@ -539,15 +548,17 @@ export class PchipInterpolatorND {
   /**
    * Evaluates the shape-preserving cubic interpolant at `x`.
    * @param x The x-coordinate(s) at which to evaluate. A single `number`
-   * returns a `Vector` (length `dim`); a plain array or `Vector` returns
+   * returns a `Vector` (length `dim`); a `VectorLike` (a `Vector`,
+   * plain `number[]` or `Float64Array`) returns
    * a `Matrix` (one row per evaluation point, `dim` columns).
    * @returns The interpolated or clamped value(s), matching the shape of `x`.
-   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * @throws {TypeError} If `x` is neither a `number` nor a `VectorLike`.
+   * @throws {RangeError} If `x` is a `VectorLike` of length `0`
    * (`Matrix` cannot represent a result with `0` rows).
    */
   eval(x: number): Vector;
-  eval(x: number[] | Vector): Matrix;
-  eval(x: number | number[] | Vector): Vector | Matrix {
+  eval(x: VectorLike): Matrix;
+  eval(x: number | VectorLike): Vector | Matrix {
     if (typeof x === 'number') {
       return pchipOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
     }
@@ -568,14 +579,16 @@ export class PchipInterpolatorND {
    * Values outside the data range return the zero vector, the derivative
    * of the constant clamping regions.
    * @param x The `x`-coordinate(s) at which to evaluate. A single
-   * `number` returns a `Vector`; a plain array or `Vector` returns a `Matrix`.
+   * `number` returns a `Vector`; a `VectorLike` (a `Vector`,
+   * plain `number[]` or `Float64Array`) returns a `Matrix`.
    * @returns The derivative value(s), matching the shape of `x`.
-   * @throws {RangeError} If `x` is an array/`Vector` of length `0`
+   * @throws {TypeError} If `x` is neither a `number` nor a `VectorLike`.
+   * @throws {RangeError} If `x` is a `VectorLike` of length `0`
    * (`Matrix` cannot represent a result with `0` rows).
    */
   derivative(x: number): Vector;
-  derivative(x: number[] | Vector): Matrix;
-  derivative(x: number | number[] | Vector): Vector | Matrix {
+  derivative(x: VectorLike): Matrix;
+  derivative(x: number | VectorLike): Vector | Matrix {
     if (typeof x === 'number') {
       return pchipOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
     }
