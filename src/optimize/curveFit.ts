@@ -143,8 +143,8 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * import { curveFit } from 'numerics-js/optimize';
  *
  * // Fit `y = a*exp(-b*t)` to noisy data.
- * const t = Vector.from([0, 1, 2, 3, 4, 5]);
- * const y = Vector.from([3.02, 1.81, 1.12, 0.66, 0.41, 0.24]);
+ * const t = [0, 1, 2, 3, 4, 5];
+ * const y = [3.02, 1.81, 1.12, 0.66, 0.41, 0.24];
  * const model = (t: Vector, p: Vector) => t.map((ti) => p.get(0) * Math.exp(-p.get(1) * ti));
  * const result = curveFit(model, t, y, Vector.from([1, 1]));
  * console.log(result);
