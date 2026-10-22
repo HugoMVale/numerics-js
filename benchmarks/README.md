@@ -41,3 +41,4 @@ sync when changing a benchmark.
 | [`roots/`](./roots/)         | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                  |
 | [`special/`](./special/)     | Bessel function `J_n(x)`     | [`besselJ.scipy.benchmark.md`](./special/besselJ.scipy.benchmark.md)                        |
 | [`special/`](./special/)     | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                |
+| [`special/`](./special/)     | Error functions              | [`erf.scipy.benchmark.md`](./special/erf.scipy.benchmark.md)                                |
