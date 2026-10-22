@@ -13,6 +13,9 @@
 /** Below this magnitude `erf(x)` is computed from its leading Taylor term. */
 const SMALL = 3.725290298461914e-9; // 2^-28
 
+/** Below this magnitude `erfc(x)` is `1 - x` to working precision. */
+const TINY_ERFC = 1.3877787807814457e-17; // 2^-56
+
 /** Below this magnitude `8 * x` is used to avoid underflow of `efx * x`. */
 const VERY_TINY = 2.848094538889218e-306;
 
@@ -119,8 +122,11 @@ function expTail(x: number, r: number, s: number): number {
  * - `1.25 <= |x| < 6`: `1 - erfc(|x|)` from the asymptotic form of `erfc`.
  * - `|x| >= 6`: exactly `±1`, since `1 - erf(6)` is below half an ulp of 1.
  *
- * Accuracy: the error is below 1 ulp over the whole real line. `erf` is odd,
- * `erf(±0) = ±0`, `erf(±Infinity) = ±1`, and `NaN` returns `NaN`.
+ * Accuracy: the error is at most 1 ulp over the whole real line. `erf` is
+ * odd, `erf(±0) = ±0`, `erf(±Infinity) = ±1`, and `NaN` returns `NaN`.
+ *
+ * For `x > 0.5` or so, prefer {@link erfc} when the complement is wanted,
+ * since `1 - erf(x)` loses relative accuracy through cancellation.
  *
  * @param x Argument; any real number.
  * @returns The value of `erf(x)`, in `[-1, 1]`.
@@ -181,4 +187,88 @@ export function erf(x: number): number {
   }
   const tail = expTail(ax, r, s);
   return x < 0 ? tail - 1 : 1 - tail;
+}
+
+/**
+ * Computes the complementary error function,
+ * `erfc(x) = 1 - erf(x) = (2 / sqrt(pi)) * integral_x^Infinity exp(-t^2) dt`.
+ *
+ * Unlike evaluating `1 - erf(x)`, which loses all significant digits once
+ * `erf(x)` rounds to 1 (`x` above about 6), this function keeps full relative
+ * accuracy in the tail. It uses the same FreeBSD / fdlibm algorithm and
+ * regions as {@link erf}:
+ *
+ * - `|x| < 0.84375`: `1 - erf(x)`, arranged to limit cancellation for
+ *   `0.25 <= x < 0.84375`.
+ * - `0.84375 <= |x| < 1.25`: expansion around `|x| = 1`.
+ * - `1.25 <= |x| < 28`: asymptotic form `exp(-x^2 - 0.5625 + R(1/x^2)/S(1/x^2)) / x`,
+ *   with `x^2` kept exact in the exponent.
+ * - `x >= 28`: `0`; `x <= -6`: exactly `2`.
+ *
+ * Accuracy: the error is at most 3 ulp (typically below 1) for `x` up to
+ * about 27. The result is subnormal for `x >= 26.54` and rounds to `0` from
+ * `x ≈ 27.23`; in the subnormal range the error is a few multiples of the
+ * smallest subnormal. Also `erfc(0) = 1`, `erfc(Infinity) = 0`,
+ * `erfc(-Infinity) = 2`, and `NaN` returns `NaN`.
+ *
+ * @param x Argument; any real number.
+ * @returns The value of `erfc(x)`, in `[0, 2]`.
+ *
+ * @example
+ * ```ts
+ * import { erfc } from 'numerics-js/special';
+ *
+ * console.log(erfc(0.5));
+ * console.log(erfc(10));
+ * console.log(erfc(-3));
+ * ```
+ *
+ * Output:
+ * ```text
+ * 0.4795001221869535
+ * 2.088487583762545e-45
+ * 1.9999779095030015
+ * ```
+ */
+export function erfc(x: number): number {
+  if (Number.isNaN(x)) return NaN;
+
+  const ax = Math.abs(x);
+
+  if (ax < 0.84375) {
+    if (ax < TINY_ERFC) return 1 - x;
+    const z = x * x;
+    const r = PP0 + z * (PP1 + z * (PP2 + z * (PP3 + z * PP4)));
+    const s = 1 + z * (QQ1 + z * (QQ2 + z * (QQ3 + z * (QQ4 + z * QQ5))));
+    const y = r / s;
+    if (x < 0.25) return 1 - (x + x * y);
+    return 0.5 - (x * y + (x - 0.5));
+  }
+
+  if (ax < 1.25) {
+    const s = ax - 1;
+    const p = PA0 + s * (PA1 + s * (PA2 + s * (PA3 + s * (PA4 + s * (PA5 + s * PA6)))));
+    const q = 1 + s * (QA1 + s * (QA2 + s * (QA3 + s * (QA4 + s * (QA5 + s * QA6)))));
+    return x < 0 ? 1 + ERX + p / q : 1 - ERX - p / q;
+  }
+
+  if (ax < 28) {
+    const z = 1 / (ax * ax);
+    let r: number;
+    let s: number;
+    if (ax < 2.857142857142857) {
+      r = RA0 + z * (RA1 + z * (RA2 + z * (RA3 + z * (RA4 + z * (RA5 + z * (RA6 + z * RA7))))));
+      s =
+        1 +
+        z * (SA1 + z * (SA2 + z * (SA3 + z * (SA4 + z * (SA5 + z * (SA6 + z * (SA7 + z * SA8)))))));
+    } else {
+      if (x < -6) return 2;
+      r = RB0 + z * (RB1 + z * (RB2 + z * (RB3 + z * (RB4 + z * (RB5 + z * RB6)))));
+      s = 1 + z * (SB1 + z * (SB2 + z * (SB3 + z * (SB4 + z * (SB5 + z * (SB6 + z * SB7))))));
+    }
+    const tail = expTail(ax, r, s);
+    return x < 0 ? 2 - tail : tail;
+  }
+
+  return x < 0 ? 2 : 0;
 }
