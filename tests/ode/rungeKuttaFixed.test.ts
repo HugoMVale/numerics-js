@@ -6,6 +6,7 @@ import {
   type RungeKuttaMethod
 } from '../../src/ode/rungeKuttaFixed.js';
 import type { DerivativeFunction } from '../../src/ode/types.js';
+import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 /** dy/dt = y -> y(t) = y0 * e^t */
 const exponential: DerivativeFunction = (_t, y, out) => out.set(y.data);
@@ -298,5 +299,63 @@ describe('rungeKuttaFixed', () => {
         0.1
       )
     ).toThrow(RangeError);
+  });
+});
+
+describe('rungeKuttaFixed with a VectorLike initial state', () => {
+  const y0Raw = [1, 0];
+  const ref = rungeKuttaFixed('rk4', shm, 0, 1, Vector.from(y0Raw), 0.25);
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts y0 as ${name}`, () => {
+      const res = rungeKuttaFixed('rk4', shm, 0, 1, make(y0Raw), 0.25);
+      expect(res.success).toBe(true);
+      expect(res.t.toArray()).toEqual(ref.t.toArray());
+      expect(res.y.toArray()).toEqual(ref.y.toArray());
+      expect(res.evaluations).toBe(ref.evaluations);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`does not mutate y0 given as ${name}`, () => {
+      const y0 = make(y0Raw);
+      rungeKuttaFixed('rk4', shm, 0, 1, y0, 0.25);
+      expect(Array.from(y0)).toEqual(y0Raw);
+    });
+  }
+
+  it('hands the derivative function a Vector, whatever the form of y0', () => {
+    for (const [, make] of vectorLikeForms) {
+      const seen: unknown[] = [];
+      const f: DerivativeFunction = (t, y, out) => {
+        seen.push(y);
+        return shm(t, y, out);
+      };
+      rungeKuttaFixed('rk4', f, 0, 0.5, make(y0Raw), 0.25);
+      expect(seen.length).toBeGreaterThan(0);
+      for (const y of seen) expect(y).toBeInstanceOf(Vector);
+    }
+  });
+
+  it('returns the initial state for tEnd === t0, whatever the form of y0', () => {
+    for (const [, make] of vectorLikeForms) {
+      const res = rungeKuttaFixed('euler', decay, 2, 2, make([3, 4]), 0.5);
+      expect(res.t.toArray()).toEqual([2]);
+      expect(res.y.toArray()).toEqual([[3, 4]]);
+    }
+  });
+
+  it('throws a TypeError for an unsupported y0', () => {
+    expect(() => rungeKuttaFixed('rk4', decay, 0, 1, 'abc' as never, 0.1)).toThrowError(TypeError);
+    expect(() => rungeKuttaFixed('rk4', decay, 0, 1, null as never, 0.1)).toThrowError(
+      /Vector\.asVector/
+    );
+    expect(() => rungeKuttaFixed('rk4', decay, 0, 1, 1 as never, 0.1)).toThrowError(TypeError);
+  });
+
+  it('throws a RangeError for an empty y0, whatever the form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => rungeKuttaFixed('rk4', decay, 0, 1, make([]), 0.1)).toThrowError(RangeError);
+    }
   });
 });

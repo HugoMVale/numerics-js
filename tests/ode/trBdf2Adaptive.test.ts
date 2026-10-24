@@ -3,6 +3,7 @@ import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { trBdf2Adaptive } from '../../src/ode/trBdf2Adaptive.js';
 import type { DerivativeFunction, JacobianFunction } from '../../src/ode/types.js';
+import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 const lastRow = (result: { y: Matrix }): Float64Array => result.y.row(result.y.rows - 1).data;
 
@@ -432,5 +433,80 @@ describe('trBdf2Adaptive', () => {
       );
       expect(() => trBdf2Adaptive(decay, 0, 1, y0, { minScale: 0 })).toThrow(RangeError);
     });
+  });
+});
+
+describe('trBdf2Adaptive with a VectorLike initial state', () => {
+  // Uncoupled decays with different rates, so that every component matters.
+  const pair: DerivativeFunction = (_t, y, out) => {
+    out.data[0] = -y.data[0];
+    out.data[1] = -2 * y.data[1];
+    return out;
+  };
+  const y0Raw = [1, 3];
+  const ref = trBdf2Adaptive(pair, 0, 1, Vector.from(y0Raw));
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts y0 as ${name}`, () => {
+      const res = trBdf2Adaptive(pair, 0, 1, make(y0Raw));
+      expect(res.success).toBe(true);
+      expect(res.t.toArray()).toEqual(ref.t.toArray());
+      expect(res.y.toArray()).toEqual(ref.y.toArray());
+      expect(res.evaluations).toBe(ref.evaluations);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`does not mutate y0 given as ${name}`, () => {
+      const y0 = make(y0Raw);
+      trBdf2Adaptive(pair, 0, 1, y0);
+      expect(Array.from(y0)).toEqual(y0Raw);
+    });
+  }
+
+  it('hands the derivative function a Vector, whatever the form of y0', () => {
+    for (const [, make] of vectorLikeForms) {
+      const seen: unknown[] = [];
+      const f: DerivativeFunction = (t, y, out) => {
+        seen.push(y);
+        return pair(t, y, out);
+      };
+      trBdf2Adaptive(f, 0, 1, make(y0Raw));
+      expect(seen.length).toBeGreaterThan(0);
+      for (const y of seen) expect(y).toBeInstanceOf(Vector);
+    }
+  });
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`returns the initial state for tEnd === t0 with y0 as ${name}`, () => {
+      const res = trBdf2Adaptive(pair, 2, 2, make([3, 4]), { denseOutput: true });
+      expect(res.t.toArray()).toEqual([2]);
+      expect(res.y.toArray()).toEqual([[3, 4]]);
+      expect(res.denseOutput!.eval(2).toArray()).toEqual([3, 4]);
+    });
+
+    it(`supports events and dense output with y0 as ${name}`, () => {
+      const res = trBdf2Adaptive(pair, 0, 1, make(y0Raw), {
+        atol: 1e-8,
+        rtol: 1e-8,
+        denseOutput: true,
+        events: [{ fn: (_t, y) => y.data[0] - 0.5 }]
+      });
+      expect(res.events).toHaveLength(1);
+      expect(res.events![0].t).toBeCloseTo(Math.log(2), 3);
+      expect(res.denseOutput!.eval(0.5).get(0)).toBeCloseTo(Math.exp(-0.5), 3);
+    });
+  }
+
+  it('throws a TypeError for an unsupported y0', () => {
+    expect(() => trBdf2Adaptive(pair, 0, 1, 'abc' as never)).toThrowError(TypeError);
+    expect(() => trBdf2Adaptive(pair, 0, 1, null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => trBdf2Adaptive(pair, 0, 1, {} as never)).toThrowError(TypeError);
+  });
+
+  it('throws a RangeError for an empty y0, whatever the form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => trBdf2Adaptive(pair, 0, 1, make([]))).toThrowError(RangeError);
+    }
   });
 });

@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import type { LUDecomposition } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
@@ -233,8 +233,8 @@ export interface TrBdf2AdaptiveOptions {
  * @param t0 Starting time.
  * @param tEnd Final integration time. May be less than `t0` to integrate
  * backward; the solver selects the required direction automatically.
- * @param y0 Initial state at `t0`. It must have at least one component and is
- * copied internally, so it is never mutated.
+ * @param y0 Initial state at `t0`: a `Vector`, a plain `number[]` or a `Float64Array`. It
+ * must have at least one component and is copied internally, so it is never mutated.
  * @param options Optional tuning parameters; see {@link TrBdf2AdaptiveOptions}.
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
@@ -248,13 +248,13 @@ export interface TrBdf2AdaptiveOptions {
  * and so is `denseOutput` when the `denseOutput` option was.
  * @throws {RangeError} If the state has no components, tolerances are invalid, a
  * step-size or controller limit is invalid, or an event option is invalid.
- * @throws {TypeError} If an event function is not a function.
+ * @throws {TypeError} If `y0` is not a `VectorLike`, or if an event function is not a
+ * function.
  * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
  * with the reason in `message`.
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import { trBdf2Adaptive, type DerivativeFunction } from 'numerics-js/ode';
  *
  * // Stiff relaxation towards cos(t): dy/dt = -1000 (y - cos(t)), y(0) = 0
@@ -262,7 +262,7 @@ export interface TrBdf2AdaptiveOptions {
  *     out.data[0] = -1000 * (y.data[0] - Math.cos(t));
  *     return out;
  * };
- * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]));
+ * const result = trBdf2Adaptive(f, 0, 1, [0]);
  * console.log({
  *     success: result.success,
  *     steps: result.t.size - 1,
@@ -283,7 +283,6 @@ export interface TrBdf2AdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import {
  *     trBdf2Adaptive,
  *     type DerivativeFunction,
@@ -296,7 +295,7 @@ export interface TrBdf2AdaptiveOptions {
  *     return out;
  * };
  * const jac: JacobianFunction = (_t, _y, J) => J.set(0, 0, -1000);
- * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]), {
+ * const result = trBdf2Adaptive(f, 0, 1, [0], {
  *     atol: 1e-8,
  *     rtol: 1e-6,
  *     jac,
@@ -323,7 +322,6 @@ export interface TrBdf2AdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import {
  *     trBdf2Adaptive,
  *     type DerivativeFunction,
@@ -341,7 +339,7 @@ export interface TrBdf2AdaptiveOptions {
  *     direction: 'falling',
  *     terminal: true,
  * };
- * const result = trBdf2Adaptive(f, 0, 3, new Vector([0]), {
+ * const result = trBdf2Adaptive(f, 0, 3, [0], {
  *     atol: 1e-8,
  *     rtol: 1e-8,
  *     events: [zero],
@@ -369,7 +367,6 @@ export interface TrBdf2AdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import {
  *     trBdf2Adaptive,
  *     type DerivativeFunction,
@@ -388,7 +385,7 @@ export interface TrBdf2AdaptiveOptions {
  *     direction: 'falling',
  *     terminal: true,
  * };
- * const result = trBdf2Adaptive(f, 0, 2 * Math.PI, new Vector([1, 0]), {
+ * const result = trBdf2Adaptive(f, 0, 2 * Math.PI, [1, 0], {
  *     atol: 1e-9,
  *     rtol: 1e-9,
  *     events: [zeroCrossing],
@@ -412,7 +409,6 @@ export interface TrBdf2AdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import { trBdf2Adaptive, type DerivativeFunction } from 'numerics-js/ode';
  *
  * // Stiff relaxation towards cos(t): dy/dt = -1000 (y - cos(t)), y(0) = 0.
@@ -429,7 +425,7 @@ export interface TrBdf2AdaptiveOptions {
  *         lambda * Math.sin(t) -
  *         lambda ** 2 * Math.exp(-lambda * t)
  *     ) / (lambda ** 2 + 1);
- * const result = trBdf2Adaptive(f, 0, 1, new Vector([0]), {
+ * const result = trBdf2Adaptive(f, 0, 1, [0], {
  *     atol: 1e-8,
  *     rtol: 1e-8,
  *     denseOutput: true,
@@ -452,7 +448,7 @@ export function trBdf2Adaptive(
   f: DerivativeFunction,
   t0: number,
   tEnd: number,
-  y0: Vector,
+  y0: VectorLike,
   options: TrBdf2AdaptiveOptions = {}
 ): OdeResult {
   const {
@@ -469,7 +465,9 @@ export function trBdf2Adaptive(
     events,
     denseOutput = false
   } = options;
-  const dim = y0.size;
+  // Owned copy: it becomes the working state, so the caller's data is never mutated.
+  const y0v = Vector.asVector(y0, true);
+  const dim = y0v.size;
   if (dim <= 0)
     throw new RangeError(
       `trBdf2Adaptive: y0 must have at least one component, got dimension ${dim}.`
@@ -508,7 +506,7 @@ export function trBdf2Adaptive(
     const tVec = new Vector(1);
     tVec.data[0] = t0;
     const yMat = new Matrix(1, dim);
-    yMat.setRow(0, y0.data);
+    yMat.setRow(0, y0v.data);
     const trivial: OdeResult = {
       method: 'trbdf2',
       success: true,
@@ -520,7 +518,7 @@ export function trBdf2Adaptive(
       y: yMat
     };
     if (events !== undefined) trivial.events = [];
-    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0);
+    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0v);
     return trivial;
   }
 
@@ -533,7 +531,7 @@ export function trBdf2Adaptive(
   };
 
   // Working storage, allocated once.
-  let y = y0.copy();
+  let y = y0v;
   let yNew = new Vector(dim);
   const dY = new Vector(dim); // z_n / h: the first-stage derivative carried over from the previous step
   const zN = new Vector(dim); // z_n = h * dY

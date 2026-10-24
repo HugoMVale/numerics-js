@@ -18,12 +18,11 @@ import type { AllocatingDerivativeFunction, DerivativeFunction } from './types.j
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import { rungeKuttaAdaptive, wrapAllocatingDerivative } from 'numerics-js/ode';
  *
  * // Exponential decay: dy/dt = -y
  * const f = wrapAllocatingDerivative((t, y) => y.copy().multSelf(-1));
- * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]));
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, [1]);
  * console.log(result);
  * ```
  *

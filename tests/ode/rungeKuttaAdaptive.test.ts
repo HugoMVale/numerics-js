@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { rungeKuttaAdaptive, rungeKuttaAdaptiveStep } from '../../src/ode/rungeKuttaAdaptive.js';
 import type { DerivativeFunction, RungeKuttaAdaptiveMethod } from '../../src/ode/types.js';
+import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 const methods = ['rk23', 'rk45'] as const;
 
@@ -289,4 +290,96 @@ describe('rungeKuttaAdaptive additional coverage', () => {
       expect(result.y.cols).toBe(1);
     }
   );
+});
+
+describe('rungeKuttaAdaptive with a VectorLike initial state', () => {
+  // Uncoupled decays with different rates, so that every component matters.
+  const pair: DerivativeFunction = (_t, y, out) => {
+    out.data[0] = -y.data[0];
+    out.data[1] = -2 * y.data[1];
+    return out;
+  };
+  const y0Raw = [1, 3];
+
+  for (const method of methods) {
+    const ref = rungeKuttaAdaptive(method, pair, 0, 1, Vector.from(y0Raw));
+
+    for (const [name, make] of vectorLikeForms) {
+      it(`(${method}) accepts y0 as ${name}`, () => {
+        const res = rungeKuttaAdaptive(method, pair, 0, 1, make(y0Raw));
+        expect(res.success).toBe(true);
+        expect(res.t.toArray()).toEqual(ref.t.toArray());
+        expect(res.y.toArray()).toEqual(ref.y.toArray());
+        expect(res.evaluations).toBe(ref.evaluations);
+      });
+    }
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`does not mutate y0 given as ${name}`, () => {
+      const y0 = make(y0Raw);
+      rungeKuttaAdaptive('rk45', pair, 0, 1, y0);
+      expect(Array.from(y0)).toEqual(y0Raw);
+    });
+  }
+
+  it('does not mutate y0 given as a Vector when the integration stops at a terminal event', () => {
+    const y0 = Vector.from([1, 0]);
+    const oscillator: DerivativeFunction = (_t, y, out) => {
+      out.data[0] = y.data[1];
+      out.data[1] = -y.data[0];
+      return out;
+    };
+    const res = rungeKuttaAdaptive('rk45', oscillator, 0, 10, y0, {
+      events: [{ fn: (_t, y) => y.data[0], terminal: true }]
+    });
+    expect(res.events).toHaveLength(1);
+    expect(y0.toArray()).toEqual([1, 0]);
+  });
+
+  it('hands the derivative function a Vector, whatever the form of y0', () => {
+    for (const [, make] of vectorLikeForms) {
+      const seen: unknown[] = [];
+      const f: DerivativeFunction = (t, y, out) => {
+        seen.push(y);
+        return pair(t, y, out);
+      };
+      rungeKuttaAdaptive('rk45', f, 0, 1, make(y0Raw));
+      expect(seen.length).toBeGreaterThan(0);
+      for (const y of seen) expect(y).toBeInstanceOf(Vector);
+    }
+  });
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`returns the initial state for tEnd === t0 with y0 as ${name}`, () => {
+      const res = rungeKuttaAdaptive('rk45', pair, 2, 2, make([3, 4]), { denseOutput: true });
+      expect(res.t.toArray()).toEqual([2]);
+      expect(res.y.toArray()).toEqual([[3, 4]]);
+      expect(res.denseOutput!.eval(2).toArray()).toEqual([3, 4]);
+    });
+
+    it(`supports events and dense output with y0 as ${name}`, () => {
+      const res = rungeKuttaAdaptive('rk45', pair, 0, 1, make(y0Raw), {
+        denseOutput: true,
+        events: [{ fn: (_t, y) => y.data[0] - 0.5 }]
+      });
+      expect(res.events).toHaveLength(1);
+      expect(res.events![0].t).toBeCloseTo(Math.log(2), 3);
+      expect(res.denseOutput!.eval(0.5).get(0)).toBeCloseTo(Math.exp(-0.5), 3);
+    });
+  }
+
+  it('throws a TypeError for an unsupported y0', () => {
+    expect(() => rungeKuttaAdaptive('rk45', pair, 0, 1, 'abc' as never)).toThrowError(TypeError);
+    expect(() => rungeKuttaAdaptive('rk45', pair, 0, 1, null as never)).toThrowError(
+      /Vector\.asVector/
+    );
+    expect(() => rungeKuttaAdaptive('rk45', pair, 0, 1, {} as never)).toThrowError(TypeError);
+  });
+
+  it('throws a RangeError for an empty y0, whatever the form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => rungeKuttaAdaptive('rk45', pair, 0, 1, make([]))).toThrowError(RangeError);
+    }
+  });
 });

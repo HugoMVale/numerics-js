@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
 import { OdeDenseOutput, StepPolynomial } from './denseOutput.js';
@@ -401,8 +401,8 @@ export interface RungeKuttaAdaptiveOptions {
  * @param t0 Starting time.
  * @param tEnd Final integration time. May be less than `t0` to integrate
  * backward; the solver selects the required direction automatically.
- * @param y0 Initial state at `t0`. It must have at least one component and is
- * copied internally, so it is never mutated.
+ * @param y0 Initial state at `t0`: a `Vector`, a plain `number[]` or a `Float64Array`. It
+ * must have at least one component and is copied internally, so it is never mutated.
  * @param options Optional tuning parameters; see {@link RungeKuttaAdaptiveOptions}.
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
@@ -415,18 +415,18 @@ export interface RungeKuttaAdaptiveOptions {
  * @throws {RangeError} If the state has no components, tolerances are invalid,
  * a step-size or controller limit is invalid, an event option is invalid, or
  * `method` is not recognized when `t0 !== tEnd`.
- * @throws {TypeError} If an event function is not a function.
+ * @throws {TypeError} If `y0` is not a `VectorLike`, or if an event function is not a
+ * function.
  * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
  * with the reason in `message`.
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import { rungeKuttaAdaptive, type DerivativeFunction } from 'numerics-js/ode';
  *
  * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]));
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, [1]);
  * console.log(result);
  * ```
  *
@@ -450,12 +450,11 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import { rungeKuttaAdaptive, type DerivativeFunction } from 'numerics-js/ode';
  *
  * // Same integration, with explicit tolerances and an initial step size.
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]), {
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, [1], {
  *     atol: 1e-8,
  *     rtol: 1e-8,
  *     h0: 0.01,
@@ -470,7 +469,6 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import {
  *     rungeKuttaAdaptive,
  *     type DerivativeFunction,
@@ -488,7 +486,7 @@ export interface RungeKuttaAdaptiveOptions {
  *     direction: 'falling',
  *     terminal: true,
  * };
- * const result = rungeKuttaAdaptive('rk45', f, 0, 5, new Vector([1, 0]), {
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 5, [1, 0], {
  *     events: [ground],
  * });
  * const [hit] = result.events!;
@@ -512,7 +510,6 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import {
  *     rungeKuttaAdaptive,
  *     type DerivativeFunction,
@@ -536,7 +533,7 @@ export interface RungeKuttaAdaptiveOptions {
  *     oscillator,
  *     0,
  *     2 * Math.PI,
- *     new Vector([1, 0]),
+ *     [1, 0],
  *     {
  *     atol: 1e-9,
  *     rtol: 1e-9,
@@ -562,13 +559,12 @@ export interface RungeKuttaAdaptiveOptions {
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import { rungeKuttaAdaptive, type DerivativeFunction } from 'numerics-js/ode';
  *
  * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t.
  * // The solver takes only 2 steps, yet the solution can be evaluated anywhere in [0, 1].
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const result = rungeKuttaAdaptive('rk45', f, 0, 1, new Vector([1]), {
+ * const result = rungeKuttaAdaptive('rk45', f, 0, 1, [1], {
  *     denseOutput: true,
  * });
  * const sol = result.denseOutput!;
@@ -589,7 +585,7 @@ export function rungeKuttaAdaptive(
   f: DerivativeFunction,
   t0: number,
   tEnd: number,
-  y0: Vector,
+  y0: VectorLike,
   options: RungeKuttaAdaptiveOptions = {}
 ): OdeResult {
   const {
@@ -605,7 +601,9 @@ export function rungeKuttaAdaptive(
     events,
     denseOutput = false
   } = options;
-  const dim = y0.size;
+  // Owned copy: it becomes the working state, so the caller's data is never mutated.
+  const y0v = Vector.asVector(y0, true);
+  const dim = y0v.size;
   if (dim <= 0)
     throw new RangeError(
       `rungeKuttaAdaptive: y0 must have at least one component, got dimension ${dim}.`
@@ -640,7 +638,7 @@ export function rungeKuttaAdaptive(
     const tVec = new Vector(1);
     tVec.data[0] = t0;
     const yMat = new Matrix(1, dim);
-    yMat.setRow(0, y0.data);
+    yMat.setRow(0, y0v.data);
     const trivial: OdeResult = {
       method: method,
       success: true,
@@ -652,7 +650,7 @@ export function rungeKuttaAdaptive(
       y: yMat
     };
     if (events !== undefined) trivial.events = [];
-    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0);
+    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0v);
     return trivial;
   }
 
@@ -686,7 +684,7 @@ export function rungeKuttaAdaptive(
   }
 
   let t = t0;
-  let y = y0.copy();
+  let y = y0v;
   let next = new Vector(dim);
   let evaluations = h0 === undefined ? 2 : 0;
 

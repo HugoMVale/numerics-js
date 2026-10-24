@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types.js';
 
@@ -161,8 +161,9 @@ export function rungeKuttaStep(
  * @param t0 The starting time.
  * @param tEnd The time to integrate to. May be less than `t0` to integrate
  * backwards, as long as the sign of `h` matches the direction of travel.
- * @param y0 The initial state at `t0`. Must have at least one component; copied
- * internally, so the caller's vector is left unchanged.
+ * @param y0 The initial state at `t0`: a `Vector`, a plain `number[]` or a `Float64Array`.
+ * Must have at least one component; copied internally, so the caller's data is left
+ * unchanged.
  * @param h The fixed step size. Must be nonzero, and (when `t0 !== tEnd`) its sign
  * must match the direction from `t0` to `tEnd` (positive to integrate forward,
  * negative to integrate backward).
@@ -171,18 +172,18 @@ export function rungeKuttaStep(
  * always `y0` and the last row is always the state at `tEnd`. `method` echoes the
  * `method` argument, `evaluations` is the number of calls to `f`, and successful
  * integrations have `success` set to `true` with a descriptive `message`.
+ * @throws {TypeError} If `y0` is not a `VectorLike`.
  * @throws {RangeError} If `h` is `0`, if the sign of `h` doesn't match the direction
  * from `t0` to `tEnd`, if `y0` has dimension `0`, or if `method` is not one of the
  * recognized `RungeKuttaMethod` values.
  *
  * @example
  * ```ts
- * import { Vector } from 'numerics-js/linalg';
  * import { rungeKuttaFixed, type DerivativeFunction } from 'numerics-js/ode';
  *
  * // Exponential decay: dy/dt = -y, y(0) = 1 -> y(t) = e^-t
  * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const result = rungeKuttaFixed('rk4', f, 0, 1, new Vector([1]), 0.25);
+ * const result = rungeKuttaFixed('rk4', f, 0, 1, [1], 0.25);
  * console.log(result);
  * ```
  *
@@ -215,9 +216,11 @@ export function rungeKuttaFixed(
   f: DerivativeFunction,
   t0: number,
   tEnd: number,
-  y0: Vector,
+  y0: VectorLike,
   h: number
 ): OdeResult {
+  // Owned copy: it becomes the working state, so the caller's data is never mutated.
+  const y0v = Vector.asVector(y0, true);
   if (h === 0) throw new RangeError('Step size h must be nonzero.');
   const totalSpan = tEnd - t0;
   if (totalSpan !== 0 && Math.sign(h) !== Math.sign(totalSpan)) {
@@ -226,7 +229,7 @@ export function rungeKuttaFixed(
     );
   }
 
-  const dim = y0.size;
+  const dim = y0v.size;
   if (dim <= 0) {
     throw new RangeError(
       `rungeKuttaFixed: y0 must have at least one component, got dimension ${dim}.`
@@ -247,7 +250,7 @@ export function rungeKuttaFixed(
   let evaluations = 0;
 
   let t = t0;
-  let y = y0.copy();
+  let y = y0v;
   let next = new Vector(dim);
   tVec.data[0] = t0;
   yMat.setRow(0, y.data);
