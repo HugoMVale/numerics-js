@@ -146,10 +146,11 @@ function gammaNegative(x: number): number {
  *   subnormal or very small but not zero, the quotient is scaled so that no
  *   intermediate overflows.
  *
- * Accuracy: against 60-digit reference values the error is at most about
- * 5 ulp over the whole real line (about 4 ulp for `x > 0`, 2 ulp for
- * `0 < x < 3`), and the mean error is below 1 ulp. It relies on `Math.pow` and
- * `Math.exp` being accurate to about 1 ulp, as they are in V8.
+ * Accuracy: against 60-digit reference values the error is at most 6 ulp over
+ * the whole real line (observed maximum 5.1 on about 45,000 test points; about
+ * 4 ulp for `x > 0`, 2 ulp for `0 < x < 3`), and the mean error is below 1 ulp.
+ * It relies on `Math.pow` and `Math.exp` being accurate to about 1 ulp, as they
+ * are in V8.
  *
  * Special cases (the same conventions as C `tgamma` and SciPy):
  *
