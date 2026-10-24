@@ -1,7 +1,8 @@
 # Benchmarks
 
 These suites compare `numerics-js` algorithms with independent reference
-implementations: SciPy for most modules, and mpmath for the error functions.
+implementations: SciPy for most modules, and mpmath for the error functions and
+Bessel `J_n(x)`.
 Each module directory contains the TypeScript comparison
 tests, the generated JSON reference data, the standalone Python generator, and
 the available Markdown results.
@@ -40,6 +41,6 @@ sync when changing a benchmark.
 | [`optimize/`](./optimize/)   | Levenberg-Marquardt          | [`levenbergMarquardt.scipy.benchmark.md`](./optimize/levenbergMarquardt.scipy.benchmark.md) |
 | [`optimize/`](./optimize/)   | Nonlinear curve fitting      | [`curveFit.scipy.benchmark.md`](./optimize/curveFit.scipy.benchmark.md)                     |
 | [`roots/`](./roots/)         | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                  |
-| [`special/`](./special/)     | Bessel function `J_n(x)`     | [`besselJ.scipy.benchmark.md`](./special/besselJ.scipy.benchmark.md)                        |
+| [`special/`](./special/)     | Bessel function `J_n(x)`     | [`besselJ.mpmath.benchmark.md`](./special/besselJ.mpmath.benchmark.md)                      |
 | [`special/`](./special/)     | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                |
 | [`special/`](./special/)     | Error functions              | [`erf.mpmath.benchmark.md`](./special/erf.mpmath.benchmark.md)                              |

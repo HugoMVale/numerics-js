@@ -1,26 +1,24 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["scipy"]
+# dependencies = ["mpmath", "scipy"]
 # ///
-"""Generate SciPy reference values for the special.besselJ test fixture.
+"""Generate the mpmath reference fixture for the special.besselJ benchmark.
 
-Run with: uv run benchmarks/special/generate_besselJ_fixtures.py
+Run with: uv run benchmarks/special/generate_besselJ_mpmath_fixtures.py
 
-The reference is scipy.special.jv (AMOS) evaluated at integer orders. Each
-group of (n, x) points here must have a matching tolerance entry in
-benchmarks/special/besselJ.scipy.test.ts (same id).
+The reference is mpmath.besselj at 60 digits, stored as a double-double pair
+(hi, lo) as in generate_erf_fixtures.py. SciPy (AMOS) values are stored
+alongside for the benchmark report. Each case id must match
+benchmarks/special/besselJ.mpmath.test.ts.
 """
 
 import json
 from pathlib import Path
 
+import mpmath
 from scipy.special import jv
 
-# Results below this magnitude are skipped: they are denormal or nearly so, where
-# neither implementation keeps full relative accuracy. SciPy also flushes some
-# values far above the underflow threshold to exactly 0 (e.g. J_200(5) ~ 4.8e-296),
-# so a zero reference is only kept where J_n(x) is exactly zero (n > 0, x = 0).
-TINY = 1e-290
+mpmath.mp.dps = 60
 
 
 def grid(orders, args, keep):
@@ -77,20 +75,33 @@ CASES = [
 ]
 
 
+def mpmath_reference(n: int, x: float) -> dict[str, float]:
+    value = mpmath.besselj(n, mpmath.mpf(x))
+    hi = float(value)
+    return {"hi": hi, "lo": float(value - mpmath.mpf(hi))}
+
+
 def main() -> None:
     results = []
     for case in CASES:
-        points = []
-        for n, x in case["points"]:
-            ref = float(jv(float(n), x))
-            if abs(ref) < TINY and not (ref == 0.0 and x == 0.0):
-                continue
-            points.append({"n": n, "x": x, "scipy": ref})
+        points = [
+            {
+                "n": n,
+                "x": x,
+                "mpmath": mpmath_reference(n, x),
+                "scipy": float(jv(float(n), x)),
+            }
+            for n, x in case["points"]
+        ]
         results.append(
-            {"id": case["id"], "description": case["description"], "points": points}
+            {
+                "id": case["id"],
+                "description": case["description"],
+                "points": points,
+            }
         )
 
-    out_path = Path(__file__).resolve().with_name("besselJ.scipy.json")
+    out_path = Path(__file__).resolve().with_name("besselJ.mpmath.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=4) + "\n")
     total = sum(len(r["points"]) for r in results)
