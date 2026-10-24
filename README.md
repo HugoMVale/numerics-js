@@ -99,7 +99,7 @@ amplitude for +10 % (deg): 69.33
 - `ode`: fixed-step and adaptive Runge-Kutta solvers, an adaptive implicit solver for stiff problems, plus velocity Verlet integration.
 - `optimize`: scalar and multidimensional derivative-free optimization, Levenberg-Marquardt nonlinear least squares, and nonlinear curve fitting with parameter uncertainties.
 - `roots`: scalar bisection, Brent, and secant methods, plus quasi-Newton system solving.
-- `special`: Bessel functions of the first kind and their positive zeros, and the error function and its complement.
+- `special`: Bessel functions of the first kind and their positive zeros, the error function and its complement, and the gamma function.
 - `math`: clipping, signed magnitude, approximate equality, and seeded random numbers.
 
 The package is native ESM and exposes both the package root and focused module

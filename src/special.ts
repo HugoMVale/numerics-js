@@ -5,8 +5,10 @@
  *   `J_n(x)`, for non-negative integer orders.
  * - Use {@link besselJZero} to obtain its positive zeros.
  * - Use {@link erf} and {@link erfc} to evaluate the error function and its complement.
+ * - Use {@link gamma} to evaluate the gamma function.
  *
  * @module special
  */
 export { besselJ, besselJZero } from './special/bessel.js';
 export { erf, erfc } from './special/erf.js';
+export { gamma } from './special/gamma.js';
