@@ -42,6 +42,7 @@ describe('public API', () => {
     expect(typeof special.erf).toBe('function');
     expect(typeof special.erfc).toBe('function');
     expect(typeof special.gamma).toBe('function');
+    expect(typeof special.lgamma).toBe('function');
     expect(typeof roots.bisection).toBe('function');
     expect(typeof roots.brent).toBe('function');
     expect(typeof roots.secant).toBe('function');
