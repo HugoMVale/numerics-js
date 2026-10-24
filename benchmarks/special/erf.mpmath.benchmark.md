@@ -14,17 +14,17 @@ The test (`erf.mpmath.test.ts`) checks only numerics-js against the mpmath
 references, with the bounds documented in `src/special/erf.ts`: `erf` within
 1 ulp and `erfc` within 3 ulp. It does not read the SciPy values.
 
-| Group            | Function | Region                                     | Points | numerics-js max error (ulp) | SciPy max error (ulp) |
-| :--------------- | :------- | :----------------------------------------- | -----: | --------------------------: | --------------------: |
-| `erf_small`      | `erf`    | `\|x\| < 0.84375`                          |    130 |                        0.56 |                  1.50 |
-| `erf_mid`        | `erf`    | `0.84375 <= \|x\| < 1.25`                  |     80 |                        0.49 |                  1.62 |
-| `erf_tail`       | `erf`    | `1.25 <= \|x\| < 6`                        |    160 |                        0.50 |                  0.50 |
-| `erf_saturated`  | `erf`    | `\|x\| >= 6` (exactly `±1`)                |     12 |                        0.10 |                  0.10 |
-| `erfc_small`     | `erfc`   | `\|x\| < 0.84375`                          |    128 |                        2.00 |                  2.56 |
-| `erfc_mid`       | `erfc`   | `0.84375 <= \|x\| < 1.25`                  |     80 |                        1.07 |                  6.49 |
-| `erfc_tail`      | `erfc`   | `1.25 <= x < 6`                            |     80 |                        2.04 |                  28.1 |
-| `erfc_far_tail`  | `erfc`   | `6 <= x <= 26` (down to `1e-296`)          |     60 |                        1.78 |                   335 |
-| `erfc_negative`  | `erfc`   | `x <= -1.25`                               |     50 |                        0.50 |                  0.50 |
+| Group            | Function | Region                                            | Points | numerics-js max error (ulp) | SciPy max error (ulp) |
+| :--------------- | :------- | :------------------------------------------------ | -----: | --------------------------: | --------------------: |
+| `erf_small`      | `erf`    | `\|x\| < 0.84375`                                 |    130 |                        0.56 |                  1.50 |
+| `erf_mid`        | `erf`    | `0.84375 <= \|x\| < 1.25`                         |     80 |                        0.49 |                  1.62 |
+| `erf_tail`       | `erf`    | `1.25 <= \|x\| < 6`                               |    160 |                        0.50 |                  0.50 |
+| `erf_saturated`  | `erf`    | `\|x\| >= 6` (exactly `±1`)                       |     12 |                        0.10 |                  0.10 |
+| `erfc_small`     | `erfc`   | `\|x\| < 0.84375`                                 |    128 |                        2.00 |                  2.56 |
+| `erfc_mid`       | `erfc`   | `0.84375 <= \|x\| < 1.25`                         |     80 |                        1.07 |                  6.49 |
+| `erfc_tail`      | `erfc`   | `1.25 <= x < 6`                                   |     80 |                        2.04 |                  28.1 |
+| `erfc_far_tail`  | `erfc`   | `6 <= x <= 26` (down to `1e-296`)                 |     60 |                        1.78 |                   335 |
+| `erfc_negative`  | `erfc`   | `x <= -1.25`                                      |     50 |                        0.50 |                  0.50 |
 | `erfc_subnormal` | `erfc`   | `26.55 <= x <= 27.4` (subnormal, `2^-1074` units) |     86 |                        0.00 |               1.53e13 |
 
 ## Notes
