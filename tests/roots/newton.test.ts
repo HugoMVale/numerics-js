@@ -105,7 +105,7 @@ describe('quasiNewton', () => {
             return Vector.from([0]);
           },
           Vector.from([1]),
-          { [name]: Vector.from([1, 0]) }
+          { [name]: Vector.from([0]) }
         )
       ).toThrow(`quasiNewton: ${name} must contain strictly positive values`);
       expect(evaluated).toBe(false);
@@ -1016,5 +1016,34 @@ describe('quasiNewton with VectorLike inputs', () => {
     for (const [, make] of vectorLikeForms) {
       expect(() => quasiNewton(f, make([]))).toThrowError(RangeError);
     }
+  });
+});
+
+describe('quasiNewton sclx and sclf length', () => {
+  for (const name of ['sclx', 'sclf'] as const) {
+    for (const [form, make] of vectorLikeForms) {
+      for (const [label, values] of [
+        ['shorter', [1]],
+        ['longer', [1, 1, 1]]
+      ] as const) {
+        it(`rejects ${name} given as ${form} that is ${label} than x0, before evaluating f`, () => {
+          let evaluated = false;
+          const f = (x: Vector) => {
+            evaluated = true;
+            return Vector.from([x.get(0) - 1, x.get(1) - 2]);
+          };
+          expect(() => quasiNewton(f, [0, 0], { [name]: make([...values]) })).toThrowError(
+            new RangeError(`quasiNewton: ${name} must have 2 components, got ${values.length}`)
+          );
+          expect(evaluated).toBe(false);
+        });
+      }
+    }
+  }
+
+  it('accepts sclx and sclf with exactly as many components as x0', () => {
+    const f = (x: Vector) => Vector.from([x.get(0) - 1, x.get(1) - 2]);
+    const res = quasiNewton(f, [0, 0], { sclx: [1, 1], sclf: [1, 1] });
+    expect(res.success, res.message).toBe(true);
   });
 });

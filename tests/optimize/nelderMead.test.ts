@@ -269,3 +269,31 @@ describe('nelderMead with VectorLike inputs', () => {
     }
   });
 });
+
+describe('nelderMead sclx length', () => {
+  const f = (x: Vector): number => (x.get(0) - 1) ** 2 + (x.get(1) - 2) ** 2;
+
+  for (const [form, make] of vectorLikeForms) {
+    for (const [label, values] of [
+      ['shorter', [1]],
+      ['longer', [1, 1, 1]]
+    ] as const) {
+      it(`rejects sclx given as ${form} that is ${label} than x0`, () => {
+        let evaluated = false;
+        const g = (x: Vector) => {
+          evaluated = true;
+          return f(x);
+        };
+        expect(() => nelderMead(g, [0, 0], { sclx: make([...values]) })).toThrowError(
+          new RangeError(`nelderMead: sclx must have 2 components, got ${values.length}`)
+        );
+        expect(evaluated).toBe(false);
+      });
+    }
+  }
+
+  it('accepts sclx with exactly as many components as x0', () => {
+    const res = nelderMead(f, [0, 0], { sclx: [1, 1] });
+    expect(res.success, res.message).toBe(true);
+  });
+});

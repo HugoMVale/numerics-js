@@ -154,8 +154,8 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * @param options Optional settings; see {@link NelderMeadOptions}.
  * @returns The optimize result.
  * @throws {TypeError} If `x0` or `options.sclx` is not a `VectorLike`.
- * @throws {RangeError} If `x0` has no components or `maxIter` is not a
- * non-negative integer.
+ * @throws {RangeError} If `x0` has no components, if `options.sclx` does not have as many
+ * components as `x0`, or if `maxIter` is not a non-negative integer.
  *
  * @example
  * ```ts
@@ -202,7 +202,16 @@ export function nelderMead(
     throw new RangeError('nelderMead: x0 must have at least one component');
   }
 
-  const xScale = sclx !== undefined ? Vector.asVector(sclx).map(Math.abs) : defaultScale(x0v);
+  let xScale: Vector;
+  if (sclx === undefined) {
+    xScale = defaultScale(x0v);
+  } else {
+    const sclxv = Vector.asVector(sclx);
+    if (sclxv.size !== n) {
+      throw new RangeError(`nelderMead: sclx must have ${n} components, got ${sclxv.size}`);
+    }
+    xScale = sclxv.map(Math.abs);
+  }
 
   const iterLimit = maxIter ?? 200 * n;
   const fevalLimit = maxFunEvals ?? 200 * n;

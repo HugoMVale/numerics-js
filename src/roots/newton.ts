@@ -156,7 +156,8 @@ export interface QuasiNewtonOptions {
  * strategies reject the step and backtrack, whereas with `globalMethod: null`
  * the solver returns a failure result.
  * @throws {TypeError} If `x0`, `options.sclx` or `options.sclf` is not a `VectorLike`.
- * @throws {RangeError} If `x0` has no components, if `maxIter` is not a finite
+ * @throws {RangeError} If `x0` has no components, if `sclx` or `sclf` does not have as many
+ * components as `x0` (`f` maps `n` unknowns to `n` equations), if `maxIter` is not a finite
  * strictly positive integer, if `f(x0)` has a different dimension than `x0`,
  * or if `J0` or `jac(x0)` is not an `n`×`n` matrix.
  * @throws {Error} If `sclx` or `sclf` contains a value that is not strictly
@@ -255,7 +256,11 @@ export function quasiNewton(
     ['sclx', sclxUser],
     ['sclf', sclfUser]
   ] as const) {
-    if (v !== undefined && !v.data.every((value) => value > 0)) {
+    if (v === undefined) continue;
+    if (v.size !== n) {
+      throw new RangeError(`quasiNewton: ${name} must have ${n} components, got ${v.size}`);
+    }
+    if (!v.data.every((value) => value > 0)) {
       throw new Error(`quasiNewton: ${name} must contain strictly positive values`);
     }
   }
