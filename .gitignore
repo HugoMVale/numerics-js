@@ -5,3 +5,4 @@ docs/
 .vite/
 .DS_Store
 npm-debug.log*
+ideas.md
