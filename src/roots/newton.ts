@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix, type QRDecomposition } from '../linalg/Matrix.js';
 import { jacobianForward, scaleVector } from '../numdiff.js';
 import { lineSearch } from './lineSearch.js';
@@ -36,15 +36,17 @@ export interface QuasiNewtonOptions {
   /**
    * Positive scaling factors for the components of `x`. Ideally chosen so
    * that `sclx*x` is of order 1 near the solution for all components. By
-   * default, scaling is determined from `x0` via {@link scaleVector}.
+   * default, scaling is determined from `x0` via {@link scaleVector}. A `Vector`, a plain
+   * `number[]` or a `Float64Array`, with one factor per component of `x`.
    */
-  sclx?: Vector;
+  sclx?: VectorLike;
   /**
    * Positive scaling factors for the components of `f`. Ideally chosen so
    * that `sclf*f` is of order 1 near the root for all components. By
-   * default, scaling is determined from the initial Jacobian.
+   * default, scaling is determined from the initial Jacobian. A `Vector`, a plain
+   * `number[]` or a `Float64Array`, with one factor per component of `f`.
    */
-  sclf?: Vector;
+  sclf?: VectorLike;
   /**
    * Maximum number of outer quasi-Newton iterations. Must be a finite,
    * strictly positive integer.
@@ -143,8 +145,8 @@ export interface QuasiNewtonOptions {
  *   Optimization and Nonlinear Equations", SIAM, 1996.
  *
  * @param f Function whose root is to be found.
- * @param x0 Initial guess for the root. If no user-defined `sclx` is
- * provided, the scaling factors are determined from this value.
+ * @param x0 Initial guess for the root: a `Vector`, a plain `number[]` or a `Float64Array`.
+ * If no user-defined `sclx` is provided, the scaling factors are determined from this value.
  * @param options Configuration options for the solver.
  * @returns A `VectorRootResult` with the root solution and diagnostics.
  *
@@ -153,6 +155,7 @@ export interface QuasiNewtonOptions {
  * (`success: false`). If `f` is not finite at a trial point, the global
  * strategies reject the step and backtrack, whereas with `globalMethod: null`
  * the solver returns a failure result.
+ * @throws {TypeError} If `x0`, `options.sclx` or `options.sclf` is not a `VectorLike`.
  * @throws {RangeError} If `x0` has no components, if `maxIter` is not a finite
  * strictly positive integer, if `f(x0)` has a different dimension than `x0`,
  * or if `J0` or `jac(x0)` is not an `n`×`n` matrix.
@@ -178,7 +181,7 @@ export interface QuasiNewtonOptions {
  *         (C0 - C) / tau + k1 * A * B - k2 * C * B,
  *     ]);
  * };
- * const result = quasiNewton(f, Vector.from([0.5, 1.0, 0.5]));
+ * const result = quasiNewton(f, [0.5, 1.0, 0.5]);
  * console.log(result);
  * ```
  *
@@ -225,10 +228,13 @@ export interface QuasiNewtonOptions {
  */
 export function quasiNewton(
   f: (x: Vector) => Vector,
-  x0: Vector,
+  x0: VectorLike,
   options: QuasiNewtonOptions = {}
 ): VectorRootResult {
-  const n = x0.size;
+  // Owned copy: it becomes the first iterate, which may be returned, so it must never alias
+  // the caller's data.
+  const x0v = Vector.asVector(x0, true);
+  const n = x0v.size;
   if (n === 0) {
     throw new RangeError('quasiNewton: x0 must have at least one component');
   }
@@ -242,16 +248,19 @@ export function quasiNewton(
     );
   }
 
-  options.sclx?.map((value) => {
-    if (!(value > 0)) throw new Error('quasiNewton: sclx must contain strictly positive values');
-    return value;
-  });
-  options.sclf?.map((value) => {
-    if (!(value > 0)) throw new Error('quasiNewton: sclf must contain strictly positive values');
-    return value;
-  });
+  // Scaling factors are only read, so they are not copied.
+  const sclxUser = options.sclx === undefined ? undefined : Vector.asVector(options.sclx);
+  const sclfUser = options.sclf === undefined ? undefined : Vector.asVector(options.sclf);
+  for (const [name, v] of [
+    ['sclx', sclxUser],
+    ['sclf', sclfUser]
+  ] as const) {
+    if (v !== undefined && !v.data.every((value) => value > 0)) {
+      throw new Error(`quasiNewton: ${name} must contain strictly positive values`);
+    }
+  }
 
-  const sclx = options.sclx ?? scaleVector(x0);
+  const sclx = sclxUser ?? scaleVector(x0v);
   const tolx = options.tolx ?? 1e-10;
   const tolf = options.tolf ?? 1e-5;
   const maxIter = options.maxIter ?? 100;
@@ -310,7 +319,7 @@ export function quasiNewton(
     return { J, finite: J.allFinite() };
   };
 
-  let xc = x0.copy();
+  let xc = x0v;
   let fc = countedF(xc);
 
   if (fc.size !== n) {
@@ -386,7 +395,7 @@ export function quasiNewton(
 
   // Set f scaling factors (default: inverse of the per-equation max |J_ij|).
   const sclf =
-    options.sclf ??
+    sclfUser ??
     Jc.abs()
       .max(1)
       .map((v) => 1 / (v === 0 ? 1 : v));
@@ -407,7 +416,7 @@ export function quasiNewton(
   }
 
   // Set maximum step length for global methods.
-  const maxLen = Math.max(0, maxLenFactor) * Math.max(sclx.mult(x0).norm(), sclx.norm());
+  const maxLen = Math.max(0, maxLenFactor) * Math.max(sclx.mult(x0v).norm(), sclx.norm());
 
   // Objective function for global methods: 1/2*||sclf*f(x)||².
   const fN = (x: Vector): [number, Vector] => {

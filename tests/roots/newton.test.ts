@@ -4,6 +4,7 @@ import { Vector } from '../../src/linalg/Vector.js';
 import { lineSearch } from '../../src/roots/lineSearch.js';
 import { quasiNewton } from '../../src/roots/newton.js';
 import { fExample65, fPowellSingular, fRosenbrock, fTrigonometric } from './testFunctions.js';
+import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 // `lineSearch` is wrapped so that individual calls can be made to fail (see the Broyden
 // restart tests). Unless a test overrides a call, the real implementation is used.
@@ -922,5 +923,98 @@ describe('quasiNewton', () => {
       expect(result.evaluationsJacobian).toBe(0);
       expect(jac.calls).toBe(0);
     });
+  });
+});
+
+describe('quasiNewton with VectorLike inputs', () => {
+  const { f, jac, x0 } = fRosenbrock;
+  const x0Raw = x0.toArray();
+  const sclxRaw = [1, 2, 1, 2];
+  const sclfRaw = [1, 0.5, 1, 0.5];
+  const refPlain = quasiNewton(f, x0);
+  const refScaled = quasiNewton(f, x0, {
+    sclx: Vector.from(sclxRaw),
+    sclf: Vector.from(sclfRaw)
+  });
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts x0 as ${name}`, () => {
+      const res = quasiNewton(f, make(x0Raw));
+      expect(res.success, res.message).toBe(true);
+      expect(res.x.toArray()).toEqual(refPlain.x.toArray());
+      expect(res.evaluationsFunction).toBe(refPlain.evaluationsFunction);
+    });
+
+    it(`accepts sclx and sclf as ${name}`, () => {
+      const res = quasiNewton(f, x0Raw, { sclx: make(sclxRaw), sclf: make(sclfRaw) });
+      expect(res.success, res.message).toBe(true);
+      expect(res.x.toArray()).toEqual(refScaled.x.toArray());
+      expect(res.evaluationsFunction).toBe(refScaled.evaluationsFunction);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`does not mutate x0, sclx or sclf given as ${name}`, () => {
+      const x0m = make(x0Raw);
+      const sclx = make(sclxRaw);
+      const sclf = make(sclfRaw);
+      quasiNewton(f, x0m, { sclx, sclf });
+      expect(Array.from(x0m)).toEqual(x0Raw);
+      expect(Array.from(sclx)).toEqual(sclxRaw);
+      expect(Array.from(sclf)).toEqual(sclfRaw);
+    });
+  }
+
+  it("never returns the caller's x0 Vector, even when it stops at the initial point", () => {
+    const start = Vector.from(fRosenbrock.xs.toArray());
+    const res = quasiNewton(f, start);
+    expect(res.iterations).toBe(0);
+    expect(res.x).not.toBe(start);
+    res.x.fill(7);
+    expect(start.toArray()).toEqual(fRosenbrock.xs.toArray());
+  });
+
+  it('hands f and jac a Vector, whatever the form of x0', () => {
+    for (const [, make] of vectorLikeForms) {
+      const seen: unknown[] = [];
+      quasiNewton(
+        (x) => {
+          seen.push(x);
+          return f(x);
+        },
+        make(x0Raw),
+        {
+          jac: (x) => {
+            seen.push(x);
+            return jac ? jac(x) : Matrix.identity(x.size);
+          }
+        }
+      );
+      expect(seen.length).toBeGreaterThan(0);
+      for (const x of seen) expect(x).toBeInstanceOf(Vector);
+    }
+  });
+
+  it('still requires strictly positive sclx and sclf, whatever their form', () => {
+    for (const [, make] of vectorLikeForms) {
+      for (const name of ['sclx', 'sclf'] as const) {
+        expect(() => quasiNewton(f, x0Raw, { [name]: make([1, 1, 1, 0]) })).toThrow(
+          `quasiNewton: ${name} must contain strictly positive values`
+        );
+      }
+    }
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => quasiNewton(f, 'abc' as never)).toThrowError(TypeError);
+    expect(() => quasiNewton(f, null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => quasiNewton(f, x0Raw, { sclx: {} as never })).toThrowError(TypeError);
+    expect(() => quasiNewton(f, x0Raw, { sclf: 1 as never })).toThrowError(TypeError);
+  });
+
+  it('throws a RangeError for an empty x0, whatever the form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => quasiNewton(f, make([]))).toThrowError(RangeError);
+    }
   });
 });
