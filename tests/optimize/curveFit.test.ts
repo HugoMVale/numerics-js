@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { curveFit } from '../../src/optimize/curveFit.js';
-import { vectorLikeForms } from '../vectorLikeForms.js';
+import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 // Deterministic "noise" without a random generator.
 const wobble = (i: number) =>
@@ -465,5 +465,60 @@ describe('curveFit with VectorLike data', () => {
     expect(() => curveFit(line, 'abc' as never, yRaw, p0)).toThrowError(TypeError);
     expect(() => curveFit(line, xRaw, null as never, p0)).toThrowError(/Vector\.asVector/);
     expect(() => curveFit(line, xRaw, yRaw, p0, { sigma: {} as never })).toThrowError(TypeError);
+  });
+});
+
+describe('curveFit with a VectorLike initial guess and scaling', () => {
+  const xRaw = Array.from({ length: 12 }, (_, i) => (5 * i) / 11);
+  const yRaw = xRaw.map((xi, i) => 1 + 2 * xi + wobble(i));
+  const p0Raw = [0, 0];
+  const sclxRaw = [1, 0.5];
+  const x = Vector.from(xRaw);
+  const y = Vector.from(yRaw);
+  const refPlain = curveFit(line, x, y, Vector.from(p0Raw));
+  const refScaled = curveFit(line, x, y, Vector.from(p0Raw), { sclx: Vector.from(sclxRaw) });
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts p0 as ${name}`, () => {
+      const res = curveFit(line, x, y, make(p0Raw));
+      expect(res.success, res.message).toBe(true);
+      expect(res.p.toArray()).toEqual(refPlain.p.toArray());
+      expect(res.cov.toArray()).toEqual(refPlain.cov.toArray());
+    });
+
+    it(`accepts sclx as ${name}`, () => {
+      const res = curveFit(line, xRaw, yRaw, p0Raw, { sclx: make(sclxRaw) });
+      expect(res.success, res.message).toBe(true);
+      expect(res.method).toContain('Fixed');
+      expect(res.p.toArray()).toEqual(refScaled.p.toArray());
+      expect(res.evaluationsFunction).toBe(refScaled.evaluationsFunction);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`does not mutate p0 or sclx given as ${name}`, () => {
+      const p0 = make(p0Raw);
+      const sclx = make(sclxRaw);
+      curveFit(line, xRaw, yRaw, p0, { sclx });
+      expect(Array.from(p0)).toEqual(p0Raw);
+      expect(Array.from(sclx)).toEqual(sclxRaw);
+    });
+  }
+
+  it('accepts every data input as a plain array at once', () => {
+    const res = curveFit(line, xRaw, yRaw, p0Raw, { sigma: xRaw.map(() => 1) });
+    expect(res.p.toArray()).toEqual(refPlain.p.toArray());
+  });
+
+  it('throws a RangeError for an empty p0, whatever the form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => curveFit(line, xRaw, yRaw, make([]))).toThrowError(RangeError);
+    }
+  });
+
+  it('throws a TypeError for an unsupported p0 or sclx', () => {
+    expect(() => curveFit(line, xRaw, yRaw, 'abc' as never)).toThrowError(TypeError);
+    expect(() => curveFit(line, xRaw, yRaw, null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => curveFit(line, xRaw, yRaw, p0Raw, { sclx: {} as never })).toThrowError(TypeError);
   });
 });

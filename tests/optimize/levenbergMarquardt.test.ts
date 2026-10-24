@@ -11,6 +11,7 @@ import {
   rankDeficient,
   rosenbrock
 } from './leastSquaresFunctions.js';
+import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 /** Relative agreement of the sum of squares with the known minimum. */
 function expectMinimum(sumSquares: number, expected: number): void {
@@ -367,5 +368,95 @@ describe('levenbergMarquardt — input validation', () => {
     expect(() => levenbergMarquardt(f, rosenbrock.x0, { sclx: Vector.from([1, -1]) })).toThrow(
       Error
     );
+  });
+});
+
+describe('levenbergMarquardt with VectorLike inputs', () => {
+  const x0Raw = rosenbrock.x0.toArray();
+  const scaleRaw = [1, 0.1];
+  const ref = levenbergMarquardt(rosenbrock.f, rosenbrock.x0, { sclx: Vector.from(scaleRaw) });
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts x0 as ${name}`, () => {
+      const plain = levenbergMarquardt(rosenbrock.f, rosenbrock.x0);
+      const res = levenbergMarquardt(rosenbrock.f, make(x0Raw));
+      expect(res.success, res.message).toBe(true);
+      expect(res.x.toArray()).toEqual(plain.x.toArray());
+      expect(res.evaluationsFunction).toBe(plain.evaluationsFunction);
+    });
+
+    it(`accepts sclx as ${name}`, () => {
+      const res = levenbergMarquardt(rosenbrock.f, x0Raw, { sclx: make(scaleRaw) });
+      expect(res.success, res.message).toBe(true);
+      expect(res.method).toContain('Fixed');
+      expect(res.x.toArray()).toEqual(ref.x.toArray());
+      expect(res.evaluationsFunction).toBe(ref.evaluationsFunction);
+    });
+  }
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`does not mutate x0 or sclx given as ${name}`, () => {
+      const x0 = make(x0Raw);
+      const sclx = make(scaleRaw);
+      levenbergMarquardt(rosenbrock.f, x0, { sclx });
+      expect(Array.from(x0)).toEqual(x0Raw);
+      expect(Array.from(sclx)).toEqual(scaleRaw);
+    });
+  }
+
+  it("never returns the caller's x0 Vector, even when it fails at the initial point", () => {
+    const x0 = Vector.from(x0Raw);
+    const nonFinite = () => Vector.from([NaN, 0]);
+    const res = levenbergMarquardt(nonFinite, x0);
+    expect(res.success).toBe(false);
+    expect(res.x).not.toBe(x0);
+    res.x.fill(7);
+    expect(x0.toArray()).toEqual(x0Raw);
+  });
+
+  it('hands f and jac a Vector, whatever the form of x0', () => {
+    for (const [, make] of vectorLikeForms) {
+      const seen: unknown[] = [];
+      levenbergMarquardt(
+        (x) => {
+          seen.push(x);
+          return rosenbrock.f(x);
+        },
+        make(x0Raw),
+        {
+          jac: (x) => {
+            seen.push(x);
+            return rosenbrock.jac!(x);
+          }
+        }
+      );
+      expect(seen.length).toBeGreaterThan(0);
+      for (const x of seen) expect(x).toBeInstanceOf(Vector);
+    }
+  });
+
+  it('still validates the length and values of sclx, whatever its form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => levenbergMarquardt(rosenbrock.f, x0Raw, { sclx: make([1]) })).toThrowError(
+        RangeError
+      );
+      expect(() => levenbergMarquardt(rosenbrock.f, x0Raw, { sclx: make([1, 0]) })).toThrowError(
+        /strictly positive/
+      );
+    }
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => levenbergMarquardt(rosenbrock.f, 'abc' as never)).toThrowError(TypeError);
+    expect(() => levenbergMarquardt(rosenbrock.f, null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => levenbergMarquardt(rosenbrock.f, x0Raw, { sclx: {} as never })).toThrowError(
+      TypeError
+    );
+  });
+
+  it('throws a RangeError for an empty x0, whatever the form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => levenbergMarquardt(rosenbrock.f, make([]))).toThrowError(RangeError);
+    }
   });
 });

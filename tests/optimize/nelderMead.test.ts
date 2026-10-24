@@ -3,6 +3,7 @@ import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { nelderMead } from '../../src/optimize/nelderMead.js';
 import { TEST_FUNCTIONS_MULTIVAR } from './testFunctions.js';
+import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 describe.each(Object.entries(TEST_FUNCTIONS_MULTIVAR))('nelderMead — %s', (_name, data) => {
   const N = 2; // test in 2D for simplicity, but should work in any dimension
@@ -196,5 +197,75 @@ describe('nelderMead — options and edge cases', () => {
     expect(seenRows).toBe(3); // N+1 vertices for N=2
     expect(seenCols).toBe(2);
     expect(seenFxDim).toBe(3);
+  });
+});
+
+describe('nelderMead with VectorLike inputs', () => {
+  // Badly scaled quadratic, so that `sclx` changes the initial simplex and therefore the path.
+  const f = (x: Vector): number => (x.get(0) - 3) ** 2 + (x.get(1) - 2e4) ** 2 * 1e-6;
+  const x0Raw = [1, 1e4];
+  const scaleRaw = [1, 1e-4];
+  const ref = nelderMead(f, Vector.from(x0Raw), { sclx: Vector.from(scaleRaw) });
+
+  for (const [name, make] of vectorLikeForms) {
+    it(`accepts x0 as ${name}`, () => {
+      const plain = nelderMead(f, Vector.from(x0Raw));
+      const res = nelderMead(f, make(x0Raw));
+      expect(res.success, res.message).toBe(true);
+      expect(res.x.toArray()).toEqual(plain.x.toArray());
+      expect(res.evaluations).toBe(plain.evaluations);
+    });
+
+    it(`accepts sclx as ${name}`, () => {
+      const res = nelderMead(f, x0Raw, { sclx: make(scaleRaw) });
+      expect(res.success, res.message).toBe(true);
+      expect(res.x.toArray()).toEqual(ref.x.toArray());
+      expect(res.evaluations).toBe(ref.evaluations);
+    });
+  }
+
+  it('uses the absolute value of sclx, whatever its form', () => {
+    for (const [, make] of vectorLikeForms) {
+      const res = nelderMead(f, x0Raw, { sclx: make([-1, -1e-4]) });
+      expect(res.x.toArray()).toEqual(ref.x.toArray());
+    }
+  });
+
+  for (const [name, make] of mutableVectorLikeForms) {
+    it(`does not mutate x0 or sclx given as ${name}`, () => {
+      const x0 = make(x0Raw);
+      const sclx = make(scaleRaw);
+      nelderMead(f, x0, { sclx });
+      expect(Array.from(x0)).toEqual(x0Raw);
+      expect(Array.from(sclx)).toEqual(scaleRaw);
+    });
+  }
+
+  it('hands the objective function a Vector, whatever the form of x0', () => {
+    for (const [, make] of vectorLikeForms) {
+      const seen: unknown[] = [];
+      nelderMead(
+        (x) => {
+          seen.push(x);
+          return f(x);
+        },
+        make(x0Raw),
+        { maxIter: 3 }
+      );
+      expect(seen.length).toBeGreaterThan(0);
+      for (const x of seen) expect(x).toBeInstanceOf(Vector);
+    }
+  });
+
+  it('throws a TypeError for unsupported inputs', () => {
+    expect(() => nelderMead(f, 'abc' as never)).toThrowError(TypeError);
+    expect(() => nelderMead(f, null as never)).toThrowError(/Vector\.asVector/);
+    expect(() => nelderMead(f, x0Raw, { sclx: {} as never })).toThrowError(TypeError);
+  });
+
+  it('throws a RangeError for an empty x0, whatever the form', () => {
+    for (const [, make] of vectorLikeForms) {
+      expect(() => nelderMead(f, make([]))).toThrowError(RangeError);
+    }
   });
 });

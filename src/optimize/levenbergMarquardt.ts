@@ -1,4 +1,4 @@
-import { Vector } from '../linalg/Vector.js';
+import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix, type QRPivotDecomposition } from '../linalg/Matrix.js';
 import { jacobianForward, scaleVector } from '../numdiff.js';
 import { enorm, lmpar } from './lmpar.js';
@@ -107,9 +107,9 @@ export interface LevenbergMarquardtOptions {
    * (`D = diag(sclx)`) and set the finite-difference steps. If omitted,
    * the metric is MINPACK's adaptive scaling, based on the norms of the
    * Jacobian columns, and the finite-difference steps are scaled from `x0`
-   * via {@link scaleVector}.
+   * via {@link scaleVector}. A `Vector`, a plain `number[]` or a `Float64Array`.
    */
-  sclx?: Vector;
+  sclx?: VectorLike;
   /**
    * Factor determining the initial trust-region radius, `trustLenFactor *
    * ||D*x0||` (or `trustLenFactor` itself if `x0` is zero). Values
@@ -184,9 +184,10 @@ export interface LevenbergMarquardtOptions {
  *   Argonne National Laboratory, ANL-80-74, 1980.
  *
  * @param f Residual function, returning `m >= n` components.
- * @param x0 Initial guess for the minimizer.
+ * @param x0 Initial guess for the minimizer: a `Vector`, a plain `number[]` or a `Float64Array`.
  * @param options Configuration options for the solver.
  * @returns A `LevenbergMarquardtResult` with the solution and diagnostics.
+ * @throws {TypeError} If `x0` or `options.sclx` is not a `VectorLike`.
  * @throws {RangeError} If `x0` has no components, if `f(x0)` has fewer
  * components than `x0` (or `f` later returns a different number of
  * components), if `tolf`, `tolx`, `tolg` or `trustLenFactor` are not
@@ -205,7 +206,7 @@ export interface LevenbergMarquardtOptions {
  * const y = [3.02, 1.81, 1.12, 0.66, 0.41, 0.24];
  * const residuals = (p: Vector) =>
  *     Vector.from(t.map((ti, i) => p.get(0) * Math.exp(-p.get(1) * ti) - y[i]));
- * const result = levenbergMarquardt(residuals, Vector.from([1, 1]));
+ * const result = levenbergMarquardt(residuals, [1, 1]);
  * console.log(result);
  * ```
  *
@@ -255,10 +256,11 @@ export interface LevenbergMarquardtOptions {
  */
 export function levenbergMarquardt(
   f: (x: Vector) => Vector,
-  x0: Vector,
+  x0: VectorLike,
   options: LevenbergMarquardtOptions = {}
 ): LevenbergMarquardtResult {
-  let x = x0.copy();
+  // Owned copy: it may be returned as the result, so it must never alias the caller's data.
+  let x = Vector.asVector(x0, true);
   const n = x.size;
   if (n === 0) {
     throw new RangeError('levenbergMarquardt: x0 must have at least one component');
@@ -299,7 +301,7 @@ export function levenbergMarquardt(
 
   let userSclx: Vector | undefined;
   if (options.sclx !== undefined) {
-    userSclx = options.sclx.copy();
+    userSclx = Vector.asVector(options.sclx, true);
     if (userSclx.size !== n) {
       throw new RangeError(
         `levenbergMarquardt: sclx must have ${n} components, got ${userSclx.size}`

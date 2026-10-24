@@ -72,9 +72,10 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
   /**
    * Positive scaling factors for the parameters, with the same meaning as
    * `sclx` in {@link levenbergMarquardt}: ideally `sclx*p` is of order 1 at
-   * the solution. If omitted, MINPACK's adaptive scaling is used.
+   * the solution. If omitted, MINPACK's adaptive scaling is used. A `Vector`, a plain
+   * `number[]` or a `Float64Array`, with one factor per parameter.
    */
-  sclx?: Vector;
+  sclx?: VectorLike;
   /**
    * Function returning the Jacobian of the model with respect to the
    * parameters, `∂f/∂p`, at all data points: an `m x n` `Matrix` whose entry
@@ -126,11 +127,13 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * @param xdata Independent variable values, `m` points: a `Vector`, a plain `number[]` or a
  * `Float64Array`. The model `f` receives them as a `Vector`.
  * @param ydata Observed values, `m` points, in any of the forms accepted for `xdata`.
- * @param p0 Initial guess for the parameters, a `Vector` with `n <= m` components.
+ * @param p0 Initial guess for the parameters, with `n <= m` components: a `Vector`, a plain
+ * `number[]` or a `Float64Array`.
  * @param options Configuration options; see {@link CurveFitOptions}.
  * @returns A {@link CurveFitResult} with the optimal parameters, their covariance and
  * diagnostics.
- * @throws {TypeError} If `xdata`, `ydata` or `options.sigma` is not a `VectorLike`.
+ * @throws {TypeError} If `xdata`, `ydata`, `p0`, `options.sigma` or `options.sclx` is not a
+ * `VectorLike`.
  * @throws {RangeError} If `xdata` and `ydata` (or `sigma`) have different lengths, if `p0`
  * has no components, if there are fewer data points than parameters, if `f` does not return
  * `m` components, if `jac` does not return an `m x n` matrix, or for the invalid options
@@ -146,7 +149,7 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * const t = [0, 1, 2, 3, 4, 5];
  * const y = [3.02, 1.81, 1.12, 0.66, 0.41, 0.24];
  * const model = (t: Vector, p: Vector) => t.map((ti) => p.get(0) * Math.exp(-p.get(1) * ti));
- * const result = curveFit(model, t, y, Vector.from([1, 1]));
+ * const result = curveFit(model, t, y, [1, 1]);
  * console.log(result);
  * ```
  *
@@ -194,12 +197,12 @@ export function curveFit(
   f: (x: Vector, p: Vector) => Vector,
   xdata: VectorLike,
   ydata: VectorLike,
-  p0: Vector,
+  p0: VectorLike,
   options: CurveFitOptions = {}
 ): CurveFitResult {
   const x = Vector.asVector(xdata);
   const y = Vector.asVector(ydata);
-  const p0v = p0.copy();
+  const p0v = Vector.asVector(p0); // `levenbergMarquardt` takes its own copy
   const m = x.size;
   const n = p0v.size;
 
