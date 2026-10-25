@@ -24,9 +24,10 @@ from pathlib import Path
 
 from scipy.integrate import quad
 
-# Requested tolerance shared with the quad(fn, a, b, tol) call in
-# benchmarks/integrate/quad.scipy.test.ts, so evaluation counts are comparable.
-# Matches quad's own default tol, since that's the representative use case.
+# Requested tolerance (used as both epsabs and epsrel), shared with the defaults of
+# the quad(fn, a, b, { atol, rtol }) call in benchmarks/integrate/quad.scipy.test.ts,
+# so evaluation counts are comparable. Matches quad's own default atol and rtol,
+# since that's the representative use case.
 TOL = 1e-8
 
 CASES = [

@@ -21,7 +21,7 @@ const INTEGRANDS: Record<string, (x: number) => number> = {
 };
 
 // Allowed slack for evaluations vs SciPy's QUADPACK reference, applied only to smooth
-// integrands (see EVALUATION_FACTOR use below): observed ratios there are ~0.7x-1.2x.
+// integrands (see EVALUATION_FACTOR use below): observed ratios there are ~0.7x-1.1x.
 const EVALUATION_FACTOR = 1.2;
 const decodeBound = (bound: number | string): number =>
   bound === 'Infinity' ? Infinity : bound === '-Infinity' ? -Infinity : Number(bound);
@@ -35,8 +35,9 @@ describe('quad vs SciPy reference values', () => {
       const a = decodeBound(fixture.a);
       const b = decodeBound(fixture.b);
 
-      // Uses gaussKronrod's own default tol, matching TOL in generate_quad_fixtures.py,
-      // so evaluation counts reflect the library's representative use case.
+      // Uses quad's own default atol and rtol (1e-8 each), matching TOL in
+      // generate_quad_fixtures.py, so evaluation counts reflect the library's
+      // representative use case.
       const result = quad(f, a, b, { breakpoints: fixture.breakpoints });
       expect(result.converged).toBe(true);
 
