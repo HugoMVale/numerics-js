@@ -1,5 +1,9 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
-import { gaussKronrod } from './gaussKronrod.js';
+import {
+  integrateAdaptive,
+  resolveGaussKronrodOptions,
+  type GaussKronrodOptions
+} from './gaussKronrod.js';
 
 /** Result of a {@link quad} numerical integration. */
 export interface QuadResult {
@@ -9,9 +13,9 @@ export interface QuadResult {
   error: number;
   /** Total number of integrand evaluations performed across all intervals. */
   evaluations: number;
-  /** Whether the requested error tolerance was reached in all subintervals. */
+  /** Whether the requested error tolerance was reached for the whole integral. */
   converged: boolean;
-  /** Total number of final subintervals used by the adaptive algorithms. */
+  /** Total number of final subintervals used by the adaptive algorithm. */
   subintervals: number;
 }
 
@@ -50,17 +54,7 @@ export interface QuadTransform {
 }
 
 /** Options for {@link quad}. */
-export interface QuadOptions {
-  /**
-   * Absolute error tolerance for the whole interval.
-   * @default 1e-8
-   */
-  tol?: number;
-  /**
-   * Safety limit on panel count.
-   * @default 200
-   */
-  maxSubintervals?: number;
+export interface QuadOptions extends GaussKronrodOptions {
   /**
    * Specific points within the integration interval where the function
    * might have discontinuities or sharp features. The integration interval
@@ -130,20 +124,24 @@ function getFullyInfiniteTransform(): QuadTransform {
  * variables (`transform`) can be supplied, e.g. to remove an endpoint
  * singularity; see {@link QuadTransform}.
  *
- * Within each interval, the integration is performed using the Gauss-Kronrod (G7-K15)
- * adaptive rule.
+ * The integration is performed using the Gauss-Kronrod (G7-K15) adaptive rule.
+ * All pieces defined by the integration limits and the breakpoints share a single
+ * error budget and a single subinterval limit: the algorithm stops when the estimated
+ * error of the whole integral satisfies `error <= atol + rtol * |value|`, and the
+ * subinterval with the largest error estimate is always the next one to be bisected,
+ * wherever it is.
  *
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`. Can be `-Infinity`.
  * @param b Upper bound of integration `b`. Can be `Infinity`.
- * @param options Optional settings including error tolerance, breakpoints and
- * a user-defined `transform`. A user-defined transform takes precedence over
+ * @param options Optional settings including error tolerances (`atol`, `rtol`),
+ * `maxSubintervals`, breakpoints and a user-defined `transform`. A user-defined transform takes precedence over
  * the automatic handling of infinite limits.
  * @returns Quadrature output including aggregated value, error, and diagnostics.
  * @throws {RangeError} If `a` or `b` are `NaN`, if `transform.inverse`
  * returns non-finite or equal values for the integration limits, or, when
- * `a !== b`, if `tol` is not finite and non-negative or `maxSubintervals`
- * is not a finite positive integer.
+ * `a !== b`, if `atol` or `rtol` is not finite and non-negative or
+ * `maxSubintervals` is not a finite positive integer.
  * @throws {TypeError} If `transform` is given but `map` or `inverse` is not a function, or if
  * `options.breakpoints` is not a `VectorLike`.
  * @throws {Error} If `f` evaluates to a non-finite value. When a transform is
@@ -199,11 +197,11 @@ function getFullyInfiniteTransform(): QuadTransform {
  * Output:
  * ```text
  * {
- *   value: 1.0000000000000002,
- *   error: 4.507393744129824e-11,
- *   evaluations: 135,
+ *   value: 0.9999999999995187,
+ *   error: 1.7473439701664456e-8,
+ *   evaluations: 105,
  *   converged: true,
- *   subintervals: 5
+ *   subintervals: 4
  * }
  * ```
  *
@@ -230,8 +228,8 @@ function getFullyInfiniteTransform(): QuadTransform {
  *   subintervals: 1
  * }
  * ```
- * Without the transform the same call needs 1395 evaluations and 47
- * subintervals, and is only accurate to about 1e-9.
+ * Without the transform the same call needs 1305 evaluations and 44
+ * subintervals, and is only accurate to about 2e-8.
  *
  * @example
  * ```ts
@@ -278,6 +276,8 @@ export function quad(
   if (a === b) {
     return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
   }
+
+  const resolved = resolveGaussKronrodOptions('quad', gkOptions);
 
   const sign = a > b ? -1 : 1;
   const lo = Math.min(a, b);
@@ -337,32 +337,14 @@ export function quad(
   }
 
   validBreakpoints.sort((x, y) => x - y);
-  const points = [tA, ...validBreakpoints, tB];
-
-  let totalValue = 0;
-  let totalError = 0;
-  let totalEvaluations = 0;
-  let totalSubintervals = 0;
-  let allConverged = true;
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p1 = points[i];
-    const p2 = points[i + 1];
-
-    const res = gaussKronrod(targetF, p1, p2, gkOptions);
-
-    totalValue += res.value;
-    totalError += res.error;
-    totalEvaluations += res.evaluations;
-    totalSubintervals += res.subintervals;
-    if (!res.converged) allConverged = false;
+  // Drop repeated points (e.g. breakpoints that collide after the mapping): they would
+  // define zero-width panels.
+  const points = [tA];
+  for (const p of [...validBreakpoints, tB]) {
+    if (p > points[points.length - 1]) points.push(p);
   }
 
-  return {
-    value: sign * totalValue,
-    error: totalError,
-    evaluations: totalEvaluations,
-    converged: allConverged,
-    subintervals: totalSubintervals
-  };
+  const result = integrateAdaptive('quad', targetF, points, resolved);
+  result.value *= sign;
+  return result;
 }

@@ -12,6 +12,34 @@ export interface GaussKronrodResult {
   subintervals: number;
 }
 
+/**
+ * Options for {@link gaussKronrod} and, through {@link QuadOptions}, for {@link quad}.
+ *
+ * The adaptive algorithm stops as soon as the estimated error of the whole
+ * integral satisfies `error <= atol + rtol * |value|`, the same convention used
+ * by the ODE solvers.
+ */
+export interface GaussKronrodOptions {
+  /**
+   * Absolute error tolerance. It dominates when the integral is close to zero.
+   * @default 1e-8
+   */
+  atol?: number;
+  /**
+   * Relative error tolerance, with respect to the magnitude of the estimated
+   * integral. With `atol = 0` the stopping criterion is purely relative, hence
+   * invariant under a rescaling of the integrand.
+   * @default 1e-8
+   */
+  rtol?: number;
+  /**
+   * Safety limit on the total number of subintervals (panels) of the whole
+   * integral, including the initial ones.
+   * @default 200
+   */
+  maxSubintervals?: number;
+}
+
 interface LocalGaussKronrodResult {
   kronrod: number;
   gauss: number;
@@ -94,6 +122,110 @@ export function gaussKronrod15(
 }
 
 /**
+ * Validates `options` and fills in the defaults.
+ *
+ * @internal
+ *
+ * @param name Public function name, used as prefix of error messages.
+ * @param options User options.
+ * @returns Validated options with defaults applied.
+ * @throws {RangeError} If `atol` or `rtol` is not finite and non-negative, or if
+ * `maxSubintervals` is not a finite positive integer.
+ */
+export function resolveGaussKronrodOptions(
+  name: string,
+  options: GaussKronrodOptions
+): Required<GaussKronrodOptions> {
+  const { atol = 1e-8, rtol = 1e-8, maxSubintervals = 200 } = options;
+
+  if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
+    throw new RangeError(
+      `${name}: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
+    );
+  }
+  if (!Number.isInteger(maxSubintervals) || maxSubintervals < 1) {
+    throw new RangeError(`${name}: maxSubintervals must be a finite positive integer`);
+  }
+  return { atol, rtol, maxSubintervals };
+}
+
+/**
+ * Adaptive G7-K15 engine shared by {@link gaussKronrod} and {@link quad}.
+ *
+ * All initial panels (`points[i]`, `points[i + 1]`) share one global error budget
+ * and one panel limit: at each step the panel with the largest error estimate is
+ * bisected, until `totalError <= atol + rtol * |totalValue|` for the whole integral.
+ *
+ * @internal
+ *
+ * @param name Public function name, used as prefix of error messages.
+ * @param f Integrand.
+ * @param points Strictly increasing finite integration points, at least two.
+ * @param options Validated options, see {@link resolveGaussKronrodOptions}.
+ * @returns Integral over `[points[0], points[points.length - 1]]` (ascending orientation).
+ */
+export function integrateAdaptive(
+  name: string,
+  f: (x: number) => number,
+  points: readonly number[],
+  options: Required<GaussKronrodOptions>
+): GaussKronrodResult {
+  const { atol, rtol, maxSubintervals } = options;
+
+  let evaluations = 0;
+  const evalF = (x: number): number => {
+    evaluations++;
+    const y = f(x);
+    if (!Number.isFinite(y)) {
+      throw new Error(`${name}: f(${x}) returned a non-finite value (${y}); cannot integrate.`);
+    }
+    return y;
+  };
+
+  const panels: Panel[] = [];
+  let totalValue = 0;
+  let totalError = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const local = gaussKronrod15(evalF, points[i], points[i + 1]);
+    panels.push({ a: points[i], b: points[i + 1], kronrod: local.kronrod, error: local.error });
+    totalValue += local.kronrod;
+    totalError += local.error;
+  }
+
+  let converged = true;
+  while (totalError > atol + rtol * Math.abs(totalValue)) {
+    if (panels.length >= maxSubintervals) {
+      converged = false;
+      break;
+    }
+
+    let worstIdx = 0;
+    for (let i = 1; i < panels.length; i++) {
+      if (panels[i].error > panels[worstIdx].error) worstIdx = i;
+    }
+    const worst = panels[worstIdx];
+
+    const mid = midpoint(worst.a, worst.b);
+    const left = gaussKronrod15(evalF, worst.a, mid);
+    const right = gaussKronrod15(evalF, mid, worst.b);
+
+    totalValue += left.kronrod + right.kronrod - worst.kronrod;
+    totalError += left.error + right.error - worst.error;
+
+    panels[worstIdx] = { a: worst.a, b: mid, kronrod: left.kronrod, error: left.error };
+    panels.push({ a: mid, b: worst.b, kronrod: right.kronrod, error: right.error });
+  }
+
+  return {
+    value: totalValue,
+    error: totalError,
+    evaluations,
+    converged,
+    subintervals: panels.length
+  };
+}
+
+/**
  * Numerically integrate `f` over `[a, b]` using adaptive Gauss-Kronrod
  * (G7-K15) quadrature.
  *
@@ -101,16 +233,16 @@ export function gaussKronrod15(
  * intervals. For functions with discontinuities or sharp features, or infinite domains,
  * use {@link quad} instead.
  *
+ * The interval is bisected adaptively until the estimated error of the whole integral
+ * satisfies `error <= atol + rtol * |value|`.
  *
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`.
  * @param b Upper bound of integration `b`.
- * @param options Optional settings.
- * @param options.tol Absolute error tolerance for the whole interval. Defaults to `1e-8`.
- * @param options.maxSubintervals Safety limit on panel count. Defaults to `200`.
+ * @param options Optional settings, see {@link GaussKronrodOptions}.
  * @returns Quadrature output including final value, estimated error, and diagnostics.
- * @throws {RangeError} If `a` or `b` are non-finite numbers, `tol` is not a finite
- * non-negative number, or `maxSubintervals` is not a finite positive integer.
+ * @throws {RangeError} If `a` or `b` are non-finite numbers, `atol` or `rtol` is not a
+ * finite non-negative number, or `maxSubintervals` is not a finite positive integer.
  * @throws {Error} If `f` evaluates to a non-finite value.
  *
  * @example
@@ -135,101 +267,34 @@ export function gaussKronrod15(
  *
  * @example
  * ```ts
- * // Integrate a rapidly varying non-polynomial function with an absolute tolerance.
- * const result = gaussKronrod(x => Math.exp(Math.sin(30 * x)), 0, 1, { tol: 1e-6 });
- * console.log(result);
+ * // A purely relative tolerance is invariant under rescaling of the integrand:
+ * // the same panels are used whether the integral is of order 1e-12 or 1e12.
+ * const small = gaussKronrod(x => 1e-12 * Math.exp(Math.sin(30 * x)), 0, 1, { atol: 0, rtol: 1e-6 });
+ * const large = gaussKronrod(x => 1e12 * Math.exp(Math.sin(30 * x)), 0, 1, { atol: 0, rtol: 1e-6 });
+ * console.log(small.subintervals, large.subintervals);
  * ```
  *
  * Output:
  * ```text
- * {
- *   value: 1.2986250022948562,
- *   error: 7.972504517256285e-7,
- *   evaluations: 285,
- *   converged: true,
- *   subintervals: 10
- * }
+ * 10 10
  * ```
  */
 export function gaussKronrod(
   f: (x: number) => number,
   a: number,
   b: number,
-  options: {
-    tol?: number;
-    maxSubintervals?: number;
-  } = {}
+  options: GaussKronrodOptions = {}
 ): GaussKronrodResult {
-  const { tol = 1e-8, maxSubintervals = 200 } = options;
-
   if (!Number.isFinite(a) || !Number.isFinite(b)) {
     throw new RangeError('gaussKronrod: a and b must be finite numbers');
   }
-  if (!Number.isFinite(tol) || tol < 0) {
-    throw new RangeError('gaussKronrod: tol must be a finite non-negative number');
-  }
-  if (
-    !Number.isFinite(maxSubintervals) ||
-    !Number.isInteger(maxSubintervals) ||
-    maxSubintervals < 1
-  ) {
-    throw new RangeError('gaussKronrod: maxSubintervals must be a finite positive integer');
-  }
+  const resolved = resolveGaussKronrodOptions('gaussKronrod', options);
   if (a === b) {
     return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
   }
 
   const sign = a > b ? -1 : 1;
-  const lo = Math.min(a, b);
-  const hi = Math.max(a, b);
-
-  let evaluations = 0;
-  const evalF = (x: number): number => {
-    evaluations++;
-    const y = f(x);
-    if (!Number.isFinite(y)) {
-      throw new Error(
-        `gaussKronrod: f(${x}) returned a non-finite value (${y}); cannot integrate.`
-      );
-    }
-    return y;
-  };
-
-  const first = gaussKronrod15(evalF, lo, hi);
-  const panels: Panel[] = [{ a: lo, b: hi, kronrod: first.kronrod, error: first.error }];
-
-  let totalValue = first.kronrod;
-  let totalError = first.error;
-  let converged = true;
-
-  while (totalError > tol) {
-    if (panels.length >= maxSubintervals) {
-      converged = false;
-      break;
-    }
-
-    let worstIdx = 0;
-    for (let i = 1; i < panels.length; i++) {
-      if (panels[i].error > panels[worstIdx].error) worstIdx = i;
-    }
-    const worst = panels[worstIdx];
-
-    const mid = midpoint(worst.a, worst.b);
-    const left = gaussKronrod15(evalF, worst.a, mid);
-    const right = gaussKronrod15(evalF, mid, worst.b);
-
-    totalValue += left.kronrod + right.kronrod - worst.kronrod;
-    totalError += left.error + right.error - worst.error;
-
-    panels[worstIdx] = { a: worst.a, b: mid, kronrod: left.kronrod, error: left.error };
-    panels.push({ a: mid, b: worst.b, kronrod: right.kronrod, error: right.error });
-  }
-
-  return {
-    value: sign * totalValue,
-    error: totalError,
-    evaluations,
-    converged,
-    subintervals: panels.length
-  };
+  const result = integrateAdaptive('gaussKronrod', f, [Math.min(a, b), Math.max(a, b)], resolved);
+  result.value *= sign;
+  return result;
 }

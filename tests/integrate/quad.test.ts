@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { quad } from '../../src/integrate/quad.js';
+import { gaussKronrod } from '../../src/integrate/gaussKronrod.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { vectorLikeForms } from '../vectorLikeForms.js';
 import type { QuadTransform } from '../../src/integrate/quad.js';
@@ -16,14 +17,14 @@ import {
 
 describe('quad - finite domains', () => {
   it('integrates standard functions accurately without breakpoints', () => {
-    const res = quad(fSin, 0, Math.PI, { tol: 1e-10 });
+    const res = quad(fSin, 0, Math.PI, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(2, 10);
     expect(res.converged).toBe(true);
   });
 
   it('integrates a piecewise function exactly using breakpoints', () => {
     const fPiecewise = (x: number) => (x < 1 ? 1 : 2);
-    const res = quad(fPiecewise, 0, 2, { breakpoints: [1], tol: 1e-10 });
+    const res = quad(fPiecewise, 0, 2, { breakpoints: [1], atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(3, 10);
     expect(res.converged).toBe(true);
   });
@@ -48,26 +49,26 @@ describe('quad - finite domains', () => {
 describe('quad - infinite domains', () => {
   it('integrates over a positive semi-infinite domain [a, Infinity]', () => {
     // Integral of exp(-x) from 0 to Infinity is 1
-    const res = quad(fExpMinusX, 0, Infinity, { tol: 1e-10 });
+    const res = quad(fExpMinusX, 0, Infinity, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(1, 10);
     expect(res.converged).toBe(true);
   });
 
   it('integrates over a negative semi-infinite domain [-Infinity, b]', () => {
     // Integral of exp(x) from -Infinity to 0 is 1
-    const res = quad(fExpX, -Infinity, 0, { tol: 1e-10 });
+    const res = quad(fExpX, -Infinity, 0, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(1, 10);
     expect(res.converged).toBe(true);
   });
 
   it('integrates over a fully infinite domain [-Infinity, Infinity]', () => {
     // Integral of exp(-x^2) from -Infinity to Infinity is sqrt(pi)
-    const res = quad(fGaussian, -Infinity, Infinity, { tol: 1e-10 });
+    const res = quad(fGaussian, -Infinity, Infinity, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(Math.sqrt(Math.PI), 8);
     expect(res.converged).toBe(true);
 
     // Integral of 4/(1+x^2) from -Infinity to Infinity is 4 * pi
-    const res2 = quad(fArctanDeriv, -Infinity, Infinity, { tol: 1e-10 });
+    const res2 = quad(fArctanDeriv, -Infinity, Infinity, { atol: 1e-10, rtol: 1e-10 });
     expect(res2.value).toBeCloseTo(4 * Math.PI, 10);
     expect(res2.converged).toBe(true);
   });
@@ -78,7 +79,8 @@ describe('quad - infinite domains', () => {
     // ensures the underlying adaptive logic cleanly resolves the sharp peak.
     const res = quad(fExpMinusAbsX, -Infinity, Infinity, {
       breakpoints: [0],
-      tol: 1e-10
+      atol: 1e-10,
+      rtol: 1e-10
     });
 
     expect(res.value).toBeCloseTo(2, 10);
@@ -122,8 +124,8 @@ describe('quad - user-defined transform', () => {
       inverse: (x: number) => 1 / x
     };
 
-    const r1 = quad(f, 1, Infinity, { transform: negative, tol: 1e-10 });
-    const r2 = quad(f, 1, Infinity, { transform: positive, tol: 1e-10 });
+    const r1 = quad(f, 1, Infinity, { transform: negative, atol: 1e-10, rtol: 1e-10 });
+    const r2 = quad(f, 1, Infinity, { transform: positive, atol: 1e-10, rtol: 1e-10 });
     expect(r1.value).toBeCloseTo(1, 10);
     expect(r1.converged).toBe(true);
     expect(r2.value).toBe(r1.value);
@@ -139,7 +141,11 @@ describe('quad - user-defined transform', () => {
       },
       inverse: (x: number) => Math.exp(-x)
     };
-    const res = quad(fExpMinusX, 0, Infinity, { transform: expTransform, tol: 1e-10 });
+    const res = quad(fExpMinusX, 0, Infinity, {
+      transform: expTransform,
+      atol: 1e-10,
+      rtol: 1e-10
+    });
     expect(mapCalls).toBeGreaterThan(0);
     expect(res.value).toBeCloseTo(1, 10);
     expect(res.converged).toBe(true);
@@ -158,7 +164,8 @@ describe('quad - user-defined transform', () => {
     };
     const res = quad(fArctanDeriv, -Infinity, Infinity, {
       transform: tanTransform,
-      tol: 1e-10
+      atol: 1e-10,
+      rtol: 1e-10
     });
     expect(seen).toContain(Infinity);
     expect(seen).toContain(-Infinity);
@@ -170,7 +177,8 @@ describe('quad - user-defined transform', () => {
     const res = quad(fPiecewise, 0, 2, {
       transform: sqrtTransform,
       breakpoints: [1],
-      tol: 1e-10
+      atol: 1e-10,
+      rtol: 1e-10
     });
     expect(res.value).toBeCloseTo(3, 10);
     expect(res.converged).toBe(true);
@@ -184,7 +192,12 @@ describe('quad - user-defined transform', () => {
       map: (t: number) => ({ x: 1 / t, dxDt: -1 / (t * t) }),
       inverse: (x: number) => 1 / x
     };
-    const res = quad(f, 0.5, Infinity, { transform: decreasing, breakpoints: [1], tol: 1e-10 });
+    const res = quad(f, 0.5, Infinity, {
+      transform: decreasing,
+      breakpoints: [1],
+      atol: 1e-10,
+      rtol: 1e-10
+    });
     expect(res.value).toBeCloseTo(2 - Math.exp(-0.5), 9);
     expect(res.converged).toBe(true);
   });
@@ -278,7 +291,7 @@ describe('quad breakpoints as VectorLike', () => {
 
   for (const [name, make] of vectorLikeForms) {
     it(`accepts breakpoints as ${name}`, () => {
-      const res = quad(fPiecewise, 0, 2, { breakpoints: make([1]), tol: 1e-10 });
+      const res = quad(fPiecewise, 0, 2, { breakpoints: make([1]), atol: 1e-10, rtol: 1e-10 });
       expect(res.value).toBeCloseTo(3, 10);
       expect(res.converged).toBe(true);
     });
@@ -303,5 +316,73 @@ describe('quad breakpoints as VectorLike', () => {
       /Vector\.asVector/
     );
     expect(() => quad(fIdentity, 0, 1, { breakpoints: null as never })).toThrowError(TypeError);
+  });
+});
+
+describe('quad - tolerances', () => {
+  it('shares one error budget across all breakpoint segments', () => {
+    // N identical segments, each with the same local error estimate e. The old per-segment
+    // criterion accepted every segment at tol = 1.01 e, i.e. a total error of ~N e.
+    const N = 10;
+    const f = (x: number) => Math.exp(Math.sin(2 * Math.PI * 8 * N * x));
+    const single = gaussKronrod(f, 0, 1 / N, { atol: 1, rtol: 0 });
+    const atol = single.error * 1.01;
+    const breakpoints = Array.from({ length: N - 1 }, (_, i) => (i + 1) / N);
+
+    const res = quad(f, 0, 1, { breakpoints, atol, rtol: 0 });
+    expect(res.converged).toBe(true);
+    expect(res.error).toBeLessThanOrEqual(atol);
+    // A shared budget forces refinement beyond the N initial panels.
+    expect(res.subintervals).toBeGreaterThan(N);
+  });
+
+  it('applies rtol to the whole integral, not to each segment', () => {
+    // The two halves cancel almost exactly, so a per-segment relative test would be far
+    // too strict (or, with the roles swapped, far too loose) for the net integral.
+    const f = (x: number) => Math.sin(2 * Math.PI * x) + 1e-3;
+    const res = quad(f, 0, 1, { breakpoints: [0.5], atol: 0, rtol: 1e-6 });
+    expect(res.converged).toBe(true);
+    expect(res.error).toBeLessThanOrEqual(1e-6 * Math.abs(res.value));
+    expect(res.value).toBeCloseTo(1e-3, 12);
+  });
+
+  it('applies maxSubintervals to the whole integral, not to each segment', () => {
+    const res = quad((x) => Math.sin(300 * x), 0, 1, {
+      breakpoints: [0.25, 0.5, 0.75],
+      maxSubintervals: 10,
+      atol: 1e-14,
+      rtol: 0
+    });
+    expect(res.converged).toBe(false);
+    expect(res.subintervals).toBe(10);
+  });
+
+  it('ignores repeated breakpoints instead of wasting evaluations on empty panels', () => {
+    const once = quad(fIdentity, 0, 1, { breakpoints: [0.5] });
+    const repeated = quad(fIdentity, 0, 1, { breakpoints: [0.5, 0.5, 0.5] });
+    expect(repeated.evaluations).toBe(once.evaluations);
+    expect(repeated.subintervals).toBe(once.subintervals);
+  });
+
+  it('is invariant under rescaling of the integrand when atol = 0, also on infinite domains', () => {
+    const reference = quad(fExpMinusX, 0, Infinity, { atol: 0, rtol: 1e-8 });
+    for (const c of [1e-12, 1e12]) {
+      const res = quad((x) => c * fExpMinusX(x), 0, Infinity, { atol: 0, rtol: 1e-8 });
+      expect(res.converged).toBe(true);
+      expect(res.evaluations).toBe(reference.evaluations);
+      expect(res.value / c).toBeCloseTo(1, 12);
+    }
+  });
+
+  it('rejects invalid tolerances and panel limits', () => {
+    for (const bad of [NaN, Infinity, -1]) {
+      expect(() => quad(fSin, 0, 1, { atol: bad })).toThrow(RangeError);
+      expect(() => quad(fSin, 0, 1, { rtol: bad })).toThrow(RangeError);
+    }
+    for (const maxSubintervals of [NaN, Infinity, 0, -1, 1.5]) {
+      expect(() => quad(fSin, 0, 1, { maxSubintervals })).toThrow(RangeError);
+    }
+    // Validation only applies when there is something to integrate.
+    expect(quad(fSin, 1, 1, { atol: -1 }).value).toBe(0);
   });
 });
