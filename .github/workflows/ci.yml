@@ -56,8 +56,13 @@ jobs:
         id: pack
         shell: bash
         run: |
-          npm pack --json --ignore-scripts > pack.json
-          tarball="$(node -e "console.log(require('./pack.json')[0].filename)")"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP" > /dev/null
+          tarball="$RUNNER_TEMP/$(node -p "const p = require('./package.json'); p.name + '-' + p.version + '.tgz'")"
+          if [ ! -f "$tarball" ]; then
+            echo "Expected tarball not found: $tarball" >&2
+            ls -la "$RUNNER_TEMP" >&2
+            exit 1
+          fi
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test packed package as a consumer
@@ -65,7 +70,7 @@ jobs:
           consumer_dir="$(mktemp -d)"
           cd "$consumer_dir"
           npm init --yes --silent
-          npm install --ignore-scripts "$GITHUB_WORKSPACE/${{ steps.pack.outputs.tarball }}"
+          npm install --ignore-scripts "${{ steps.pack.outputs.tarball }}"
           node --input-type=module -e "import { linalg } from 'numerics-js'; const x = new linalg.Vector([1, 2, 3]); if (x.sum() !== 6) throw new Error('Packed package smoke test failed');"       
           printf "import { roots } from 'numerics-js';\nconst root: number = roots.bisection((x) => x * x - 2, 1, 2).x;\nvoid root;\n" > consumer.ts
           "$GITHUB_WORKSPACE/node_modules/.bin/tsc" --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 consumer.ts
