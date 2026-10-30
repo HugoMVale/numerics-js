@@ -56,7 +56,7 @@ jobs:
         id: pack
         shell: bash
         run: |
-          npm pack --json > pack.json
+          npm pack --json --ignore-scripts > pack.json
           tarball="$(node -e "console.log(require('./pack.json')[0].filename)")"
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
