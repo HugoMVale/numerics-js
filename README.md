@@ -92,7 +92,7 @@ amplitude for +10 % (deg): 69.33
 
 ## What’s included
 
-- `linalg`: `Vector`, `Matrix`, and `Vec3`, with solvers, factorizations, and eigenvalue methods.
+- `linalg`: `Vector`, `Matrix`, and `Vec3`, with solvers, factorizations (LU, QR, Cholesky, SVD), least squares and pseudoinverse, and eigenvalue methods.
 - `integrate`: sampled-data rules and adaptive quadrature, including infinite intervals.
 - `interpolate`: linear and shape-preserving interpolation for scalar and vector-valued data.
 - `numdiff`: finite-difference derivatives and Jacobians.
