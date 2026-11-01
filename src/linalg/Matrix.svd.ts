@@ -65,7 +65,7 @@ export interface SVDOptions {
 
 /**
  * Cutoff below which a singular value is treated as zero by `lstsq()`,
- * `pinv()` and `rankSvd()`: singular values `s_i <= max(atol, rtol * s_0)`
+ * `pinv()` and `rank()`: singular values `s_i <= max(atol, rtol * s_0)`
  * are discarded, `s_0` being the largest one.
  */
 export interface SVDCutoffOptions {
@@ -976,7 +976,15 @@ export function svd(A: Matrix, options?: SVDOptions): SVDDecomposition {
  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
  */
 export function singularValues(A: Matrix): Vector {
-  const { a, mw, nw, scale } = prepare(A, 'singularValues');
+  return singularValuesOf(A, 'singularValues');
+}
+
+/**
+ * Implementation of `singularValues()`, shared with `cond2()` and
+ * `rankSvd()`; `who` names the public routine in the error message.
+ */
+function singularValuesOf(A: Matrix, who: string): Vector {
+  const { a, mw, nw, scale } = prepare(A, who);
   const bd = bidiagonalize(a, mw, nw);
   bdsqr(bd.d, bd.e, nw, [], []);
   return Vector.wrapUnchecked(unscale(bd.d, scale));
@@ -1147,23 +1155,21 @@ export function pinv(A: Matrix, options?: SVDCutoffOptions): Matrix {
  * @throws {RangeError} If `A` contains a non-finite entry.
  */
 export function cond2(A: Matrix): number {
-  const s = singularValues(A).data;
+  const s = singularValuesOf(A, 'cond2').data;
   const smin = s[s.length - 1];
   return smin === 0 ? Infinity : s[0] / smin;
 }
 
 /**
- * Computes the numerical rank of `A` (any shape) as the number of singular
- * values above the cutoff `max(atol, rtol * s[0])`. With the default `rtol`
- * this is the definition used by `numpy.linalg.matrix_rank`. It is the robust
- * way to estimate rank, more reliable than the elimination-based `rank()`
- * for ill-conditioned or badly scaled matrices, at the price of an SVD.
+ * Numerical rank of `A` (any shape) from its singular values: the number of
+ * those above the cutoff `max(atol, rtol * s[0])`. This is the `'svd'` method
+ * of `rank()` (see `Matrix.linalg.ts`), which is the public entry point.
  * @param A The matrix. Not modified.
  * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
  * @returns The rank, between `0` and `min(rows, cols)`.
  * @throws {RangeError} If `A` has a non-finite entry, or `atol` or `rtol` is negative.
  */
 export function rankSvd(A: Matrix, options?: SVDCutoffOptions): number {
-  const s = singularValues(A).data;
-  return countAbove(s, cutoffOf(A, s[0], options, 'rankSvd'));
+  const s = singularValuesOf(A, 'rank').data;
+  return countAbove(s, cutoffOf(A, s[0], options, 'rank'));
 }

@@ -37,7 +37,7 @@ describe('Matrix SVD family vs scipy.linalg / numpy.linalg reference values', ()
       expect(V.transpose().matmul(V).sub(Matrix.identity(k)).norm()).toBeLessThanOrEqual(1e-13);
 
       // Rank (numpy.linalg.matrix_rank convention) and 2-norm condition number.
-      expect(A.rankSvd()).toBe(rank);
+      expect(A.rank()).toBe(rank);
       if (fixture.scipyCond2 !== null) {
         const tol = Math.max(1e-12, 100 * EPS * fixture.scipyCond2);
         expect(Math.abs(A.cond2() - fixture.scipyCond2) / fixture.scipyCond2).toBeLessThanOrEqual(

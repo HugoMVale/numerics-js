@@ -28,7 +28,7 @@ ill-conditioned (Hilbert), dynamic-range and unequal-column-norm matrices, the
 Läuchli matrix (whose small singular values are lost by forming `A^T A`) and a
 50 x 50 unit upper triangular matrix with `-1` above the diagonal, which is
 nonsingular but has numerical rank 49, the case where elimination-based
-`rank()` fails and `rankSvd()` agrees with NumPy.
+`rank({ method: 'elimination' })` fails and `rank()` agrees with NumPy.
 
 Measured agreement (largest singular-value difference relative to `s[0]`, in
 units of machine epsilon, and relative differences of the solution and the

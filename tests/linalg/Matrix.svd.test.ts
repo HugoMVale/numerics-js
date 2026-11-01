@@ -625,11 +625,11 @@ describe('Matrix SVD family', () => {
           [1, NaN],
           [3, 4]
         ]).rank()
-      ).toThrow(RangeError);
+      ).toThrow(/Matrix rank: .*non-finite/);
     });
   });
 
-  describe('cond2() and rankSvd()', () => {
+  describe('cond2()', () => {
     it('computes the 2-norm condition number', () => {
       expect(Matrix.identity(4).cond2()).toBe(1);
       expect(Matrix.diag(new Vector([1, 1e-3, 1e-14])).cond2()).toBeCloseTo(1e14, -2);
@@ -648,38 +648,12 @@ describe('Matrix SVD family', () => {
         ]).cond2()
       ).toBeGreaterThan(1e15);
       expect(Matrix.diag(new Vector([1, 0])).cond2()).toBe(Infinity);
-    });
-
-    it('computes the numerical rank with the numpy matrix_rank definition', () => {
-      expect(Matrix.identity(5).rankSvd()).toBe(5);
-      expect(new Matrix(3, 4).rankSvd()).toBe(0);
-      expect(lowRank(9, 6, 2, 3).rankSvd()).toBe(2);
-      expect(lowRank(6, 9, 4, 5).rankSvd()).toBe(4);
-      const A = Matrix.diag(new Vector([1, 1e-3, 1e-9, 1e-14]));
-      expect(A.rankSvd()).toBe(4);
-      expect(A.rankSvd({ rtol: 1e-6 })).toBe(2);
-      expect(A.rankSvd({ rtol: 0, atol: 0.5 })).toBe(1);
-      expect(() => A.rankSvd({ rtol: -1 })).toThrow(RangeError);
-    });
-
-    it('detects the rank deficiency of the Kahan-type upper triangular matrix that elimination misses', () => {
-      // T has unit diagonal and -1 above it: nonsingular, but cond_2 ~ 2^n, so for n = 50 its
-      // smallest singular value falls below the rank tolerance (numpy.linalg.matrix_rank gives 49).
-      const n = 50;
-      const T = new Matrix(n, n).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
-      expect(T.rank({ method: 'elimination' })).toBe(n);
-      expect(T.rankSvd()).toBe(n - 1);
-    });
-
-    it('agrees with the elimination-based rank() on well-conditioned matrices', () => {
-      for (const [m, n, r] of [
-        [8, 8, 8],
-        [8, 5, 3],
-        [5, 8, 2]
-      ]) {
-        const A = r === Math.min(m, n) ? randomMatrix(m, n, 90 + m) : lowRank(m, n, r, 90 + m);
-        expect(A.rankSvd()).toBe(A.rank());
-      }
+      expect(() =>
+        Matrix.from([
+          [1, Infinity],
+          [3, 4]
+        ]).cond2()
+      ).toThrow(/Matrix cond2: .*non-finite/);
     });
   });
 });

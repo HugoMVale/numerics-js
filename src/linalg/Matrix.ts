@@ -2428,39 +2428,6 @@ export class Matrix extends ArrayND {
     return svdAlgs.cond2(this);
   }
 
-  /**
-   * Computes the numerical rank of this matrix (any shape) as the number of
-   * singular values above `max(atol, rtol * s[0])`: see `rankSvd()` in
-   * `Matrix.svd.ts`. With the default `rtol` this is the definition of
-   * `numpy.linalg.matrix_rank`, and it is more robust than the
-   * elimination-based `rank()` for ill-conditioned or badly scaled
-   * matrices, at the price of an SVD.
-   * @param options The singular-value cutoff, `atol` and `rtol`.
-   * @returns The rank, between `0` and `min(rows, cols)`.
-   * @throws {RangeError} If this matrix contains a non-finite entry, or if
-   * `atol` or `rtol` is negative.
-   *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * // Unit diagonal, -1 above it: nonsingular, but its smallest singular
-   * // value (about 3e-15) is below the rank tolerance.
-   * const T = new Matrix(50, 50).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
-   * console.log(T.rank());
-   * console.log(T.rankSvd());
-   * ```
-   *
-   * Output:
-   * ```text
-   * 50
-   * 49
-   * ```
-   */
-  rankSvd(options?: SVDCutoffOptions): number {
-    return svdAlgs.rankSvd(this, options);
-  }
-
   // -----------------------------------------------------------------
   // Axis-aware reductions, following numpy's convention: `axis`
   // omitted (or `undefined`) reduces over every element to a scalar
