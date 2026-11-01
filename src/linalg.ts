@@ -7,5 +7,7 @@ export type {
   QRDecomposition,
   QRPivotDecomposition,
   Eigenvalue,
-  Eigenpair
+  Eigenpair,
+  SVDDecomposition,
+  SVDOptions
 } from './linalg/Matrix.js';

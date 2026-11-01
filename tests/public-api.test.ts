@@ -58,6 +58,18 @@ describe('public API', () => {
     expect(typeof optimize.curveFit).toBe('function');
   });
 
+  it('exposes the SVD on Matrix and its result types from linalg', () => {
+    const A = linalg.Matrix.from([
+      [3, 0],
+      [4, 5]
+    ]);
+    const dec: linalg.SVDDecomposition = A.svd({ full: true } satisfies linalg.SVDOptions);
+    expectTypeOf(dec.U).toEqualTypeOf<linalg.Matrix>();
+    expectTypeOf(dec.s).toEqualTypeOf<linalg.Vector>();
+    expectTypeOf(dec.V).toEqualTypeOf<linalg.Matrix>();
+    expect(A.singularValues().size).toBe(2);
+  });
+
   it('exposes dense output through the adaptive ode solvers, as a type only', () => {
     const f: ode.DerivativeFunction = (_t, y, out) => out.set(y.data).multSelf(-1);
     const y0 = new linalg.Vector([1]);

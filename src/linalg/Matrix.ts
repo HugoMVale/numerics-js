@@ -1,13 +1,16 @@
 import { ArrayND } from './ArrayND.js';
 import { Vector } from './Vector.js';
 import * as linalg from './Matrix.linalg.js';
+import * as svdAlgs from './Matrix.svd.js';
 
 // The heavier linear-algebra algorithms (factorizations, linear-system
 // solves, eigendecomposition) live in Matrix.linalg.ts, not here — see
 // that file's header comment for why. Matrix's own methods below
 // (`lu()`, `qr()`, `eig()`, etc.) are thin forwarders to it, and these
 // re-exports keep `import { Matrix, type LUDecomposition } from
-// './Matrix.js'`-style imports working unchanged.
+// './Matrix.js'`-style imports working unchanged. The singular value
+// decomposition (`svd()`, `singularValues()`) follows the same pattern
+// with Matrix.svd.ts.
 export type {
   Eigenvalue,
   QRDecomposition,
@@ -22,6 +25,8 @@ import type {
   Eigenpair,
   LUDecomposition
 } from './Matrix.linalg.js';
+export type { SVDDecomposition, SVDOptions } from './Matrix.svd.js';
+import type { SVDDecomposition, SVDOptions } from './Matrix.svd.js';
 
 /**
  * A rows x cols matrix backed by a flat, row-major Float64Array.
@@ -2233,6 +2238,69 @@ export class Matrix extends ArrayND {
    */
   eig(options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
     return linalg.eig(this, options);
+  }
+
+  // -----------------------------------------------------------------
+  // Singular value decomposition and singular values. Implementations
+  // live in Matrix.svd.ts; see that file for the algorithms.
+  // -----------------------------------------------------------------
+
+  /**
+   * Computes the singular value decomposition `A = U * diag(s) * V^T` of
+   * this matrix (any shape): see `svd()` in `Matrix.svd.ts` for the
+   * algorithm (Householder bidiagonalization + implicit-shift QR iteration,
+   * as in LAPACK `dgesvd`) and its accuracy. The singular values come out in
+   * nonincreasing order; the singular vectors are orthonormal, with
+   * arbitrary but deterministic signs. If you only need the singular
+   * values, `singularValues()` is roughly 1.5 to 3 times faster.
+   * @param options `{ full: true }` returns square `U` and `V` instead of
+   * the thin `rows x k` and `cols x k` factors, `k = min(rows, cols)`.
+   * @returns The `{ U, s, V }` decomposition, `V` not transposed.
+   * @throws {RangeError} If this matrix contains a non-finite entry.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[3, 0], [4, 5]]);
+   * const { U, s, V } = A.svd();
+   * console.log(s.toString());
+   * console.log(U.matmul(Matrix.diag(s)).matmul(V.transpose()).allClose(A));
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(6.70820393249937, 2.2360679774997894)
+   * true
+   * ```
+   */
+  svd(options?: SVDOptions): SVDDecomposition {
+    return svdAlgs.svd(this, options);
+  }
+
+  /**
+   * Computes the singular values of this matrix (any shape), in
+   * nonincreasing order, without forming the singular vectors: see
+   * `svd()` for the algorithm. They are exactly the values `svd()` returns,
+   * at roughly a third to two thirds of its cost.
+   * @returns The `min(rows, cols)` singular values.
+   * @throws {RangeError} If this matrix contains a non-finite entry.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[3, 0], [4, 5]]);
+   * console.log(A.singularValues().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(6.70820393249937, 2.2360679774997894)
+   * ```
+   */
+  singularValues(): Vector {
+    return svdAlgs.singularValues(this);
   }
 
   // -----------------------------------------------------------------
