@@ -34,6 +34,7 @@ sync when changing a benchmark.
 | [`linalg/`](./linalg/)       | LU factorization             | [`Matrix.lu.scipy.benchmark.md`](./linalg/Matrix.lu.scipy.benchmark.md)                     |
 | [`linalg/`](./linalg/)       | QR factorization             | [`Matrix.qr.scipy.benchmark.md`](./linalg/Matrix.qr.scipy.benchmark.md)                     |
 | [`linalg/`](./linalg/)       | Pivoted QR (compact)         | [`Matrix.qrPivot.scipy.benchmark.md`](./linalg/Matrix.qrPivot.scipy.benchmark.md)           |
+| [`linalg/`](./linalg/)       | SVD, least squares, pinv     | [`Matrix.svd.scipy.benchmark.md`](./linalg/Matrix.svd.scipy.benchmark.md)                   |
 | [`ode/`](./ode/)             | Adaptive Runge-Kutta         | [`rungeKuttaAdaptive.scipy.benchmark.md`](./ode/rungeKuttaAdaptive.scipy.benchmark.md)      |
 | [`ode/`](./ode/)             | Adaptive TR-BDF2 (stiff)     | [`trBdf2Adaptive.scipy.benchmark.md`](./ode/trBdf2Adaptive.scipy.benchmark.md)              |
 | [`optimize/`](./optimize/)   | Brent minimization           | [`brent.scipy.benchmark.md`](./optimize/brent.scipy.benchmark.md)                           |
