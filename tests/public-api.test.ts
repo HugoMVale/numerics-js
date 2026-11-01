@@ -58,7 +58,7 @@ describe('public API', () => {
     expect(typeof optimize.curveFit).toBe('function');
   });
 
-  it('exposes the SVD on Matrix and its result types from linalg', () => {
+  it('exposes the SVD family on Matrix and its result types from linalg', () => {
     const A = linalg.Matrix.from([
       [3, 0],
       [4, 5]
@@ -67,7 +67,15 @@ describe('public API', () => {
     expectTypeOf(dec.U).toEqualTypeOf<linalg.Matrix>();
     expectTypeOf(dec.s).toEqualTypeOf<linalg.Vector>();
     expectTypeOf(dec.V).toEqualTypeOf<linalg.Matrix>();
+
+    const cutoff: linalg.SVDCutoffOptions = { atol: 0, rtol: 1e-12 };
+    const fit: linalg.LstsqResult = A.lstsq([1, 2], cutoff);
+    expectTypeOf(fit.x).toEqualTypeOf<linalg.Vector>();
+    expect(fit.rank).toBe(2);
+    expect(A.pinv(cutoff).rows).toBe(2);
     expect(A.singularValues().size).toBe(2);
+    expect(A.rankSvd(cutoff)).toBe(2);
+    expect(A.cond2()).toBeGreaterThan(1);
   });
 
   it('exposes dense output through the adaptive ode solvers, as a type only', () => {

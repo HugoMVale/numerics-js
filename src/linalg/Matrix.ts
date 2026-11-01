@@ -1,5 +1,5 @@
 import { ArrayND } from './ArrayND.js';
-import { Vector } from './Vector.js';
+import { Vector, type VectorLike } from './Vector.js';
 import * as linalg from './Matrix.linalg.js';
 import * as svdAlgs from './Matrix.svd.js';
 
@@ -9,8 +9,8 @@ import * as svdAlgs from './Matrix.svd.js';
 // (`lu()`, `qr()`, `eig()`, etc.) are thin forwarders to it, and these
 // re-exports keep `import { Matrix, type LUDecomposition } from
 // './Matrix.js'`-style imports working unchanged. The singular value
-// decomposition (`svd()`, `singularValues()`) follows the same pattern
-// with Matrix.svd.ts.
+// decomposition and the algorithms built on it (`svd()`, `lstsq()`,
+// `pinv()`, ...) follow the same pattern with Matrix.svd.ts.
 export type {
   Eigenvalue,
   QRDecomposition,
@@ -25,8 +25,8 @@ import type {
   Eigenpair,
   LUDecomposition
 } from './Matrix.linalg.js';
-export type { SVDDecomposition, SVDOptions } from './Matrix.svd.js';
-import type { SVDDecomposition, SVDOptions } from './Matrix.svd.js';
+export type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
+import type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
 
 /**
  * A rows x cols matrix backed by a flat, row-major Float64Array.
@@ -2241,8 +2241,10 @@ export class Matrix extends ArrayND {
   }
 
   // -----------------------------------------------------------------
-  // Singular value decomposition and singular values. Implementations
-  // live in Matrix.svd.ts; see that file for the algorithms.
+  // Singular value decomposition and what is built on it: least
+  // squares, pseudoinverse, 2-norm condition number and numerical rank.
+  // Implementations live in Matrix.svd.ts; see that file for the
+  // algorithms.
   // -----------------------------------------------------------------
 
   /**
@@ -2301,6 +2303,130 @@ export class Matrix extends ArrayND {
    */
   singularValues(): Vector {
     return svdAlgs.singularValues(this);
+  }
+
+  /**
+   * Computes the minimum-norm least-squares solution of `this * x = b`, for
+   * any shape and rank: among the `x` minimizing `||this*x - b||_2`, the one
+   * of smallest norm, i.e. `pinv() * b`, but computed directly from the SVD
+   * without forming the left singular vectors: see `lstsq()` in `Matrix.svd.ts`. Singular
+   * values at or below `max(atol, rtol * s[0])` count as zero, which makes
+   * the result stable for (numerically) rank-deficient matrices; for a full-rank
+   * square matrix this is just `solve()`, only slower and more robust.
+   * @param b The right-hand side, of size `rows`.
+   * @param options The singular-value cutoff, `atol` and `rtol`.
+   * @returns `{ x, rank, residualNorm, s }`: the solution, the numerical
+   * rank, the residual norm `||this*x - b||_2`, and the singular values.
+   * @throws {RangeError} If `b.size !== rows`, if this matrix contains a
+   * non-finite entry, or if `atol` or `rtol` is negative.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * // Straight-line fit y = c0 + c1 * t through (1, 1), (2, 2), (3, 2).
+   * const A = Matrix.from([[1, 1], [1, 2], [1, 3]]);
+   * const { x, rank, residualNorm } = A.lstsq([1, 2, 2]);
+   * console.log(x.toString());
+   * console.log(rank);
+   * console.log(residualNorm);
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0.6666666666666662, 0.5000000000000002)
+   * 2
+   * 0.4082482904638632
+   * ```
+   */
+  lstsq(b: VectorLike, options?: SVDCutoffOptions): LstsqResult {
+    return svdAlgs.lstsq(this, b, options);
+  }
+
+  /**
+   * Computes the Moore-Penrose pseudoinverse of this matrix (any shape; the
+   * result is `cols x rows`) from the SVD: see `pinv()` in `Matrix.svd.ts`.
+   * Singular values at or below `max(atol, rtol * s[0])` count as zero. To
+   * solve one least-squares problem, `lstsq()` is cheaper than
+   * `pinv()` followed by a product.
+   * @param options The singular-value cutoff, `atol` and `rtol`.
+   * @returns A new `cols x rows` matrix.
+   * @throws {RangeError} If this matrix contains a non-finite entry, or if
+   * `atol` or `rtol` is negative.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4], [5, 6]]);
+   * console.log(A.pinv().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[-1.3333333333333337, -0.33333333333333287, 0.6666666666666665], [1.0833333333333337, 0.333333333333333, -0.4166666666666666]]
+   * ```
+   */
+  pinv(options?: SVDCutoffOptions): Matrix {
+    return svdAlgs.pinv(this, options);
+  }
+
+  /**
+   * Computes the 2-norm condition number `s_max / s_min` of this matrix (any
+   * shape) from its singular values: see `cond2()` in `Matrix.svd.ts`.
+   * `Infinity` if the matrix is singular. Unlike `cond1()` it needs no
+   * inverse and also applies to rectangular matrices.
+   * @returns The condition number, at least `1`, or `Infinity`.
+   * @throws {RangeError} If this matrix contains a non-finite entry.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[4, 1], [2, 3]]);
+   * console.log(A.cond2());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2.6180339887498945
+   * ```
+   */
+  cond2(): number {
+    return svdAlgs.cond2(this);
+  }
+
+  /**
+   * Computes the numerical rank of this matrix (any shape) as the number of
+   * singular values above `max(atol, rtol * s[0])`: see `rankSvd()` in
+   * `Matrix.svd.ts`. With the default `rtol` this is the definition of
+   * `numpy.linalg.matrix_rank`, and it is more robust than the
+   * elimination-based `rank()` for ill-conditioned or badly scaled
+   * matrices, at the price of an SVD.
+   * @param options The singular-value cutoff, `atol` and `rtol`.
+   * @returns The rank, between `0` and `min(rows, cols)`.
+   * @throws {RangeError} If this matrix contains a non-finite entry, or if
+   * `atol` or `rtol` is negative.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * // Unit diagonal, -1 above it: nonsingular, but its smallest singular
+   * // value (about 3e-15) is below the rank tolerance.
+   * const T = new Matrix(50, 50).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
+   * console.log(T.rank());
+   * console.log(T.rankSvd());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 50
+   * 49
+   * ```
+   */
+  rankSvd(options?: SVDCutoffOptions): number {
+    return svdAlgs.rankSvd(this, options);
   }
 
   // -----------------------------------------------------------------

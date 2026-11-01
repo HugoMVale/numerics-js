@@ -11,9 +11,16 @@ const randomMatrix = (m: number, n: number, seed: number): Matrix => {
   return new Matrix(m, n).map(() => 2 * rnd() - 1);
 };
 
+const randomVector = (n: number, seed: number): Vector => {
+  const rnd = rand(seed);
+  return new Vector(Array.from({ length: n }, () => 2 * rnd() - 1));
+};
+
 /** Random m x n matrix of rank `r`. */
 const lowRank = (m: number, n: number, r: number, seed: number): Matrix =>
   randomMatrix(m, r, seed).matmul(randomMatrix(r, n, seed + 1));
+
+const hilbert = (n: number): Matrix => new Matrix(n, n).map((_, i, j) => 1 / (i + j + 1));
 
 /** Frobenius norm of `U^T U - I`. */
 const orthogonalityError = (U: Matrix): number =>
@@ -142,6 +149,12 @@ describe('Matrix SVD family', () => {
         expect(orthogonalityError(U)).toBeLessThan(1e-13);
         expect(orthogonalityError(V)).toBeLessThan(1e-13);
       }
+    });
+
+    it('is exact for the Hilbert matrix condition number (reference 1.5257575538e10 for n = 8)', () => {
+      // Published value of cond_2(H_8): 1.525757553e10.
+      const c = hilbert(8).cond2();
+      expect(Math.abs(c - 1.5257575538e10) / 1.5257575538e10).toBeLessThan(1e-6);
     });
 
     describe('graded upper bidiagonal matrices (relative accuracy of every singular value)', () => {
@@ -330,6 +343,245 @@ describe('Matrix SVD family', () => {
     it('does not depend on the orientation of the matrix', () => {
       const A = randomMatrix(8, 3, 31);
       expect(A.transpose().singularValues().allClose(A.singularValues(), 1e-14, 1e-14)).toBe(true);
+    });
+  });
+
+  describe('lstsq()', () => {
+    it.each([
+      [8, 3],
+      [5, 5],
+      [3, 8],
+      [1, 4],
+      [4, 1]
+    ])('solves a %i x %i full-rank problem like the explicit pseudoinverse', (m, n) => {
+      const A = randomMatrix(m, n, 500 + 10 * m + n);
+      const b = randomVector(m, 600 + m);
+      const { x, rank, residualNorm, s } = A.lstsq(b);
+      expect(x.size).toBe(n);
+      expect(rank).toBe(Math.min(m, n));
+      expect(s.data).toEqual(A.singularValues().data);
+      expect(x.sub(A.pinv().mulVec(b)).norm()).toBeLessThan(1e-12 * (1 + x.norm()));
+      expect(residualNorm).toBeCloseTo(b.sub(A.mulVec(x)).norm(), 14);
+    });
+
+    it('recovers the exact solution of a nonsingular square system', () => {
+      const A = Matrix.from([
+        [4, 1, 0],
+        [1, 3, 1],
+        [0, 1, 2]
+      ]);
+      const b = new Vector([1, 2, 3]);
+      const { x, residualNorm } = A.lstsq(b);
+      expect(x.allClose(A.solve(b), 1e-13, 1e-13)).toBe(true);
+      expect(residualNorm).toBeLessThan(1e-14);
+    });
+
+    it('solves an overdetermined system: normal equations hold and the residual is orthogonal to range(A)', () => {
+      const A = randomMatrix(20, 4, 8);
+      const b = randomVector(20, 9);
+      const { x, residualNorm } = A.lstsq(b);
+      const r = b.sub(A.mulVec(x));
+      expect(A.transpose().mulVec(r).norm()).toBeLessThan(1e-13);
+      expect(residualNorm).toBeCloseTo(r.norm(), 14);
+      // Same answer as the pivoted-QR route.
+      const dec = A.qrPivot();
+      const c = Matrix.qrPivotMulQt(dec, b);
+      const y = Matrix.qrPivotR(dec).solveUpper(new Vector(Array.from(c.data).slice(0, 4)));
+      const xq = new Vector(4);
+      dec.perm.forEach((p, j) => xq.set(p, y.get(j)));
+      expect(x.sub(xq).norm()).toBeLessThan(1e-13);
+    });
+
+    it('returns the minimum-norm solution of an underdetermined system', () => {
+      const A = Matrix.from([
+        [1, 1, 0],
+        [0, 1, 1]
+      ]);
+      const b = new Vector([2, 2]);
+      const { x, rank, residualNorm } = A.lstsq(b);
+      // x = A^T (A A^T)^{-1} b = A^T [2/3, 2/3] = [2/3, 4/3, 2/3].
+      expect(rank).toBe(2);
+      expect(residualNorm).toBeLessThan(1e-14);
+      expect(x.allClose(new Vector([2 / 3, 4 / 3, 2 / 3]), 1e-14, 1e-14)).toBe(true);
+    });
+
+    it.each([
+      [10, 6, 3],
+      [6, 10, 3],
+      [8, 8, 5]
+    ])(
+      'handles a rank-deficient %i x %i matrix of rank %i: minimum norm among minimizers',
+      (m, n, r) => {
+        const A = lowRank(m, n, r, 70 + m);
+        const b = randomVector(m, 71 + n);
+        const res = A.lstsq(b);
+        expect(res.rank).toBe(r);
+        // A^T (A x - b) = 0, and x lies in the row space (orthogonal to null(A)).
+        expect(A.transpose().mulVec(A.mulVec(res.x).sub(b)).norm()).toBeLessThan(1e-12);
+        const P = A.pinv().matmul(A);
+        expect(P.mulVec(res.x).sub(res.x).norm()).toBeLessThan(1e-12 * (1 + res.x.norm()));
+        expect(res.x.sub(A.pinv().mulVec(b)).norm()).toBeLessThan(1e-12 * (1 + res.x.norm()));
+      }
+    );
+
+    it('returns zero for the zero matrix', () => {
+      const { x, rank, residualNorm } = new Matrix(3, 2).lstsq([1, 2, 3]);
+      expect([...x.data]).toEqual([0, 0]);
+      expect(rank).toBe(0);
+      expect(residualNorm).toBeCloseTo(Math.sqrt(14), 14);
+    });
+
+    it('accepts any VectorLike right-hand side and does not modify its inputs', () => {
+      const A = randomMatrix(5, 3, 1);
+      const copy = A.copy();
+      const arr = [1, 2, 3, 4, 5];
+      const f64 = Float64Array.from(arr);
+      expect(A.lstsq(arr).x.data).toEqual(A.lstsq(f64).x.data);
+      expect(A.lstsq(new Vector(arr)).x.data).toEqual(A.lstsq(arr).x.data);
+      expect(A.data).toEqual(copy.data);
+      expect(arr).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('applies the singular-value cutoff options', () => {
+      const A = Matrix.diag(new Vector([1, 1e-3, 1e-9, 1e-14]));
+      const b = new Vector([1, 1, 1, 1]);
+      const xs = (o?: { atol?: number; rtol?: number }): number[] => [...A.lstsq(b, o).x.data];
+      expect(A.lstsq(b).rank).toBe(4);
+      expect(A.lstsq(b, { rtol: 1e-6 }).rank).toBe(2);
+      expect(xs({ rtol: 1e-6 })).toEqual([1, 1e3, 0, 0]);
+      expect(A.lstsq(b, { rtol: 0, atol: 1e-2 }).rank).toBe(1);
+      expect(xs({ rtol: 0, atol: 1e-2 })).toEqual([1, 0, 0, 0]);
+      // The cutoff is "at or below": a singular value equal to it is dropped.
+      expect(A.lstsq(b, { rtol: 0, atol: 1e-3 }).rank).toBe(1);
+    });
+
+    it('throws on a shape mismatch, a negative cutoff or non-finite entries', () => {
+      const A = randomMatrix(3, 2, 2);
+      expect(() => A.lstsq([1, 2])).toThrow(RangeError);
+      expect(() => A.lstsq([1, 2, 3], { atol: -1 })).toThrow(/atol/);
+      expect(() => A.lstsq([1, 2, 3], { rtol: -1 })).toThrow(/rtol/);
+      expect(() => A.lstsq([1, 2, 3], { rtol: NaN })).toThrow(RangeError);
+      expect(() =>
+        Matrix.from([
+          [1, NaN],
+          [3, 4],
+          [5, 6]
+        ]).lstsq([1, 2, 3])
+      ).toThrow(RangeError);
+    });
+  });
+
+  describe('pinv()', () => {
+    it.each([
+      [6, 6, 6],
+      [6, 6, 2],
+      [9, 4, 4],
+      [9, 4, 2],
+      [4, 9, 4],
+      [4, 9, 2],
+      [1, 5, 1],
+      [5, 1, 1]
+    ])('satisfies the four Penrose conditions for a %i x %i matrix of rank %i', (m, n, r) => {
+      const A =
+        r === Math.min(m, n) ? randomMatrix(m, n, 300 + m * n) : lowRank(m, n, r, 300 + m * n);
+      const P = A.pinv();
+      expect(P.rows).toBe(n);
+      expect(P.cols).toBe(m);
+      const AP = A.matmul(P);
+      const PA = P.matmul(A);
+      const tol = 1e-12;
+      expect(AP.matmul(A).sub(A).norm()).toBeLessThan(tol * A.norm());
+      expect(PA.matmul(P).sub(P).norm()).toBeLessThan(tol * P.norm());
+      expect(AP.sub(AP.transpose()).norm()).toBeLessThan(tol * AP.norm());
+      expect(PA.sub(PA.transpose()).norm()).toBeLessThan(tol * PA.norm());
+    });
+
+    it('equals the inverse of a nonsingular square matrix', () => {
+      const A = randomMatrix(5, 5, 14);
+      expect(A.pinv().allClose(A.inverse(), 1e-10, 1e-10)).toBe(true);
+    });
+
+    it('matches known values', () => {
+      // pinv of a column vector v is v^T / (v^T v).
+      const p = Matrix.from([[1], [2], [2]]).pinv();
+      expect(p.allClose(Matrix.from([[1 / 9, 2 / 9, 2 / 9]]), 1e-15, 1e-15)).toBe(true);
+      // pinv(diag) inverts the nonzero entries and keeps the zeros.
+      const d = Matrix.diag(new Vector([2, 0, -4])).pinv();
+      expect(d.allClose(Matrix.diag(new Vector([0.5, 0, -0.25])), 1e-15, 1e-15)).toBe(true);
+    });
+
+    it('returns the zero matrix, transposed in shape, for the zero matrix', () => {
+      const p = new Matrix(3, 2).pinv();
+      expect(p.rows).toBe(2);
+      expect(p.cols).toBe(3);
+      expect(p.data.every((v) => v === 0)).toBe(true);
+    });
+
+    it('is an involution: pinv(pinv(A)) = A', () => {
+      const A = lowRank(6, 4, 2, 17);
+      expect(A.pinv().pinv().allClose(A, 1e-12, 1e-12)).toBe(true);
+    });
+
+    it('applies the cutoff options', () => {
+      const A = Matrix.diag(new Vector([1, 1e-3, 1e-9]));
+      expect(A.pinv({ rtol: 1e-6 }).get(2, 2)).toBe(0);
+      expect(A.pinv({ rtol: 1e-6 }).get(1, 1)).toBeCloseTo(1e3, 9);
+      expect(A.pinv().get(2, 2)).toBeCloseTo(1e9, 0);
+      expect(() => A.pinv({ atol: -1 })).toThrow(RangeError);
+    });
+  });
+
+  describe('cond2() and rankSvd()', () => {
+    it('computes the 2-norm condition number', () => {
+      expect(Matrix.identity(4).cond2()).toBe(1);
+      expect(Matrix.diag(new Vector([1, 1e-3, 1e-14])).cond2()).toBeCloseTo(1e14, -2);
+      // Rectangular matrices are allowed.
+      const A = randomMatrix(7, 3, 4);
+      const s = A.singularValues();
+      expect(A.cond2()).toBeCloseTo(s.get(0) / s.get(2), 10);
+    });
+
+    it('is Infinity for singular matrices', () => {
+      expect(new Matrix(2, 2).cond2()).toBe(Infinity);
+      expect(
+        Matrix.from([
+          [1, 2, 3],
+          [2, 4, 6]
+        ]).cond2()
+      ).toBeGreaterThan(1e15);
+      expect(Matrix.diag(new Vector([1, 0])).cond2()).toBe(Infinity);
+    });
+
+    it('computes the numerical rank with the numpy matrix_rank definition', () => {
+      expect(Matrix.identity(5).rankSvd()).toBe(5);
+      expect(new Matrix(3, 4).rankSvd()).toBe(0);
+      expect(lowRank(9, 6, 2, 3).rankSvd()).toBe(2);
+      expect(lowRank(6, 9, 4, 5).rankSvd()).toBe(4);
+      const A = Matrix.diag(new Vector([1, 1e-3, 1e-9, 1e-14]));
+      expect(A.rankSvd()).toBe(4);
+      expect(A.rankSvd({ rtol: 1e-6 })).toBe(2);
+      expect(A.rankSvd({ rtol: 0, atol: 0.5 })).toBe(1);
+      expect(() => A.rankSvd({ rtol: -1 })).toThrow(RangeError);
+    });
+
+    it('detects the rank deficiency of the Kahan-type upper triangular matrix that elimination misses', () => {
+      // T has unit diagonal and -1 above it: nonsingular, but cond_2 ~ 2^n, so for n = 50 its
+      // smallest singular value falls below the rank tolerance (numpy.linalg.matrix_rank gives 49).
+      const n = 50;
+      const T = new Matrix(n, n).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
+      expect(T.rank()).toBe(n);
+      expect(T.rankSvd()).toBe(n - 1);
+    });
+
+    it('agrees with the elimination-based rank() on well-conditioned matrices', () => {
+      for (const [m, n, r] of [
+        [8, 8, 8],
+        [8, 5, 3],
+        [5, 8, 2]
+      ]) {
+        const A = r === Math.min(m, n) ? randomMatrix(m, n, 90 + m) : lowRank(m, n, r, 90 + m);
+        expect(A.rankSvd()).toBe(A.rank());
+      }
     });
   });
 });

@@ -9,5 +9,7 @@ export type {
   Eigenvalue,
   Eigenpair,
   SVDDecomposition,
-  SVDOptions
+  SVDOptions,
+  SVDCutoffOptions,
+  LstsqResult
 } from './linalg/Matrix.js';

@@ -1,14 +1,16 @@
 import { copysign } from '../math.js';
 import { Matrix } from './Matrix.js';
-import { Vector } from './Vector.js';
+import { Vector, type VectorLike } from './Vector.js';
 
 // =======================================================================
 // Matrix.svd.ts
 //
-// Singular value decomposition and singular values. Matrix's instance
-// methods (`svd()`, `singularValues()`) are thin forwarders to the exported
-// functions in this module; the remaining helpers are private
-// implementation details.
+// Singular value decomposition and the algorithms built on it: singular
+// values, minimum-norm least squares, the Moore-Penrose pseudoinverse, the
+// 2-norm condition number and the numerical rank. Matrix's instance methods
+// (`svd()`, `lstsq()`, ...) are thin forwarders to the exported functions
+// in this module; the remaining helpers are private implementation
+// details.
 //
 // Algorithm (Golub-Kahan-Reinsch, as in LAPACK `dgesvd`):
 //
@@ -24,9 +26,8 @@ import { Vector } from './Vector.js';
 // The singular vectors are kept as the *rows* of two working arrays (`UT`
 // and `VT`), so that every Givens rotation sweep of step 2 and every
 // reflector of the accumulation runs along contiguous row-major memory.
-// The iteration can also rotate arbitrary extra row-targets (it only sees
-// "rows to transform"), so it does not care which singular vectors it is
-// given.
+// The iteration can also rotate arbitrary extra row-targets, which lets
+// `lstsq()` skip forming `U` altogether (as LAPACK `dgelss` does).
 //
 // All index arithmetic below is 0-based; the comments name the LAPACK
 // routine each block follows.
@@ -60,6 +61,38 @@ export interface SVDOptions {
    * @default false
    */
   full?: boolean;
+}
+
+/**
+ * Cutoff below which a singular value is treated as zero by `lstsq()`,
+ * `pinv()` and `rankSvd()`: singular values `s_i <= max(atol, rtol * s_0)`
+ * are discarded, `s_0` being the largest one.
+ */
+export interface SVDCutoffOptions {
+  /**
+   * Absolute part of the cutoff, in the units of the singular values.
+   * @default 0
+   */
+  atol?: number;
+  /**
+   * Part of the cutoff relative to the largest singular value. The default
+   * is the one used by `numpy.linalg.lstsq`, `numpy.linalg.matrix_rank` and
+   * `scipy.linalg.pinv`, and it is derived from the matrix shape.
+   * @default Math.max(rows, cols) * Number.EPSILON
+   */
+  rtol?: number;
+}
+
+/** Result of `Matrix.lstsq()`. */
+export interface LstsqResult {
+  /** The minimum-norm solution of `min ||A*x - b||_2`, of size `cols`. */
+  x: Vector;
+  /** Numerical rank of `A`: the number of singular values above the cutoff. */
+  rank: number;
+  /** The residual 2-norm `||A*x - b||_2`, evaluated directly from `x`. */
+  residualNorm: number;
+  /** The `min(rows, cols)` singular values of `A`, in nonincreasing order. */
+  s: Vector;
 }
 
 // LAPACK's `eps` (relative machine precision, `dlamch('E')`: half of the
@@ -474,6 +507,41 @@ function formPt(bd: Bidiagonal): Float64Array {
     }
   }
   return x;
+}
+
+/**
+ * Overwrites `b` (length `m`) by `Q^T * b`, applying `H_0, ..., H_{n-1}` in
+ * that order, or by `Q * b`, applying them in reverse (`transpose = false`).
+ */
+function applyQ(bd: Bidiagonal, b: Float64Array, transpose: boolean): void {
+  const { a, m, n, tauq } = bd;
+  for (let t = 0; t < n; t++) {
+    const j = transpose ? t : n - 1 - t;
+    const tj = tauq[j];
+    if (tj === 0) continue;
+    let s = b[j];
+    for (let r = j + 1; r < m; r++) s += a[r * n + j] * b[r];
+    s *= tj;
+    if (s === 0) continue;
+    b[j] -= s;
+    for (let r = j + 1; r < m; r++) b[r] -= s * a[r * n + j];
+  }
+}
+
+/** Overwrites `b` (length `n`) by `P^T * b`, applying `G_0, ..., G_{n-2}` in that order. */
+function applyPt(bd: Bidiagonal, b: Float64Array): void {
+  const { a, n, taup } = bd;
+  for (let k = 0; k < n - 1; k++) {
+    const tk = taup[k];
+    if (tk === 0) continue;
+    const ro = k * n;
+    let s = b[k + 1];
+    for (let c = k + 2; c < n; c++) s += a[ro + c] * b[c];
+    s *= tk;
+    if (s === 0) continue;
+    b[k + 1] -= s;
+    for (let c = k + 2; c < n; c++) b[c] -= s * a[ro + c];
+  }
 }
 
 // -----------------------------------------------------------------
@@ -912,4 +980,190 @@ export function singularValues(A: Matrix): Vector {
   const bd = bidiagonalize(a, mw, nw);
   bdsqr(bd.d, bd.e, nw, [], []);
   return Vector.wrapUnchecked(unscale(bd.d, scale));
+}
+
+/**
+ * Resolves a cutoff option into the absolute threshold below or at which
+ * singular values are treated as zero: `max(atol, rtol * s0)`.
+ * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`.
+ */
+function cutoffOf(
+  A: Matrix,
+  s0: number,
+  options: SVDCutoffOptions | undefined,
+  who: string
+): number {
+  const atol = options?.atol ?? 0;
+  const rtol = options?.rtol ?? Math.max(A.rows, A.cols) * Number.EPSILON;
+  if (!(atol >= 0)) throw new RangeError(`Matrix ${who}: atol must be >= 0, got ${atol}`);
+  if (!(rtol >= 0)) throw new RangeError(`Matrix ${who}: rtol must be >= 0, got ${rtol}`);
+  return Math.max(atol, rtol * s0);
+}
+
+/**
+ * Counts the leading entries of the sorted singular values `s` that exceed `cutoff`.
+ */
+function countAbove(s: Float64Array, cutoff: number): number {
+  let r = 0;
+  while (r < s.length && s[r] > cutoff) r++;
+  return r;
+}
+
+/**
+ * Computes the minimum-norm least-squares solution of `A * x = b`:
+ * among all `x` that minimize `||A*x - b||_2`, the one with the smallest
+ * `||x||_2`, which is `x = pinv(A) * b`. Works for any shape and any rank:
+ * overdetermined, underdetermined, rank-deficient or nonsingular.
+ *
+ * Uses the SVD, as LAPACK `dgelss`/`numpy.linalg.lstsq` do, but never forms
+ * the singular-vector matrix on the `b` side: the right-hand side is
+ * transformed by the Householder reflectors and the QR rotations instead.
+ * The cost is `O(rows * cols * min(rows, cols))`; it is clearly cheaper than
+ * `svd()` for strongly rectangular matrices and comparable for square ones. Singular values at or below the cutoff `max(atol, rtol * s[0])` are
+ * treated as zero, which makes the solution stable for (numerically)
+ * rank-deficient matrices.
+ * @param A The coefficient matrix. Not modified.
+ * @param b The right-hand side, of size `A.rows`. Not modified.
+ * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
+ * @returns The solution `x` (size `A.cols`), the numerical rank, the
+ * residual norm `||A*x - b||_2`, and the singular values of `A`.
+ * @throws {RangeError} If `b.size !== A.rows`, if `A` has a non-finite entry,
+ * or if `atol` or `rtol` is negative.
+ * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
+ */
+export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): LstsqResult {
+  const bv = Vector.asVector(b);
+  const m = A.rows;
+  const n = A.cols;
+  if (bv.size !== m) {
+    throw new RangeError(`Matrix lstsq shape mismatch: ${m}x${n} vs vec(${bv.size})`);
+  }
+  const { a, mw, nw, transposed, scale } = prepare(A, 'lstsq');
+  const bd = bidiagonalize(a, mw, nw);
+  const k = nw;
+  const x = new Float64Array(n);
+  let s: Float64Array;
+  let rank: number;
+
+  if (!transposed) {
+    // A = Q B P^T: c = Q^T b, rotated into U_B^T c; x = (P V_B) * (c / s).
+    const c = new Float64Array(mw);
+    c.set(bv.data);
+    applyQ(bd, c, true);
+    const cn = c.slice(0, k);
+    const vt = formPt(bd);
+    bdsqr(bd.d, bd.e, k, [{ x: vt, ncols: k }], [{ x: cn, ncols: 1 }]);
+    s = unscale(bd.d, scale);
+    rank = countAbove(s, cutoffOf(A, s[0], options, 'lstsq'));
+    for (let i = 0; i < rank; i++) {
+      const z = cn[i] / s[i];
+      const off = i * k;
+      for (let j = 0; j < n; j++) x[j] += z * vt[off + j];
+    }
+  } else {
+    // A^T = Q B P^T, so A^+ = Q U_B S^+ V_B^T P^T: c = P^T b, rotated into
+    // V_B^T c; x = Q * (U_B * (c / s)), with U_B^T tracked from the identity.
+    const c = Float64Array.from(bv.data);
+    applyPt(bd, c);
+    const ubt = new Float64Array(k * k);
+    for (let i = 0; i < k; i++) ubt[i * k + i] = 1;
+    bdsqr(bd.d, bd.e, k, [{ x: c, ncols: 1 }], [{ x: ubt, ncols: k }]);
+    s = unscale(bd.d, scale);
+    rank = countAbove(s, cutoffOf(A, s[0], options, 'lstsq'));
+    const y = new Float64Array(mw);
+    for (let i = 0; i < rank; i++) {
+      const z = c[i] / s[i];
+      const off = i * k;
+      for (let j = 0; j < k; j++) y[j] += z * ubt[off + j];
+    }
+    applyQ(bd, y, false);
+    x.set(y);
+  }
+
+  const xv = Vector.wrapUnchecked(x);
+  const residualNorm = bv.sub(A.mulVec(xv)).norm();
+  return { x: xv, rank, residualNorm, s: Vector.wrapUnchecked(s) };
+}
+
+/**
+ * Computes the Moore-Penrose pseudoinverse `A^+ = V * diag(1/s) * U^T` of
+ * `A` (any shape; the result is `cols x rows`), from the SVD. Singular values
+ * at or below the cutoff `max(atol, rtol * s[0])` are treated as zero, so
+ * `A^+` is the pseudoinverse of the nearby matrix of that numerical rank:
+ * it is stable for rank-deficient and ill-conditioned matrices, where
+ * `inverse()` would fail or return garbage. For a nonsingular square matrix
+ * it equals `inverse()`; to solve a single least-squares problem prefer
+ * `lstsq()`, which is cheaper than forming `A^+` and multiplying.
+ * @param A The matrix. Not modified.
+ * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
+ * @returns A new `A.cols x A.rows` matrix.
+ * @throws {RangeError} If `A` has a non-finite entry, or `atol` or `rtol` is negative.
+ * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
+ */
+export function pinv(A: Matrix, options?: SVDCutoffOptions): Matrix {
+  const m = A.rows;
+  const n = A.cols;
+  const { a, mw, nw, transposed, scale } = prepare(A, 'pinv');
+  const bd = bidiagonalize(a, mw, nw);
+  const ut = formQt(bd, nw);
+  const vt = formPt(bd);
+  bdsqr(bd.d, bd.e, nw, [{ x: vt, ncols: nw }], [{ x: ut, ncols: mw }]);
+  const s = unscale(bd.d, scale);
+  const rank = countAbove(s, cutoffOf(A, s[0], options, 'pinv'));
+
+  // Sum of the rank-one terms (1/s_i) * p_i * q_i^T, with p_i of length n
+  // and q_i of length m: for a tall matrix p_i = v_i and q_i = u_i, for a
+  // wide one (whose transpose was decomposed) the roles are exchanged.
+  const P = transposed ? ut : vt;
+  const Q = transposed ? vt : ut;
+  const pLen = n;
+  const qLen = m;
+  const pStride = transposed ? mw : nw;
+  const qStride = transposed ? nw : mw;
+  const out = new Float64Array(n * m);
+  for (let i = 0; i < rank; i++) {
+    const inv = 1 / s[i];
+    const po = i * pStride;
+    const qo = i * qStride;
+    for (let j = 0; j < pLen; j++) {
+      const coef = P[po + j] * inv;
+      if (coef === 0) continue;
+      const ro = j * qLen;
+      for (let q = 0; q < qLen; q++) out[ro + q] += coef * Q[qo + q];
+    }
+  }
+  return Matrix.wrapUnchecked(n, m, out);
+}
+
+/**
+ * Computes the 2-norm condition number `s_max / s_min` of `A` (any shape),
+ * from its singular values: the exact measure of how much a solution of
+ * `A * x = b` can amplify relative errors in `A` and `b`. Returns `Infinity`
+ * for a (numerically) singular matrix, i.e. when the smallest singular value
+ * is exactly zero. Unlike `cond1()`, it needs no inverse and is meaningful
+ * for rectangular matrices too; it costs one `singularValues()` call.
+ * @param A The matrix. Not modified.
+ * @returns The condition number, at least `1`, or `Infinity`.
+ * @throws {RangeError} If `A` contains a non-finite entry.
+ */
+export function cond2(A: Matrix): number {
+  const s = singularValues(A).data;
+  const smin = s[s.length - 1];
+  return smin === 0 ? Infinity : s[0] / smin;
+}
+
+/**
+ * Computes the numerical rank of `A` (any shape) as the number of singular
+ * values above the cutoff `max(atol, rtol * s[0])`. With the default `rtol`
+ * this is the definition used by `numpy.linalg.matrix_rank`. It is the robust
+ * way to estimate rank, more reliable than the elimination-based `rank()`
+ * for ill-conditioned or badly scaled matrices, at the price of an SVD.
+ * @param A The matrix. Not modified.
+ * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
+ * @returns The rank, between `0` and `min(rows, cols)`.
+ * @throws {RangeError} If `A` has a non-finite entry, or `atol` or `rtol` is negative.
+ */
+export function rankSvd(A: Matrix, options?: SVDCutoffOptions): number {
+  const s = singularValues(A).data;
+  return countAbove(s, cutoffOf(A, s[0], options, 'rankSvd'));
 }

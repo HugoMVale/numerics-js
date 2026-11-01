@@ -180,17 +180,16 @@ const RANK_TOL_SCALE = 10;
  * This is inherently an approximation: elimination-based rank is a
  * fundamentally less numerically robust way to estimate rank than the
  * SVD-based approach production libraries like numpy actually use
- * (`numpy.linalg.matrix_rank`), which this library doesn't implement.
- * Treat this as a reasonable estimate for well-scaled matrices, not as a
- * numpy-equivalent result for pathological or ill-conditioned ones.
+ * (`numpy.linalg.matrix_rank`), available here as `rankSvd()`. Treat this
+ * as a reasonable, cheaper estimate for well-scaled matrices, and use
+ * `rankSvd()` for pathological or ill-conditioned ones.
  * @param A The matrix to inspect.
  * @param tol Absolute tolerance below which a pivot is treated as zero. If
  * omitted, defaults to `c * max(rows, cols) * Number.EPSILON *
  * A.normInf()` with `c = 10` — the same shape of scale-relative formula
  * numpy's SVD-based `matrix_rank` uses (`S.max() * max(M, N) * eps`),
  * substituting this matrix's infinity norm for numpy's largest singular
- * value, since this library doesn't have singular values available
- * without SVD. Pass `0` explicitly for exact-zero-only pivot rejection,
+ * value, a cheap stand-in that avoids computing an SVD. Pass `0` explicitly for exact-zero-only pivot rejection,
  * matching `lu()`/`determinant()`'s convention.
  * @returns The rank, between `0` and `min(rows, cols)`.
  */
