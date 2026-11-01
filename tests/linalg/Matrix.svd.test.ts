@@ -531,6 +531,104 @@ describe('Matrix SVD family', () => {
     });
   });
 
+  describe('rank()', () => {
+    const kahanLike = (n: number): Matrix =>
+      new Matrix(n, n).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
+
+    it('uses the singular values by default, with the numpy matrix_rank cutoff', () => {
+      expect(Matrix.identity(5).rank()).toBe(5);
+      expect(new Matrix(3, 4).rank()).toBe(0);
+      expect(lowRank(9, 6, 2, 3).rank()).toBe(2);
+      expect(lowRank(6, 9, 4, 5).rank()).toBe(4);
+      expect(
+        Matrix.from([
+          [1, 2],
+          [2, 4]
+        ]).rank()
+      ).toBe(1);
+      // Nonsingular, numerically rank n - 1 (numpy.linalg.matrix_rank gives 49): elimination misses it.
+      const T = kahanLike(50);
+      expect(T.rank()).toBe(49);
+      expect(T.rank({ method: 'svd' })).toBe(49);
+      expect(T.rank({ method: 'elimination' })).toBe(50);
+    });
+
+    it('agrees with the rank reported by lstsq(), which uses the same cutoff', () => {
+      for (const A of [
+        lowRank(9, 6, 2, 3),
+        lowRank(6, 9, 4, 5),
+        randomMatrix(7, 7, 8),
+        kahanLike(50),
+        Matrix.diag(new Vector([1, 1e-3, 1e-9, 1e-14]))
+      ]) {
+        expect(A.rank()).toBe(A.lstsq(new Vector(A.rows)).rank);
+      }
+    });
+
+    it('treats a plain number as an absolute tolerance on the singular values', () => {
+      const A = Matrix.diag(new Vector([1, 1e-3, 1e-9, 1e-14]));
+      expect(A.rank(0)).toBe(4);
+      expect(A.rank(1e-12)).toBe(3);
+      expect(A.rank(1e-5)).toBe(2);
+      expect(A.rank(0.5)).toBe(1);
+      expect(A.rank(2)).toBe(0);
+      // The threshold is absolute, not relative to the scale of the matrix.
+      expect(A.mult(1e6).rank(1e-5)).toBe(3); // diag(1e6, 1e3, 1e-3, 1e-8)
+      expect(A.rank(1e-3)).toBe(1); // "at or below" the tolerance counts as zero
+      expect(A.rank(5e-4)).toBe(2);
+    });
+
+    it('applies the atol and rtol options with either method', () => {
+      const A = Matrix.diag(new Vector([1, 1e-3, 1e-9, 1e-14]));
+      expect(A.rank({ rtol: 1e-6 })).toBe(2);
+      expect(A.rank({ rtol: 0, atol: 0.5 })).toBe(1);
+      expect(A.rank({ rtol: 0, atol: 0 })).toBe(4);
+      // The pivots of a diagonal matrix are its diagonal entries, and normInf is 1 here.
+      expect(A.rank({ method: 'elimination', rtol: 1e-6 })).toBe(2);
+      expect(A.rank({ method: 'elimination', rtol: 0, atol: 0.5 })).toBe(1);
+      expect(A.rank({ method: 'elimination', rtol: 0, atol: 0 })).toBe(4);
+    });
+
+    it('the elimination default is ten times more tolerant than the SVD default', () => {
+      // Smallest singular value about 7% above the numpy cutoff max(rows, cols) * eps * s0, and
+      // below ten times that: the SVD method sees full rank, elimination a rank-deficient matrix.
+      const A = new Matrix(2, 2, [1, 2, 2, 4 + 1e-14]);
+      expect(A.rank()).toBe(2);
+      expect(A.rank({ method: 'elimination' })).toBe(1);
+      expect(A.rank({ rtol: 10 * 2 * Number.EPSILON })).toBe(1);
+    });
+
+    it('agrees between the methods on well-conditioned matrices', () => {
+      for (const [m, n, r] of [
+        [8, 8, 8],
+        [8, 5, 3],
+        [5, 8, 2],
+        [1, 6, 1]
+      ]) {
+        const A = r === Math.min(m, n) ? randomMatrix(m, n, 90 + m) : lowRank(m, n, r, 90 + m);
+        expect(A.rank({ method: 'elimination' })).toBe(r);
+        expect(A.rank()).toBe(r);
+      }
+    });
+
+    it('throws for invalid options, and for non-finite entries with the SVD method', () => {
+      const A = randomMatrix(3, 3, 1);
+      for (const method of ['svd', 'elimination'] as const) {
+        expect(() => A.rank({ method, atol: -1 })).toThrow(/atol/);
+        expect(() => A.rank({ method, rtol: -1 })).toThrow(/rtol/);
+        expect(() => A.rank({ method, rtol: NaN })).toThrow(RangeError);
+      }
+      expect(() => A.rank(-1)).toThrow(RangeError);
+      expect(() => A.rank({ method: 'qr' as 'svd' })).toThrow(/unknown method/);
+      expect(() =>
+        Matrix.from([
+          [1, NaN],
+          [3, 4]
+        ]).rank()
+      ).toThrow(RangeError);
+    });
+  });
+
   describe('cond2() and rankSvd()', () => {
     it('computes the 2-norm condition number', () => {
       expect(Matrix.identity(4).cond2()).toBe(1);
@@ -569,7 +667,7 @@ describe('Matrix SVD family', () => {
       // smallest singular value falls below the rank tolerance (numpy.linalg.matrix_rank gives 49).
       const n = 50;
       const T = new Matrix(n, n).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
-      expect(T.rank()).toBe(n);
+      expect(T.rank({ method: 'elimination' })).toBe(n);
       expect(T.rankSvd()).toBe(n - 1);
     });
 

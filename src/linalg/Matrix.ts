@@ -16,14 +16,16 @@ export type {
   QRDecomposition,
   QRPivotDecomposition,
   Eigenpair,
-  LUDecomposition
+  LUDecomposition,
+  RankOptions
 } from './Matrix.linalg.js';
 import type {
   Eigenvalue,
   QRDecomposition,
   QRPivotDecomposition,
   Eigenpair,
-  LUDecomposition
+  LUDecomposition,
+  RankOptions
 } from './Matrix.linalg.js';
 export type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
 import type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
@@ -1562,11 +1564,23 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the rank of this matrix (the number of linearly independent
-   * rows/columns): see `linalg.rank()` for the algorithm and the full
-   * meaning of `tol`.
-   * @param tol Absolute tolerance below which a pivot is treated as
-   * zero; auto-scaled to this matrix's magnitude if omitted.
+   * rows/columns): see `linalg.rank()` for the algorithms and the full
+   * meaning of the options. By default it counts the singular values above
+   * `max(atol, rtol * s[0])`, like `numpy.linalg.matrix_rank`, which is
+   * reliable for ill-conditioned and badly scaled matrices.
+   * `{ method: 'elimination' }` selects the cheaper but less robust
+   * estimate based on Gaussian elimination, which was this method's only
+   * algorithm before the SVD was available.
+   * @param options Either an absolute tolerance on the singular values
+   * (shorthand for `{ atol: tol, rtol: 0 }`), or `{ method, atol, rtol }`:
+   * the method (`'svd'` by default), an absolute threshold (default `0`)
+   * and a threshold relative to the largest singular value, or to the
+   * infinity norm for elimination (defaults `max(rows, cols) * eps`, resp.
+   * `10 * max(rows, cols) * eps`).
    * @returns The rank, between `0` and `min(rows, cols)`.
+   * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`, if
+   * `method` is unknown, or (SVD method) if this matrix contains a
+   * non-finite entry.
    *
    * @example
    * ```ts
@@ -1583,9 +1597,27 @@ export class Matrix extends ArrayND {
    * 1
    * 2
    * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * // Unit diagonal, -1 above it: nonsingular, but its smallest singular
+   * // value (about 3e-15) is below the rank tolerance. Gaussian elimination
+   * // does not notice; the SVD does.
+   * const T = new Matrix(50, 50).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
+   * console.log(T.rank());
+   * console.log(T.rank({ method: 'elimination' }));
+   * ```
+   *
+   * Output:
+   * ```text
+   * 49
+   * 50
+   * ```
    */
-  rank(tol?: number): number {
-    return linalg.rank(this, tol);
+  rank(options?: number | RankOptions): number {
+    return linalg.rank(this, options);
   }
 
   /**

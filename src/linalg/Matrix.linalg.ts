@@ -1,5 +1,6 @@
 import { Matrix } from './Matrix.js';
 import { Vector } from './Vector.js';
+import { rankSvd, type SVDCutoffOptions } from './Matrix.svd.js';
 
 // =======================================================================
 // Matrix.linalg.ts
@@ -101,6 +102,24 @@ export interface LUDecomposition {
   sign: number;
 }
 
+/** Options of `Matrix.rank()`. */
+export interface RankOptions extends SVDCutoffOptions {
+  /**
+   * How the rank is computed. `'svd'` counts the singular values above the
+   * cutoff `max(atol, rtol * s[0])`: the robust, numpy-compatible choice,
+   * `O(rows * cols * min(rows, cols))` with a sizeable constant.
+   * `'elimination'` counts the pivots of Gaussian elimination with partial
+   * pivoting that exceed `max(atol, rtol * normInf)`: cheaper
+   * (`O(rows * cols * min(rows, cols))` with a small constant) but not
+   * rank-revealing, so it can miss the rank deficiency of ill-conditioned
+   * matrices. `atol` and `rtol` keep their meaning with both methods, but
+   * `rtol` is relative to a different quantity and has a different default
+   * (see below).
+   * @default 'svd'
+   */
+  method?: 'svd' | 'elimination';
+}
+
 // -----------------------------------------------------------------
 // Gaussian elimination: shared building block for rank/determinant/
 // inverse/lu.
@@ -168,35 +187,55 @@ function forwardEliminate(A: Matrix, tol = 0): { rank: number; sign: number; piv
 }
 
 /**
- * The scale factor `c` in `rank()`'s default tolerance,
- * `c * max(rows, cols) * Number.EPSILON * A.normInf()`.
+ * The scale factor `c` in the default `rtol` of `rank()` with `method:
+ * 'elimination'`, `c * max(rows, cols) * Number.EPSILON`.
  */
 const RANK_TOL_SCALE = 10;
 
 /**
  * Computes the rank of `A` (the number of linearly independent
- * rows/columns), via Gaussian elimination with partial pivoting.
+ * rows/columns), by default from the singular values (`method: 'svd'`),
+ * the approach of `numpy.linalg.matrix_rank`: the rank is the number of
+ * singular values above `max(atol, rtol * s[0])`, with `rtol` defaulting to
+ * `max(rows, cols) * Number.EPSILON`. This is reliable for ill-conditioned
+ * and badly scaled matrices, and it is the same cutoff `lstsq()` and
+ * `pinv()` use, so `rank()` and `lstsq().rank` agree.
  *
- * This is inherently an approximation: elimination-based rank is a
- * fundamentally less numerically robust way to estimate rank than the
- * SVD-based approach production libraries like numpy actually use
- * (`numpy.linalg.matrix_rank`), available here as `rankSvd()`. Treat this
- * as a reasonable, cheaper estimate for well-scaled matrices, and use
- * `rankSvd()` for pathological or ill-conditioned ones.
+ * `method: 'elimination'` selects the cheaper, older estimate: Gaussian
+ * elimination with partial pivoting, which counts the pivots above
+ * `max(atol, rtol * A.normInf())`, with `rtol` defaulting to `c * max(rows,
+ * cols) * Number.EPSILON`, `c = 10` — a scale-relative formula of the same
+ * shape as numpy's, with the infinity norm standing in for the largest
+ * singular value. Elimination is inherently an approximation, not
+ * rank-revealing, and its default is ten times more tolerant than the SVD
+ * one: use it for well-scaled matrices when the cost of an SVD matters.
+ *
+ * Passing a plain number `tol` is shorthand for `{ atol: tol, rtol: 0 }`
+ * with the SVD method: an absolute threshold on the singular values, as in
+ * `numpy.linalg.matrix_rank(A, tol)`. `0` counts every nonzero singular
+ * value.
  * @param A The matrix to inspect.
- * @param tol Absolute tolerance below which a pivot is treated as zero. If
- * omitted, defaults to `c * max(rows, cols) * Number.EPSILON *
- * A.normInf()` with `c = 10` — the same shape of scale-relative formula
- * numpy's SVD-based `matrix_rank` uses (`S.max() * max(M, N) * eps`),
- * substituting this matrix's infinity norm for numpy's largest singular
- * value, a cheap stand-in that avoids computing an SVD. Pass `0` explicitly for exact-zero-only pivot rejection,
- * matching `lu()`/`determinant()`'s convention.
+ * @param options Either an absolute tolerance on the singular values, or
+ * `{ method, atol, rtol }`, see {@link RankOptions}.
  * @returns The rank, between `0` and `min(rows, cols)`.
+ * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`, if `method`
+ * is unknown, or (SVD method) if `A` has a non-finite entry.
+ * @throws {Error} For the SVD method, if the QR iteration fails to converge,
+ * which is not expected for finite input.
  */
-export function rank(A: Matrix, tol?: number): number {
-  const effectiveTol =
-    tol ?? RANK_TOL_SCALE * Math.max(A.rows, A.cols) * Number.EPSILON * A.normInf();
-  return forwardEliminate(A, effectiveTol).rank;
+export function rank(A: Matrix, options?: number | RankOptions): number {
+  const opts: RankOptions =
+    typeof options === 'number' ? { atol: options, rtol: 0 } : (options ?? {});
+  const method = opts.method ?? 'svd';
+  if (method === 'svd') return rankSvd(A, opts);
+  if (method !== 'elimination') {
+    throw new RangeError(`Matrix rank: unknown method '${String(method)}'`);
+  }
+  const atol = opts.atol ?? 0;
+  const rtol = opts.rtol ?? RANK_TOL_SCALE * Math.max(A.rows, A.cols) * Number.EPSILON;
+  if (!(atol >= 0)) throw new RangeError(`Matrix rank: atol must be >= 0, got ${atol}`);
+  if (!(rtol >= 0)) throw new RangeError(`Matrix rank: rtol must be >= 0, got ${rtol}`);
+  return forwardEliminate(A, Math.max(atol, rtol * A.normInf())).rank;
 }
 
 /**

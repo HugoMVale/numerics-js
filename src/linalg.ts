@@ -6,6 +6,7 @@ export type {
   LUDecomposition,
   QRDecomposition,
   QRPivotDecomposition,
+  RankOptions,
   Eigenvalue,
   Eigenpair,
   SVDDecomposition,

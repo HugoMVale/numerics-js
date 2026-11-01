@@ -75,6 +75,9 @@ describe('public API', () => {
     expect(A.pinv(cutoff).rows).toBe(2);
     expect(A.singularValues().size).toBe(2);
     expect(A.rankSvd(cutoff)).toBe(2);
+    const rankOptions: linalg.RankOptions = { method: 'elimination', atol: 0 };
+    expect(A.rank(rankOptions)).toBe(2);
+    expect(A.rank(1e-12)).toBe(2);
     expect(A.cond2()).toBeGreaterThan(1);
   });
 
