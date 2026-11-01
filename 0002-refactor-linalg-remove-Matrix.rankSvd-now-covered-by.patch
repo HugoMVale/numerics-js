@@ -1,0 +1,234 @@
+From 8241b2d741e2ad93dabe67a37934efe7ff8e37cb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 14:44:11 +0100
+Subject: [PATCH 2/2] refactor(linalg)!: remove Matrix.rankSvd(), now covered
+ by rank()
+
+`Matrix.rank()` is SVD-based by default, so `rankSvd()` duplicates it.
+Remove the public method (it was added in the same unreleased series); the
+algorithm stays as an internal helper that `rank()` calls.
+
+Validation errors raised from the shared SVD code now name the public
+routine that was called (`Matrix rank`, `Matrix cond2`, `Matrix
+singularValues`) instead of always saying `singularValues`. The SciPy
+benchmark compares `rank()` instead of `rankSvd()`.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Lt4LXANr7M53RsCeDAwAGm
+---
+ .../linalg/Matrix.svd.scipy.benchmark.md      |  2 +-
+ benchmarks/linalg/Matrix.svd.scipy.test.ts    |  2 +-
+ src/linalg/Matrix.svd.ts                      | 26 +++++++-----
+ src/linalg/Matrix.ts                          | 33 ---------------
+ tests/linalg/Matrix.svd.test.ts               | 42 ++++---------------
+ tests/public-api.test.ts                      |  1 -
+ 6 files changed, 26 insertions(+), 80 deletions(-)
+
+diff --git a/benchmarks/linalg/Matrix.svd.scipy.benchmark.md b/benchmarks/linalg/Matrix.svd.scipy.benchmark.md
+index 572ce00..8dd1989 100644
+--- a/benchmarks/linalg/Matrix.svd.scipy.benchmark.md
++++ b/benchmarks/linalg/Matrix.svd.scipy.benchmark.md
+@@ -28,7 +28,7 @@ ill-conditioned (Hilbert), dynamic-range and unequal-column-norm matrices, the
+ Läuchli matrix (whose small singular values are lost by forming `A^T A`) and a
+ 50 x 50 unit upper triangular matrix with `-1` above the diagonal, which is
+ nonsingular but has numerical rank 49, the case where elimination-based
+-`rank()` fails and `rankSvd()` agrees with NumPy.
++`rank({ method: 'elimination' })` fails and `rank()` agrees with NumPy.
+ 
+ Measured agreement (largest singular-value difference relative to `s[0]`, in
+ units of machine epsilon, and relative differences of the solution and the
+diff --git a/benchmarks/linalg/Matrix.svd.scipy.test.ts b/benchmarks/linalg/Matrix.svd.scipy.test.ts
+index 3a61ee9..2be3289 100644
+--- a/benchmarks/linalg/Matrix.svd.scipy.test.ts
++++ b/benchmarks/linalg/Matrix.svd.scipy.test.ts
+@@ -37,7 +37,7 @@ describe('Matrix SVD family vs scipy.linalg / numpy.linalg reference values', ()
+       expect(V.transpose().matmul(V).sub(Matrix.identity(k)).norm()).toBeLessThanOrEqual(1e-13);
+ 
+       // Rank (numpy.linalg.matrix_rank convention) and 2-norm condition number.
+-      expect(A.rankSvd()).toBe(rank);
++      expect(A.rank()).toBe(rank);
+       if (fixture.scipyCond2 !== null) {
+         const tol = Math.max(1e-12, 100 * EPS * fixture.scipyCond2);
+         expect(Math.abs(A.cond2() - fixture.scipyCond2) / fixture.scipyCond2).toBeLessThanOrEqual(
+diff --git a/src/linalg/Matrix.svd.ts b/src/linalg/Matrix.svd.ts
+index b704260..e89fa07 100644
+--- a/src/linalg/Matrix.svd.ts
++++ b/src/linalg/Matrix.svd.ts
+@@ -65,7 +65,7 @@ export interface SVDOptions {
+ 
+ /**
+  * Cutoff below which a singular value is treated as zero by `lstsq()`,
+- * `pinv()` and `rankSvd()`: singular values `s_i <= max(atol, rtol * s_0)`
++ * `pinv()` and `rank()`: singular values `s_i <= max(atol, rtol * s_0)`
+  * are discarded, `s_0` being the largest one.
+  */
+ export interface SVDCutoffOptions {
+@@ -976,7 +976,15 @@ export function svd(A: Matrix, options?: SVDOptions): SVDDecomposition {
+  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
+  */
+ export function singularValues(A: Matrix): Vector {
+-  const { a, mw, nw, scale } = prepare(A, 'singularValues');
++  return singularValuesOf(A, 'singularValues');
++}
++
++/**
++ * Implementation of `singularValues()`, shared with `cond2()` and
++ * `rankSvd()`; `who` names the public routine in the error message.
++ */
++function singularValuesOf(A: Matrix, who: string): Vector {
++  const { a, mw, nw, scale } = prepare(A, who);
+   const bd = bidiagonalize(a, mw, nw);
+   bdsqr(bd.d, bd.e, nw, [], []);
+   return Vector.wrapUnchecked(unscale(bd.d, scale));
+@@ -1147,23 +1155,21 @@ export function pinv(A: Matrix, options?: SVDCutoffOptions): Matrix {
+  * @throws {RangeError} If `A` contains a non-finite entry.
+  */
+ export function cond2(A: Matrix): number {
+-  const s = singularValues(A).data;
++  const s = singularValuesOf(A, 'cond2').data;
+   const smin = s[s.length - 1];
+   return smin === 0 ? Infinity : s[0] / smin;
+ }
+ 
+ /**
+- * Computes the numerical rank of `A` (any shape) as the number of singular
+- * values above the cutoff `max(atol, rtol * s[0])`. With the default `rtol`
+- * this is the definition used by `numpy.linalg.matrix_rank`. It is the robust
+- * way to estimate rank, more reliable than the elimination-based `rank()`
+- * for ill-conditioned or badly scaled matrices, at the price of an SVD.
++ * Numerical rank of `A` (any shape) from its singular values: the number of
++ * those above the cutoff `max(atol, rtol * s[0])`. This is the `'svd'` method
++ * of `rank()` (see `Matrix.linalg.ts`), which is the public entry point.
+  * @param A The matrix. Not modified.
+  * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
+  * @returns The rank, between `0` and `min(rows, cols)`.
+  * @throws {RangeError} If `A` has a non-finite entry, or `atol` or `rtol` is negative.
+  */
+ export function rankSvd(A: Matrix, options?: SVDCutoffOptions): number {
+-  const s = singularValues(A).data;
+-  return countAbove(s, cutoffOf(A, s[0], options, 'rankSvd'));
++  const s = singularValuesOf(A, 'rank').data;
++  return countAbove(s, cutoffOf(A, s[0], options, 'rank'));
+ }
+diff --git a/src/linalg/Matrix.ts b/src/linalg/Matrix.ts
+index 01bc95e..3c78897 100644
+--- a/src/linalg/Matrix.ts
++++ b/src/linalg/Matrix.ts
+@@ -2428,39 +2428,6 @@ export class Matrix extends ArrayND {
+     return svdAlgs.cond2(this);
+   }
+ 
+-  /**
+-   * Computes the numerical rank of this matrix (any shape) as the number of
+-   * singular values above `max(atol, rtol * s[0])`: see `rankSvd()` in
+-   * `Matrix.svd.ts`. With the default `rtol` this is the definition of
+-   * `numpy.linalg.matrix_rank`, and it is more robust than the
+-   * elimination-based `rank()` for ill-conditioned or badly scaled
+-   * matrices, at the price of an SVD.
+-   * @param options The singular-value cutoff, `atol` and `rtol`.
+-   * @returns The rank, between `0` and `min(rows, cols)`.
+-   * @throws {RangeError} If this matrix contains a non-finite entry, or if
+-   * `atol` or `rtol` is negative.
+-   *
+-   * @example
+-   * ```ts
+-   * import { Matrix } from 'numerics-js/linalg';
+-   *
+-   * // Unit diagonal, -1 above it: nonsingular, but its smallest singular
+-   * // value (about 3e-15) is below the rank tolerance.
+-   * const T = new Matrix(50, 50).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
+-   * console.log(T.rank());
+-   * console.log(T.rankSvd());
+-   * ```
+-   *
+-   * Output:
+-   * ```text
+-   * 50
+-   * 49
+-   * ```
+-   */
+-  rankSvd(options?: SVDCutoffOptions): number {
+-    return svdAlgs.rankSvd(this, options);
+-  }
+-
+   // -----------------------------------------------------------------
+   // Axis-aware reductions, following numpy's convention: `axis`
+   // omitted (or `undefined`) reduces over every element to a scalar
+diff --git a/tests/linalg/Matrix.svd.test.ts b/tests/linalg/Matrix.svd.test.ts
+index 5204648..61fa1fc 100644
+--- a/tests/linalg/Matrix.svd.test.ts
++++ b/tests/linalg/Matrix.svd.test.ts
+@@ -625,11 +625,11 @@ describe('Matrix SVD family', () => {
+           [1, NaN],
+           [3, 4]
+         ]).rank()
+-      ).toThrow(RangeError);
++      ).toThrow(/Matrix rank: .*non-finite/);
+     });
+   });
+ 
+-  describe('cond2() and rankSvd()', () => {
++  describe('cond2()', () => {
+     it('computes the 2-norm condition number', () => {
+       expect(Matrix.identity(4).cond2()).toBe(1);
+       expect(Matrix.diag(new Vector([1, 1e-3, 1e-14])).cond2()).toBeCloseTo(1e14, -2);
+@@ -648,38 +648,12 @@ describe('Matrix SVD family', () => {
+         ]).cond2()
+       ).toBeGreaterThan(1e15);
+       expect(Matrix.diag(new Vector([1, 0])).cond2()).toBe(Infinity);
+-    });
+-
+-    it('computes the numerical rank with the numpy matrix_rank definition', () => {
+-      expect(Matrix.identity(5).rankSvd()).toBe(5);
+-      expect(new Matrix(3, 4).rankSvd()).toBe(0);
+-      expect(lowRank(9, 6, 2, 3).rankSvd()).toBe(2);
+-      expect(lowRank(6, 9, 4, 5).rankSvd()).toBe(4);
+-      const A = Matrix.diag(new Vector([1, 1e-3, 1e-9, 1e-14]));
+-      expect(A.rankSvd()).toBe(4);
+-      expect(A.rankSvd({ rtol: 1e-6 })).toBe(2);
+-      expect(A.rankSvd({ rtol: 0, atol: 0.5 })).toBe(1);
+-      expect(() => A.rankSvd({ rtol: -1 })).toThrow(RangeError);
+-    });
+-
+-    it('detects the rank deficiency of the Kahan-type upper triangular matrix that elimination misses', () => {
+-      // T has unit diagonal and -1 above it: nonsingular, but cond_2 ~ 2^n, so for n = 50 its
+-      // smallest singular value falls below the rank tolerance (numpy.linalg.matrix_rank gives 49).
+-      const n = 50;
+-      const T = new Matrix(n, n).map((_, i, j) => (i === j ? 1 : j > i ? -1 : 0));
+-      expect(T.rank({ method: 'elimination' })).toBe(n);
+-      expect(T.rankSvd()).toBe(n - 1);
+-    });
+-
+-    it('agrees with the elimination-based rank() on well-conditioned matrices', () => {
+-      for (const [m, n, r] of [
+-        [8, 8, 8],
+-        [8, 5, 3],
+-        [5, 8, 2]
+-      ]) {
+-        const A = r === Math.min(m, n) ? randomMatrix(m, n, 90 + m) : lowRank(m, n, r, 90 + m);
+-        expect(A.rankSvd()).toBe(A.rank());
+-      }
++      expect(() =>
++        Matrix.from([
++          [1, Infinity],
++          [3, 4]
++        ]).cond2()
++      ).toThrow(/Matrix cond2: .*non-finite/);
+     });
+   });
+ });
+diff --git a/tests/public-api.test.ts b/tests/public-api.test.ts
+index dbbae4f..7ab4762 100644
+--- a/tests/public-api.test.ts
++++ b/tests/public-api.test.ts
+@@ -74,7 +74,6 @@ describe('public API', () => {
+     expect(fit.rank).toBe(2);
+     expect(A.pinv(cutoff).rows).toBe(2);
+     expect(A.singularValues().size).toBe(2);
+-    expect(A.rankSvd(cutoff)).toBe(2);
+     const rankOptions: linalg.RankOptions = { method: 'elimination', atol: 0 };
+     expect(A.rank(rankOptions)).toBe(2);
+     expect(A.rank(1e-12)).toBe(2);
+-- 
+2.43.0
+
