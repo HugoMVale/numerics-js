@@ -260,6 +260,187 @@ export function besselJZero(n: number, m: number): number {
 }
 
 /**
+ * Power series `I_n(x) = (x/2)^n / n! * sum_k (x^2/4)^k / (k! (n+1)_k)`.
+ *
+ * Used for `0 <= x < 1`. All terms are positive, so there is no cancellation,
+ * and they decrease by at least a factor 4. Underflow of the `(x/2)^n / n!`
+ * prefactor correctly yields 0.
+ */
+function seriesI(n: number, x: number): number {
+  const h = 0.5 * x;
+  let prefactor = 1;
+  for (let i = 1; i <= n; i++) {
+    prefactor *= h / i;
+    if (prefactor === 0) return 0;
+  }
+  const q = h * h;
+  let term = 1;
+  let sum = 1;
+  for (let k = 1; k < 40; k++) {
+    term *= q / (k * (n + k));
+    sum += term;
+    if (term <= 0.5 * Number.EPSILON * sum) break;
+  }
+  return prefactor * sum;
+}
+
+/**
+ * Pieces left by the last {@link millerIScaled} call, so that
+ * `I_n = u_n 1e-250^shifts e^x / sum` can be evaluated in the log domain when
+ * the scaled value underflows. `u_n` is deliberately not rescaled after it is
+ * captured (that would underflow it to 0 for large `n`); `shifts` counts the
+ * rescalings of `sum` since. Safe as module state: calls are synchronous.
+ */
+const millerParts = { uN: 0, shifts: 0, sum: 0 };
+
+const LOG_RESCALE = 250 * Math.LN10;
+
+/**
+ * `e^{-x} I_n(x)` for `x >= 1` using Miller's backward recurrence.
+ *
+ * `I_n` is the minimal solution of `I_{k-1} = (2k/x) I_k + I_{k+1}` for every
+ * `x > 0`, so the downward recurrence is stable and, since all terms are
+ * positive, free of cancellation. It is run from an arbitrary seed at an order
+ * `start` where `I_k` is negligible, then normalized with the identity
+ * `I_0 + 2 * sum_{k>=1} I_k = e^x`, which directly yields the scaled value
+ * `u_n / (u_0 + 2 * sum u_k)`.
+ *
+ * Because `I_k(x) / I_0(x)` falls off like `exp(-k^2 / (2x))` for `k < x` and
+ * factorially beyond, `start` exceeds `n` only by `sqrt(100 max(n, x))` plus a
+ * margin; the cost is therefore `O(n + sqrt(x))`, not `O(x)`.
+ */
+function millerIScaled(n: number, x: number): number {
+  const start = n + Math.ceil(Math.sqrt(100 * Math.max(n, x))) + 10;
+
+  let uNext = 0;
+  let uCurr = 1;
+  let uN = 0;
+  let shifts = 0;
+  let sum = 0;
+
+  for (let k = start; k >= 1; k--) {
+    const uPrev = ((2 * k) / x) * uCurr + uNext;
+    uNext = uCurr;
+    uCurr = uPrev;
+
+    const idx = k - 1;
+    if (idx === n) {
+      uN = uCurr;
+      shifts = 0;
+    }
+    sum += (idx === 0 ? 1 : 2) * uCurr;
+
+    // Rescale to avoid overflow during the descent.
+    if (uCurr > 1e250) {
+      const scale = 1e-250;
+      uCurr *= scale;
+      uNext *= scale;
+      sum *= scale;
+      shifts++;
+    }
+  }
+
+  millerParts.uN = uN;
+  millerParts.shifts = shifts;
+  millerParts.sum = sum;
+  return (uN / sum) * 1e-250 ** shifts;
+}
+
+/**
+ * Computes the modified Bessel function of the first kind, `I_n(x)`, for a
+ * non-negative integer order `n` and real `x`.
+ *
+ * Uses the power series for `|x| < 1` and otherwise Miller's backward
+ * recurrence, normalized with `e^x = I_0 + 2 sum_{k>=1} I_k`. `I_n` is the
+ * minimal solution of the recurrence, so this is stable for every `x`, and all
+ * terms are positive, so there is no cancellation. The cost is proportional
+ * to `n + sqrt(max(n, |x|))`, i.e. large arguments are cheap.
+ * Negative `x` uses `I_n(-x) = (-1)^n I_n(x)`.
+ *
+ * Accuracy: the relative error is at the round-off level (a few `1e-15`,
+ * measured against mpmath) wherever the result is representable. The result
+ * overflows to `Infinity` for `|x|` beyond about `713` at small `n`; use
+ * {@link besselIScaled} there. Where `e^{-x} I_n(x)` would underflow, or for
+ * `|x| > 1400`, the final exponential is evaluated as `exp(x + ln r)`, which
+ * costs roughly `|x| * 1e-16` of relative accuracy. `I_n(±Infinity)` is `±Infinity` (sign `(-1)^n` for `-Infinity`).
+ *
+ * @param n Order; a non-negative integer not larger than `1e6`.
+ * @param x Argument; any real number. `NaN` returns `NaN`.
+ * @returns The value of `I_n(x)`.
+ * @throws {RangeError} If `n` is not an integer in `[0, 1e6]`.
+ *
+ * @example
+ * ```ts
+ * import { besselI } from 'numerics-js/special';
+ *
+ * console.log(besselI(0, 1));
+ * console.log(besselI(5, 2.5));
+ * console.log(besselI(2, 100));
+ * ```
+ *
+ * Output:
+ * ```text
+ * 1.2660658777520082
+ * 0.032843475172023205
+ * 1.0523843193243107e+42
+ * ```
+ */
+export function besselI(n: number, x: number): number {
+  assertOrder(n);
+  if (Number.isNaN(x)) return NaN;
+  if (x < 0) return (n % 2 === 0 ? 1 : -1) * besselI(n, -x);
+  if (x === Infinity) return Infinity;
+  if (x < 1) return seriesI(n, x);
+  const r = millerIScaled(n, x);
+  // Avoid overflow of e^x and underflow of the scaled value (I_n representable
+  // although e^{-x} I_n is not) by switching to the log domain.
+  if (x > 1400 || r < 1e-290) {
+    const { uN, shifts, sum } = millerParts;
+    return Math.exp(x + Math.log(uN) - shifts * LOG_RESCALE - Math.log(sum));
+  }
+  if (x <= 700) return r * Math.exp(x);
+  return r * Math.exp(0.5 * x) * Math.exp(0.5 * x);
+}
+
+/**
+ * Computes the exponentially scaled modified Bessel function of the first
+ * kind, `e^{-|x|} I_n(x)`, for a non-negative integer order `n` and real `x`.
+ *
+ * Unlike {@link besselI}, this never overflows and keeps full relative
+ * accuracy for any `x`: `I_n(x)` exceeds the double range for `|x|` above
+ * about `713`, whereas `e^{-|x|} I_n(x) ~ 1 / sqrt(2 pi |x|)` stays moderate.
+ * It uses the same algorithm as {@link besselI}. Negative `x` uses
+ * `I_n(-x) = (-1)^n I_n(x)`, so the result is `(-1)^n e^{-|x|} I_n(|x|)`;
+ * the limit at `±Infinity` is `0`.
+ *
+ * @param n Order; a non-negative integer not larger than `1e6`.
+ * @param x Argument; any real number. `NaN` returns `NaN`.
+ * @returns The value of `e^{-|x|} I_n(x)`.
+ * @throws {RangeError} If `n` is not an integer in `[0, 1e6]`.
+ *
+ * @example
+ * ```ts
+ * import { besselIScaled } from 'numerics-js/special';
+ *
+ * console.log(besselIScaled(0, 1));
+ * console.log(besselIScaled(1, 1000));
+ * ```
+ *
+ * Output:
+ * ```text
+ * 0.46575960759364043
+ * 0.01261093025692863
+ * ```
+ */
+export function besselIScaled(n: number, x: number): number {
+  assertOrder(n);
+  if (Number.isNaN(x)) return NaN;
+  if (x < 0) return (n % 2 === 0 ? 1 : -1) * besselIScaled(n, -x);
+  if (x === Infinity) return 0;
+  return x < 1 ? seriesI(n, x) * Math.exp(-x) : millerIScaled(n, x);
+}
+
+/**
  * Empties the cache of computed Bessel zeros.
  *
  * @internal

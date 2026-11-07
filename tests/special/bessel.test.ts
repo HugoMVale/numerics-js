@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { besselJ, besselJZero, clearBesselCache } from '../../src/special/bessel.js';
+import {
+  besselI,
+  besselIScaled,
+  besselJ,
+  besselJZero,
+  clearBesselCache
+} from '../../src/special/bessel.js';
 
 // Reference values computed with mpmath (40 digits), stored as the nearest doubles.
 const J_REFERENCE: [n: number, x: number, value: number][] = [
@@ -217,5 +223,150 @@ describe('besselJZero', () => {
       expect(() => besselJZero(0, m), `m=${m}`).toThrow(RangeError);
     }
     expect(besselJZero(0, 1)).toBeCloseTo(2.404825557695773, 14);
+  });
+});
+
+// Reference values computed with mpmath (40 digits), stored as the nearest doubles.
+const I_REFERENCE: [n: number, x: number, value: number][] = [
+  [0, 1, 1.2660658777520084],
+  [1, 1, 0.565159103992485],
+  [2, 1, 0.13574766976703828],
+  [3, 0.5, 0.002645111968990286],
+  [0, 10, 2815.7166284662544],
+  [5, 2.5, 0.03284347517202321],
+  [20, 5, 5.024239357971806e-11],
+  [2, 100, 1.0523843193243106e42],
+  [100, 50, 2.7278879470966917e-16],
+  [0, 700, 1.5295933476718737e302],
+  [100, 720, 7.098312758841151e307]
+];
+
+describe('besselI', () => {
+  it('matches high-precision reference values', () => {
+    for (const [n, x, expected] of I_REFERENCE) {
+      expect(Math.abs(besselI(n, x) / expected - 1), `I_${n}(${x})`).toBeLessThan(1e-14);
+    }
+  });
+
+  it('is exact at x = 0', () => {
+    expect(besselI(0, 0)).toBe(1);
+    expect(besselI(1, 0)).toBe(0);
+    expect(besselI(7, 0)).toBe(0);
+    expect(besselIScaled(0, -0)).toBe(1);
+    expect(besselIScaled(4, 0)).toBe(0);
+  });
+
+  it('applies the parity identity I_n(-x) = (-1)^n I_n(x)', () => {
+    for (const n of [0, 1, 2, 3, 10, 11]) {
+      for (const x of [0.3, 2.5, 25, 250]) {
+        const sign = n % 2 === 0 ? 1 : -1;
+        expect(besselI(n, -x)).toBe(sign * besselI(n, x));
+        expect(besselIScaled(n, -x)).toBe(sign * besselIScaled(n, x));
+      }
+    }
+  });
+
+  it('handles non-finite arguments', () => {
+    expect(besselI(0, NaN)).toBeNaN();
+    expect(besselIScaled(3, NaN)).toBeNaN();
+    expect(besselI(0, Infinity)).toBe(Infinity);
+    expect(besselI(2, -Infinity)).toBe(Infinity);
+    expect(besselI(3, -Infinity)).toBe(-Infinity);
+    expect(besselIScaled(0, Infinity)).toBe(0);
+    expect(besselIScaled(2, -Infinity)).toBe(0);
+  });
+
+  it('is finite and accurate for tiny arguments', () => {
+    expect(besselI(0, 1e-300)).toBe(1);
+    expect(besselI(1, 1e-300) / 5e-301).toBeCloseTo(1, 14);
+    expect(besselI(2, 1e-100) / 1.25e-201).toBeCloseTo(1, 14);
+    expect(besselI(2, 1e-300)).toBe(0); // true value 1.25e-601 underflows
+    expect(besselI(5, 1e-310)).toBe(0);
+  });
+
+  it('is continuous across the series / recurrence boundary at x = 1', () => {
+    for (const n of [0, 1, 3, 20]) {
+      const below = besselI(n, 1 - 1e-12);
+      const above = besselI(n, 1 + 1e-12);
+      // d ln I_n / dx = n / x at x = 1, so the two sides differ by about 2e-12 * n.
+      expect(Math.abs(below / above - 1)).toBeLessThan(3e-12 * (n + 1));
+    }
+  });
+
+  it('is positive and strictly increasing in x for x > 0 (no cancellation)', () => {
+    for (const n of [0, 1, 4, 30]) {
+      let previous = 0;
+      for (const x of [0.01, 0.5, 0.999, 1, 1.001, 3, 10, 40, 200, 600]) {
+        const value = besselI(n, x);
+        expect(value, `I_${n}(${x})`).toBeGreaterThan(previous);
+        previous = value;
+      }
+    }
+  });
+
+  it('satisfies the three-term recurrence I_{n-1} - I_{n+1} = (2n/x) I_n', () => {
+    for (const x of [0.7, 3.3, 15, 80, 400]) {
+      for (const n of [1, 2, 5, 12, 40, 150]) {
+        const lhs = besselIScaled(n - 1, x) - besselIScaled(n + 1, x);
+        const rhs = ((2 * n) / x) * besselIScaled(n, x);
+        // The difference cancels; the error scales with the largest operand.
+        expect(Math.abs(lhs - rhs), `n=${n}, x=${x}`).toBeLessThanOrEqual(
+          1e-14 * besselIScaled(n - 1, x)
+        );
+      }
+    }
+  });
+
+  it('satisfies the generating-function identity e^x = I_0 + 2 sum I_k', () => {
+    for (const x of [0.5, 7, 60, 500, 5000]) {
+      let sum = besselIScaled(0, x);
+      for (let k = 1; k < 12 * Math.sqrt(x) + 60; k++) sum += 2 * besselIScaled(k, x);
+      expect(Math.abs(sum - 1), `x=${x}`).toBeLessThan(2e-13);
+    }
+  });
+
+  it('satisfies the alternating identity e^{-x} = I_0 + 2 sum (-1)^k I_k', () => {
+    const x = 3;
+    let sum = besselI(0, x);
+    for (let k = 1; k < 80; k++) sum += 2 * (k % 2 === 0 ? 1 : -1) * besselI(k, x);
+    expect(Math.abs(sum - Math.exp(-x))).toBeLessThan(1e-14);
+  });
+
+  it('besselIScaled never overflows and follows the asymptotic law at huge x', () => {
+    for (const x of [1e3, 1e5, 1e8]) {
+      const approx = 1 / Math.sqrt(2 * Math.PI * x);
+      const value = besselIScaled(0, x);
+      expect(Number.isFinite(value)).toBe(true);
+      expect(Math.abs(value / approx - 1)).toBeLessThan(2 / (8 * x) + 1e-12);
+    }
+  });
+
+  it('overflows to Infinity only when I_n(x) exceeds the double range', () => {
+    expect(besselI(0, 720)).toBe(Infinity);
+    expect(besselI(100, 720)).toBeLessThan(Infinity); // 7.1e307, still representable
+    expect(besselI(100, 2000)).toBe(Infinity);
+    expect(besselI(1e6, 1e6)).toBe(Infinity); // I ~ e^(5e5); scaled value underflows too
+  });
+
+  it('keeps representable values that underflow when scaled', () => {
+    // e^{-100} I_500(100) ~ 1.3e-326 underflows, while I_500(100) ~ 3.6e-283 does not.
+    expect(besselIScaled(500, 100)).toBe(0);
+    expect(besselI(500, 100) / 3.5900514314696126e-283 - 1).toBeLessThan(2e-13);
+  });
+
+  it('works for large orders', () => {
+    expect(besselI(1000, 1)).toBe(0); // underflows
+    expect(besselIScaled(1e6, 1e6)).toBe(0); // e^(-4.7e5) underflows, no NaN or hang
+    // Uniform asymptotics for n << x: e^{-n^2/(2x)} / sqrt(2 pi x) ~ 2.5e-27 here.
+    const v = besselIScaled(1e6, 1e10);
+    expect(Math.abs(v / (Math.exp(-50) / Math.sqrt(2 * Math.PI * 1e10)) - 1)).toBeLessThan(1e-3);
+  });
+
+  it('throws RangeError for invalid orders', () => {
+    for (const n of [-1, 1.5, NaN, Infinity, -Infinity, 1e6 + 1, 1e9]) {
+      expect(() => besselI(n, 5), `n=${n}`).toThrow(RangeError);
+      expect(() => besselIScaled(n, 5), `n=${n}`).toThrow(RangeError);
+    }
+    expect(() => besselI(-1, NaN)).toThrow(RangeError);
   });
 });

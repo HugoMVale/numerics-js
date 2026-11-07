@@ -37,6 +37,8 @@ describe('public API', () => {
     expect(typeof numdiff.derivativeCentered).toBe('function');
     expect(typeof numdiff.jacobianForward).toBe('function');
     expect(typeof numdiff.scaleVector).toBe('function');
+    expect(typeof special.besselI).toBe('function');
+    expect(typeof special.besselIScaled).toBe('function');
     expect(typeof special.besselJ).toBe('function');
     expect(typeof special.besselJZero).toBe('function');
     expect(typeof special.erf).toBe('function');
