@@ -2,7 +2,7 @@
 
 These suites compare `numerics-js` algorithms with independent reference
 implementations: SciPy for most modules, and mpmath for the error functions,
-Bessel `J_n(x)` and `I_n(x)` and the gamma functions.
+Bessel `J_n(x)`, `Y_n(x)` and `I_n(x)` and the gamma functions.
 Each module directory contains the TypeScript comparison
 tests, the generated JSON reference data, the standalone Python generator, and
 the available Markdown results.
@@ -43,6 +43,7 @@ sync when changing a benchmark.
 | [`optimize/`](./optimize/)   | Nonlinear curve fitting      | [`curveFit.scipy.benchmark.md`](./optimize/curveFit.scipy.benchmark.md)                     |
 | [`roots/`](./roots/)         | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                  |
 | [`special/`](./special/)     | Bessel function `J_n(x)`     | [`besselJ.mpmath.benchmark.md`](./special/besselJ.mpmath.benchmark.md)                      |
+| [`special/`](./special/)     | Bessel function `Y_n(x)`     | [`besselY.mpmath.benchmark.md`](./special/besselY.mpmath.benchmark.md)                      |
 | [`special/`](./special/)     | Modified Bessel `I_n(x)`     | [`besselI.mpmath.benchmark.md`](./special/besselI.mpmath.benchmark.md)                      |
 | [`special/`](./special/)     | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                |
 | [`special/`](./special/)     | Error functions              | [`erf.mpmath.benchmark.md`](./special/erf.mpmath.benchmark.md)                              |
