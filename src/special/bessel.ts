@@ -259,6 +259,253 @@ export function besselJZero(n: number, m: number): number {
   return zeros[m - 1];
 }
 
+/** Euler-Mascheroni constant. */
+const EULER_GAMMA = 0.5772156649015329;
+
+/** `1 / sqrt(pi)`; applied as `INV_SQRT_PI / sqrt(x)` so that `pi * x` cannot overflow. */
+const INV_SQRT_PI = 0.5641895835477563;
+
+/** Below this `x`, `Y_0` and `Y_1` come from the ascending series; from here, from the Neumann series. */
+const Y_SERIES_MAX = 3;
+
+/** From this `x` on, `Y_0` and `Y_1` come from the Hankel asymptotic expansions. */
+const Y_ASYMPTOTIC_MIN = 20;
+
+/**
+ * Pair `[Y_0(x), Y_1(x)]` left by the last {@link seriesY01}, {@link neumannY01}
+ * or {@link hankelY01} call. Safe as module state: calls are synchronous.
+ */
+const y01 = new Float64Array(2);
+
+/**
+ * `Y_0(x)` and `Y_1(x)` from the ascending series (Abramowitz & Stegun 9.1.11),
+ *
+ * - `Y_0 = (2/pi) [(ln(x/2) + gamma) J_0 + sum_{k>=1} (-1)^(k+1) H_k (x^2/4)^k / (k!)^2]`,
+ * - `Y_1 = -2/(pi x) + (2/pi) ln(x/2) J_1
+ *   - (x/(2 pi)) sum_{k>=0} (H_k + H_{k+1} - 2 gamma) (-x^2/4)^k / (k! (k+1)!)`,
+ *
+ * with `H_k` the harmonic numbers. Used for `0 < x < 3`: the terms decrease
+ * like `(x^2/4)^k / (k!)^2` and stay `O(1)`, so cancellation costs at most a
+ * fraction of a digit; beyond `x ~ 4` it grows steadily. The logarithm is
+ * taken as `ln(x) - ln(2)` so that subnormal `x` does not hit `ln(0)`.
+ */
+function seriesY01(x: number): void {
+  const h = 0.5 * x;
+  const q = h * h;
+  const lnh = Math.log(x) - Math.LN2;
+  const tol = 1e-17;
+
+  let a = 1; // (-q)^k / (k!)^2
+  let b = 1; // (-q)^k / (k! (k+1)!)
+  let hk = 0; // H_k
+  let hk1 = 1; // H_{k+1}
+  let j0 = 1; // J_0
+  let j1 = 1; // J_1 / h
+  let s0 = 0;
+  let s1 = 1 - 2 * EULER_GAMMA;
+  for (let k = 1; k < 40; k++) {
+    a *= -q / (k * k);
+    b *= -q / (k * (k + 1));
+    hk += 1 / k;
+    hk1 += 1 / (k + 1);
+    j0 += a;
+    j1 += b;
+    const d0 = hk * a;
+    const d1 = (hk + hk1 - 2 * EULER_GAMMA) * b;
+    s0 -= d0;
+    s1 += d1;
+    if (Math.abs(d0) <= tol && Math.abs(d1) <= tol) break;
+  }
+
+  y01[0] = (2 / Math.PI) * ((lnh + EULER_GAMMA) * j0 + s0);
+  y01[1] = -2 / (Math.PI * x) + (2 / Math.PI) * lnh * (h * j1) - (h * s1) / Math.PI;
+}
+
+/**
+ * `Y_0(x)` and `Y_1(x)` for `3 <= x < 20` from the Neumann-type series
+ *
+ * - `Y_0 = (2/pi) [(ln(x/2) + gamma) J_0 - 2 sum_{k>=1} (-1)^k J_{2k} / k]`,
+ * - `Y_1 = -Y_0' = (2/pi) [(ln(x/2) + gamma) J_1 - J_0 / x
+ *   + sum_{k>=1} (-1)^k (J_{2k-1} - J_{2k+1}) / k]`
+ *
+ * (Abramowitz & Stegun 9.1.88, differentiated using `J_0' = -J_1` and
+ * `2 J_k' = J_{k-1} - J_{k+1}`). Every `J_k` is produced at once by Miller's
+ * backward recurrence, normalized with `J_0 + 2 sum_{k>=1} J_{2k} = 1`, exactly
+ * as in {@link millerJ}. All terms are bounded by 1 and `J_k` is negligible
+ * beyond `k ~ x + 12 x^(1/3)`, so there is no cancellation beyond the `O(1)`
+ * level and the absolute error stays at a few `1e-16`. The sums are
+ * accumulated on the way down, so no `J_k` is stored.
+ */
+function neumannY01(x: number): void {
+  // Order beyond which J_k(x) is negligible, then the Miller margin (as in millerJ).
+  const nn = Math.ceil(x + 12 * Math.cbrt(x) + 10);
+  let start = nn + Math.ceil(Math.sqrt(160 * nn)) + 10;
+  if (start % 2 !== 0) start++;
+
+  let uNext = 0;
+  let uCurr = 1;
+  let norm = 0; // u_0 + 2 sum u_{2k}
+  let sum0 = 0; // sum (-1)^k u_{2k} / k
+  let sum1 = 0; // sum (-1)^k (u_{2k-1} - u_{2k+1}) / k, regrouped by odd index
+  let u0 = 0;
+  let u1 = 0;
+
+  for (let k = start; k >= 1; k--) {
+    const uPrev = ((2 * k) / x) * uCurr - uNext;
+    uNext = uCurr;
+    uCurr = uPrev;
+
+    const idx = k - 1;
+    if (idx % 2 === 0) {
+      if (idx === 0) {
+        u0 = uCurr;
+        norm += uCurr;
+      } else {
+        const m = idx / 2;
+        norm += 2 * uCurr;
+        sum0 += (m % 2 === 0 ? uCurr : -uCurr) / m;
+      }
+    } else {
+      // u_idx appears in the terms m = (idx + 1) / 2 and, for idx >= 3, m = (idx - 1) / 2.
+      const m = (idx + 1) / 2;
+      const c = 2 / (idx + 1) + (idx >= 3 ? 2 / (idx - 1) : 0);
+      sum1 += (m % 2 === 0 ? c : -c) * uCurr;
+      if (idx === 1) u1 = uCurr;
+    }
+
+    // Rescale to avoid overflow during the descent.
+    if (Math.abs(uCurr) > 1e250) {
+      const scale = 1e-250;
+      uCurr *= scale;
+      uNext *= scale;
+      norm *= scale;
+      sum0 *= scale;
+      sum1 *= scale;
+      u0 *= scale;
+      u1 *= scale;
+    }
+  }
+
+  const l = Math.log(x) - Math.LN2 + EULER_GAMMA;
+  const j0 = u0 / norm;
+  const j1 = u1 / norm;
+  y01[0] = (2 / Math.PI) * (l * j0 - (2 * sum0) / norm);
+  y01[1] = (2 / Math.PI) * (l * j1 - j0 / x + sum1 / norm);
+}
+
+/**
+ * `Y_0(x)` and `Y_1(x)` for `x >= 20` from the Hankel asymptotic expansions
+ * (Abramowitz & Stegun 9.2.6, 9.2.9-9.2.10),
+ * `Y_nu = sqrt(2 / (pi x)) [P sin(chi) + Q cos(chi)]` with
+ * `chi = x - (nu/2 + 1/4) pi`, where `P = t_0 - t_2 + t_4 - ...` and
+ * `Q = t_1 - t_3 + ...` are built from `t_k = t_{k-1} (4 nu^2 - (2k-1)^2) / (8 k x)`.
+ *
+ * The expansion is asymptotic: its smallest term is of order `e^(-2x)`, i.e.
+ * below `1e-17` from `x = 20`, so it reaches full double precision (already at
+ * about `x = 16`). It costs `O(1)` for any `x`.
+ *
+ * The phase is never formed: `sin(chi)` and `cos(chi)` are expanded in
+ * `sin(x)` and `cos(x)` (`chi` differs from `x` by the fixed `pi/4` or
+ * `3 pi/4`), so the only argument reduction is the one done by `Math.sin` and
+ * `Math.cos` on the exact input `x`, however large.
+ */
+function hankelY01(x: number): void {
+  const s = Math.sin(x);
+  const c = Math.cos(x);
+  const pref = INV_SQRT_PI / Math.sqrt(x);
+
+  for (let nu = 0; nu <= 1; nu++) {
+    const mu = 4 * nu * nu;
+    let t = 1;
+    let p = 1;
+    let q = 0;
+    for (let k = 1; k < 60; k++) {
+      const next = (t * (mu - (2 * k - 1) ** 2)) / (8 * k * x);
+      if (Math.abs(next) >= Math.abs(t)) break; // smallest term reached
+      t = next;
+      if (k % 2 === 1) q += k % 4 === 1 ? t : -t;
+      else p += k % 4 === 2 ? -t : t;
+      if (Math.abs(t) < 1e-17) break;
+    }
+    // sqrt(2/(pi x)) (P sin(chi) + Q cos(chi)) with chi = x - pi/4 (nu = 0) or x - 3 pi/4 (nu = 1).
+    y01[nu] = nu === 0 ? pref * ((p + q) * s + (q - p) * c) : pref * ((q - p) * s - (p + q) * c);
+  }
+}
+
+/**
+ * Computes the Bessel function of the second kind, `Y_n(x)` (also called the
+ * Neumann or Weber function), for a non-negative integer order `n` and
+ * `x > 0`.
+ *
+ * `Y_0` and `Y_1` are evaluated by region and `Y_n` follows from the forward
+ * recurrence `Y_{k+1} = (2k/x) Y_k - Y_{k-1}` (Abramowitz & Stegun 9.1.27),
+ * which is stable because `Y_n` is the dominant solution:
+ *
+ * - `0 < x < 3`: ascending series with the logarithmic term.
+ * - `3 <= x < 20`: Neumann-type series in `J_{2k}`, with the `J_k` generated
+ *   by Miller's backward recurrence.
+ * - `x >= 20`: Hankel asymptotic expansions, `O(1)` for any `x`.
+ *
+ * Special values: `Y_n(0) = -Infinity`; `Y_n(x)` is not real for `x < 0`, so
+ * the result is `NaN`; `Y_n(Infinity) = 0`. The result is `-Infinity` once
+ * `|Y_n(x)|` exceeds the double range (e.g. `n = 250` at `x = 5`).
+ *
+ * Accuracy (measured against mpmath): for `n <= 1` the absolute error is at
+ * most `4e-16` where `|Y_n| <= 1` and the relative error at most `4e-16`
+ * where `|Y_n| > 1`; as for any oscillating function, the relative error is
+ * not meaningful next to a zero. For `n >= 2` the forward recurrence adds
+ * round-off that grows with `n`: up to `n = 1000` the error is at most `2e-15`
+ * (absolute, where `|Y_n| <= 1`) or `1e-14` (relative, where `|Y_n| > 1`),
+ * the largest values occurring near the turning point `x ~ n`. The error does
+ * not grow with `x`, which was tested up to `1e15` (the phase is not rounded;
+ * see the Hankel expansion). The cost is proportional to `n` and independent of
+ * `x`.
+ *
+ * @param n Order; a non-negative integer not larger than `1e6`.
+ * @param x Argument; a real number. `NaN` returns `NaN`.
+ * @returns The value of `Y_n(x)`.
+ * @throws {RangeError} If `n` is not an integer in `[0, 1e6]`.
+ *
+ * @example
+ * ```ts
+ * import { besselY } from 'numerics-js/special';
+ *
+ * console.log(besselY(0, 1));
+ * console.log(besselY(5, 2.5));
+ * console.log(besselY(2, 100));
+ * ```
+ *
+ * Output:
+ * ```text
+ * 0.088256964215677
+ * -3.830176000740752
+ * 0.07683686712502796
+ * ```
+ */
+export function besselY(n: number, x: number): number {
+  assertOrder(n);
+  if (Number.isNaN(x) || x < 0) return NaN;
+  if (x === 0) return -Infinity;
+  if (x === Infinity) return 0;
+
+  if (x < Y_SERIES_MAX) seriesY01(x);
+  else if (x < Y_ASYMPTOTIC_MIN) neumannY01(x);
+  else hankelY01(x);
+
+  if (n === 0) return y01[0];
+
+  let yPrev = y01[0];
+  let yCurr = y01[1];
+  for (let k = 1; k < n; k++) {
+    const yNext = ((2 * k) / x) * yCurr - yPrev;
+    // |Y_k| grows without bound beyond the turning point, so an infinite step means overflow.
+    if (!Number.isFinite(yNext)) return -Infinity;
+    yPrev = yCurr;
+    yCurr = yNext;
+  }
+  return yCurr;
+}
+
 /**
  * Power series `I_n(x) = (x/2)^n / n! * sum_k (x^2/4)^k / (k! (n+1)_k)`.
  *

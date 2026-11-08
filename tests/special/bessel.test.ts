@@ -4,6 +4,7 @@ import {
   besselIScaled,
   besselJ,
   besselJZero,
+  besselY,
   clearBesselCache
 } from '../../src/special/bessel.js';
 
@@ -240,6 +241,200 @@ const I_REFERENCE: [n: number, x: number, value: number][] = [
   [0, 700, 1.5295933476718737e302],
   [100, 720, 7.098312758841151e307]
 ];
+
+// Reference values computed with mpmath (60 digits), stored as the nearest doubles.
+const Y_REFERENCE: [n: number, x: number, value: number][] = [
+  [0, 1, 0.08825696421567696],
+  [1, 1, -0.7812128213002887],
+  [2, 1, -1.6506826068162543],
+  [3, 0.5, -42.059494304723884],
+  [5, 2.5, -3.8301760007407517],
+  [20, 5, -593396529.6914321],
+  [5, 0.001, -2.4446200786802637e17],
+  [0, 2.5, 0.4980703596152319],
+  [1, 2.9, 0.29594005460767475],
+  [0, 3.5, 0.1890219439208265],
+  [1, 10, 0.24901542420695388],
+  [0, 19.9, 0.04576209415938548],
+  [1, 25, -0.09882996478323741],
+  [10, 9.5, -0.4439065532932459],
+  [10, 10, -0.35981415218340274],
+  [10, 10.5, -0.28022819155866036],
+  [30, 30, -0.24937439396697417],
+  [0, 50, -0.09806499547007708],
+  [100, 50, -3.2938001882026665e18],
+  [2, 100, 0.07683686712502795],
+  [50, 100, 0.07650526394480305],
+  [1, 1000, -0.024784331292351778],
+  [1000, 1000, -0.07747600152072075],
+  [100, 0.5, -4.776690378041764e215]
+];
+
+const Y0_ZEROS = [
+  0.8935769662791675, 3.957678419314858, 7.086051060301773, 10.222345043496418, 13.361097473872764,
+  16.50092244152809
+];
+const Y1_ZEROS = [
+  2.197141326031017, 5.429681040794135, 8.596005868331169, 11.749154830839881, 14.897442128336726
+];
+
+describe('besselY', () => {
+  it('matches high-precision reference values', () => {
+    for (const [n, x, expected] of Y_REFERENCE) {
+      const actual = besselY(n, x);
+      expect(Math.abs(actual - expected), `Y_${n}(${x})`).toBeLessThanOrEqual(
+        1e-15 + 2e-14 * Math.abs(expected)
+      );
+    }
+  });
+
+  it('vanishes at the known zeros of Y_0, Y_1 and Y_5', () => {
+    for (const z of Y0_ZEROS) expect(Math.abs(besselY(0, z)), `y_{0}(${z})`).toBeLessThan(1e-15);
+    for (const z of Y1_ZEROS) expect(Math.abs(besselY(1, z)), `y_{1}(${z})`).toBeLessThan(1e-15);
+    for (const z of [6.747183824871022, 10.597176726782031]) {
+      expect(Math.abs(besselY(5, z)), `y_{5}(${z})`).toBeLessThan(1e-14);
+    }
+  });
+
+  it('handles the singularity, the domain and non-finite arguments', () => {
+    for (const n of [0, 1, 2, 7]) {
+      expect(besselY(n, 0)).toBe(-Infinity);
+      expect(besselY(n, -0)).toBe(-Infinity);
+      expect(besselY(n, -1e-300)).toBeNaN(); // not real for x < 0
+      expect(besselY(n, -5)).toBeNaN();
+      expect(besselY(n, -Infinity)).toBeNaN();
+      expect(besselY(n, NaN)).toBeNaN();
+      expect(besselY(n, Infinity)).toBe(0);
+    }
+  });
+
+  it('is accurate for tiny arguments, including subnormals', () => {
+    // Y_0 ~ (2/pi) (ln(x/2) + gamma) must not hit ln(0) for subnormal x.
+    expect(besselY(0, 1e-300) / -439.8351636227653).toBeCloseTo(1, 14);
+    expect(besselY(0, 1e-308) / -451.5621332048362).toBeCloseTo(1, 14);
+    expect(besselY(0, 5e-324) / -473.9990734230043).toBeCloseTo(1, 14);
+    // Y_1 ~ -2 / (pi x), finite until it exceeds the double range.
+    expect(besselY(1, 1e-300) / -6.366197723675813e299).toBeCloseTo(1, 14);
+    expect(besselY(1, 1e-308) / -6.366197723675814e307).toBeCloseTo(1, 14);
+    expect(besselY(1, 5e-324)).toBe(-Infinity);
+    // Y_n ~ -((n-1)! / pi) (2/x)^n for small x.
+    expect(besselY(2, 1e-100) / -1.2732395447351626e200).toBeCloseTo(1, 14);
+    expect(besselY(3, 1e-100) / -5.0929581789406506e300).toBeCloseTo(1, 14);
+  });
+
+  it('does not lose accuracy at huge arguments (phase is not rounded)', () => {
+    // sin and cos see the exact x, so there is no x * eps phase error.
+    expect(Math.abs(besselY(0, 1e8) - 7.306391165521707e-5)).toBeLessThan(1e-19);
+    expect(Math.abs(besselY(1, 1e8) - -3.2060294975092524e-5)).toBeLessThan(1e-19);
+    expect(Math.abs(besselY(0, 1e15) - 2.4468665123771324e-8)).toBeLessThan(1e-23);
+    expect(Math.abs(besselY(1, 1e15) - -6.15663864688501e-9)).toBeLessThan(1e-24);
+    expect(Math.abs(besselY(2, 1e15) - -2.4468665123771334e-8)).toBeLessThan(1e-23);
+    // sqrt(pi x) would overflow here; the 1/sqrt(x) form does not.
+    expect(besselY(0, 1e300)).toBeCloseTo(-1.3681360450342481e-151, 165);
+    expect(besselY(1, 1e300)).toBeCloseTo(7.860673062724093e-151, 165);
+    expect(besselY(0, Number.MAX_VALUE)).not.toBe(0);
+  });
+
+  it('is continuous across the internal method boundaries', () => {
+    // x = 3 (series -> Neumann series) and x = 20 (Neumann series -> Hankel expansion).
+    for (const boundary of [3, 20]) {
+      for (const n of [0, 1, 4]) {
+        const below = besselY(n, boundary - 1e-12);
+        const at = besselY(n, boundary);
+        const above = besselY(n, boundary + 1e-12);
+        const slope = Math.abs(besselY(n + 1, boundary)) + Math.abs(besselY(n, boundary));
+        expect(Math.abs(below - at), `n=${n}, x=${boundary}-`).toBeLessThan(1e-14 + 1e-11 * slope);
+        expect(Math.abs(above - at), `n=${n}, x=${boundary}+`).toBeLessThan(1e-14 + 1e-11 * slope);
+      }
+    }
+  });
+
+  it('satisfies the Wronskian J_{n+1} Y_n - J_n Y_{n+1} = 2 / (pi x) against besselJ', () => {
+    // Independent of the Y code paths: besselJ uses a different algorithm.
+    for (const x of [0.01, 0.3, 0.99, 1.5, 2.99, 3, 3.5, 9, 19.99, 20, 33, 150, 800]) {
+      for (const n of [0, 1, 2, 5, 12]) {
+        const a = besselJ(n + 1, x) * besselY(n, x);
+        const b = besselJ(n, x) * besselY(n + 1, x);
+        const scale = Math.max(Math.abs(a), Math.abs(b), 2 / (Math.PI * x));
+        // besselJ has an absolute error of a few 1e-16 (growing slowly with x), which
+        // enters multiplied by |Y|; allow for it.
+        const allowed =
+          2e-14 * scale + 3e-15 * (Math.abs(besselY(n, x)) + Math.abs(besselY(n + 1, x)));
+        expect(Math.abs(a - b - 2 / (Math.PI * x)), `n=${n}, x=${x}`).toBeLessThan(allowed);
+      }
+    }
+  });
+
+  it("satisfies Y_0' = -Y_1 (central differences, also across the method boundaries)", () => {
+    const h = 1e-4;
+    for (const x of [0.4, 1.7, 3, 3 + 5e-5, 6.2, 12, 19.99995, 20, 20.00004, 45, 300]) {
+      const slope = (besselY(0, x + h) - besselY(0, x - h)) / (2 * h);
+      // Truncation error ~ h^2 |Y_0'''| / 6; round-off ~ 3e-16 / h.
+      expect(Math.abs(slope + besselY(1, x)), `x=${x}`).toBeLessThan(
+        2e-8 * Math.max(1, 1 / x ** 3)
+      );
+    }
+  });
+
+  it('has no jumps in x over a fine scan through all three regions', () => {
+    // Step 0.01; relative allowance for n > x, where |Y_n| is large and varies fast.
+    for (const n of [0, 1, 3, 25]) {
+      let previous = besselY(n, 4);
+      for (let x = 4.01; x < 60; x += 0.01) {
+        const value = besselY(n, x);
+        const allowed = 0.02 + 0.1 * Math.max(Math.abs(value), Math.abs(previous));
+        expect(Math.abs(value - previous), `n=${n}, x=${x}`).toBeLessThan(allowed);
+        previous = value;
+      }
+    }
+  });
+
+  it('overflows to -Infinity (never NaN) once |Y_n| exceeds the double range', () => {
+    expect(besselY(200, 5)).toBeCloseTo(-3.3446295e292, -285); // still representable
+    expect(besselY(250, 5)).toBe(-Infinity); // true value -1.4e390
+    expect(besselY(1e6, 1)).toBe(-Infinity);
+    expect(besselY(2, 1e-200)).toBe(-Infinity);
+    expect(Number.isFinite(besselY(100, 0.5))).toBe(true); // -4.8e215
+    for (const x of [1e-3, 0.5, 3, 20]) {
+      let overflowed = false;
+      for (let n = 0; n <= 400; n++) {
+        const value = besselY(n, x);
+        expect(Number.isNaN(value), `Y_${n}(${x})`).toBe(false);
+        if (overflowed) expect(value, `Y_${n}(${x})`).toBe(-Infinity);
+        if (value === -Infinity) overflowed = true;
+      }
+    }
+  });
+
+  it('is negative and strictly decreasing in n beyond the turning point', () => {
+    for (const x of [0.2, 1, 4, 10]) {
+      let previous = Infinity;
+      for (let n = Math.ceil(x); n < 40; n++) {
+        const value = besselY(n, x);
+        if (!Number.isFinite(value)) break;
+        expect(value, `Y_${n}(${x})`).toBeLessThan(0);
+        expect(value, `Y_${n}(${x})`).toBeLessThan(previous);
+        previous = value;
+      }
+    }
+  });
+
+  it('works for large orders', () => {
+    expect(Math.abs(besselY(1000, 1000) - -0.07747600152072075)).toBeLessThan(1e-14);
+    expect(besselY(1000, 1)).toBe(-Infinity);
+    const huge = besselY(1e6, 1e6);
+    expect(Number.isFinite(huge)).toBe(true);
+    expect(huge).toBeLessThan(0);
+  });
+
+  it('throws RangeError for invalid orders', () => {
+    for (const n of [-1, 1.5, NaN, Infinity, -Infinity, 1e6 + 1, 1e9]) {
+      expect(() => besselY(n, 5), `n=${n}`).toThrow(RangeError);
+    }
+    expect(() => besselY(-1, NaN)).toThrow(RangeError);
+    expect(() => besselY(-1, 0)).toThrow(RangeError);
+  });
+});
 
 describe('besselI', () => {
   it('matches high-precision reference values', () => {
