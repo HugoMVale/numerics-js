@@ -4,6 +4,8 @@ import {
   besselIScaled,
   besselJ,
   besselJZero,
+  besselK,
+  besselKScaled,
   besselY,
   clearBesselCache
 } from '../../src/special/bessel.js';
@@ -563,5 +565,236 @@ describe('besselI', () => {
       expect(() => besselIScaled(n, 5), `n=${n}`).toThrow(RangeError);
     }
     expect(() => besselI(-1, NaN)).toThrow(RangeError);
+  });
+});
+
+// Reference values computed with mpmath (60 digits), stored as the nearest doubles.
+const K_REFERENCE: [n: number, x: number, value: number][] = [
+  [0, 1, 0.42102443824070834],
+  [1, 1, 0.6019072301972346],
+  [2, 1, 1.6248388986351774],
+  [3, 0.5, 62.05790952993026],
+  [5, 2.5, 2.716884290786543],
+  [20, 5, 482700052.06214845],
+  [5, 0.001, 3.8399997600000096e17],
+  [0, 0.1, 2.4270690247020164],
+  [1, 0.9, 0.7165335787760191],
+  [0, 1.5, 0.21380556264752573],
+  [1, 2, 0.13986588181652243],
+  [0, 10, 1.778006231616765e-5],
+  [1, 10, 1.8648773453825585e-5],
+  [10, 3, 2459.6204220569466],
+  [50, 30, 58.77068625800724],
+  [100, 1, 5.900333183638616e185],
+  [0, 50, 3.4101677497894956e-23],
+  [2, 100, 4.75022530388864e-45],
+  [0, 700, 4.669776431685377e-306],
+  [1, 700, 4.6731107967079664e-306],
+  [0, 708, 1.55766298549539e-309], // subnormal
+  [100, 120, 1.2669787143843876e-36],
+  [200, 80, 2.8729317952386546e48],
+  [1000, 1000, 1.298180251466701e-233],
+  [150, 1, 2.7135812385642483e305],
+  [151, 1, 8.140834774433544e307]
+];
+
+// Reference values of e^x K_n(x), computed with mpmath (60 digits), stored as the nearest doubles.
+const KS_REFERENCE: [n: number, x: number, value: number][] = [
+  [0, 1, 1.144463079806895],
+  [1, 1000, 0.03964813081296021],
+  [2, 0.5, 12.448148218621052],
+  [3, 10, 0.6002806700180913],
+  [20, 0.9, 1.2765919104982868e24],
+  [5, 1000, 0.040126532961450426],
+  [50, 10000, 0.014201639797028832],
+  [0, 800, 0.044304427486646016],
+  [0, 1e5, 0.003963322343474756],
+  [1, 1e5, 0.003963342160036932],
+  [0, 1e8, 0.00012533141357488575],
+  [200, 80, 1.5917830213535123e83],
+  [1000, 1000, 2.5575074142019335e201],
+  [0, 1e300, 1.2533141373155002e-150],
+  [1, 1e300, 1.2533141373155002e-150]
+];
+
+describe('besselK', () => {
+  it('matches high-precision reference values', () => {
+    for (const [n, x, expected] of K_REFERENCE) {
+      // Relative accuracy; the forward recurrence adds a few 1e-15 for n ~ 100.
+      expect(Math.abs(besselK(n, x) / expected - 1), `K_${n}(${x})`).toBeLessThan(1e-14);
+    }
+  });
+
+  it('besselKScaled matches high-precision reference values', () => {
+    for (const [n, x, expected] of KS_REFERENCE) {
+      expect(Math.abs(besselKScaled(n, x) / expected - 1), `e^x K_${n}(${x})`).toBeLessThan(1e-14);
+    }
+  });
+
+  it('handles the singularity, the domain and non-finite arguments', () => {
+    for (const n of [0, 1, 2, 7]) {
+      expect(besselK(n, 0)).toBe(Infinity);
+      expect(besselK(n, -0)).toBe(Infinity);
+      expect(besselKScaled(n, 0)).toBe(Infinity);
+      expect(besselKScaled(n, -0)).toBe(Infinity);
+      for (const x of [-1e-300, -5, -Infinity, NaN]) {
+        expect(besselK(n, x), `K_${n}(${x})`).toBeNaN(); // not real for x < 0
+        expect(besselKScaled(n, x), `e^x K_${n}(${x})`).toBeNaN();
+      }
+      expect(besselK(n, Infinity)).toBe(0);
+      expect(besselKScaled(n, Infinity)).toBe(0);
+    }
+  });
+
+  it('is accurate for tiny arguments, including subnormals', () => {
+    // K_0 ~ -(ln(x/2) + gamma) must not hit ln(0) for subnormal x.
+    expect(besselK(0, 1e-300) / 690.8914594138721).toBeCloseTo(1, 14);
+    expect(besselK(0, 1e-308) / 709.3121401578245).toBeCloseTo(1, 14);
+    expect(besselK(0, 5e-324) / 744.5560034370396).toBeCloseTo(1, 14);
+    // K_1 ~ 1/x, finite until it exceeds the double range.
+    expect(besselK(1, 1e-300) / 1e300).toBeCloseTo(1, 14);
+    expect(besselK(1, 1e-308) / 1e308).toBeCloseTo(1, 14);
+    expect(besselK(1, 5e-324)).toBe(Infinity);
+    // K_n ~ ((n-1)! / 2) (2/x)^n for small x.
+    expect(besselK(2, 1e-100) / 2e200).toBeCloseTo(1, 14);
+    expect(besselK(3, 1e-100) / 8e300).toBeCloseTo(1, 14);
+    // The scaled function equals the plain one when e^x = 1 to round-off.
+    expect(besselKScaled(0, 1e-300) / 690.8914594138721).toBeCloseTo(1, 14);
+  });
+
+  it('is continuous across the series / trapezoidal-rule boundary at x = 1', () => {
+    for (const n of [0, 1, 3, 20]) {
+      const below = besselK(n, 1 - 1e-12);
+      const above = besselK(n, 1 + 1e-12);
+      // |d ln K_n / dx| = K_{n-1}/K_n + n/x is about n + 1.4 at x = 1.
+      expect(Math.abs(below / above - 1), `n=${n}`).toBeLessThan(3e-12 * (n + 2));
+    }
+  });
+
+  it('is positive, strictly decreasing in x and strictly increasing in n', () => {
+    for (const n of [0, 1, 4, 30]) {
+      let previous = Infinity;
+      for (const x of [0.01, 0.5, 0.999, 1, 1.001, 3, 10, 40, 200, 600]) {
+        const value = besselK(n, x);
+        expect(value, `K_${n}(${x})`).toBeGreaterThan(0);
+        expect(value, `K_${n}(${x})`).toBeLessThan(previous);
+        previous = value;
+      }
+    }
+    for (const x of [0.05, 1, 5, 40, 300]) {
+      let previous = 0;
+      for (let n = 0; n < 60; n++) {
+        const value = besselKScaled(n, x);
+        expect(value, `e^x K_${n}(${x})`).toBeGreaterThan(previous);
+        previous = value;
+      }
+    }
+  });
+
+  it('satisfies the Wronskian I_n K_{n+1} + I_{n+1} K_n = 1/x against besselI', () => {
+    // Independent of the K code paths: besselI uses Miller's backward recurrence. All terms
+    // are positive, so there is no cancellation; the scaled forms avoid overflow and underflow.
+    for (const x of [0.01, 0.3, 0.99, 1, 1.5, 6, 25, 150, 1e3, 1e5, 1e8]) {
+      for (const n of [0, 1, 2, 5, 12, 40]) {
+        const kn = besselKScaled(n, x);
+        const kn1 = besselKScaled(n + 1, x);
+        const sum = besselIScaled(n, x) * kn1 + besselIScaled(n + 1, x) * kn;
+        expect(Math.abs(sum * x - 1), `n=${n}, x=${x}`).toBeLessThan(2e-14);
+      }
+    }
+  });
+
+  it("satisfies K_0' = -K_1 (central differences, also across the method boundary)", () => {
+    const h = 1e-4;
+    for (const x of [0.4, 0.99995, 1, 1.00004, 1.7, 3, 12, 45, 300]) {
+      const slope = (besselK(0, x + h) - besselK(0, x - h)) / (2 * h);
+      // Truncation error ~ h^2 |K_0'''| / 6; round-off ~ 3e-16 K_0 / h.
+      expect(Math.abs(slope + besselK(1, x)) / besselK(1, x), `x=${x}`).toBeLessThan(
+        1e-7 * Math.max(1, 1 / x ** 2)
+      );
+    }
+  });
+
+  it('besselK agrees with exp(-x) besselKScaled', () => {
+    for (const x of [0.5, 0.999, 1, 2.5, 30, 300, 700]) {
+      for (const n of [0, 1, 5, 40]) {
+        const plain = besselK(n, x);
+        expect(
+          Math.abs(plain / (besselKScaled(n, x) * Math.exp(-x)) - 1),
+          `n=${n}, x=${x}`
+        ).toBeLessThan(1e-14);
+      }
+    }
+  });
+
+  it('besselKScaled never underflows and follows the asymptotic law at huge x', () => {
+    for (const x of [1e5, 1e8, 1e12, 1e100, 1e300, Number.MAX_VALUE]) {
+      const base = Math.sqrt(Math.PI / 2) / Math.sqrt(x); // sqrt(pi / 2x) without forming 2x
+      for (const nu of [0, 1, 2]) {
+        // Abramowitz & Stegun 9.7.2 through the second correction, with mu = 4 nu^2.
+        const mu = 4 * nu * nu;
+        const approx = base * (1 + (mu - 1) / (8 * x) + ((mu - 1) * (mu - 9)) / (2 * (8 * x) ** 2));
+        const value = besselKScaled(nu, x);
+        expect(Number.isFinite(value) && value > 0, `nu=${nu}, x=${x}`).toBe(true);
+        expect(Math.abs(value / approx - 1), `nu=${nu}, x=${x}`).toBeLessThan(1e-14);
+      }
+    }
+  });
+
+  it('underflows to 0 for large x, where only the scaled function is meaningful', () => {
+    expect(besselK(0, 745.2)).toBe(0); // true value 1e-325
+    expect(besselK(0, 800)).toBe(0);
+    expect(besselK(3, 1e5)).toBe(0);
+    expect(besselKScaled(0, 800)).toBeGreaterThan(0.04);
+  });
+
+  it('overflows to Infinity (never NaN) once K_n(x) exceeds the double range', () => {
+    expect(Number.isFinite(besselK(151, 1))).toBe(true); // 8.1e307
+    expect(besselK(152, 1)).toBe(Infinity); // true value 2.5e310
+    expect(besselK(1e6, 1)).toBe(Infinity);
+    expect(besselK(2, 1e-200)).toBe(Infinity);
+    expect(besselK(1, 1e-310)).toBe(Infinity);
+    for (const x of [1e-3, 0.5, 3, 20]) {
+      let overflowed = false;
+      let previous = 0;
+      for (let n = 0; n <= 400; n++) {
+        const value = besselK(n, x);
+        expect(Number.isNaN(value), `K_${n}(${x})`).toBe(false);
+        if (overflowed) expect(value, `K_${n}(${x})`).toBe(Infinity);
+        expect(value, `K_${n}(${x})`).toBeGreaterThanOrEqual(previous);
+        if (value === Infinity) overflowed = true;
+        previous = value;
+      }
+    }
+  });
+
+  it('keeps representable values where e^x K_n(x) overflows', () => {
+    // True values: K_2000(1000) = 1.726566212716972e281 (scaled 3.4e715),
+    // K_1000(600) = 4.3652737085602827e49 (scaled 1.6e310).
+    expect(besselKScaled(2000, 1000)).toBe(Infinity);
+    expect(besselKScaled(1000, 600)).toBe(Infinity);
+    // The factor e^-x is removed after an exact binary reduction, so no accuracy is lost.
+    expect(Math.abs(besselK(2000, 1000) / 1.726566212716972e281 - 1)).toBeLessThan(1e-14);
+    expect(Math.abs(besselK(1000, 600) / 4.3652737085602827e49 - 1)).toBeLessThan(1e-14);
+  });
+
+  it('works for large orders', () => {
+    expect(besselK(1e6, 1e6)).toBe(0); // K ~ e^(-5.3e5) underflows
+    expect(besselKScaled(1e6, 1e6)).toBe(Infinity); // e^x K ~ e^(4.7e5), no NaN or hang
+    expect(besselKScaled(1e6, 1)).toBe(Infinity);
+    // n << x: e^x K_n ~ sqrt(pi / 2x) e^(n^2 / 2x).
+    const v = besselKScaled(1000, 1e7);
+    expect(Math.abs(v / (Math.sqrt(Math.PI / 2e7) * Math.exp(1000 ** 2 / 2e7)) - 1)).toBeLessThan(
+      1e-3
+    );
+  });
+
+  it('throws RangeError for invalid orders', () => {
+    for (const n of [-1, 1.5, NaN, Infinity, -Infinity, 1e6 + 1, 1e9]) {
+      expect(() => besselK(n, 5), `n=${n}`).toThrow(RangeError);
+      expect(() => besselKScaled(n, 5), `n=${n}`).toThrow(RangeError);
+    }
+    expect(() => besselK(-1, NaN)).toThrow(RangeError);
+    expect(() => besselK(-1, 0)).toThrow(RangeError);
   });
 });
