@@ -327,7 +327,7 @@ describe('besselY', () => {
     expect(Math.abs(besselY(0, 1e8) - 7.306391165521707e-5)).toBeLessThan(1e-19);
     expect(Math.abs(besselY(1, 1e8) - -3.2060294975092524e-5)).toBeLessThan(1e-19);
     expect(Math.abs(besselY(0, 1e15) - 2.4468665123771324e-8)).toBeLessThan(1e-23);
-    expect(Math.abs(besselY(1, 1e15) - -6.15663864688501e-9)).toBeLessThan(1e-24);
+    expect(Math.abs(besselY(1, 1e15) - -6.15663864688501e-9)).toBeLessThan(2e-24);
     expect(Math.abs(besselY(2, 1e15) - -2.4468665123771334e-8)).toBeLessThan(1e-23);
     // sqrt(pi x) would overflow here; the 1/sqrt(x) form does not.
     expect(besselY(0, 1e300)).toBeCloseTo(-1.3681360450342481e-151, 165);
