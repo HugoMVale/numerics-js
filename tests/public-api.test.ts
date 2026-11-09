@@ -30,6 +30,8 @@ describe('public API', () => {
     expect(interpolate.LinearInterpolatorND).toBeTypeOf('function');
     expect(interpolate.PchipInterpolator1D).toBeTypeOf('function');
     expect(interpolate.PchipInterpolatorND).toBeTypeOf('function');
+    expect(interpolate.CubicSplineInterpolator1D).toBeTypeOf('function');
+    expect(interpolate.CubicSplineInterpolatorND).toBeTypeOf('function');
     expect(typeof math.clip).toBe('function');
     expect(typeof math.copysign).toBe('function');
     expect(typeof math.isClose).toBe('function');

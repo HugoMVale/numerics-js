@@ -4,7 +4,7 @@ import { Matrix } from '../linalg/Matrix.js';
 /**
  * Options controlling out-of-range clamping and input validation for
  * scalar-valued (1D) interpolation methods: `interp1D`, `LinearInterpolator1D`,
- * `PchipInterpolator1D`.
+ * `PchipInterpolator1D`, `CubicSplineInterpolator1D`.
  * All interpolation knot coordinates `xp` must be finite.
  */
 export interface Interp1DOptions {
@@ -33,7 +33,7 @@ export interface Interp1DOptions {
 /**
  * Options controlling out-of-range clamping and input validation for
  * vector-valued (ND) interpolation methods: `interpND`, `LinearInterpolatorND`,
- * `PchipInterpolatorND`. The vector counterpart of {@link Interp1DOptions}:
+ * `PchipInterpolatorND`, `CubicSplineInterpolatorND`. The vector counterpart of {@link Interp1DOptions}:
  * all interpolation knot coordinates `xp` must be finite.
  * `left`/`right` are per-component here (one value per column of `fp`)
  * rather than a single scalar, but a bare `number` is still accepted and
@@ -121,11 +121,11 @@ export function addConstantIntegral(total: Vector, values: Vector, width: number
 
 /**
  * Checks that `xpv` is *strictly* increasing (no duplicate knots), the
- * stricter requirement PCHIP places on top of `checkMonotonic`'s
- * non-decreasing check. Shared by `PchipInterpolator1D` and
- * `PchipInterpolatorND`, which both call `prepareInterp`/`prepareInterpND`
- * (non-strict) first and then this, as a separate step, since PCHIP's
- * stricter requirement is specific to it and not to interpolation in general.
+ * stricter requirement PCHIP and cubic splines place on top of `checkMonotonic`'s
+ * non-decreasing check. Shared by the Pchip and CubicSpline interpolators,
+ * which all call `prepareInterp1D`/`prepareInterpND`
+ * (non-strict) first and then this, as a separate step, since the stricter
+ * requirement is specific to these methods and not to interpolation in general.
  * @throws {RangeError} If any two consecutive `xp` entries are equal.
  */
 export function checkStrictlyIncreasing(xpv: Vector, caller: string): void {

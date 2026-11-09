@@ -94,7 +94,7 @@ amplitude for +10 % (deg): 69.33
 
 - `linalg`: `Vector`, `Matrix`, and `Vec3`, with solvers, factorizations (LU, QR, Cholesky, SVD), least squares and pseudoinverse, and eigenvalue methods.
 - `integrate`: sampled-data rules and adaptive quadrature, including infinite intervals.
-- `interpolate`: linear and shape-preserving interpolation for scalar and vector-valued data.
+- `interpolate`: linear, shape-preserving (PCHIP) and cubic spline interpolation for scalar and vector-valued data.
 - `numdiff`: finite-difference derivatives and Jacobians.
 - `ode`: fixed-step and adaptive Runge-Kutta solvers, an adaptive implicit solver for stiff problems, plus velocity Verlet integration.
 - `optimize`: scalar and multidimensional derivative-free optimization, Levenberg-Marquardt nonlinear least squares, and nonlinear curve fitting with parameter uncertainties.

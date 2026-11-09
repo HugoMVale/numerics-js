@@ -12,6 +12,9 @@
  * - Use {@link PchipInterpolator1D} or {@link PchipInterpolatorND} when smooth,
  *   shape-preserving interpolation is needed without overshooting monotonic
  *   data.
+ * - Use {@link CubicSplineInterpolator1D} or {@link CubicSplineInterpolatorND}
+ *   when the smoothest (twice continuously differentiable) interpolant is
+ *   needed and overshoot between data points is acceptable.
  *
  * @module interpolate
  */
@@ -22,4 +25,10 @@ export {
   interpND
 } from './interpolate/interp1.js';
 export { PchipInterpolator1D, PchipInterpolatorND } from './interpolate/pchip.js';
+export { CubicSplineInterpolator1D, CubicSplineInterpolatorND } from './interpolate/cubic.js';
+export type {
+  CubicSplineBoundary,
+  CubicSplineOptions1D,
+  CubicSplineOptionsND
+} from './interpolate/cubic.js';
 export type { Interp1DOptions, InterpNDOptions } from './interpolate/common.js';
