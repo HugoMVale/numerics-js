@@ -1,0 +1,231 @@
+/*
+ * Colour scheme and typography for the API docs, matched to the gallery (gallery/styles.css):
+ * deep navy surfaces, cyan primary, violet secondary, amber tertiary, serif headings.
+ *
+ * It re-maps the Material 3 tokens (--md-sys-color-*) that typedoc-material-theme derives from
+ * its default source colour, and the syntax-highlighting variables of TypeDoc's Shiki theme.
+ * It is loaded after both (typedoc.json: customCss), mirroring their selectors for the
+ * OS-preference ("os") and explicit ("light" / "dark") theme choices. Those two come later in
+ * the page than this file, so the selectors are one step more specific (`html:root`) to win.
+ */
+
+/* ---------- palette ---------- */
+
+/* Syntax highlighting (token order follows TypeDoc's highlight.css). */
+:root {
+  --dark-hl-0: #5ee6d0; /* function names */
+  --dark-hl-1: #c9d1e3; /* default text */
+  --dark-hl-2: #8cf0a0; /* strings */
+  --dark-hl-3: #a98bff; /* control keywords */
+  --dark-hl-4: #9ec1ff; /* variables */
+  --dark-hl-5: #a98bff; /* keywords */
+  --dark-hl-6: #6ea8ff; /* constants */
+  --dark-hl-7: #ffbf5e; /* numbers */
+  --dark-hl-8: #7a86a6; /* comments */
+  --dark-hl-9: #ff8fb5; /* types */
+  --dark-code-background: #070a13;
+
+  --light-hl-0: #0a7a6e;
+  --light-hl-1: #1a2133;
+  --light-hl-2: #1d7a3a;
+  --light-hl-3: #6b4ee0;
+  --light-hl-4: #2457c5;
+  --light-hl-5: #6b4ee0;
+  --light-hl-6: #2457c5;
+  --light-hl-7: #a85a00;
+  --light-hl-8: #5f6b85;
+  --light-hl-9: #c2255c;
+  --light-code-background: #f6f8fc;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:root {
+    --md-sys-color-primary: #5ee6d0;
+    --md-sys-color-on-primary: #003731;
+    --md-sys-color-primary-container: #0b4a43;
+    --md-sys-color-on-primary-container: #b8f6ec;
+    --md-sys-color-secondary: #a98bff;
+    --md-sys-color-on-secondary: #2a1766;
+    --md-sys-color-secondary-container: #2a2258;
+    --md-sys-color-on-secondary-container: #dcd0ff;
+    --md-sys-color-tertiary: #ffbf5e;
+    --md-sys-color-on-tertiary: #3d2800;
+    --md-sys-color-tertiary-container: #4a3510;
+    --md-sys-color-on-tertiary-container: #ffe3b0;
+    --md-sys-color-background: #06080f;
+    --md-sys-color-on-background: #e9edf6;
+    --md-sys-color-surface: #06080f;
+    --md-sys-color-on-surface: #e9edf6;
+    --md-sys-color-surface-variant: #1a2133;
+    --md-sys-color-on-surface-variant: #aab3c8;
+    --md-sys-color-outline: #566079;
+    --md-sys-color-outline-variant: #232b40;
+    --md-sys-color-inverse-surface: #e9edf6;
+    --md-sys-color-inverse-on-surface: #141a2a;
+    --md-sys-color-inverse-primary: #2fb8a4;
+    --md-sys-color-surface-dim: #04060b;
+    --md-sys-color-surface-bright: #1a2133;
+    --md-sys-color-surface-container-lowest: #04060b;
+    --md-sys-color-surface-container-low: #080b14;
+    --md-sys-color-surface-container: #06080f;
+    --md-sys-color-surface-container-high: #0b101c;
+    --md-sys-color-surface-container-highest: #151c2e;
+    --site-glow-1: rgb(169 139 255 / 0.1);
+    --site-glow-2: rgb(94 230 208 / 0.06);
+  }
+}
+
+html:root[data-theme='dark'] {
+  --md-sys-color-primary: #5ee6d0;
+  --md-sys-color-on-primary: #003731;
+  --md-sys-color-primary-container: #0b4a43;
+  --md-sys-color-on-primary-container: #b8f6ec;
+  --md-sys-color-secondary: #a98bff;
+  --md-sys-color-on-secondary: #2a1766;
+  --md-sys-color-secondary-container: #2a2258;
+  --md-sys-color-on-secondary-container: #dcd0ff;
+  --md-sys-color-tertiary: #ffbf5e;
+  --md-sys-color-on-tertiary: #3d2800;
+  --md-sys-color-tertiary-container: #4a3510;
+  --md-sys-color-on-tertiary-container: #ffe3b0;
+  --md-sys-color-background: #06080f;
+  --md-sys-color-on-background: #e9edf6;
+  --md-sys-color-surface: #06080f;
+  --md-sys-color-on-surface: #e9edf6;
+  --md-sys-color-surface-variant: #1a2133;
+  --md-sys-color-on-surface-variant: #aab3c8;
+  --md-sys-color-outline: #566079;
+  --md-sys-color-outline-variant: #232b40;
+  --md-sys-color-inverse-surface: #e9edf6;
+  --md-sys-color-inverse-on-surface: #141a2a;
+  --md-sys-color-inverse-primary: #2fb8a4;
+  --md-sys-color-surface-dim: #04060b;
+  --md-sys-color-surface-bright: #1a2133;
+  --md-sys-color-surface-container-lowest: #04060b;
+  --md-sys-color-surface-container-low: #080b14;
+  --md-sys-color-surface-container: #06080f;
+  --md-sys-color-surface-container-high: #0b101c;
+  --md-sys-color-surface-container-highest: #151c2e;
+  --site-glow-1: rgb(169 139 255 / 0.1);
+  --site-glow-2: rgb(94 230 208 / 0.06);
+}
+
+@media (prefers-color-scheme: light) {
+  html:root {
+    --md-sys-color-primary: #0a7a6e;
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-primary-container: #b8f6ec;
+    --md-sys-color-on-primary-container: #00201c;
+    --md-sys-color-secondary: #5b45c9;
+    --md-sys-color-on-secondary: #ffffff;
+    --md-sys-color-secondary-container: #e6dfff;
+    --md-sys-color-on-secondary-container: #1b0b57;
+    --md-sys-color-tertiary: #9a5a00;
+    --md-sys-color-on-tertiary: #ffffff;
+    --md-sys-color-tertiary-container: #ffe3b0;
+    --md-sys-color-on-tertiary-container: #2b1800;
+    --md-sys-color-background: #f4f6fb;
+    --md-sys-color-on-background: #141a2a;
+    --md-sys-color-surface: #f4f6fb;
+    --md-sys-color-on-surface: #141a2a;
+    --md-sys-color-surface-variant: #dfe4f0;
+    --md-sys-color-on-surface-variant: #4a5470;
+    --md-sys-color-outline: #7a849d;
+    --md-sys-color-outline-variant: #cfd5e4;
+    --md-sys-color-inverse-surface: #141a2a;
+    --md-sys-color-inverse-on-surface: #f4f6fb;
+    --md-sys-color-inverse-primary: #5ee6d0;
+    --md-sys-color-surface-dim: #dfe4f0;
+    --md-sys-color-surface-bright: #ffffff;
+    --md-sys-color-surface-container-lowest: #ffffff;
+    --md-sys-color-surface-container-low: #f4f6fb;
+    --md-sys-color-surface-container: #eef1f8;
+    --md-sys-color-surface-container-high: #ffffff;
+    --md-sys-color-surface-container-highest: #e3e8f4;
+    --site-glow-1: rgb(91 69 201 / 0.07);
+    --site-glow-2: rgb(10 122 110 / 0.06);
+  }
+}
+
+html:root[data-theme='light'] {
+  --md-sys-color-primary: #0a7a6e;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #b8f6ec;
+  --md-sys-color-on-primary-container: #00201c;
+  --md-sys-color-secondary: #5b45c9;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e6dfff;
+  --md-sys-color-on-secondary-container: #1b0b57;
+  --md-sys-color-tertiary: #9a5a00;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffe3b0;
+  --md-sys-color-on-tertiary-container: #2b1800;
+  --md-sys-color-background: #f4f6fb;
+  --md-sys-color-on-background: #141a2a;
+  --md-sys-color-surface: #f4f6fb;
+  --md-sys-color-on-surface: #141a2a;
+  --md-sys-color-surface-variant: #dfe4f0;
+  --md-sys-color-on-surface-variant: #4a5470;
+  --md-sys-color-outline: #7a849d;
+  --md-sys-color-outline-variant: #cfd5e4;
+  --md-sys-color-inverse-surface: #141a2a;
+  --md-sys-color-inverse-on-surface: #f4f6fb;
+  --md-sys-color-inverse-primary: #5ee6d0;
+  --md-sys-color-surface-dim: #dfe4f0;
+  --md-sys-color-surface-bright: #ffffff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f4f6fb;
+  --md-sys-color-surface-container: #eef1f8;
+  --md-sys-color-surface-container-high: #ffffff;
+  --md-sys-color-surface-container-highest: #e3e8f4;
+  --site-glow-1: rgb(91 69 201 / 0.07);
+  --site-glow-2: rgb(10 122 110 / 0.06);
+}
+
+/* ---------- typography ---------- */
+
+html:root {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-serif:
+    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'Source Serif Pro', Georgia,
+    serif;
+}
+
+.col-content h1,
+.col-content h2,
+.tsd-page-title h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+.tsd-toolbar-contents .title {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* ---------- surfaces ---------- */
+
+body {
+  background:
+    radial-gradient(1200px 700px at 85% -10%, var(--site-glow-1), transparent 60%),
+    radial-gradient(900px 600px at -10% 40%, var(--site-glow-2), transparent 60%),
+    var(--color-background);
+  background-attachment: fixed;
+}
+
+.col-content,
+.page-menu {
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+pre {
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 30%, transparent);
+}
