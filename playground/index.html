@@ -5,11 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>numerics-js Playground</title>
     <meta name="description" content="Try numerics-js live in your browser." />
+    <script>
+      // Follow the theme chosen in the API docs (same origin) before first paint.
+      try {
+        const theme = localStorage.getItem('tsd-theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch {
+        // Storage unavailable: the OS preference applies.
+      }
+    </script>
     <link rel="stylesheet" href="playground.css" />
   </head>
   <body>
     <header>
-      <a class="brand" href="../">numerics-js <span>Playground</span></a>
+      <a class="brand" href="../">numerics<em>-js</em> <span>Playground</span></a>
       <span id="version" class="muted"></span>
       <span class="spacer"></span>
       <label class="muted" for="examples">Examples</label>
@@ -18,6 +27,7 @@
       <button id="stop" hidden>Stop</button>
       <button id="share" disabled>Copy link</button>
       <a href="../">API reference</a>
+      <a href="../gallery/">Gallery</a>
     </header>
     <main>
       <section id="editor" aria-label="Code editor">

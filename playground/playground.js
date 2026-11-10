@@ -110,8 +110,121 @@ async function setupTypeScript(monaco) {
   }
 }
 
+// Theme: the choice made in the API docs (localStorage `tsd-theme`: light | dark | os), else the OS.
 const prefersDark = matchMedia('(prefers-color-scheme: dark)');
-const themeName = () => (prefersDark.matches ? 'vs-dark' : 'vs');
+function storedTheme() {
+  try {
+    return localStorage.getItem('tsd-theme');
+  } catch {
+    return null;
+  }
+}
+const isDark = () => {
+  const stored = storedTheme();
+  return stored === 'dark' || (stored !== 'light' && prefersDark.matches);
+};
+const themeName = () => (isDark() ? 'numerics-dark' : 'numerics-light');
+
+/** Syncs <html data-theme> with the stored choice (playground.css reads it). */
+function applyPageTheme() {
+  const stored = storedTheme();
+  if (stored === 'light' || stored === 'dark') document.documentElement.dataset.theme = stored;
+  else delete document.documentElement.dataset.theme;
+}
+
+/** Editor themes in the colours of playground.css, the gallery and the API docs. */
+function defineThemes(monaco) {
+  const define = (name, base, { rules, colors }) =>
+    monaco.editor.defineTheme(name, {
+      base,
+      inherit: true,
+      rules: rules.map(([token, foreground, fontStyle]) => ({ token, foreground, fontStyle })),
+      colors
+    });
+
+  define('numerics-dark', 'vs-dark', {
+    rules: [
+      ['', 'c9d1e3'],
+      ['comment', '7a86a6', 'italic'],
+      ['keyword', 'a98bff'],
+      ['string', '8cf0a0'],
+      ['number', 'ffbf5e'],
+      ['regexp', 'ff8fb5'],
+      ['type', 'ff8fb5'],
+      ['identifier', 'c9d1e3'],
+      ['delimiter', '8a94ab']
+    ],
+    colors: {
+      'editor.background': '#070a13',
+      'editor.foreground': '#c9d1e3',
+      'editorLineNumber.foreground': '#3d4763',
+      'editorLineNumber.activeForeground': '#8a94ab',
+      'editor.lineHighlightBackground': '#0d1322',
+      'editor.lineHighlightBorder': '#00000000',
+      'editor.selectionBackground': '#5ee6d033',
+      'editor.inactiveSelectionBackground': '#5ee6d01a',
+      'editor.selectionHighlightBackground': '#5ee6d01f',
+      'editor.wordHighlightBackground': '#a98bff26',
+      'editorCursor.foreground': '#5ee6d0',
+      'editorIndentGuide.background1': '#151c2e',
+      'editorIndentGuide.activeBackground1': '#2a3350',
+      'editorBracketMatch.background': '#5ee6d033',
+      'editorBracketMatch.border': '#5ee6d066',
+      'editorWidget.background': '#0b101c',
+      'editorWidget.border': '#232b40',
+      'editorSuggestWidget.background': '#0b101c',
+      'editorSuggestWidget.border': '#232b40',
+      'editorSuggestWidget.selectedBackground': '#151c2e',
+      'editorSuggestWidget.highlightForeground': '#5ee6d0',
+      'editorHoverWidget.background': '#0b101c',
+      'editorHoverWidget.border': '#232b40',
+      'scrollbarSlider.background': '#ffffff14',
+      'scrollbarSlider.hoverBackground': '#ffffff26',
+      'scrollbarSlider.activeBackground': '#ffffff33',
+      focusBorder: '#5ee6d066'
+    }
+  });
+
+  define('numerics-light', 'vs', {
+    rules: [
+      ['', '1a2133'],
+      ['comment', '5f6b85', 'italic'],
+      ['keyword', '6b4ee0'],
+      ['string', '1d7a3a'],
+      ['number', 'a85a00'],
+      ['regexp', 'c2255c'],
+      ['type', 'c2255c'],
+      ['identifier', '1a2133'],
+      ['delimiter', '5a6580']
+    ],
+    colors: {
+      'editor.background': '#ffffff',
+      'editor.foreground': '#1a2133',
+      'editorLineNumber.foreground': '#a3adc4',
+      'editorLineNumber.activeForeground': '#5a6580',
+      'editor.lineHighlightBackground': '#f4f6fb',
+      'editor.lineHighlightBorder': '#00000000',
+      'editor.selectionBackground': '#0a7a6e2e',
+      'editor.inactiveSelectionBackground': '#0a7a6e17',
+      'editor.selectionHighlightBackground': '#0a7a6e1a',
+      'editor.wordHighlightBackground': '#5b45c91f',
+      'editorCursor.foreground': '#0a7a6e',
+      'editorIndentGuide.background1': '#e3e8f4',
+      'editorIndentGuide.activeBackground1': '#cfd5e4',
+      'editorBracketMatch.background': '#0a7a6e2e',
+      'editorBracketMatch.border': '#0a7a6e66',
+      'editorWidget.background': '#ffffff',
+      'editorWidget.border': '#cfd5e4',
+      'editorSuggestWidget.background': '#ffffff',
+      'editorSuggestWidget.border': '#cfd5e4',
+      'editorSuggestWidget.selectedBackground': '#eef1f8',
+      'editorSuggestWidget.highlightForeground': '#0a7a6e',
+      'editorHoverWidget.background': '#ffffff',
+      'editorHoverWidget.border': '#cfd5e4',
+      focusBorder: '#0a7a6e66'
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Compile and run
@@ -212,6 +325,7 @@ async function main() {
     return;
   }
   await setupTypeScript(monaco);
+  defineThemes(monaco);
 
   const initial = (await codeFromHash()) ?? EXAMPLES[0].code;
   const model = monaco.editor.createModel(
@@ -226,10 +340,17 @@ async function main() {
     automaticLayout: true,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
-    fontSize: 14,
+    fontSize: 13.5,
+    fontFamily: "ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace",
+    padding: { top: 14, bottom: 14 },
     tabSize: 4
   });
-  prefersDark.addEventListener('change', () => monaco.editor.setTheme(themeName()));
+  const syncTheme = () => {
+    applyPageTheme();
+    monaco.editor.setTheme(themeName());
+  };
+  prefersDark.addEventListener('change', syncTheme);
+  window.addEventListener('storage', (event) => event.key === 'tsd-theme' && syncTheme());
 
   const runNow = () => run(monaco, model);
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runNow);

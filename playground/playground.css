@@ -1,28 +1,62 @@
+/*
+ * Playground styling, matched to the gallery (gallery/styles.css) and the API docs
+ * (docs-assets/site-theme.css): deep navy surfaces, cyan accent, violet / amber / rose accents.
+ *
+ * Theme: follows the choice made in the API docs (index.html sets data-theme="light" | "dark" from
+ * localStorage `tsd-theme`), otherwise the operating-system preference.
+ * The editor colours live in playground.js (Monaco themes) and must be kept in sync.
+ */
 :root {
-  color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1f2328;
-  --muted: #656d76;
-  --border: #d0d7de;
-  --panel: #f6f8fa;
-  --accent: #0b66d4;
-  --accent-fg: #ffffff;
-  --error: #b42318;
-  --warn: #9a6700;
+  color-scheme: light;
+  --bg: #f4f6fb;
+  --fg: #141a2a;
+  --muted: #5a6580;
+  --border: #cfd5e4;
+  --panel: #ffffff;
+  --editor-bg: #ffffff;
+  --accent: #0a7a6e;
+  --accent-soft: rgb(10 122 110 / 0.1);
+  --error: #c2255c;
+  --warn: #9a5a00;
+  --glow-1: rgb(91 69 201 / 0.07);
+  --glow-2: rgb(10 122 110 / 0.06);
+  --sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1e1e1e;
-    --fg: #e6edf3;
-    --muted: #9198a1;
-    --border: #3d444d;
-    --panel: #252526;
-    --accent: #4493f8;
-    --accent-fg: #0d1117;
-    --error: #ff7b72;
-    --warn: #d29922;
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #06080f;
+    --fg: #e9edf6;
+    --muted: #8a94ab;
+    --border: rgb(255 255 255 / 0.09);
+    --panel: #0a0e1a;
+    --editor-bg: #070a13;
+    --accent: #5ee6d0;
+    --accent-soft: rgb(94 230 208 / 0.14);
+    --error: #ff7aaa;
+    --warn: #ffbf5e;
+    --glow-1: rgb(169 139 255 / 0.1);
+    --glow-2: rgb(94 230 208 / 0.06);
   }
 }
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #06080f;
+  --fg: #e9edf6;
+  --muted: #8a94ab;
+  --border: rgb(255 255 255 / 0.09);
+  --panel: #0a0e1a;
+  --editor-bg: #070a13;
+  --accent: #5ee6d0;
+  --accent-soft: rgb(94 230 208 / 0.14);
+  --error: #ff7aaa;
+  --warn: #ffbf5e;
+  --glow-1: rgb(169 139 255 / 0.1);
+  --glow-2: rgb(94 230 208 / 0.06);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -34,14 +68,13 @@ body {
 body {
   display: flex;
   flex-direction: column;
-  background: var(--bg);
   color: var(--fg);
-  font:
-    14px/1.4 system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  background:
+    radial-gradient(1200px 700px at 85% -10%, var(--glow-1), transparent 60%),
+    radial-gradient(900px 600px at -10% 40%, var(--glow-2), transparent 60%), var(--bg);
+  background-attachment: fixed;
+  font: 14px/1.4 var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 a {
   color: var(--accent);
@@ -59,55 +92,94 @@ header {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  padding: 8px 16px;
+  padding: 10px clamp(12px, 2vw, 20px);
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .brand {
+  font-family: var(--mono);
   font-weight: 600;
   color: var(--fg);
 }
+.brand:hover {
+  text-decoration: none;
+}
+.brand em {
+  font-style: normal;
+  color: var(--accent);
+}
 .brand span {
+  font-family: var(--sans);
   font-weight: 400;
   color: var(--muted);
+  margin-left: 4px;
+}
+#version {
+  font-family: var(--mono);
+  font-size: 12px;
 }
 .spacer {
   flex: 1;
+}
+header > label {
+  font-size: 12px;
 }
 
 button,
 select {
   font: inherit;
   color: var(--fg);
-  background: var(--bg);
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 12px;
+  border-radius: 999px;
+  padding: 5px 14px;
   cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
 }
-button:hover:not(:disabled) {
-  border-color: var(--muted);
+select {
+  max-width: 24em;
+  padding-right: 10px;
+}
+button:hover:not(:disabled),
+select:hover {
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  border-color: color-mix(in srgb, var(--fg) 28%, transparent);
 }
 button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-fg);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--fg);
   font-weight: 600;
+}
+button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
 button.link {
   border: 0;
   background: none;
   color: var(--accent);
   padding: 0;
+  border-radius: 4px;
+}
+button.link:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
 }
 button:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 main {
@@ -115,11 +187,20 @@ main {
   min-height: 0;
   display: grid;
   grid-template-columns: 3fr 2fr;
+  gap: 12px;
+  padding: 12px clamp(12px, 2vw, 20px) clamp(12px, 2vw, 20px);
 }
-#editor {
+#editor,
+#output {
   min-width: 0;
   min-height: 0;
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+#editor {
+  background: var(--editor-bg);
+  box-shadow: 0 30px 80px -40px var(--accent-soft);
 }
 #editor-status {
   margin: 16px;
@@ -127,29 +208,34 @@ main {
 #output {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  min-height: 0;
+  background: var(--panel);
 }
 .output-head {
   display: flex;
   justify-content: space-between;
-  padding: 6px 12px;
+  align-items: center;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.output-head .link {
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 #console {
   flex: 1;
   margin: 0;
-  padding: 12px;
+  padding: 14px;
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  font:
-    13px/1.45 ui-monospace,
-    Menlo,
-    Consolas,
-    monospace;
+  font: 13px/1.55 var(--mono);
 }
 #console .warn {
   color: var(--warn);
@@ -165,9 +251,5 @@ main {
   main {
     grid-template-columns: 1fr;
     grid-template-rows: 1.4fr 1fr;
-  }
-  #editor {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
   }
 }
