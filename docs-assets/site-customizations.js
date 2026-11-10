@@ -1,11 +1,21 @@
 // Adds a GitHub icon to the header and a "Run" button to supported examples.
 // Example links open the self-contained version from playground/examples.json.
+// Links to the deployed gallery are pointed at the gallery of the site being viewed,
+// so they also work when the docs are served locally.
 (function () {
   'use strict';
 
   const normalize = (code) => code.replace(/\s+/g, ' ').trim();
   const root = document.documentElement.dataset.base || './';
   const playground = new URL(root + 'playground/', location.href);
+  const gallery = new URL(root + 'gallery/', location.href);
+  const deployedGallery = 'https://hugomvale.github.io/numerics-js/gallery/';
+
+  function localizeGalleryLinks() {
+    for (const link of document.querySelectorAll(`a[href="${deployedGallery}"]`)) {
+      link.href = gallery.href;
+    }
+  }
 
   function addGithubIcon() {
     const link = document.querySelector(
@@ -59,6 +69,7 @@
 
   async function init() {
     addGithubIcon();
+    localizeGalleryLinks();
     if (typeof CompressionStream === 'undefined') return;
     const blocks = document.querySelectorAll('.tsd-tag-example pre > code.ts');
     if (blocks.length === 0) return;
