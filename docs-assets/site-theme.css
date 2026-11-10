@@ -229,3 +229,10 @@ pre {
 ::selection {
   background: color-mix(in srgb, var(--md-sys-color-primary) 30%, transparent);
 }
+
+/* "Inherited" member filter, moved out of the removed Settings panel (site-customizations.js). */
+.tsd-navigation.inherited-filter {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}

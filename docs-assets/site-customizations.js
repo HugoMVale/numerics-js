@@ -1,4 +1,6 @@
-// Adds a GitHub icon to the header and a "Run" button to supported examples.
+// Adds a GitHub icon and a light/dark toggle to the header, and a "Run" button to supported examples.
+// The "Settings" panel is removed: its theme select stays in the DOM (hidden), because TypeDoc's
+// own script initialises the theme from it, and its "Inherited" filter moves to the page menu.
 // Example links open the self-contained version from playground/examples.json.
 // Links to the deployed gallery are pointed at the gallery of the site being viewed,
 // so they also work when the docs are served locally.
@@ -15,6 +17,74 @@
     for (const link of document.querySelectorAll(`a[href="${deployedGallery}"]`)) {
       link.href = gallery.href;
     }
+  }
+
+  const ICON_SUN =
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+  const ICON_MOON =
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+
+  /** Light/dark toggle next to the search button; it drives TypeDoc's (hidden) theme select. */
+  function addThemeToggle() {
+    const search = document.getElementById('tsd-search-trigger');
+    if (!search) return;
+    const prefersDark = matchMedia('(prefers-color-scheme: dark)');
+    const select = document.getElementById('tsd-theme');
+    const isDark = () => {
+      const theme = document.documentElement.dataset.theme;
+      return theme === 'dark' || (theme !== 'light' && prefersDark.matches);
+    };
+
+    const button = document.createElement('button');
+    button.id = 'tsd-theme-trigger';
+    button.className = 'tsd-widget';
+    button.type = 'button';
+    search.before(button);
+
+    const render = () => {
+      const dark = isDark();
+      const label = dark ? 'Switch to light theme' : 'Switch to dark theme';
+      button.innerHTML = dark ? ICON_SUN : ICON_MOON;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+    };
+    button.addEventListener('click', () => {
+      const next = isDark() ? 'light' : 'dark';
+      if (select) {
+        select.value = next;
+        select.dispatchEvent(new Event('change'));
+      } else {
+        try {
+          localStorage.setItem('tsd-theme', next);
+        } catch {
+          // Storage unavailable: the choice only lasts for this page view.
+        }
+        document.documentElement.dataset.theme = next;
+      }
+    });
+    new MutationObserver(render).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+    prefersDark.addEventListener('change', render);
+    render();
+  }
+
+  /** Hides the "Settings" panel, keeping the "Inherited" filter on pages that have inherited members. */
+  function removeSettingsPanel() {
+    const pageMenu = document.querySelector('.page-menu');
+    const settings = pageMenu?.querySelector('.tsd-navigation.settings');
+    if (!pageMenu || !settings) return;
+
+    const filter = settings.querySelector('.tsd-filter-visibility');
+    if (filter && document.querySelector('.tsd-is-inherited')) {
+      const holder = document.createElement('div');
+      holder.className = 'tsd-navigation inherited-filter';
+      holder.append(filter); // moving the node keeps TypeDoc's event listeners
+      settings.before(holder);
+    }
+    settings.hidden = true;
+    if (![...pageMenu.children].some((child) => !child.hidden)) pageMenu.hidden = true;
   }
 
   function addGithubIcon() {
@@ -70,6 +140,8 @@
   async function init() {
     addGithubIcon();
     localizeGalleryLinks();
+    addThemeToggle();
+    removeSettingsPanel();
     if (typeof CompressionStream === 'undefined') return;
     const blocks = document.querySelectorAll('.tsd-tag-example pre > code.ts');
     if (blocks.length === 0) return;
@@ -94,6 +166,8 @@
   const style = document.createElement('style');
   style.textContent = `
         #tsd-toolbar-links .github-icon { display: block; }
+        .page-menu[hidden], .tsd-navigation.settings[hidden] { display: none !important; }
+        #tsd-theme-trigger svg { display: block; margin: auto; }
         pre > a.playground-run {
             position: absolute; top: 10px; right: 80px; opacity: 0;
             transition: opacity 0.1s; padding: 2px 10px; border-radius: 6px;
