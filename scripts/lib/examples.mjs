@@ -4,7 +4,7 @@
  * declaration pulled in). Each program is type-checked against the library
  * sources, so broken examples are detected instead of shipped.
  *
- * Shared by `scripts/build-playground.mjs` (playground) and
+ * Shared by `scripts/build-site-apps.mjs` (playground) and
  * `tests/examples.test.ts` (CI check).
  */
 import { readdir, readFile } from 'node:fs/promises';

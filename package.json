@@ -98,8 +98,8 @@
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "docs": "typedoc",
     "prepare": "node scripts/setup-hooks.mjs",
-    "docs:playground": "node scripts/build-playground.mjs",
-    "docs:site": "npm run build && npm run docs && npm run docs:playground",
+    "docs:apps": "node scripts/build-site-apps.mjs",
+    "docs:site": "npm run build && npm run docs && npm run docs:apps",
     "sync-version": "node scripts/sync-version.mjs",
     "version": "node scripts/sync-version.mjs && git add src/index.ts"
   },

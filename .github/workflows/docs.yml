@@ -32,8 +32,8 @@ jobs:
       - name: Generate documentation
         run: npm run docs
 
-      - name: Build playground
-        run: npm run docs:playground
+      - name: Build playground and gallery
+        run: npm run docs:apps
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

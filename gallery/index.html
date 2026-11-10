@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Numbers in motion · numerics-js</title>
+    <meta
+      name="description"
+      content="Six live experiments powered by numerics-js: Lorenz chaos, a Bessel drum, gravity, simplex search, curve atelier and phase portraits."
+    />
+    <meta name="theme-color" content="#06080f" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2306080f'/%3E%3Cpath d='M6 22c4-14 8-14 10-6s6 8 10-6' fill='none' stroke='%235ee6d0' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="importmap">
+      { "imports": { "numerics-js": "../playground/lib/index.js" } }
+    </script>
+  </head>
+  <body id="top">
+    <nav class="top" aria-label="Chambers">
+      <a class="brand" href="#top">numerics<span>-js</span></a>
+      <div class="links">
+        <a href="#drum">Drum</a>
+        <a href="#orbits">Orbits</a>
+        <a href="#simplex">Simplex</a>
+        <a href="#atelier">Atelier</a>
+        <a href="#phase">Phase</a>
+      </div>
+      <a class="ext gh" href="https://github.com/HugoMVale/numerics-js">GitHub ↗</a>
+      <a class="ext" href="../">API docs ↗</a>
+    </nav>
+
+    <header class="hero">
+      <canvas
+        id="lorenz"
+        aria-label="Two Lorenz trajectories starting 0.0001 apart, drawn live"
+      ></canvas>
+      <div class="hero-copy">
+        <p class="eyebrow">numerics-js · a live gallery</p>
+        <h1>Numbers <em>in&nbsp;motion</em></h1>
+        <p class="lede">
+          A small, dependency-free numerical toolbox for JavaScript and TypeScript, caught at work.
+          Six experiments you can touch. Every orbit, mode, crossing and basin on this page is
+          computed in your browser by the library itself; nothing is pre-rendered.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#drum">Start with the drum ↓</a>
+          <a class="btn" href="../">Read the API reference</a>
+        </div>
+      </div>
+      <p class="hero-note">
+        <i>The butterfly.</i> Two Lorenz trajectories that start 10<sup>−4</sup> apart. Beads mark
+        the steps chosen by the adaptive Runge–Kutta solver. Drag to rotate.
+      </p>
+      <div class="hero-ctrl">
+        <label
+          >ρ, Rayleigh number <output id="rho-val"></output>
+          <input
+            id="rho"
+            type="range"
+            min="10"
+            max="50"
+            step="0.5"
+            value="28"
+            aria-label="Rayleigh number rho"
+        /></label>
+        <label
+          >solver tolerance <output id="tol-val"></output>
+          <input
+            id="tol"
+            type="range"
+            min="-9"
+            max="-2"
+            step="0.5"
+            value="-6"
+            aria-label="Relative tolerance exponent"
+        /></label>
+      </div>
+      <div class="hud" id="hud-lorenz"></div>
+    </header>
+
+    <section class="intro">
+      <h2 class="reveal">Six small machines, <em>one</em> library.</h2>
+      <div class="reveal">
+        <p>
+          numerics-js collects the classical building blocks of scientific computing: ODE solvers,
+          quadrature, root finding, optimisation, interpolation, special functions and linear
+          algebra, as typed, native-ESM modules that run in Node and in the browser.
+        </p>
+        <p>
+          These pages put them in motion. Each chamber below names the exact calls it uses, shows
+          live statistics from the solver, and links back to the reference documentation.
+        </p>
+        <div class="modules">
+          <span>ode</span><span>special</span><span>optimize</span><span>interpolate</span
+          ><span>integrate</span><span>numdiff</span><span>roots</span><span>linalg</span
+          ><span>math</span>
+        </div>
+      </div>
+    </section>
+
+    <main>
+      <!-- 01 DRUM -->
+      <section class="chamber amber" id="drum">
+        <div class="copy reveal">
+          <p class="num">01 · special</p>
+          <h2>A drum that rings in <em>Bessel zeros</em></h2>
+          <p>
+            Strike a circular membrane and it vibrates in modes shaped like
+            <i>J<sub>n</sub></i
+            >(<i>j<sub>n,m</sub> r</i>)·cos <i>nθ</i>. The zeros of the Bessel function fix every
+            pitch, and they are not whole multiples of one another, which is why a drum sounds like
+            a drum and a string like a string.
+          </p>
+          <pre class="call"><code>import { special } from 'numerics-js';
+
+const j = special.besselJZero(2, 1);   // 5.1356…
+const u = (r, th) =>
+  special.besselJ(2, j * r) * Math.cos(2 * th);</code></pre>
+          <div class="row">
+            <span class="lab">view</span>
+            <div class="seg" id="drum-mode" role="group" aria-label="Drum view">
+              <button data-value="strike" aria-pressed="true">Strike</button>
+              <button data-value="mode" aria-pressed="false">Single mode</button>
+            </div>
+            <button class="pill" id="drum-sound" aria-pressed="false">Sound off</button>
+          </div>
+          <div class="chips" id="drum-chips" aria-label="Pick a mode by its Bessel zero"></div>
+          <canvas class="mini" id="drum-mini" aria-hidden="true"></canvas>
+          <p class="readout" id="drum-readout"></p>
+          <p class="lineage">
+            <b>Lineage</b>Bernoulli and Euler met these functions in vibrating chains and drums;
+            Friedrich Bessel gave them their systematic theory in 1824, studying planetary
+            perturbations.
+            <a class="docs-link" href="../modules/special.html">special in the API docs ↗</a>
+          </p>
+        </div>
+        <div class="stage reveal">
+          <span class="hint">click the drum</span>
+          <canvas
+            class="main"
+            id="drum-canvas"
+            aria-label="A vibrating circular drum membrane"
+          ></canvas>
+          <div class="hud" id="hud-drum"></div>
+        </div>
+      </section>
+
+      <!-- 02 ORBITS -->
+      <section class="chamber flip mint" id="orbits">
+        <div class="copy reveal">
+          <p class="num">02 · ode</p>
+          <h2>Gravity, kept <em>honest</em></h2>
+          <p>
+            Velocity Verlet is a symplectic integrator: it does not make the energy error small so
+            much as keep it bounded forever. That is why it runs planets for millions of steps
+            without spiralling in or out. Drag on the sky to launch a body and watch the preview
+            arc.
+          </p>
+          <pre class="call"><code>import { ode } from 'numerics-js';
+
+const step = ode.createVelocityVerlet(
+  (u, v, a) =&gt; gravity(u, a)
+);
+step(state, 0.002);  // advances u, v, a in place</code></pre>
+          <div class="row">
+            <span class="lab">scene</span>
+            <div class="seg" id="orbit-preset" role="group" aria-label="Scene">
+              <button data-value="figure8" aria-pressed="true">Figure‑eight</button>
+              <button data-value="solar" aria-pressed="false">Solar system</button>
+              <button data-value="swarm" aria-pressed="false">Swarm</button>
+            </div>
+          </div>
+          <div class="row">
+            <span class="lab">launch</span>
+            <div class="seg" id="orbit-mass" role="group" aria-label="Launch mass">
+              <button data-value="dust" aria-pressed="false">Dust</button>
+              <button data-value="moon" aria-pressed="true">Moon</button>
+              <button data-value="star" aria-pressed="false">Star</button>
+            </div>
+            <label class="lab" style="display: flex; gap: 10px; align-items: center"
+              >speed
+              <input
+                id="orbit-speed"
+                type="range"
+                min="0.25"
+                max="3"
+                step="0.25"
+                value="1"
+                style="width: 120px"
+            /></label>
+          </div>
+          <p class="lineage">
+            <b>Lineage</b>Popularised by Loup Verlet's 1967 molecular-dynamics simulations of liquid
+            argon, and the workhorse of N-body and particle codes ever since. The three-body
+            figure-eight is the Chenciner–Montgomery orbit (2000).
+            <a class="docs-link" href="../modules/ode.html">ode in the API docs ↗</a>
+          </p>
+        </div>
+        <div class="stage reveal">
+          <span class="hint">drag to launch</span>
+          <canvas class="main" id="orbit-canvas" aria-label="N-body gravity sandbox"></canvas>
+          <div class="hud" id="hud-orbit"></div>
+        </div>
+      </section>
+
+      <!-- 03 SIMPLEX -->
+      <section class="chamber violet" id="simplex">
+        <div class="copy reveal">
+          <p class="num">03 · optimize</p>
+          <h2>A triangle that <em>feels</em> its way downhill</h2>
+          <p>
+            Nelder–Mead needs no gradient, only function values. A simplex reflects, expands and
+            contracts across the landscape until it collapses on a minimum. Himmelblau's function
+            has four of them, so where you start decides where you end up. Click to release a
+            simplex, or map every basin at once.
+          </p>
+          <pre class="call"><code>import { optimize } from 'numerics-js';
+
+const res = optimize.nelderMead(himmelblau, [-0.5, -0.3], {
+  callback: (iter, simplex, fx) =&gt;
+    ({ stop: false, success: true }),
+});</code></pre>
+          <div class="row">
+            <button class="pill" id="nm-basins" aria-pressed="false">Map the basins</button>
+            <button class="pill" id="nm-clear">Clear runs</button>
+          </div>
+          <p class="readout" id="nm-readout">
+            Click anywhere on the landscape to release a simplex.
+          </p>
+          <p class="lineage">
+            <b>Lineage</b>John Nelder and Roger Mead, 1965. The basin map above is thousands of
+            independent searches, one per pixel.
+            <a class="docs-link" href="../modules/optimize.html">optimize in the API docs ↗</a>
+          </p>
+        </div>
+        <div class="stage sq reveal">
+          <span class="hint">click to start a search</span>
+          <canvas
+            class="main"
+            id="nm-canvas"
+            aria-label="Himmelblau landscape with Nelder–Mead simplexes"
+          ></canvas>
+          <div class="hud" id="hud-nm"></div>
+        </div>
+      </section>
+
+      <!-- 04 ATELIER -->
+      <section class="chamber flip cyan" id="atelier">
+        <div class="copy reveal">
+          <p class="num">04 · four modules at once</p>
+          <h2>Draw a curve, <em>interrogate</em> it</h2>
+          <p>
+            Move the knots and the shape-preserving PCHIP interpolant follows without a single
+            overshoot. Four modules then question it at once: the slope under your cursor, the area
+            between <i>a</i> and <i>b</i>, and every place the curve crosses the amber level.
+          </p>
+          <pre class="call"><code>import { interpolate, integrate, numdiff, roots }
+  from 'numerics-js';
+
+const f = new interpolate.PchipInterpolator1D(xs, ys);
+const area = integrate.quad((x) =&gt; f.eval(x), a, b);
+const [slope] = numdiff.derivativeCentered(
+  (x) =&gt; f.eval(x), x0);
+const hit = roots.brent((x) =&gt; f.eval(x) - level, xl, xr);</code></pre>
+          <div class="row">
+            <button class="pill" id="curve-spline" aria-pressed="false">
+              Compare with a cubic spline
+            </button>
+          </div>
+          <p class="readout" id="curve-readout"></p>
+          <p class="lineage">
+            <b>Lineage</b>Monotone cubic interpolation (Fritsch &amp; Carlson, 1980), adaptive
+            Gauss–Kronrod quadrature (Kronrod, 1960s) and Brent's root finder (1973, after Dekker).
+            <a class="docs-link" href="../modules/interpolate.html"
+              >interpolate in the API docs ↗</a
+            >
+          </p>
+        </div>
+        <div class="stage reveal wide-m">
+          <span class="hint">drag knots · a · b · level</span>
+          <canvas
+            class="main"
+            id="curve-canvas"
+            aria-label="Interactive interpolation, integration and root finding"
+          ></canvas>
+          <div class="hud" id="hud-curve"></div>
+        </div>
+      </section>
+
+      <!-- 05 PHASE -->
+      <section class="chamber rose" id="phase">
+        <div class="copy reveal">
+          <p class="num">05 · linalg · ode</p>
+          <h2>Every linear world, <em>one</em> square</h2>
+          <p>
+            A two-dimensional linear system is fully described by the trace and determinant of its
+            matrix. Drag the puck in the small diagram and the flow rearranges itself: saddles,
+            nodes, spirals, centres. The dashed lines are eigenvectors; cyan flows in, rose flows
+            out.
+          </p>
+          <pre class="call"><code>import { linalg, ode } from 'numerics-js';
+
+const A = linalg.Matrix.from([[0, 1], [-det, trace]]);
+const pairs = A.eig();   // eigenvalues and eigenvectors
+ode.rungeKuttaFixed('rk4', rhs, 0, h, [x, y], h);</code></pre>
+          <div class="row"><span class="lab">jump to</span></div>
+          <div
+            class="chips"
+            id="phase-presets"
+            style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px"
+          ></div>
+          <p class="readout" id="phase-readout"></p>
+          <p class="lineage">
+            <b>Lineage</b>The trace–determinant diagram is the classical classification of planar
+            linear systems: the parabola <i>τ</i>² = 4<i>Δ</i> is exactly where the eigenvalues turn
+            from real to complex.
+            <a class="docs-link" href="../modules/linalg.html">linalg in the API docs ↗</a>
+          </p>
+        </div>
+        <div class="stage phase reveal">
+          <span class="hint">drag the puck →</span>
+          <canvas
+            class="main"
+            id="phase-canvas"
+            aria-label="Phase portrait of a planar linear system"
+          ></canvas>
+          <div class="td">
+            <canvas
+              id="td-canvas"
+              aria-label="Trace-determinant plane. Drag to change the system."
+            ></canvas>
+          </div>
+          <div class="hud" id="hud-phase"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div>
+        <div class="big">numerics<em>-js</em></div>
+        <div>MIT licensed · TypeScript · native ESM · zero dependencies</div>
+      </div>
+      <div>
+        <a href="../">API reference</a> ·
+        <a href="https://github.com/HugoMVale/numerics-js">Source on GitHub</a>
+        <div style="margin-top: 8px">
+          Drawn with plain canvas. All numerics: numerics-js <span id="ver"></span>.
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

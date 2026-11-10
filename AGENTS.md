@@ -15,7 +15,7 @@
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run build` compiles to `dist/` and fixes emitted ESM imports.
 - `npm run docs` regenerates the TypeDoc site in `docs/`.
-- `npm run docs:playground` assembles the browser playground into `docs/playground/` (needs `dist/` and `docs/`; `npm run docs:site` does build, docs and playground in one go). Sources: `playground/` and `docs-assets/playground-links.js`.
+- `npm run docs:apps` assembles the browser playground into `docs/playground/` and the visual gallery into `docs/gallery/` (needs `dist/` and `docs/`; `npm run docs:site` does build, docs and apps in one go). Sources: `playground/`, `gallery/` and `docs-assets/playground-links.js`. The gallery is plain ES modules that import the compiled library from `docs/playground/lib/` through an import map, so serve `docs/` over HTTP to view it.
 - `tests/examples.test.ts` type-checks every `@example` as a self-contained program (imports added automatically where missing, see `scripts/lib/examples.mjs`), so examples must compile against the public API. Known-broken examples are listed in that test and must be fixed, not added to.
 - `npm run prepare` sets `core.hooksPath` to `.githooks`, which runs the committed pre-commit hook; package installation runs this automatically.
 

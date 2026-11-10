@@ -4,7 +4,7 @@ import { createChecker, extractExamples } from '../scripts/lib/examples.mjs';
 /**
  * Every `@example` in `src/` must type-check as a self-contained program
  * against the library sources. The same extraction feeds the playground
- * (`npm run docs:playground`), so an example that fails here has no working
+ * (`npm run docs:apps`), so an example that fails here has no working
  * "Run" button either. Declarations tagged `@internal` are not extracted.
  *
  * Extraction is fast and happens up front; the type-check runs inside each test

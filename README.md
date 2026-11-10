@@ -113,6 +113,10 @@ signatures, options, guarantees, and examples. Every example there has a **Run**
 button that opens it in the [playground](https://hugomvale.github.io/numerics-js/playground/),
 where you can edit and run numerics-js code directly in your browser.
 
+For a more playful tour, the [gallery](https://hugomvale.github.io/numerics-js/gallery/) puts
+six of the library's methods in motion: a Lorenz attractor, a Bessel-mode drum, symplectic
+orbits, Nelder–Mead basins, an interpolation atelier and phase portraits.
+
 ## Development
 
 ```bash

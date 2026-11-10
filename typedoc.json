@@ -16,6 +16,7 @@
   "readme": "README.md",
   "name": "numerics-js API",
   "navigationLinks": {
+    "Gallery": "https://hugomvale.github.io/numerics-js/gallery/",
     "GitHub": "https://github.com/HugoMVale/numerics-js"
   },
   "customJs": "docs-assets/site-customizations.js",
