@@ -6,6 +6,7 @@
  * - Use {@link besselJZero} to obtain its positive zeros.
  * - Use {@link besselY} to evaluate the Bessel function of the second kind,
  *   `Y_n(x)`, for non-negative integer orders and `x > 0`.
+ * - Use {@link besselYZero} to obtain its positive zeros.
  * - Use {@link besselI} to evaluate the modified Bessel function of the first kind,
  *   `I_n(x)`, and {@link besselIScaled} for its exponentially scaled form `e^{-|x|} I_n(x)`.
  * - Use {@link besselK} to evaluate the modified Bessel function of the second kind,
@@ -23,7 +24,8 @@ export {
   besselJZero,
   besselK,
   besselKScaled,
-  besselY
+  besselY,
+  besselYZero
 } from './special/bessel.js';
 export { erf, erfc } from './special/erf.js';
 export { gamma } from './special/gamma.js';

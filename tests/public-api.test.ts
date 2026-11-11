@@ -46,6 +46,7 @@ describe('public API', () => {
     expect(typeof special.besselK).toBe('function');
     expect(typeof special.besselKScaled).toBe('function');
     expect(typeof special.besselY).toBe('function');
+    expect(typeof special.besselYZero).toBe('function');
     expect(typeof special.erf).toBe('function');
     expect(typeof special.erfc).toBe('function');
     expect(typeof special.gamma).toBe('function');

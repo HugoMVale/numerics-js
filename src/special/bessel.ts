@@ -13,6 +13,9 @@ const ZERO_SCAN_STEP = 2.5;
 /** Cache of the positive zeros found so far, keyed by order `n` (dense, ascending, 0-based). */
 const zerosCache = new Map<number, number[]>();
 
+/** Same as {@link zerosCache}, for the positive zeros of `Y_n`. */
+const yZerosCache = new Map<number, number[]>();
+
 function assertOrder(n: number): void {
   if (!Number.isInteger(n) || n < 0 || n > MAX_ORDER) {
     throw new RangeError(`Bessel order n must be an integer in [0, ${MAX_ORDER}], got ${n}.`);
@@ -507,6 +510,105 @@ export function besselY(n: number, x: number): number {
 }
 
 /**
+ * Computes the `m`-th positive zero of `Y_n(x)`, counted from the smallest
+ * (`m = 1` is the first zero).
+ *
+ * The method mirrors {@link besselJZero}: zeros are bracketed by scanning for
+ * sign changes of `Y_n`, refined with Brent's method to a tolerance of
+ * `1e-15`, and polished with Newton steps using `Y_n' = Y_{n-1} - (n/x) Y_n`
+ * (`Y_0' = -Y_1`). The scan is exhaustive and cannot skip or duplicate a
+ * zero, because consecutive zeros of `Y_n` are always more than 3.06 apart
+ * (the minimum, `y_{0,2} - y_{0,1}`, occurs for `n = 0`; for `n >= 1` the
+ * spacing exceeds pi) while the scan step is 2.5. The scan starts at
+ * `x = max(n, 0.5)`, where `Y_n < 0`, because the first zero always exceeds
+ * `n`. Zeros of `Y_n` and `J_n` interlace: `y_{n,m} < j_{n,m} < y_{n,m+1}`.
+ *
+ * Zeros are cached per order, so later calls with the same or a smaller `m`
+ * are free, and larger `m` resume from the last cached zero. Since the cost
+ * of {@link besselY} does not depend on `x`, the cost grows linearly with `m`
+ * and with `n`.
+ *
+ * @param n Order; a non-negative integer not larger than `1e6`.
+ * @param m Index of the zero, 1-based; a positive integer.
+ * @returns The `m`-th positive zero of `Y_n`.
+ * @throws {RangeError} If `n` is not an integer in `[0, 1e6]` or `m` is not a
+ * positive integer.
+ *
+ * @example
+ * ```ts
+ * import { besselYZero } from 'numerics-js/special';
+ *
+ * console.log(besselYZero(0, 1));
+ * console.log(besselYZero(2, 20));
+ * ```
+ *
+ * Output:
+ * ```text
+ * 0.8935769662791675
+ * 63.587765799737596
+ * ```
+ */
+export function besselYZero(n: number, m: number): number {
+  assertOrder(n);
+  if (!Number.isInteger(m) || m < 1) {
+    throw new RangeError(`Zero index m must be a positive integer (1-based), got ${m}.`);
+  }
+
+  let zeros = yZerosCache.get(n);
+  if (zeros === undefined) {
+    zeros = [];
+    yZerosCache.set(n, zeros);
+  }
+  if (zeros.length >= m) return zeros[m - 1];
+
+  const f = (x: number): number => besselY(n, x);
+
+  // Y_n < 0 on (0, y_{n,1}) and y_{n,1} > n, so f(start) < 0. After a zero z,
+  // the next one lies more than ZERO_SCAN_STEP beyond z + 1, so z + 1 is a
+  // safe restart.
+  let a = zeros.length > 0 ? zeros[zeros.length - 1] + 1 : Math.max(n, 0.5);
+  let fa = f(a);
+
+  while (zeros.length < m) {
+    const b = a + ZERO_SCAN_STEP;
+    const fb = f(b);
+
+    let root: number | undefined;
+    if (fb === 0) {
+      root = b;
+    } else if (Math.sign(fa) !== Math.sign(fb)) {
+      const result = brent(f, a, b, { tolx: 1e-15, tolf: 0, maxIter: 100 });
+      if (!result.success) {
+        throw new Error(
+          `besselYZero: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}`
+        );
+      }
+      let r: number = result.x;
+      // Newton polish; Y_n' = Y_{n-1} - (n/x) Y_n, and Y_0' = -Y_1.
+      for (let i = 0; i < 2; i++) {
+        const yn = f(r);
+        const dy: number = n === 0 ? -besselY(1, r) : besselY(n - 1, r) - (n / r) * yn;
+        const next: number = r - yn / dy;
+        if (!(next >= a && next <= b)) break;
+        r = next;
+      }
+      root = r;
+    }
+
+    if (root !== undefined) {
+      zeros.push(root);
+      a = root + 1;
+      fa = f(a);
+    } else {
+      a = b;
+      fa = fb;
+    }
+  }
+
+  return zeros[m - 1];
+}
+
+/**
  * Power series `I_n(x) = (x/2)^n / n! * sum_k (x^2/4)^k / (k! (n+1)_k)`.
  *
  * Used for `0 <= x < 1`. All terms are positive, so there is no cancellation,
@@ -994,4 +1096,5 @@ export function besselKScaled(n: number, x: number): number {
  */
 export function clearBesselCache(): void {
   zerosCache.clear();
+  yZerosCache.clear();
 }
