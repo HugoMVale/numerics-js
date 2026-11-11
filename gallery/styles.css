@@ -266,14 +266,21 @@ sub {
       linear-gradient(to bottom, rgb(6 8 15 / 0.85), rgb(6 8 15 / 0.2) 45%, transparent 60%),
       linear-gradient(to top, rgb(6 8 15 / 0.95), transparent 30%);
   }
+  /* Stack copy / attractor band / controls so the canvas content never sits under the text. */
+  .hero {
+    grid-template-rows: auto minmax(280px, 1fr) auto;
+  }
   .hero-copy {
+    grid-row: 1;
     align-self: start;
     padding-bottom: 20px;
   }
   .hero-ctrl {
-    left: 16px;
-    right: 16px;
-    bottom: 76px;
+    position: relative;
+    grid-row: 3;
+    right: auto;
+    bottom: auto;
+    margin: 0 16px 56px;
     justify-content: space-between;
   }
   .hero-ctrl label input {

@@ -17,13 +17,35 @@ export function mountHero() {
   const rhoVal = $('#rho-val');
   const tolVal = $('#tol-val');
 
+  const copy = $('.hero-copy');
+  const ctrl = $('.hero-ctrl');
+
   let layout = { cx: 0, cy: 0, s: 1 };
-  const st = createStage(canvas, (s) => {
-    const wide = s.w > 900;
-    layout = wide
-      ? { cx: s.w * 0.66, cy: s.h * 0.5, s: Math.min((s.h * 0.8) / 56, (s.w * 0.55) / 46) }
-      : { cx: s.w * 0.5, cy: s.h * 0.74, s: Math.min((s.h * 0.3) / 56, (s.w * 0.8) / 46) };
-  });
+  let stage;
+  const computeLayout = () => {
+    const s = stage;
+    if (!s || !s.w) return;
+    if (s.w > 900) {
+      layout = { cx: s.w * 0.66, cy: s.h * 0.5, s: Math.min((s.h * 0.8) / 56, (s.w * 0.55) / 46) };
+      return;
+    }
+    // Narrow screens: fit the attractor into the free band between the text block and the controls.
+    const top = copy.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top;
+    const bottom = ctrl.getBoundingClientRect().top - canvas.getBoundingClientRect().top;
+    const band = Math.max(bottom - top, 120);
+    layout = {
+      cx: s.w * 0.5,
+      cy: top + band * 0.5,
+      s: Math.min((band * 0.92) / 56, (s.w * 0.8) / 46)
+    };
+  };
+  const st = createStage(canvas, computeLayout);
+  stage = st;
+  computeLayout();
+  // Copy and controls can change height (font load, text reflow) without the canvas resizing.
+  const ro = new ResizeObserver(computeLayout);
+  ro.observe(copy);
+  ro.observe(ctrl);
 
   let rho = 28;
   let rtol = 1e-6;
