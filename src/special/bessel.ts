@@ -23,6 +23,88 @@ function assertOrder(n: number): void {
 }
 
 /**
+ * Shared engine of {@link besselJZero} and {@link besselYZero}: returns the
+ * `m`-th positive zero (1-based) of a Bessel function `f` of order `n`,
+ * extending `cache` as needed.
+ *
+ * Zeros are bracketed by a fixed-step scan for sign changes, refined with
+ * Brent's method (tolerance `1e-15`) and polished with up to two Newton
+ * steps. The scan step ({@link ZERO_SCAN_STEP}) is below the minimum spacing
+ * of consecutive zeros, so the scan can neither skip nor duplicate a zero.
+ *
+ * @param name Public function name, used in error messages.
+ * @param cache Per-order cache of the zeros found so far; mutated.
+ * @param f The Bessel function of order `n`.
+ * @param df Derivative of `f` at `x`, given `fx = f(x)`.
+ * @param start Scan origin for the first zero; `f(start)` must be nonzero and
+ * no zero may lie in `(0, start]`.
+ * @throws {RangeError} If `n` is not an integer in `[0, 1e6]` or `m` is not a
+ * positive integer.
+ */
+function scanBesselZero(
+  name: string,
+  cache: Map<number, number[]>,
+  n: number,
+  m: number,
+  f: (x: number) => number,
+  df: (x: number, fx: number) => number,
+  start: number
+): number {
+  assertOrder(n);
+  if (!Number.isInteger(m) || m < 1) {
+    throw new RangeError(`Zero index m must be a positive integer (1-based), got ${m}.`);
+  }
+
+  let zeros = cache.get(n);
+  if (zeros === undefined) {
+    zeros = [];
+    cache.set(n, zeros);
+  }
+  if (zeros.length >= m) return zeros[m - 1];
+
+  // After a zero z, the next one lies more than ZERO_SCAN_STEP beyond z + 1,
+  // so z + 1 is a safe restart.
+  let a = zeros.length > 0 ? zeros[zeros.length - 1] + 1 : start;
+  let fa = f(a);
+
+  while (zeros.length < m) {
+    const b = a + ZERO_SCAN_STEP;
+    const fb = f(b);
+
+    let root: number | undefined;
+    if (fb === 0) {
+      root = b;
+    } else if (Math.sign(fa) !== Math.sign(fb)) {
+      const result = brent(f, a, b, { tolx: 1e-15, tolf: 0, maxIter: 100 });
+      if (!result.success) {
+        throw new Error(
+          `${name}: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}`
+        );
+      }
+      let r: number = result.x;
+      for (let i = 0; i < 2; i++) {
+        const fr = f(r);
+        const next: number = r - fr / df(r, fr);
+        if (!(next >= a && next <= b)) break;
+        r = next;
+      }
+      root = r;
+    }
+
+    if (root !== undefined) {
+      zeros.push(root);
+      a = root + 1;
+      fa = f(a);
+    } else {
+      a = b;
+      fa = fb;
+    }
+  }
+
+  return zeros[m - 1];
+}
+
+/**
  * Power series `J_n(x) = (x/2)^n / n! * sum_k (-x^2/4)^k / (k! (n+1)_k)`.
  *
  * Used for `0 <= x < 1`, where the series is alternating with terms
@@ -204,62 +286,17 @@ export function besselJ(n: number, x: number): number {
  * ```
  */
 export function besselJZero(n: number, m: number): number {
-  assertOrder(n);
-  if (!Number.isInteger(m) || m < 1) {
-    throw new RangeError(`Zero index m must be a positive integer (1-based), got ${m}.`);
-  }
-
-  let zeros = zerosCache.get(n);
-  if (zeros === undefined) {
-    zeros = [];
-    zerosCache.set(n, zeros);
-  }
-  if (zeros.length >= m) return zeros[m - 1];
-
-  const f = (x: number): number => besselJ(n, x);
-
-  // J_n(n) > 0 because the first zero exceeds n; after a zero z, the next one
-  // lies more than ZERO_SCAN_STEP beyond z + 1, so z + 1 is a safe restart.
-  let a = zeros.length > 0 ? zeros[zeros.length - 1] + 1 : n;
-  let fa = f(a);
-
-  while (zeros.length < m) {
-    const b = a + ZERO_SCAN_STEP;
-    const fb = f(b);
-
-    let root: number | undefined;
-    if (fb === 0) {
-      root = b;
-    } else if (Math.sign(fa) !== Math.sign(fb)) {
-      const result = brent(f, a, b, { tolx: 1e-15, tolf: 0, maxIter: 100 });
-      if (!result.success) {
-        throw new Error(
-          `besselJZero: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}`
-        );
-      }
-      let r: number = result.x;
-      // Newton polish; J_n' = J_{n-1} - (n/x) J_n, and J_0' = -J_1.
-      for (let i = 0; i < 2; i++) {
-        const jn = f(r);
-        const dj: number = n === 0 ? -besselJ(1, r) : besselJ(n - 1, r) - (n / r) * jn;
-        const next: number = r - jn / dj;
-        if (!(next >= a && next <= b)) break;
-        r = next;
-      }
-      root = r;
-    }
-
-    if (root !== undefined) {
-      zeros.push(root);
-      a = root + 1;
-      fa = f(a);
-    } else {
-      a = b;
-      fa = fb;
-    }
-  }
-
-  return zeros[m - 1];
+  // J_n(n) > 0 because the first zero exceeds n.
+  return scanBesselZero(
+    'besselJZero',
+    zerosCache,
+    n,
+    m,
+    (x) => besselJ(n, x),
+    // J_n' = J_{n-1} - (n/x) J_n, and J_0' = -J_1.
+    (x, jn) => (n === 0 ? -besselJ(1, x) : besselJ(n - 1, x) - (n / x) * jn),
+    n
+  );
 }
 
 /** Euler-Mascheroni constant. */
@@ -549,63 +586,17 @@ export function besselY(n: number, x: number): number {
  * ```
  */
 export function besselYZero(n: number, m: number): number {
-  assertOrder(n);
-  if (!Number.isInteger(m) || m < 1) {
-    throw new RangeError(`Zero index m must be a positive integer (1-based), got ${m}.`);
-  }
-
-  let zeros = yZerosCache.get(n);
-  if (zeros === undefined) {
-    zeros = [];
-    yZerosCache.set(n, zeros);
-  }
-  if (zeros.length >= m) return zeros[m - 1];
-
-  const f = (x: number): number => besselY(n, x);
-
-  // Y_n < 0 on (0, y_{n,1}) and y_{n,1} > n, so f(start) < 0. After a zero z,
-  // the next one lies more than ZERO_SCAN_STEP beyond z + 1, so z + 1 is a
-  // safe restart.
-  let a = zeros.length > 0 ? zeros[zeros.length - 1] + 1 : Math.max(n, 0.5);
-  let fa = f(a);
-
-  while (zeros.length < m) {
-    const b = a + ZERO_SCAN_STEP;
-    const fb = f(b);
-
-    let root: number | undefined;
-    if (fb === 0) {
-      root = b;
-    } else if (Math.sign(fa) !== Math.sign(fb)) {
-      const result = brent(f, a, b, { tolx: 1e-15, tolf: 0, maxIter: 100 });
-      if (!result.success) {
-        throw new Error(
-          `besselYZero: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}`
-        );
-      }
-      let r: number = result.x;
-      // Newton polish; Y_n' = Y_{n-1} - (n/x) Y_n, and Y_0' = -Y_1.
-      for (let i = 0; i < 2; i++) {
-        const yn = f(r);
-        const dy: number = n === 0 ? -besselY(1, r) : besselY(n - 1, r) - (n / r) * yn;
-        const next: number = r - yn / dy;
-        if (!(next >= a && next <= b)) break;
-        r = next;
-      }
-      root = r;
-    }
-
-    if (root !== undefined) {
-      zeros.push(root);
-      a = root + 1;
-      fa = f(a);
-    } else {
-      a = b;
-      fa = fb;
-    }
-  }
-
-  return zeros[m - 1];
+  // Y_n < 0 on (0, y_{n,1}) and y_{n,1} > n, so Y_n(start) < 0.
+  return scanBesselZero(
+    'besselYZero',
+    yZerosCache,
+    n,
+    m,
+    (x) => besselY(n, x),
+    // Y_n' = Y_{n-1} - (n/x) Y_n, and Y_0' = -Y_1.
+    (x, yn) => (n === 0 ? -besselY(1, x) : besselY(n - 1, x) - (n / x) * yn),
+    Math.max(n, 0.5)
+  );
 }
 
 /**
