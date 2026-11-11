@@ -47,5 +47,6 @@ sync when changing a benchmark.
 | [`special/`](./special/)         | Bessel function `Y_n(x)`     | [`besselY.mpmath.benchmark.md`](./special/besselY.mpmath.benchmark.md)                      |
 | [`special/`](./special/)         | Modified Bessel `I_n(x)`     | [`besselI.mpmath.benchmark.md`](./special/besselI.mpmath.benchmark.md)                      |
 | [`special/`](./special/)         | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                |
+| [`special/`](./special/)         | Bessel zeros `y_{n,m}`       | [`besselYZero.scipy.benchmark.md`](./special/besselYZero.scipy.benchmark.md)                |
 | [`special/`](./special/)         | Error functions              | [`erf.mpmath.benchmark.md`](./special/erf.mpmath.benchmark.md)                              |
 | [`special/`](./special/)         | Gamma functions              | [`gamma.mpmath.benchmark.md`](./special/gamma.mpmath.benchmark.md)                          |
