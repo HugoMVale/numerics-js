@@ -7,6 +7,7 @@ import {
   besselK,
   besselKScaled,
   besselY,
+  besselYZero,
   clearBesselCache
 } from '../../src/special/bessel.js';
 
@@ -435,6 +436,118 @@ describe('besselY', () => {
     }
     expect(() => besselY(-1, NaN)).toThrow(RangeError);
     expect(() => besselY(-1, 0)).toThrow(RangeError);
+  });
+});
+
+// Reference values computed with mpmath (30 digits), stored as the nearest doubles.
+const Y_ZERO_REFERENCE: [n: number, m: number, value: number][] = [
+  [0, 1, 0.8935769662791675],
+  [0, 2, 3.957678419314858],
+  [0, 3, 7.086051060301773],
+  [1, 1, 2.197141326031017],
+  [1, 2, 5.429681040794135],
+  [2, 1, 3.3842417671495935],
+  [2, 20, 63.587765799737596],
+  [5, 3, 14.033804104911232],
+  [30, 2, 38.71571834916654],
+  [100, 1, 104.38020425686611],
+  [1000, 1, 1009.3418149978422],
+  [1000, 5, 1059.5771622438874]
+];
+
+describe('besselYZero', () => {
+  beforeEach(() => {
+    clearBesselCache();
+  });
+
+  it('matches high-precision reference values', () => {
+    for (const [n, m, expected] of Y_ZERO_REFERENCE) {
+      const actual = besselYZero(n, m);
+      expect(Math.abs(actual - expected) / expected, `y_{${n},${m}}`).toBeLessThan(1e-14);
+    }
+  });
+
+  it('returns zeros that are roots of Y_n', () => {
+    for (const n of [0, 1, 2, 7, 25]) {
+      for (const m of [1, 2, 5, 17]) {
+        const z = besselYZero(n, m);
+        const slope = Math.abs(besselY(n - 1 >= 0 ? n - 1 : 1, z) - (n / z) * besselY(n, z));
+        expect(Math.abs(besselY(n, z)) / Math.max(slope, 1e-3), `n=${n}, m=${m}`).toBeLessThan(
+          5e-14
+        );
+      }
+    }
+  });
+
+  it('returns strictly increasing zeros with no missed index', () => {
+    // Consecutive zeros of Y_n are at least 3.064 apart (n = 0, m = 1 -> 2).
+    for (const n of [0, 2, 5, 30]) {
+      let previous = besselYZero(n, 1);
+      for (let m = 2; m <= 120; m++) {
+        const z = besselYZero(n, m);
+        expect(z).toBeGreaterThan(previous + 3.06);
+        previous = z;
+      }
+    }
+    expect(besselYZero(2, 20)).toBeCloseTo(63.587765799737596, 12);
+    expect(besselYZero(2, 50)).toBeCloseTo(157.85315280399232, 10);
+  });
+
+  it('interlaces with the zeros of J_n: y_{n,m} < j_{n,m} < y_{n,m+1}', () => {
+    for (const n of [0, 1, 4, 25]) {
+      for (let m = 1; m <= 60; m++) {
+        const j = besselJZero(n, m);
+        expect(besselYZero(n, m), `y_{${n},${m}}`).toBeLessThan(j);
+        expect(besselYZero(n, m + 1), `y_{${n},${m + 1}}`).toBeGreaterThan(j);
+      }
+    }
+  });
+
+  it('finds the first zero beyond the order for large n', () => {
+    for (const n of [50, 1000, 10000]) {
+      const z = besselYZero(n, 1);
+      expect(z).toBeGreaterThan(n);
+      expect(besselY(n, z - 1e-6 * z)).toBeLessThan(0);
+      expect(besselY(n, z + 1e-6 * z)).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives the same value regardless of request order and cache state', () => {
+    const direct = besselYZero(3, 9);
+    clearBesselCache();
+    const sequence = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((m) => besselYZero(3, m));
+    expect(sequence[8]).toBe(direct);
+    clearBesselCache();
+    const outOfOrder = [
+      besselYZero(3, 9),
+      besselYZero(3, 2),
+      besselYZero(3, 20),
+      besselYZero(3, 2)
+    ];
+    expect(outOfOrder[0]).toBe(direct);
+    expect(outOfOrder[1]).toBe(sequence[1]);
+    expect(outOfOrder[3]).toBe(outOfOrder[1]);
+  });
+
+  it('keeps orders, and the J and Y zero caches, independent', () => {
+    const y0 = besselYZero(0, 3);
+    const y1 = besselYZero(1, 3);
+    const j0 = besselJZero(0, 3);
+    expect(besselYZero(0, 3)).toBe(y0);
+    expect(besselYZero(1, 3)).toBe(y1);
+    expect(besselJZero(0, 3)).toBe(j0);
+    expect(y0).not.toBe(y1);
+    expect(y0).not.toBe(j0);
+  });
+
+  it('throws RangeError for invalid order or index, leaving the cache usable', () => {
+    for (const n of [-1, 1.5, NaN, Infinity, 1e6 + 1]) {
+      expect(() => besselYZero(n, 1), `n=${n}`).toThrow(RangeError);
+    }
+    for (const m of [0, -3, 1.5, NaN, Infinity]) {
+      expect(() => besselYZero(0, m), `m=${m}`).toThrow(RangeError);
+    }
+    expect(besselYZero(0, 1)).toBeCloseTo(0.8935769662791675, 14);
   });
 });
 
