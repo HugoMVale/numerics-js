@@ -335,7 +335,7 @@ function computeSplineSlopesND(
  * ```
  *
  * Output:
- * ```
+ * ```text
  * 15.625
  * 18.75
  * 64
@@ -486,7 +486,7 @@ export class CubicSplineInterpolator1D {
  * ```
  *
  * Output:
- * ```
+ * ```text
  * Vector(15.625, -0.6250000000000001)
  * ```
  */

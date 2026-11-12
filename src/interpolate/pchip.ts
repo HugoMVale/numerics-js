@@ -124,7 +124,7 @@ function computePchipSlopesND(xp: Vector, fp: Matrix): Matrix {
  * ```
  *
  * Output:
- * ```
+ * ```text
  * 1.1458333333333335
  * Vector(3, 2.6041666666666665, 0)
  * ```
@@ -196,7 +196,7 @@ export class PchipInterpolator1D {
    * constant clamping regions.
    * @param x The `x`-coordinate(s) at which to evaluate. A single
    * `number` returns a `number`; a `VectorLike` (a `Vector`,
-   * plain `number[]` or `Float64Array`) returns an `Vector`.
+   * plain `number[]` or `Float64Array`) returns a `Vector`.
    * @returns The derivative value(s), matching the shape of `x`.
    * @throws {TypeError} If `x` is neither a `number` nor a `VectorLike`.
    */
@@ -253,7 +253,7 @@ export class PchipInterpolator1D {
  * ```
  *
  * Output:
- * ```
+ * ```text
  * Vector(1.1458333333333335, 2.1875)
  * ```
  */

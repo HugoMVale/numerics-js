@@ -269,7 +269,7 @@ export class LinearInterpolator1D {
    * segment to its right (or the final segment at the right endpoint).
    * @param x The x-coordinate(s) at which to evaluate. A single
    * `number` returns a `number`; a `VectorLike` (a `Vector`,
-   * plain `number[]` or `Float64Array`) returns an
+   * plain `number[]` or `Float64Array`) returns a
    * `Vector`.
    * @returns The derivative value(s), matching the shape of `x`.
    * @throws {TypeError} If `x` is neither a `number` nor a `VectorLike`.
@@ -348,7 +348,7 @@ export class LinearInterpolator1D {
    * Evaluates the interpolant at `x`.
    * @param x The x-coordinate(s) at which to evaluate. A single
    * `number` returns a `number`; a `VectorLike` (a `Vector`,
-   * plain `number[]` or `Float64Array`) returns an
+   * plain `number[]` or `Float64Array`) returns a
    * `Vector`.
    * @returns The interpolated value(s), matching the shape of `x`.
    * @throws {TypeError} If `x` is neither a `number` nor a `VectorLike`.
