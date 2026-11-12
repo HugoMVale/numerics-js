@@ -663,7 +663,8 @@ input[type='range']::-moz-range-thumb {
   background: rgb(6 8 15 / 0.55);
   pointer-events: none;
 }
-.stage.phase .td {
+.stage.phase .td,
+.stage.react .td {
   position: absolute;
   z-index: 4;
   right: 14px;
@@ -674,11 +675,19 @@ input[type='range']::-moz-range-thumb {
   border: 1px solid var(--line);
   overflow: hidden;
 }
-.stage.phase .td canvas {
+.stage.phase .td canvas,
+.stage.react .td canvas {
   width: 100%;
   height: 100%;
   display: block;
   cursor: crosshair;
+}
+.stage.react .td {
+  width: min(170px, 32%);
+  pointer-events: none;
+}
+.stage.react .td canvas {
+  cursor: default;
 }
 .stage.phase .td .cap {
   position: absolute;
@@ -779,4 +788,7 @@ footer a:hover {
 }
 .chamber.rose {
   --hue: var(--rose);
+}
+.chamber.blue {
+  --hue: var(--blue);
 }

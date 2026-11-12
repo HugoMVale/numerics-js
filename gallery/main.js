@@ -6,6 +6,7 @@ import { mountOrbits } from './orbits.js';
 import { mountSimplex } from './simplex.js';
 import { mountCurve } from './curve.js';
 import { mountPhase } from './phase.js';
+import { mountReaction } from './reaction.js';
 
 // tiny syntax highlighter for the code snippets
 function highlight(el) {
@@ -42,7 +43,15 @@ document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
 
 document.getElementById('ver').textContent = 'v' + version;
 
-for (const mount of [mountHero, mountDrum, mountOrbits, mountSimplex, mountCurve, mountPhase]) {
+for (const mount of [
+  mountHero,
+  mountDrum,
+  mountOrbits,
+  mountSimplex,
+  mountCurve,
+  mountPhase,
+  mountReaction
+]) {
   try {
     mount();
   } catch (err) {

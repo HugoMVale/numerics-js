@@ -6,7 +6,7 @@
     <title>Numbers in motion · numerics-js</title>
     <meta
       name="description"
-      content="Six live experiments powered by numerics-js: Lorenz chaos, a Bessel drum, gravity, simplex search, curve atelier and phase portraits."
+      content="Seven live experiments powered by numerics-js: Lorenz chaos, a Bessel drum, gravity, simplex search, curve atelier, phase portraits and reaction–diffusion waves."
     />
     <meta name="theme-color" content="#06080f" />
     <link
@@ -27,6 +27,7 @@
         <a href="#simplex">Simplex</a>
         <a href="#atelier">Atelier</a>
         <a href="#phase">Phase</a>
+        <a href="#reaction">Reaction</a>
       </div>
       <a class="ext gh" href="https://github.com/HugoMVale/numerics-js">GitHub ↗</a>
       <a class="ext gh" href="../playground/">Playground ↗</a>
@@ -43,8 +44,8 @@
         <h1>Numbers <em>in&nbsp;motion</em></h1>
         <p class="lede">
           A small, dependency-free numerical toolbox for JavaScript and TypeScript, caught at work.
-          Six experiments you can touch. Every orbit, mode, crossing and basin on this page is
-          computed in your browser by the library itself; nothing is pre-rendered.
+          Seven experiments you can touch. Every orbit, mode, crossing, basin and chemical wave on
+          this page is computed in your browser by the library itself; nothing is pre-rendered.
         </p>
         <div class="cta">
           <a class="btn primary" href="#drum">Start with the drum ↓</a>
@@ -83,7 +84,7 @@
     </header>
 
     <section class="intro">
-      <h2 class="reveal">Six small machines, <em>one</em> library.</h2>
+      <h2 class="reveal">Seven small machines, <em>one</em> library.</h2>
       <div class="reveal">
         <p>
           numerics-js collects the classical building blocks of scientific computing: ODE solvers,
@@ -335,6 +336,81 @@ ode.rungeKuttaFixed('rk4', rhs, 0, h, [x, y], h);</code></pre>
             ></canvas>
           </div>
           <div class="hud" id="hud-phase"></div>
+        </div>
+      </section>
+
+      <!-- 06 REACTION -->
+      <section class="chamber flip blue" id="reaction">
+        <div class="copy reveal">
+          <p class="num">06 · ode</p>
+          <h2>A chemical clock, <em>spread out</em></h2>
+          <p>
+            The Brusselator is a four-step autocatalytic reaction whose concentrations <i>u</i> and
+            <i>v</i> can settle, tick like a clock, or, once they diffuse, organise themselves in
+            space. Here it lives on a ring of 72 cells: every cell is an ODE and every cell talks to
+            its neighbours, which makes 144 coupled equations, stiff because of the diffusion. The
+            picture is a space–time diagram, with the ring running left to right and time flowing
+            upward. Drag across it to disturb the chemistry.
+          </p>
+          <pre class="call"><code>import { ode } from 'numerics-js';
+
+// 72 cells × (u, v) = 144 coupled, stiff ODEs
+const res = ode.trBdf2Adaptive(rhs, 0, dt, state, {
+  jac,          // analytic Jacobian: reaction + diffusion
+  rtol: 1e-4,
+});
+// limit cycle of one cell: events give the period,
+// dense output samples it at any phase
+ode.rungeKuttaAdaptive('rk45', cell, 0, 60, y0, {
+  events: [{ fn: (t, y) =&gt; y.data[0] - A }],
+  denseOutput: true,
+});</code></pre>
+          <div class="row">
+            <span class="lab">regime</span>
+            <div class="seg" id="rd-regime" role="group" aria-label="Regime">
+              <button data-value="waves" aria-pressed="true">Waves</button>
+              <button data-value="spots" aria-pressed="false">Spots</button>
+            </div>
+          </div>
+          <div class="row">
+            <label class="lab" style="display: flex; gap: 10px; align-items: center"
+              >B
+              <output id="rd-b-val"></output>
+              <input
+                id="rd-b"
+                type="range"
+                min="2.2"
+                max="4.4"
+                step="0.05"
+                value="3"
+                style="width: 150px"
+                aria-label="Brusselator parameter B"
+            /></label>
+            <button class="pill" id="rd-reseed">Reseed</button>
+          </div>
+          <p class="readout" id="rd-readout"></p>
+          <p class="lineage">
+            <b>Lineage</b>The Brusselator was proposed in Brussels by Prigogine and Lefever in 1968
+            as the simplest chemical oscillator. Alan Turing had shown in 1952 that diffusion alone
+            can break the symmetry of a uniform mixture; the spots regime is that mechanism at work.
+            The implicit solver is TR-BDF2 (Bank et al., 1985).
+            <a class="docs-link" href="../modules/ode.html">ode in the API docs ↗</a>
+          </p>
+        </div>
+        <div class="stage react reveal">
+          <span class="hint">drag to disturb</span>
+          <canvas
+            class="main"
+            id="rd-canvas"
+            aria-label="Space-time diagram of a reaction-diffusion system on a ring"
+          ></canvas>
+          <div class="td">
+            <canvas
+              id="rd-cycle"
+              aria-label="Concentration plane of u and v with the limit cycle of a single cell"
+            ></canvas>
+          </div>
+          <div class="hud" id="hud-rd"></div>
         </div>
       </section>
     </main>
