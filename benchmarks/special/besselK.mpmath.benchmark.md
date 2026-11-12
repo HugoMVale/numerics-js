@@ -39,7 +39,7 @@ the normal range (`small_x`: 62 compared, `moderate_x`: 86, `large_x`: 35,
 Algorithm: `K_0` and `K_1` come from the ascending series for `x < 1` (all terms
 positive, no cancellation) and from the trapezoidal rule on
 `e^x K_nu(x) = integral_0^inf exp(-2 x sinh^2(t/2)) cosh(nu t) dt` for `x >= 1`
-(positive integrand, geometric convergence, at most 24 terms for any `x`).
+(positive integrand, geometric convergence, at most 21 terms for any `x`).
 Higher orders use the stable forward recurrence. The factor `e^-x` of the plain
 function is removed by an exact reduction `x = m ln 2 + r`, so no accuracy is lost
 even when `e^x K_n(x)` overflows while `K_n(x)` is still representable.

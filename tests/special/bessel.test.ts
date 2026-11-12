@@ -186,7 +186,7 @@ describe('besselJZero', () => {
       let previous = besselJZero(n, 1);
       for (let m = 2; m <= 120; m++) {
         const z = besselJZero(n, m);
-        expect(z).toBeGreaterThan(previous + 3.11); // gaps between zeros exceed 3.116
+        expect(z).toBeGreaterThan(previous + 3.11); // gaps between zeros exceed 3.115
         previous = z;
       }
     }

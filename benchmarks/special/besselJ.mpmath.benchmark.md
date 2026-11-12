@@ -20,7 +20,10 @@ The test (`besselJ.mpmath.test.ts`) checks only numerics-js against the mpmath
 references, with a per-group tolerance `|actual - mpmath| <= atol + rtol * |mpmath|`.
 `rtol` is `2e-14` for all groups. `atol` is `0` for `small_x`, `decaying_n_ge_x` and
 `negative_x`, `1e-14` for `oscillatory_n_lt_x` and `turning_point`, and `1e-13` for
-`large_x`. The test does not read the SciPy values.
+`large_x`. A further test checks that every point meets the accuracy documented in
+the `besselJ` docstring: relative `1e-15` for `|x| < 1`, relative `1e-14` for
+`n >= |x| >= 1`, and absolute `1e-14` for `n < |x|` up to `|x| = 5e3` (`1e-13`
+beyond). The test does not read the SciPy values.
 
 | Group                | Region                                       | Points | numerics-js max error (units) | SciPy max error (units) | numerics-js max abs error | SciPy max abs error |
 | :------------------- | :------------------------------------------- | -----: | ----------------------------: | ----------------------: | ------------------------: | ------------------: |
@@ -32,30 +35,21 @@ references, with a per-group tolerance `|actual - mpmath| <= atol + rtol * |mpma
 | `negative_x`         | negative `x`                                 |     20 |                          12.7 |                    5.14 |                  2.26e-16 |            1.60e-16 |
 
 Points violating the documented accuracy claim (`src/special/bessel.ts`) for
-numerics-js: `decaying_n_ge_x` 5, `oscillatory_n_lt_x` 32, `turning_point` 16,
-`large_x` 1. The other groups have none. The test uses the tolerances above, not
-the claim, so these points pass the test.
+numerics-js: none.
 
 With `rtol = 1e-14`, `negative_x` failed at `J_0(-100)` (relative error about
 `1.1e-14`), so the shared `rtol` was set to `2e-14`.
 
 ## Notes
 
-- The documented accuracy claim is violated in four groups: `decaying_n_ge_x`,
-  `oscillatory_n_lt_x`, `turning_point` and `large_x`. The test checks the measured
-  tolerances instead, and all six groups pass.
-- Oscillatory region: `J_0(200)`, `J_0(1000)` and `J_1(20000)` show errors of
-  about `2e-15`, `1.9e-15` and `1.5e-14`. The claim is "a few `1e-16`" up to
-  `|x| = 1e3`, so these exceed it. At `|x| = 2000`, numerics-js errors reach
-  `6.6e-15`, about three times the `2e-15` quoted at `|x| = 5e3`. The claim does
-  not match the measured error in that range.
+- Oscillatory region: absolute errors reach `2.1e-15` for `J_0(200)`, `1.9e-15` for
+  `J_0(1000)` and `1.5e-14` for `J_1(20000)`; the largest value up to `|x| = 5e3` is
+  `8.5e-15` (`J_300(301.67)`), within the documented `1e-14`.
 - Turning-point region: decaying points just above the transition show relative
   error well above round-off. For example, `J_300(293.31)` has absolute error
-  `1.18e-16` on a value of about `1.8e-2`, which is about `29` eps relative. The
-  claim says round-off level when `n > |x|`.
-- The claim gives anchor values only (`1e3`, `5e3`, `1e5`). Between the anchors it
-  defines no bound, so the violations at `|x| = 2000` and `|x| = 2e4` depend on how
-  the anchors are interpolated.
+  `1.18e-16` on a value of about `1.8e-2`, which is about `29` eps relative; the
+  worst decaying point overall is `J_1000(990)` at `7.0e-15` (about `32` eps), within
+  the documented `1e-14`.
 - Large `x`: SciPy is far more accurate than numerics-js here, with absolute error
   `8.67e-19` against `6.66e-14` at `1e5`. This is the main region where SciPy
   leads in absolute terms.

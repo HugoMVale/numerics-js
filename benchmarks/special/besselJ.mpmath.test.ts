@@ -14,6 +14,16 @@ const TOLERANCES: Record<string, { atol: number; rtol: number }> = {
   negative_x: { atol: 0, rtol: RTOL }
 };
 
+// Accuracy documented in the besselJ docstring (src/special/bessel.ts): relative error for
+// |x| < 1 and for n >= |x| >= 1, absolute error for n < |x| (looser beyond |x| = 5e3).
+// Number.MIN_VALUE keeps the relative limits meaningful for subnormal references.
+function documentedLimit(n: number, x: number, reference: number): number {
+  const ax = Math.abs(x);
+  if (ax < 1) return Math.max(1e-15 * Math.abs(reference), Number.MIN_VALUE);
+  if (n >= ax) return Math.max(1e-14 * Math.abs(reference), Number.MIN_VALUE);
+  return ax <= 5e3 ? 1e-14 : 1e-13;
+}
+
 describe('besselJ vs mpmath reference values', () => {
   for (const fixture of fixtures) {
     it(`matches mpmath for ${fixture.id}: ${fixture.description}`, () => {
@@ -32,4 +42,16 @@ describe('besselJ vs mpmath reference values', () => {
       }
     });
   }
+
+  it('meets the accuracy documented in the besselJ docstring at every point', () => {
+    for (const fixture of fixtures) {
+      for (const { n, x, mpmath } of fixture.points) {
+        const reference = mpmath.hi + mpmath.lo;
+        expect(
+          Math.abs(besselJ(n, x) - reference),
+          `${fixture.id}: J_${n}(${x}), mpmath ${mpmath.hi}`
+        ).toBeLessThanOrEqual(documentedLimit(n, x, reference));
+      }
+    }
+  });
 });

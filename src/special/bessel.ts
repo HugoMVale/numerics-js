@@ -5,8 +5,9 @@ const MAX_ORDER = 1e6;
 
 /**
  * Scan increment used to bracket zeros. It must stay below the smallest gap
- * between consecutive positive zeros of any `J_n` (about 3.116, between
- * `j_{0,1}` and `j_{0,2}`), so that no scan interval can contain two zeros.
+ * between consecutive positive zeros of any `J_n` (about 3.115, between
+ * `j_{0,1}` and `j_{0,2}`) and of any `Y_n` (about 3.064, between `y_{0,1}`
+ * and `y_{0,2}`), so that no scan interval can contain two zeros.
  */
 const ZERO_SCAN_STEP = 2.5;
 
@@ -16,6 +17,7 @@ const zerosCache = new Map<number, number[]>();
 /** Same as {@link zerosCache}, for the positive zeros of `Y_n`. */
 const yZerosCache = new Map<number, number[]>();
 
+/** Throws a `RangeError` unless `n` is an integer in `[0, MAX_ORDER]`. */
 function assertOrder(n: number): void {
   if (!Number.isInteger(n) || n < 0 || n > MAX_ORDER) {
     throw new RangeError(`Bessel order n must be an integer in [0, ${MAX_ORDER}], got ${n}.`);
@@ -34,12 +36,17 @@ function assertOrder(n: number): void {
  *
  * @param name Public function name, used in error messages.
  * @param cache Per-order cache of the zeros found so far; mutated.
+ * @param n Order; a non-negative integer not larger than `1e6`.
+ * @param m Index of the zero, 1-based; a positive integer.
  * @param f The Bessel function of order `n`.
  * @param df Derivative of `f` at `x`, given `fx = f(x)`.
  * @param start Scan origin for the first zero; `f(start)` must be nonzero and
  * no zero may lie in `(0, start]`.
+ * @returns The `m`-th positive zero of `f`.
  * @throws {RangeError} If `n` is not an integer in `[0, 1e6]` or `m` is not a
  * positive integer.
+ * @throws {Error} If Brent's method fails on a bracket (not expected: the
+ * bracket is a sign change of a continuous function).
  */
 function scanBesselZero(
   name: string,
@@ -62,8 +69,9 @@ function scanBesselZero(
   }
   if (zeros.length >= m) return zeros[m - 1];
 
-  // After a zero z, the next one lies more than ZERO_SCAN_STEP beyond z + 1,
-  // so z + 1 is a safe restart.
+  // Restart one unit past the last zero z. (z, z + 1] holds no zero because
+  // consecutive zeros are more than 3 apart, which is also why a scan interval
+  // of width ZERO_SCAN_STEP holds at most one zero.
   let a = zeros.length > 0 ? zeros[zeros.length - 1] + 1 : start;
   let fa = f(a);
 
@@ -213,13 +221,18 @@ function millerJ(n: number, x: number): number {
  * - `n < |x|`: trapezoidal rule for `J_0` and `J_1`, then stable forward
  *   recurrence.
  * - `n >= |x| >= 1`: Miller's backward recurrence.
- * - Negative `x` uses `J_n(-x) = (-1)^n J_n(x)`; `J_n(±Infinity)` is 0.
+ * - Negative `x` uses `J_n(-x) = (-1)^n J_n(x)`; `J_n(±Infinity)` is 0 (`-0`
+ *   for odd `n` at `-Infinity`).
  *
- * Accuracy: absolute error of a few `1e-16` for `|x| <= 1e3`, growing slowly
- * with `|x|` because the phase `x sin(t)` is rounded (about `2e-15` at
- * `|x| = 5e3` and `7e-14` at `|x| = 1e5`); relative error is at the
- * round-off level when `n > |x|`, where `J_n` decays. The cost is
- * proportional to `max(n, |x|)`, so very large arguments are slow.
+ * Accuracy (measured against mpmath): for `|x| < 1` the relative error is
+ * below `1e-15`. For `n >= |x| >= 1`, where `J_n` decays, it is below `1e-14`
+ * (about 30 times the machine epsilon at worst, near the turning point
+ * `x ~ n`). For `n < |x|` the absolute error is below `1e-14` up to
+ * `|x| = 5e3` and then grows slowly with `|x|`, because the phase `x sin(t)` is
+ * rounded, staying below `1e-13` up to `|x| = 1e5` (`7e-14` measured there); as
+ * for any oscillating function, the relative error is not meaningful next to
+ * a zero. The cost is proportional to `max(n, |x|)`, so very large arguments
+ * are slow.
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
  * @param x Argument; any real number. `NaN` returns `NaN`.
@@ -263,13 +276,15 @@ export function besselJ(n: number, x: number): number {
  *
  * Zeros are cached per order, so later calls with the same or a smaller `m`
  * are free, and larger `m` resume from the last cached zero. The cost grows
- * roughly quadratically with `m`.
+ * roughly quadratically with `m`. The cache is never evicted, so memory grows
+ * with the largest `m` requested for each order.
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
  * @param m Index of the zero, 1-based; a positive integer.
  * @returns The `m`-th positive zero of `J_n`.
  * @throws {RangeError} If `n` is not an integer in `[0, 1e6]` or `m` is not a
  * positive integer.
+ * @throws {Error} If root refinement fails (not expected in practice).
  *
  * @example
  * ```ts
@@ -502,7 +517,7 @@ function hankelY01(x: number): void {
  * `x`.
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
- * @param x Argument; a real number. `NaN` returns `NaN`.
+ * @param x Argument; the result is real for `x > 0`. `x < 0` and `NaN` return `NaN`.
  * @returns The value of `Y_n(x)`.
  * @throws {RangeError} If `n` is not an integer in `[0, 1e6]`.
  *
@@ -563,13 +578,15 @@ export function besselY(n: number, x: number): number {
  * Zeros are cached per order, so later calls with the same or a smaller `m`
  * are free, and larger `m` resume from the last cached zero. Since the cost
  * of {@link besselY} does not depend on `x`, the cost grows linearly with `m`
- * and with `n`.
+ * and with `n`. The cache is never evicted, so memory grows with the largest
+ * `m` requested for each order.
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
  * @param m Index of the zero, 1-based; a positive integer.
  * @returns The `m`-th positive zero of `Y_n`.
  * @throws {RangeError} If `n` is not an integer in `[0, 1e6]` or `m` is not a
  * positive integer.
+ * @throws {Error} If root refinement fails (not expected in practice).
  *
  * @example
  * ```ts
@@ -698,11 +715,13 @@ function millerIScaled(n: number, x: number): number {
  * Negative `x` uses `I_n(-x) = (-1)^n I_n(x)`.
  *
  * Accuracy: the relative error is at the round-off level (a few `1e-15`,
- * measured against mpmath) wherever the result is representable. The result
- * overflows to `Infinity` for `|x|` beyond about `713` at small `n`; use
- * {@link besselIScaled} there. Where `e^{-x} I_n(x)` would underflow, or for
- * `|x| > 1400`, the final exponential is evaluated as `exp(x + ln r)`, which
- * costs roughly `|x| * 1e-16` of relative accuracy. `I_n(±Infinity)` is `±Infinity` (sign `(-1)^n` for `-Infinity`).
+ * measured against mpmath) wherever the result is representable, except where
+ * `e^{-x} I_n(x)` would underflow or for `|x| > 1400`. There the result is
+ * assembled in the log domain, which costs relative accuracy in proportion to
+ * the size of the exponent: roughly `1e-16 * max(|x|, |ln I_n(x)|)`, e.g.
+ * `7e-14` for `I_500(100) ~ 3.6e-283`. The result overflows to `Infinity` for
+ * `|x|` beyond about `713` at small `n`; use {@link besselIScaled} there.
+ * `I_n(±Infinity)` is `±Infinity` (sign `(-1)^n` for `-Infinity`).
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
  * @param x Argument; any real number. `NaN` returns `NaN`.
@@ -751,7 +770,7 @@ export function besselI(n: number, x: number): number {
  * about `713`, whereas `e^{-|x|} I_n(x) ~ 1 / sqrt(2 pi |x|)` stays moderate.
  * It uses the same algorithm as {@link besselI}. Negative `x` uses
  * `I_n(-x) = (-1)^n I_n(x)`, so the result is `(-1)^n e^{-|x|} I_n(|x|)`;
- * the limit at `±Infinity` is `0`.
+ * the limit at `±Infinity` is `0` (`-0` for odd `n` at `-Infinity`).
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
  * @param x Argument; any real number. `NaN` returns `NaN`.
@@ -790,7 +809,7 @@ const K_SERIES_MAX = 1;
 const K_TAIL_EXPONENT = 40;
 
 /**
- * From this `x` on, `K_n(x)` underflows to 0 for every supported order: for
+ * Above this `x`, `K_n(x)` underflows to 0 for every supported order: for
  * `n <= 1e6` it is bounded by `e^(-0.53 x)`. It also keeps the argument
  * reduction in {@link unscaleK} exact.
  */
@@ -882,8 +901,8 @@ function seriesK01(x: number): void {
  * `x`, which the step `h = 0.9 / sqrt(2x + 16)` covers with room to spare
  * (the quadrature error is below `1e-18` for `1 <= x <= 1e100`, checked against
  * 40-digit arithmetic). The sum is cut where the integrand falls below
- * `e^-40`. This takes at most 24 terms for any `x >= 1`, the count decreasing
- * to about 13 as `x` grows, so the cost is `O(1)`. The exponent is formed as
+ * `e^-40`. It has at most 21 terms besides the endpoint (at `x = 1`), falling
+ * to 15 as `x` grows, so the cost is `O(1)`. The exponent is formed as
  * `2 (sqrt(x) sinh(t/2))^2` and `h` without forming `2x`, so that neither
  * overflows nor loses precision for huge `x`.
  */
@@ -979,7 +998,7 @@ function unscaleK(value: number, shifts: number, x: number): number {
  * - `0 < x < 1`: ascending series with the logarithmic term.
  * - `x >= 1`: trapezoidal rule on `K_nu(x) = integral_0^inf exp(-x cosh t)
  *   cosh(nu t) dt`, whose positive, double-exponentially decaying integrand
- *   makes it converge geometrically without cancellation. It needs at most 24
+ *   makes it converge geometrically without cancellation. It needs at most 21
  *   terms for any `x`, i.e. `O(1)` work.
  *
  * Special values: `K_n(0) = Infinity`; `K_n(x)` is not real for `x < 0`, so the
@@ -998,7 +1017,7 @@ function unscaleK(value: number, shifts: number, x: number): number {
  * `O(n)` otherwise, independent of `x`.
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
- * @param x Argument; a real number. `NaN` returns `NaN`.
+ * @param x Argument; the result is real for `x > 0`. `x < 0` and `NaN` return `NaN`.
  * @returns The value of `K_n(x)`.
  * @throws {RangeError} If `n` is not an integer in `[0, 1e6]`.
  *
@@ -1043,14 +1062,15 @@ export function besselK(n: number, x: number): number {
  * above about `745`, whereas `e^x K_n(x) ~ sqrt(pi / (2x))` stays moderate. It
  * uses the same algorithm as {@link besselK}, so the relative error is at
  * the same round-off level (at most `3e-15` in the tests) and the cost is
- * `O(1)` for `n <= 1` and `O(n)` otherwise, independent of `x`. The result is `Infinity` only once `e^x K_n(x)` itself
- * exceeds the double range, i.e. for `n` large compared to `x`.
+ * `O(1)` for `n <= 1` and `O(n)` otherwise, independent of `x`. The result is
+ * `Infinity` only once `e^x K_n(x)` itself exceeds the double range, i.e. for
+ * `n` large compared to `x`.
  *
  * Special values: `e^x K_n(x) = Infinity` at `x = 0`; it is not real for
  * `x < 0`, so the result is `NaN`; the limit at `Infinity` is `0`.
  *
  * @param n Order; a non-negative integer not larger than `1e6`.
- * @param x Argument; a real number. `NaN` returns `NaN`.
+ * @param x Argument; the result is real for `x > 0`. `x < 0` and `NaN` return `NaN`.
  * @returns The value of `e^x K_n(x)`.
  * @throws {RangeError} If `n` is not an integer in `[0, 1e6]`.
  *
