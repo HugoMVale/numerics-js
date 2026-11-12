@@ -39,6 +39,25 @@ describe('PchipInterpolator1D', () => {
     expect(pchip.eval(3.5)).toBeCloseTo(1);
   });
 
+  it('is invariant under scaling of the data, even when slope products underflow', () => {
+    const xp = [0, 1, 2, 4];
+    const fp = [0, 1, 3, 4];
+    const ref = new PchipInterpolator1D(xp, fp);
+
+    // 1e-200 * 1e-200 underflows to 0: a sign test based on the product of two
+    // adjacent slopes would wrongly flatten the interior slopes to zero.
+    for (const scale of [1e-200, 1e-160, 1e-3, 1e3, 1e150]) {
+      const scaled = new PchipInterpolator1D(
+        xp,
+        fp.map((y) => y * scale)
+      );
+      for (const x of [0, 0.5, 1, 1.5, 2, 3, 4]) {
+        expect(scaled.derivative(x) / scale).toBeCloseTo(ref.derivative(x), 12);
+        expect(scaled.eval(x) / scale).toBeCloseTo(ref.eval(x), 12);
+      }
+    }
+  });
+
   it('returns zero derivative in flat regions and clamped bounds', () => {
     const xp = [0, 1, 2, 3];
     const fp = [5, 5, 2, 0];

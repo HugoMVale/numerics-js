@@ -45,9 +45,10 @@ function computeMonotonicDerivatives1D(x: Float64Array, y: Float64Array, n: numb
     mk[i] = (y[i + 1] - y[i]) / hk[i];
   }
 
-  // Interior derivatives (harmonic mean)
+  // Interior derivatives (harmonic mean). The sign of each secant slope is tested instead of the
+  // sign of their product, which would underflow to 0 for very small slopes (e.g. 1e-200 * 1e-200).
   for (let i = 1; i < n - 1; i++) {
-    if (mk[i - 1] * mk[i] <= 0) {
+    if (Math.sign(mk[i - 1]) * Math.sign(mk[i]) <= 0) {
       d[i] = 0;
     } else {
       const w1 = 2 * hk[i] + hk[i - 1];
