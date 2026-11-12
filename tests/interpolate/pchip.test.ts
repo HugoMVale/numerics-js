@@ -429,6 +429,18 @@ describe('Pchip interpolators with VectorLike inputs', () => {
     });
   }
 
+  it('PchipInterpolatorND copies the fp matrix: mutation after construction has no effect', () => {
+    const data = fpMat.copy();
+    const f = new PchipInterpolatorND(xpRaw, data);
+    const before = f.eval(Vector.from(xRaw)).toArray();
+    const dBefore = f.derivative(Vector.from(xRaw)).toArray();
+    const iBefore = f.integrate(1, 4).toArray();
+    data.fill(0);
+    expect(f.eval(Vector.from(xRaw)).toArray()).toEqual(before);
+    expect(f.derivative(Vector.from(xRaw)).toArray()).toEqual(dBefore);
+    expect(f.integrate(1, 4).toArray()).toEqual(iBefore);
+  });
+
   it('keeps the overloads: number -> number/Vector, VectorLike -> Vector/Matrix', () => {
     expectTypeOf(ref1D.eval(1)).toEqualTypeOf<number>();
     expectTypeOf(ref1D.eval([1, 2])).toEqualTypeOf<Vector>();

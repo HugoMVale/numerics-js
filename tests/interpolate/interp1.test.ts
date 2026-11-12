@@ -582,6 +582,18 @@ describe('interpND and LinearInterpolatorND with VectorLike inputs', () => {
     });
   }
 
+  it('copies the fp matrix: mutation after construction has no effect', () => {
+    const data = fp.copy();
+    const f = new LinearInterpolatorND(xpRaw, data);
+    const before = f.eval(Vector.from(xRaw)).toArray();
+    const dBefore = f.derivative(Vector.from(xRaw)).toArray();
+    const iBefore = f.integrate(1, 3).toArray();
+    data.fill(0);
+    expect(f.eval(Vector.from(xRaw)).toArray()).toEqual(before);
+    expect(f.derivative(Vector.from(xRaw)).toArray()).toEqual(dBefore);
+    expect(f.integrate(1, 3).toArray()).toEqual(iBefore);
+  });
+
   it('keeps a scalar left/right broadcasting to every component', () => {
     const f = new LinearInterpolatorND(xpRaw, fp, { left: 5, right: 6 });
     expect(f.eval(0).toArray()).toEqual([5, 5]);

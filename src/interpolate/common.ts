@@ -260,8 +260,9 @@ function resolveClampVector(
  * default to `fp.row(fp.rows - 1)`.
  * @param checkSorted Whether to verify that `xp` is monotonically increasing.
  * @param caller Name of the public entry point invoking this check.
- * @param copy Whether `xp`, `left` and `right` given as `Vector`s must be copied (arrays are always
- * copied by normalization). The interpolator classes pass `true` because they store them.
+ * @param copy Whether `xp`, `left` and `right` given as `Vector`s, and the `fp` matrix, must be
+ * copied (arrays are always copied by normalization). The interpolator classes pass `true` because
+ * they store them; the one-shot `interpND` does not need to.
  * @returns The validated `xp` (`Vector`) and `fp` (`Matrix`), plus resolved clamp vectors.
  * @throws {RangeError} If `xp` is empty, if `xp.size !== fp.rows`, if an
  * explicit `left`/`right` doesn't have length `fp.cols`, if `xp` contains
@@ -294,7 +295,7 @@ export function prepareInterpND(
 
   return {
     xp: xpv,
-    fp,
+    fp: copy ? fp.copy() : fp,
     leftVal: resolveClampVector(left, fp.row(0), fp.cols, 'left', caller, copy),
     rightVal: resolveClampVector(right, fp.row(fp.rows - 1), fp.cols, 'right', caller, copy)
   };

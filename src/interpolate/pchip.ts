@@ -267,7 +267,7 @@ export class PchipInterpolatorND {
    * any `Vector` passed as `options.left`/`options.right`, so later changes to the inputs do not
    * affect the interpolator.
    * @param fp The vector-valued data points: row `i` is the value at
-   * `xp[i]`. Must have `fp.rows === xp.length`.
+   * `xp[i]`. Must have `fp.rows === xp.length`. Copied, like `xp`.
    * @param options Optional settings; see {@link InterpNDOptions}.
    * @throws {TypeError} If `xp` (or an explicit `options.left`/`options.right`) is not a `VectorLike`.
    * @throws {RangeError} If `xp` is empty, if `xp.length !== fp.rows`,

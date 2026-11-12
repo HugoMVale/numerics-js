@@ -476,7 +476,7 @@ export class CubicSplineInterpolatorND {
    * non-empty. Copied, like any `Vector` passed as `options.left`/`options.right`, so later
    * changes to the inputs do not affect the interpolator.
    * @param fp The vector-valued data points: row `i` is the value at `xp[i]`. Must have
-   * `fp.rows === xp.length`.
+   * `fp.rows === xp.length`. Copied, like `xp`.
    * @param options Optional settings; see {@link CubicSplineOptionsND}.
    * @throws {TypeError} If `xp` (or an explicit `options.left`/`options.right`/end derivative) is
    * not a `VectorLike`.
