@@ -1,7 +1,69 @@
 import { brent } from '../roots/brent.js';
 
+// -----------------------------------------------------------------
+// Shared constants and helpers.
+// -----------------------------------------------------------------
+
 /** Largest supported order `n`; guards against unbounded work for absurd orders. */
 const MAX_ORDER = 1e6;
+
+/** Euler-Mascheroni constant. */
+const EULER_GAMMA = 0.5772156649015329;
+
+/**
+ * Largest `x` for which `e^x` and `e^-x` of a working value can safely be formed
+ * directly (the largest double is `e^709.78`, the smallest normal one `e^-708.4`).
+ */
+const EXP_SAFE_X = 700;
+
+/** Miller's backward recurrences rescale their working values once they exceed this. */
+const MILLER_RESCALE_LIMIT = 1e250;
+
+/** Factor applied to the working values of Miller's backward recurrences to avoid overflow. */
+const MILLER_RESCALE = 1e-250;
+
+/** Throws a `RangeError` unless `n` is an integer in `[0, MAX_ORDER]`. */
+function assertOrder(n: number): void {
+  if (!Number.isInteger(n) || n < 0 || n > MAX_ORDER) {
+    throw new RangeError(`Bessel order n must be an integer in [0, ${MAX_ORDER}], got ${n}.`);
+  }
+}
+
+/** `(-1)^n` for an integer `n`: the parity sign in `J_n(-x) = (-1)^n J_n(x)` and `I_n(-x)`. */
+function parity(n: number): 1 | -1 {
+  return n % 2 === 0 ? 1 : -1;
+}
+
+/**
+ * Even starting order of Miller's backward recurrence for `J_k(x)` with
+ * `x <= n`: above `n` by `sqrt(160 n)` plus a margin, which suppresses the
+ * unwanted solution of the recurrence to below round-off. The start is even so
+ * that the normalization `J_0 + 2 * sum_{k>=1} J_{2k} = 1` can be accumulated
+ * on the way down.
+ */
+function millerStartJ(n: number): number {
+  const start = n + Math.ceil(Math.sqrt(160 * n)) + 10;
+  return start % 2 === 0 ? start : start + 1;
+}
+
+/**
+ * Leading factor `(x/2)^n / n!` of the power series of `J_n` and `I_n`, with
+ * `h = x/2`. It is built factor by factor and is 0 as soon as the partial
+ * product underflows, which is the correct (underflowed) value of the whole
+ * series.
+ */
+function seriesPrefactor(n: number, h: number): number {
+  let prefactor = 1;
+  for (let i = 1; i <= n; i++) {
+    prefactor *= h / i;
+    if (prefactor === 0) return 0;
+  }
+  return prefactor;
+}
+
+// -----------------------------------------------------------------
+// Zeros of J_n and Y_n: the shared scan engine.
+// -----------------------------------------------------------------
 
 /**
  * Scan increment used to bracket zeros. It must stay below the smallest gap
@@ -11,18 +73,11 @@ const MAX_ORDER = 1e6;
  */
 const ZERO_SCAN_STEP = 2.5;
 
-/** Cache of the positive zeros found so far, keyed by order `n` (dense, ascending, 0-based). */
-const zerosCache = new Map<number, number[]>();
+/** Cache of the positive zeros of `J_n` found so far, keyed by order `n` (dense, ascending, 0-based). */
+const jZerosCache = new Map<number, number[]>();
 
-/** Same as {@link zerosCache}, for the positive zeros of `Y_n`. */
+/** Same as {@link jZerosCache}, for the positive zeros of `Y_n`. */
 const yZerosCache = new Map<number, number[]>();
-
-/** Throws a `RangeError` unless `n` is an integer in `[0, MAX_ORDER]`. */
-function assertOrder(n: number): void {
-  if (!Number.isInteger(n) || n < 0 || n > MAX_ORDER) {
-    throw new RangeError(`Bessel order n must be an integer in [0, ${MAX_ORDER}], got ${n}.`);
-  }
-}
 
 /**
  * Shared engine of {@link besselJZero} and {@link besselYZero}: returns the
@@ -112,6 +167,13 @@ function scanBesselZero(
   return zeros[m - 1];
 }
 
+// -----------------------------------------------------------------
+// Bessel function of the first kind, J_n(x).
+// -----------------------------------------------------------------
+
+/** Below this `x`, `J_n` comes from the power series; from here, from the forward or Miller recurrence. */
+const J_SERIES_MAX = 1;
+
 /**
  * Power series `J_n(x) = (x/2)^n / n! * sum_k (-x^2/4)^k / (k! (n+1)_k)`.
  *
@@ -121,11 +183,8 @@ function scanBesselZero(
  */
 function seriesJ(n: number, x: number): number {
   const h = 0.5 * x;
-  let prefactor = 1;
-  for (let i = 1; i <= n; i++) {
-    prefactor *= h / i;
-    if (prefactor === 0) return 0;
-  }
+  const prefactor = seriesPrefactor(n, h);
+  if (prefactor === 0) return 0;
   const q = -h * h;
   let term = 1;
   let sum = 1;
@@ -176,13 +235,12 @@ function forwardJ(n: number, x: number): number {
  * The recurrence `J_{k-1} = (2k/x) J_k - J_{k+1}` is run downward from an
  * order above `n` where `J_k` is negligible, from an arbitrary seed. The
  * unnormalized sequence is then scaled with the identity
- * `J_0 + 2 * sum_{k>=1} J_{2k} = 1`. The starting order exceeds `n` by
- * `sqrt(160 n)` plus a margin, which suppresses the unwanted solution to
- * below round-off for every `x <= n`.
+ * `J_0 + 2 * sum_{k>=1} J_{2k} = 1`. The starting order, see
+ * {@link millerStartJ}, suppresses the unwanted solution to below round-off
+ * for every `x <= n`.
  */
 function millerJ(n: number, x: number): number {
-  let start = n + Math.ceil(Math.sqrt(160 * n)) + 10;
-  if (start % 2 !== 0) start++;
+  const start = millerStartJ(n);
 
   let uNext = 0;
   let uCurr = 1;
@@ -199,12 +257,11 @@ function millerJ(n: number, x: number): number {
     if (idx % 2 === 0) sum += (idx === 0 ? 1 : 2) * uCurr;
 
     // Rescale to avoid overflow during the descent.
-    if (Math.abs(uCurr) > 1e250) {
-      const scale = 1e-250;
-      uCurr *= scale;
-      uNext *= scale;
-      sum *= scale;
-      uN *= scale;
+    if (Math.abs(uCurr) > MILLER_RESCALE_LIMIT) {
+      uCurr *= MILLER_RESCALE;
+      uNext *= MILLER_RESCALE;
+      sum *= MILLER_RESCALE;
+      uN *= MILLER_RESCALE;
     }
   }
 
@@ -258,9 +315,9 @@ function millerJ(n: number, x: number): number {
 export function besselJ(n: number, x: number): number {
   assertOrder(n);
   if (Number.isNaN(x)) return NaN;
-  if (x < 0) return (n % 2 === 0 ? 1 : -1) * besselJ(n, -x);
+  if (x < 0) return parity(n) * besselJ(n, -x);
   if (x === Infinity) return 0;
-  if (x < 1) return seriesJ(n, x);
+  if (x < J_SERIES_MAX) return seriesJ(n, x);
   return n < x ? forwardJ(n, x) : millerJ(n, x);
 }
 
@@ -304,7 +361,7 @@ export function besselJZero(n: number, m: number): number {
   // J_n(n) > 0 because the first zero exceeds n.
   return scanBesselZero(
     'besselJZero',
-    zerosCache,
+    jZerosCache,
     n,
     m,
     (x) => besselJ(n, x),
@@ -314,8 +371,9 @@ export function besselJZero(n: number, m: number): number {
   );
 }
 
-/** Euler-Mascheroni constant. */
-const EULER_GAMMA = 0.5772156649015329;
+// -----------------------------------------------------------------
+// Bessel function of the second kind, Y_n(x).
+// -----------------------------------------------------------------
 
 /** `1 / sqrt(pi)`; applied as `INV_SQRT_PI / sqrt(x)` so that `pi * x` cannot overflow. */
 const INV_SQRT_PI = 0.5641895835477563;
@@ -394,8 +452,7 @@ function seriesY01(x: number): void {
 function neumannY01(x: number): void {
   // Order beyond which J_k(x) is negligible, then the Miller margin (as in millerJ).
   const nn = Math.ceil(x + 12 * Math.cbrt(x) + 10);
-  let start = nn + Math.ceil(Math.sqrt(160 * nn)) + 10;
-  if (start % 2 !== 0) start++;
+  const start = millerStartJ(nn);
 
   let uNext = 0;
   let uCurr = 1;
@@ -429,15 +486,14 @@ function neumannY01(x: number): void {
     }
 
     // Rescale to avoid overflow during the descent.
-    if (Math.abs(uCurr) > 1e250) {
-      const scale = 1e-250;
-      uCurr *= scale;
-      uNext *= scale;
-      norm *= scale;
-      sum0 *= scale;
-      sum1 *= scale;
-      u0 *= scale;
-      u1 *= scale;
+    if (Math.abs(uCurr) > MILLER_RESCALE_LIMIT) {
+      uCurr *= MILLER_RESCALE;
+      uNext *= MILLER_RESCALE;
+      norm *= MILLER_RESCALE;
+      sum0 *= MILLER_RESCALE;
+      sum1 *= MILLER_RESCALE;
+      u0 *= MILLER_RESCALE;
+      u1 *= MILLER_RESCALE;
     }
   }
 
@@ -616,6 +672,23 @@ export function besselYZero(n: number, m: number): number {
   );
 }
 
+// -----------------------------------------------------------------
+// Modified Bessel function of the first kind, I_n(x).
+// -----------------------------------------------------------------
+
+/** Below this `x`, `I_n` comes from the power series; from here, from Miller's recurrence. */
+const I_SERIES_MAX = 1;
+
+/**
+ * Above this `x`, {@link besselI} assembles the result in the log domain. Up to
+ * here `e^x` is formed as the product of two `e^{x/2}` factors, which stays
+ * finite (and the product is only needed while `I_n` itself can fit).
+ */
+const I_LOG_DOMAIN_X = 1400;
+
+/** Below this scaled value, {@link besselI} switches to the log domain (the scaled value is near underflow). */
+const I_LOG_DOMAIN_SCALED = 1e-290;
+
 /**
  * Power series `I_n(x) = (x/2)^n / n! * sum_k (x^2/4)^k / (k! (n+1)_k)`.
  *
@@ -625,11 +698,8 @@ export function besselYZero(n: number, m: number): number {
  */
 function seriesI(n: number, x: number): number {
   const h = 0.5 * x;
-  let prefactor = 1;
-  for (let i = 1; i <= n; i++) {
-    prefactor *= h / i;
-    if (prefactor === 0) return 0;
-  }
+  const prefactor = seriesPrefactor(n, h);
+  if (prefactor === 0) return 0;
   const q = h * h;
   let term = 1;
   let sum = 1;
@@ -650,7 +720,8 @@ function seriesI(n: number, x: number): number {
  */
 const millerParts = { uN: 0, shifts: 0, sum: 0 };
 
-const LOG_RESCALE = 250 * Math.LN10;
+/** `-ln(MILLER_RESCALE)`: the logarithm of one rescaling step of {@link millerIScaled}. */
+const LOG_MILLER_RESCALE = 250 * Math.LN10;
 
 /**
  * `e^{-x} I_n(x)` for `x >= 1` using Miller's backward recurrence.
@@ -688,11 +759,10 @@ function millerIScaled(n: number, x: number): number {
     sum += (idx === 0 ? 1 : 2) * uCurr;
 
     // Rescale to avoid overflow during the descent.
-    if (uCurr > 1e250) {
-      const scale = 1e-250;
-      uCurr *= scale;
-      uNext *= scale;
-      sum *= scale;
+    if (uCurr > MILLER_RESCALE_LIMIT) {
+      uCurr *= MILLER_RESCALE;
+      uNext *= MILLER_RESCALE;
+      sum *= MILLER_RESCALE;
       shifts++;
     }
   }
@@ -700,7 +770,7 @@ function millerIScaled(n: number, x: number): number {
   millerParts.uN = uN;
   millerParts.shifts = shifts;
   millerParts.sum = sum;
-  return (uN / sum) * 1e-250 ** shifts;
+  return (uN / sum) * MILLER_RESCALE ** shifts;
 }
 
 /**
@@ -747,17 +817,17 @@ function millerIScaled(n: number, x: number): number {
 export function besselI(n: number, x: number): number {
   assertOrder(n);
   if (Number.isNaN(x)) return NaN;
-  if (x < 0) return (n % 2 === 0 ? 1 : -1) * besselI(n, -x);
+  if (x < 0) return parity(n) * besselI(n, -x);
   if (x === Infinity) return Infinity;
-  if (x < 1) return seriesI(n, x);
+  if (x < I_SERIES_MAX) return seriesI(n, x);
   const r = millerIScaled(n, x);
   // Avoid overflow of e^x and underflow of the scaled value (I_n representable
   // although e^{-x} I_n is not) by switching to the log domain.
-  if (x > 1400 || r < 1e-290) {
+  if (x > I_LOG_DOMAIN_X || r < I_LOG_DOMAIN_SCALED) {
     const { uN, shifts, sum } = millerParts;
-    return Math.exp(x + Math.log(uN) - shifts * LOG_RESCALE - Math.log(sum));
+    return Math.exp(x + Math.log(uN) - shifts * LOG_MILLER_RESCALE - Math.log(sum));
   }
-  if (x <= 700) return r * Math.exp(x);
+  if (x <= EXP_SAFE_X) return r * Math.exp(x);
   return r * Math.exp(0.5 * x) * Math.exp(0.5 * x);
 }
 
@@ -794,10 +864,14 @@ export function besselI(n: number, x: number): number {
 export function besselIScaled(n: number, x: number): number {
   assertOrder(n);
   if (Number.isNaN(x)) return NaN;
-  if (x < 0) return (n % 2 === 0 ? 1 : -1) * besselIScaled(n, -x);
+  if (x < 0) return parity(n) * besselIScaled(n, -x);
   if (x === Infinity) return 0;
-  return x < 1 ? seriesI(n, x) * Math.exp(-x) : millerIScaled(n, x);
+  return x < I_SERIES_MAX ? seriesI(n, x) * Math.exp(-x) : millerIScaled(n, x);
 }
+
+// -----------------------------------------------------------------
+// Modified Bessel function of the second kind, K_n(x).
+// -----------------------------------------------------------------
 
 /** Below this `x`, `K_0` and `K_1` come from the ascending series; from here, from the trapezoidal rule. */
 const K_SERIES_MAX = 1;
@@ -1049,7 +1123,7 @@ export function besselK(n: number, x: number): number {
   // Below K_SERIES_MAX the working value is K_n itself, so an overflow of it is one of K_n.
   if (x < K_SERIES_MAX) return shifts === 0 ? value : Infinity;
   // Otherwise it carries a factor e^x, which can overflow while K_n(x) is still representable.
-  if (shifts === 0 && x <= 700) return value * Math.exp(-x);
+  if (shifts === 0 && x <= EXP_SAFE_X) return value * Math.exp(-x);
   return unscaleK(value, shifts, x);
 }
 
@@ -1106,6 +1180,6 @@ export function besselKScaled(n: number, x: number): number {
  * @internal
  */
 export function clearBesselCache(): void {
-  zerosCache.clear();
+  jZerosCache.clear();
   yZerosCache.clear();
 }
