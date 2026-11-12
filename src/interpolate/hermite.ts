@@ -112,7 +112,7 @@ export function hermiteMany1D(
 // `fp` and `d` are Matrices (row i = knot i's value/slope vector); the
 // bracket/t/basis-function computation is identical across components,
 // so it's done once and then looped over fp's columns against the flat
-// buffers directly, same style as interp1.ts's *ND kernels.
+// buffers directly, same style as linear.ts's *ND kernels.
 // -----------------------------------------------------------------
 
 export function hermiteOneND(

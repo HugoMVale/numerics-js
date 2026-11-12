@@ -23,7 +23,7 @@ export {
   LinearInterpolatorND,
   interp1D,
   interpND
-} from './interpolate/interp1.js';
+} from './interpolate/linear.js';
 export { PchipInterpolator1D, PchipInterpolatorND } from './interpolate/pchip.js';
 export { CubicSplineInterpolator1D, CubicSplineInterpolatorND } from './interpolate/cubic.js';
 export type {

@@ -4,7 +4,7 @@ import {
   LinearInterpolator1D,
   interpND,
   LinearInterpolatorND
-} from '../../src/interpolate/interp1.js';
+} from '../../src/interpolate/linear.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { clobber, mutableVectorLikeForms, vectorLikeForms } from '../vectorLikeForms.js';
