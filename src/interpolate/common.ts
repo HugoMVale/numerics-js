@@ -95,11 +95,11 @@ function checkFiniteKnots(xpv: Vector, caller: string): void {
 }
 
 /**
- * Checks that `xpv` is monotonically increasing (duplicates allowed).
+ * Checks that `xpv` is non-decreasing, i.e. increasing with duplicates allowed.
  * Knots must already have passed `checkFiniteKnots`.
  * @throws {RangeError} If `xpv` is not monotonically increasing.
  */
-function checkMonotonic(xpv: Vector, caller: string): void {
+function checkNondecreasing(xpv: Vector, caller: string): void {
   for (let i = 1; i < xpv.size; i++) {
     if (xpv.data[i] < xpv.data[i - 1]) {
       throw new RangeError(`${caller}: xp must be monotonically increasing`);
@@ -121,7 +121,7 @@ export function addConstantIntegral(total: Vector, values: Vector, width: number
 
 /**
  * Checks that `xpv` is *strictly* increasing (no duplicate knots), the
- * stricter requirement PCHIP and cubic splines place on top of `checkMonotonic`'s
+ * stricter requirement PCHIP and cubic splines place on top of `checkNondecreasing`'s
  * non-decreasing check. Shared by the Pchip and CubicSpline interpolators,
  * which all call `prepareInterp1D`/`prepareInterpND`
  * (non-strict) first and then this, as a separate step, since the stricter
@@ -134,6 +134,24 @@ export function checkStrictlyIncreasing(xpv: Vector, caller: string): void {
       throw new RangeError(`${caller}: xp must be strictly increasing`);
     }
   }
+}
+
+/**
+ * Normalizes the evaluation points `x` of a vector-valued (ND) interpolant and rejects an empty
+ * input, since a `Matrix` cannot represent a result with `0` rows.
+ * @param x The x-coordinates at which to evaluate.
+ * @param caller Name of the public method invoking this check, used in the error message.
+ * @returns `x` as a `Vector`.
+ * @throws {RangeError} If `x` has no elements.
+ */
+export function asEvalPointsND(x: VectorLike, caller: string): Vector {
+  const xv = Vector.asVector(x);
+  if (xv.size === 0) {
+    throw new RangeError(
+      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
+    );
+  }
+  return xv;
 }
 
 /**
@@ -207,7 +225,7 @@ export function prepareInterp1D(
   }
   checkFiniteKnots(xpv, caller);
   if (checkSorted) {
-    checkMonotonic(xpv, caller);
+    checkNondecreasing(xpv, caller);
   }
 
   return {
@@ -290,7 +308,7 @@ export function prepareInterpND(
   }
   checkFiniteKnots(xpv, caller);
   if (checkSorted) {
-    checkMonotonic(xpv, caller);
+    checkNondecreasing(xpv, caller);
   }
 
   return {

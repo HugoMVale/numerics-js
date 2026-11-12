@@ -4,8 +4,8 @@ import {
   prepareInterp1D,
   prepareInterpND,
   checkStrictlyIncreasing,
-  Interp1DOptions,
-  InterpNDOptions
+  type Interp1DOptions,
+  type InterpNDOptions
 } from './common.js';
 import {
   hermiteOne1D,
@@ -17,25 +17,28 @@ import {
 } from './hermite.js';
 
 /**
- * Precomputes PCHIP gradients (`d[i]`, the slope at knot `i`) ensuring
- * monotonic shape preservation, given one scalar y-series `y` over knots
- * `x`. Shared by `PchipInterpolator1D` (called once, over `fp`) and
- * `PchipInterpolatorND` (called once per output component, over each
- * column of `fp`), since the slope-fitting algorithm itself has no notion
- * of "scalar vs vector output" -- it only ever sees one series at a time.
- * @param x The x-coordinates of the data points (length `n`).
+ * Computes the PCHIP slopes at the knots (the first derivative of the
+ * interpolant at each knot) for one scalar series `y` over the knots `x`:
+ * a weighted harmonic mean of the adjacent secant slopes at interior knots
+ * (zero at local extrema) and a shape-preserving three-point formula at the
+ * ends, which together keep the interpolant monotone wherever the data are.
+ * Shared by `PchipInterpolator1D` (called once, over `fp`) and
+ * `PchipInterpolatorND` (called once per column of `fp`), since the
+ * slope-fitting algorithm only ever sees one series at a time. The
+ * counterpart of `computeSplineSlopes` in `cubic.ts`.
+ * @param x The strictly increasing x-coordinates of the data points (length `n`).
  * @param y The y-coordinates of the data points (length `n`).
- * @param n The number of data points (`x.length === y.length === n`).
- * @returns The fitted slope at each knot.
+ * @returns The slope at each knot (length `n`).
  */
-function computeMonotonicDerivatives1D(x: Float64Array, y: Float64Array, n: number): Float64Array {
-  const d = new Float64Array(n);
+function computePchipSlopes(x: Float64Array, y: Float64Array): Float64Array {
+  const n = x.length;
+  const slopes = new Float64Array(n);
 
-  if (n === 1) return d;
+  if (n === 1) return slopes;
 
   if (n === 2) {
-    d[0] = d[1] = (y[1] - y[0]) / (x[1] - x[0]);
-    return d;
+    slopes[0] = slopes[1] = (y[1] - y[0]) / (x[1] - x[0]);
+    return slopes;
   }
 
   const hk = new Float64Array(n - 1);
@@ -49,20 +52,20 @@ function computeMonotonicDerivatives1D(x: Float64Array, y: Float64Array, n: numb
   // sign of their product, which would underflow to 0 for very small slopes (e.g. 1e-200 * 1e-200).
   for (let i = 1; i < n - 1; i++) {
     if (Math.sign(mk[i - 1]) * Math.sign(mk[i]) <= 0) {
-      d[i] = 0;
+      slopes[i] = 0;
     } else {
       const w1 = 2 * hk[i] + hk[i - 1];
       const w2 = hk[i] + 2 * hk[i - 1];
-      d[i] = (w1 + w2) / (w1 / mk[i - 1] + w2 / mk[i]);
+      slopes[i] = (w1 + w2) / (w1 / mk[i - 1] + w2 / mk[i]);
     }
   }
 
   // Endpoint derivative (left)
-  d[0] = ((2 * hk[0] + hk[1]) * mk[0] - hk[0] * mk[1]) / (hk[0] + hk[1]);
-  if (Math.sign(d[0]) !== Math.sign(mk[0])) {
-    d[0] = 0;
-  } else if (Math.sign(mk[0]) !== Math.sign(mk[1]) && Math.abs(d[0]) > 3 * Math.abs(mk[0])) {
-    d[0] = 3 * mk[0];
+  slopes[0] = ((2 * hk[0] + hk[1]) * mk[0] - hk[0] * mk[1]) / (hk[0] + hk[1]);
+  if (Math.sign(slopes[0]) !== Math.sign(mk[0])) {
+    slopes[0] = 0;
+  } else if (Math.sign(mk[0]) !== Math.sign(mk[1]) && Math.abs(slopes[0]) > 3 * Math.abs(mk[0])) {
+    slopes[0] = 3 * mk[0];
   }
 
   // Endpoint derivative (right)
@@ -70,31 +73,31 @@ function computeMonotonicDerivatives1D(x: Float64Array, y: Float64Array, n: numb
   const mN2 = mk[n - 3];
   const hN1 = hk[n - 2];
   const hN2 = hk[n - 3];
-  d[n - 1] = ((2 * hN1 + hN2) * mN1 - hN1 * mN2) / (hN1 + hN2);
-  if (Math.sign(d[n - 1]) !== Math.sign(mN1)) {
-    d[n - 1] = 0;
-  } else if (Math.sign(mN1) !== Math.sign(mN2) && Math.abs(d[n - 1]) > 3 * Math.abs(mN1)) {
-    d[n - 1] = 3 * mN1;
+  slopes[n - 1] = ((2 * hN1 + hN2) * mN1 - hN1 * mN2) / (hN1 + hN2);
+  if (Math.sign(slopes[n - 1]) !== Math.sign(mN1)) {
+    slopes[n - 1] = 0;
+  } else if (Math.sign(mN1) !== Math.sign(mN2) && Math.abs(slopes[n - 1]) > 3 * Math.abs(mN1)) {
+    slopes[n - 1] = 3 * mN1;
   }
 
-  return d;
+  return slopes;
 }
 
 /**
  * Builds the per-knot, per-component slope Matrix (`n x m`) for
- * `PchipInterpolatorND`, by running `computeMonotonicDerivatives1D`
- * independently on each column of `fp` (each output component is its
- * own scalar PCHIP problem sharing `xp`).
+ * `PchipInterpolatorND`, by running `computePchipSlopes` independently on
+ * each column of `fp` (each output component is its own scalar PCHIP problem
+ * sharing `xp`). The counterpart of `computeSplineSlopesND` in `cubic.ts`.
  */
-function computeMonotonicDerivativesND(xp: Vector, fp: Matrix): Matrix {
+function computePchipSlopesND(xp: Vector, fp: Matrix): Matrix {
   const n = xp.size;
   const m = fp.cols;
-  const d = new Matrix(n, m);
+  const slopes = new Matrix(n, m);
 
   for (let j = 0; j < m; j++) {
-    d.setCol(j, computeMonotonicDerivatives1D(xp.data, fp.col(j).data, n));
+    slopes.setCol(j, computePchipSlopes(xp.data, fp.col(j).data));
   }
-  return d;
+  return slopes;
 }
 
 /**
@@ -131,7 +134,7 @@ export class PchipInterpolator1D {
   private readonly fp: Vector;
   private readonly leftVal: number;
   private readonly rightVal: number;
-  private readonly d: Float64Array; // Precomputed slopes at knots
+  private readonly slopes: Float64Array; // Precomputed slopes at knots
 
   /**
    * @param xp The `x`-coordinates of the data points: a `Vector`, a plain `number[]` or a
@@ -160,7 +163,7 @@ export class PchipInterpolator1D {
     this.fp = p.fp;
     this.leftVal = p.leftVal;
     this.rightVal = p.rightVal;
-    this.d = computeMonotonicDerivatives1D(this.xp.data, this.fp.data, this.size);
+    this.slopes = computePchipSlopes(this.xp.data, this.fp.data);
   }
 
   /**
@@ -182,9 +185,9 @@ export class PchipInterpolator1D {
   eval(x: VectorLike): Vector;
   eval(x: number | VectorLike): number | Vector {
     if (typeof x === 'number') {
-      return hermiteOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
+      return hermiteOne1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, false);
     }
-    return hermiteMany1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
+    return hermiteMany1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, false);
   }
 
   /**
@@ -201,9 +204,9 @@ export class PchipInterpolator1D {
   derivative(x: VectorLike): Vector;
   derivative(x: number | VectorLike): number | Vector {
     if (typeof x === 'number') {
-      return hermiteOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
+      return hermiteOne1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, true);
     }
-    return hermiteMany1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
+    return hermiteMany1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, true);
   }
 
   /**
@@ -222,7 +225,7 @@ export class PchipInterpolator1D {
     if (Number.isNaN(a) || Number.isNaN(b)) {
       throw new RangeError('PchipInterpolator1D.integrate: bounds must not be NaN');
     }
-    return hermiteIntegrate1D(this.xp, this.fp, this.d, this.leftVal, this.rightVal, a, b);
+    return hermiteIntegrate1D(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }
 }
 
@@ -259,7 +262,7 @@ export class PchipInterpolatorND {
   private readonly fp: Matrix;
   private readonly leftVal: Vector;
   private readonly rightVal: Vector;
-  private readonly d: Matrix; // Precomputed slopes at knots, n x dim
+  private readonly slopes: Matrix; // Precomputed slopes at knots, n x dim
 
   /**
    * @param xp The `x`-coordinates of the data points, shared by every
@@ -287,7 +290,7 @@ export class PchipInterpolatorND {
     this.fp = p.fp;
     this.leftVal = p.leftVal;
     this.rightVal = p.rightVal;
-    this.d = computeMonotonicDerivativesND(this.xp, this.fp);
+    this.slopes = computePchipSlopesND(this.xp, this.fp);
   }
 
   /**
@@ -319,13 +322,13 @@ export class PchipInterpolatorND {
   eval(x: VectorLike): Matrix;
   eval(x: number | VectorLike): Vector | Matrix {
     if (typeof x === 'number') {
-      return hermiteOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
+      return hermiteOneND(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, false);
     }
     return hermiteManyND(
       x,
       this.xp,
       this.fp,
-      this.d,
+      this.slopes,
       this.leftVal,
       this.rightVal,
       false,
@@ -349,13 +352,13 @@ export class PchipInterpolatorND {
   derivative(x: VectorLike): Matrix;
   derivative(x: number | VectorLike): Vector | Matrix {
     if (typeof x === 'number') {
-      return hermiteOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
+      return hermiteOneND(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, true);
     }
     return hermiteManyND(
       x,
       this.xp,
       this.fp,
-      this.d,
+      this.slopes,
       this.leftVal,
       this.rightVal,
       true,
@@ -376,6 +379,6 @@ export class PchipInterpolatorND {
     if (Number.isNaN(a) || Number.isNaN(b)) {
       throw new RangeError('PchipInterpolatorND.integrate: bounds must not be NaN');
     }
-    return hermiteIntegrateND(this.xp, this.fp, this.d, this.leftVal, this.rightVal, a, b);
+    return hermiteIntegrateND(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }
 }

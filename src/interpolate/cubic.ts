@@ -4,8 +4,8 @@ import {
   prepareInterp1D,
   prepareInterpND,
   checkStrictlyIncreasing,
-  Interp1DOptions,
-  InterpNDOptions
+  type Interp1DOptions,
+  type InterpNDOptions
 } from './common.js';
 import {
   hermiteOne1D,
@@ -275,6 +275,28 @@ function computeSplineSlopes(
 }
 
 /**
+ * Computes the spline slopes at the knots for every column of the vector-valued
+ * data `fp` (one independent spline per output component, all sharing the
+ * factored system `sys`). The counterpart of `computePchipSlopesND` in `pchip.ts`.
+ * @param fp The vector-valued data points (`sys.n` rows).
+ * @param leftD End derivative of each component at the first knot (used only when `bc` is `'clamped'`).
+ * @param rightD End derivative of each component at the last knot (used only when `bc` is `'clamped'`).
+ * @returns The slopes as an `n x dim` matrix: row `i` holds the slope of every component at knot `i`.
+ */
+function computeSplineSlopesND(
+  sys: SplineSystem,
+  fp: Matrix,
+  leftD: Float64Array,
+  rightD: Float64Array
+): Matrix {
+  const slopes = new Matrix(sys.n, fp.cols);
+  for (let j = 0; j < fp.cols; j++) {
+    slopes.setCol(j, computeSplineSlopes(sys, fp.col(j).data, leftD[j], rightD[j]));
+  }
+  return slopes;
+}
+
+/**
  * A C2 cubic spline interpolant for a scalar-valued function
  * (`number -> number`).
  *
@@ -324,7 +346,7 @@ export class CubicSplineInterpolator1D {
   private readonly fp: Vector;
   private readonly leftVal: number;
   private readonly rightVal: number;
-  private readonly d: Float64Array; // Slopes at knots
+  private readonly slopes: Float64Array; // Slopes at knots
 
   /**
    * @param xp The `x`-coordinates of the data points: a `Vector`, a plain `number[]` or a
@@ -366,7 +388,12 @@ export class CubicSplineInterpolator1D {
     this.fp = p.fp;
     this.leftVal = p.leftVal;
     this.rightVal = p.rightVal;
-    this.d = computeSplineSlopes(buildSplineSystem(this.xp.data, bc), this.fp.data, leftD, rightD);
+    this.slopes = computeSplineSlopes(
+      buildSplineSystem(this.xp.data, bc),
+      this.fp.data,
+      leftD,
+      rightD
+    );
   }
 
   /**
@@ -387,9 +414,9 @@ export class CubicSplineInterpolator1D {
   eval(x: VectorLike): Vector;
   eval(x: number | VectorLike): number | Vector {
     if (typeof x === 'number') {
-      return hermiteOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
+      return hermiteOne1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, false);
     }
-    return hermiteMany1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
+    return hermiteMany1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, false);
   }
 
   /**
@@ -406,9 +433,9 @@ export class CubicSplineInterpolator1D {
   derivative(x: VectorLike): Vector;
   derivative(x: number | VectorLike): number | Vector {
     if (typeof x === 'number') {
-      return hermiteOne1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
+      return hermiteOne1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, true);
     }
-    return hermiteMany1D(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
+    return hermiteMany1D(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, true);
   }
 
   /**
@@ -427,7 +454,7 @@ export class CubicSplineInterpolator1D {
     if (Number.isNaN(a) || Number.isNaN(b)) {
       throw new RangeError('CubicSplineInterpolator1D.integrate: bounds must not be NaN');
     }
-    return hermiteIntegrate1D(this.xp, this.fp, this.d, this.leftVal, this.rightVal, a, b);
+    return hermiteIntegrate1D(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }
 }
 
@@ -468,7 +495,7 @@ export class CubicSplineInterpolatorND {
   private readonly fp: Matrix;
   private readonly leftVal: Vector;
   private readonly rightVal: Vector;
-  private readonly d: Matrix; // Slopes at knots, n x dim
+  private readonly slopes: Matrix; // Slopes at knots, n x dim
 
   /**
    * @param xp The `x`-coordinates of the data points, shared by every output component: a
@@ -509,12 +536,12 @@ export class CubicSplineInterpolatorND {
     this.leftVal = p.leftVal;
     this.rightVal = p.rightVal;
 
-    const sys = buildSplineSystem(this.xp.data, bc);
-    const m = this.fp.cols;
-    this.d = new Matrix(this.xp.size, m);
-    for (let j = 0; j < m; j++) {
-      this.d.setCol(j, computeSplineSlopes(sys, this.fp.col(j).data, leftD[j], rightD[j]));
-    }
+    this.slopes = computeSplineSlopesND(
+      buildSplineSystem(this.xp.data, bc),
+      this.fp,
+      leftD,
+      rightD
+    );
   }
 
   /**
@@ -546,13 +573,13 @@ export class CubicSplineInterpolatorND {
   eval(x: VectorLike): Matrix;
   eval(x: number | VectorLike): Vector | Matrix {
     if (typeof x === 'number') {
-      return hermiteOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, false);
+      return hermiteOneND(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, false);
     }
     return hermiteManyND(
       x,
       this.xp,
       this.fp,
-      this.d,
+      this.slopes,
       this.leftVal,
       this.rightVal,
       false,
@@ -576,13 +603,13 @@ export class CubicSplineInterpolatorND {
   derivative(x: VectorLike): Matrix;
   derivative(x: number | VectorLike): Vector | Matrix {
     if (typeof x === 'number') {
-      return hermiteOneND(x, this.xp, this.fp, this.d, this.leftVal, this.rightVal, true);
+      return hermiteOneND(x, this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, true);
     }
     return hermiteManyND(
       x,
       this.xp,
       this.fp,
-      this.d,
+      this.slopes,
       this.leftVal,
       this.rightVal,
       true,
@@ -603,6 +630,6 @@ export class CubicSplineInterpolatorND {
     if (Number.isNaN(a) || Number.isNaN(b)) {
       throw new RangeError('CubicSplineInterpolatorND.integrate: bounds must not be NaN');
     }
-    return hermiteIntegrateND(this.xp, this.fp, this.d, this.leftVal, this.rightVal, a, b);
+    return hermiteIntegrateND(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }
 }

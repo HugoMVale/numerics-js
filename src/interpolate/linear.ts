@@ -3,11 +3,12 @@ import { Matrix } from '../linalg/Matrix.js';
 import {
   prepareInterp1D,
   prepareInterpND,
+  asEvalPointsND,
   findBracket,
   integrateConstant,
   addConstantIntegral,
-  Interp1DOptions,
-  InterpNDOptions
+  type Interp1DOptions,
+  type InterpNDOptions
 } from './common.js';
 
 /**
@@ -151,12 +152,7 @@ function interpManyND(
   rightVal: Vector,
   caller: string
 ): Matrix {
-  const xv = Vector.asVector(x);
-  if (xv.size === 0) {
-    throw new RangeError(
-      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
-    );
-  }
+  const xv = asEvalPointsND(x, caller);
   const m = fp.cols;
   const res = new Matrix(xv.size, m);
   for (let i = 0; i < xv.size; i++) {
@@ -188,12 +184,7 @@ function linearDerivativeOneND(xi: number, xp: Vector, fp: Matrix): Vector {
 }
 
 function linearDerivativeManyND(x: VectorLike, xp: Vector, fp: Matrix, caller: string): Matrix {
-  const xv = Vector.asVector(x);
-  if (xv.size === 0) {
-    throw new RangeError(
-      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
-    );
-  }
+  const xv = asEvalPointsND(x, caller);
   const m = fp.cols;
   const res = new Matrix(xv.size, m);
   for (let i = 0; i < xv.size; i++) {

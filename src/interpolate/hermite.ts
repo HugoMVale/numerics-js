@@ -1,15 +1,16 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
-import { findBracket, integrateConstant, addConstantIntegral } from './common.js';
+import { asEvalPointsND, findBracket, integrateConstant, addConstantIntegral } from './common.js';
 
 // -----------------------------------------------------------------
 // Shared piecewise cubic Hermite kernels.
 //
 // A piecewise cubic Hermite interpolant is fully determined by the knots
-// `xp`, the values `fp` and the slopes `d` at the knots. Different methods
-// differ only in how they choose `d` (PCHIP: monotonicity-preserving local
-// formulas; cubic spline: C2 continuity through a tridiagonal system), so
-// evaluation, differentiation and integration are shared here.
+// `xp`, the values `fp` and the first derivatives (`slopes`) at the knots.
+// Different methods differ only in how they choose the slopes (PCHIP:
+// monotonicity-preserving local formulas; cubic spline: C2 continuity through
+// a tridiagonal system), so evaluation, differentiation and integration are
+// shared here.
 //
 // Out-of-range behavior follows the rest of the interpolate module: `x`
 // outside `[xp[0], xp[n-1]]` is clamped to `leftVal`/`rightVal` (derivative
@@ -39,7 +40,7 @@ export function hermiteOne1D(
   xi: number,
   xp: Vector,
   fp: Vector,
-  d: Float64Array,
+  slopes: Float64Array,
   leftVal: number,
   rightVal: number,
   computeDerivative: boolean
@@ -63,8 +64,8 @@ export function hermiteOne1D(
 
   const y0 = fpd[lo];
   const y1 = fpd[hi];
-  const d0 = d[lo];
-  const d1 = d[hi];
+  const d0 = slopes[lo];
+  const d1 = slopes[hi];
 
   if (computeDerivative) {
     // H'00(t), H'10(t), H'01(t), H'11(t) divided by h (chain rule for dt/dx)
@@ -92,7 +93,7 @@ export function hermiteMany1D(
   x: VectorLike,
   xp: Vector,
   fp: Vector,
-  d: Float64Array,
+  slopes: Float64Array,
   leftVal: number,
   rightVal: number,
   computeDerivative: boolean
@@ -102,14 +103,14 @@ export function hermiteMany1D(
   const xdata = xv.data;
   const rdata = res.data;
   for (let i = 0; i < xv.size; i++) {
-    rdata[i] = hermiteOne1D(xdata[i], xp, fp, d, leftVal, rightVal, computeDerivative);
+    rdata[i] = hermiteOne1D(xdata[i], xp, fp, slopes, leftVal, rightVal, computeDerivative);
   }
   return res;
 }
 
 // -----------------------------------------------------------------
 // Vector-valued (ND) kernels. Same structure as hermiteOne1D/hermiteMany1D, but
-// `fp` and `d` are Matrices (row i = knot i's value/slope vector); the
+// `fp` and `slopes` are Matrices (row i = knot i's value/slope vector); the
 // bracket/t/basis-function computation is identical across components,
 // so it's done once and then looped over fp's columns against the flat
 // buffers directly, same style as linear.ts's *ND kernels.
@@ -119,7 +120,7 @@ export function hermiteOneND(
   xi: number,
   xp: Vector,
   fp: Matrix,
-  d: Matrix,
+  slopes: Matrix,
   leftVal: Vector,
   rightVal: Vector,
   computeDerivative: boolean
@@ -148,8 +149,8 @@ export function hermiteOneND(
 
   const h = x1 - x0;
   const t = (xi - x0) / h;
-  const dLoOff = d.flatIndex(lo, 0);
-  const dHiOff = d.flatIndex(hi, 0);
+  const dLoOff = slopes.flatIndex(lo, 0);
+  const dHiOff = slopes.flatIndex(hi, 0);
 
   const res = new Vector(m);
   if (computeDerivative) {
@@ -160,8 +161,8 @@ export function hermiteOneND(
     for (let j = 0; j < m; j++) {
       const y0 = fp.data[loOff + j];
       const y1 = fp.data[hiOff + j];
-      const d0 = d.data[dLoOff + j];
-      const d1 = d.data[dHiOff + j];
+      const d0 = slopes.data[dLoOff + j];
+      const d1 = slopes.data[dHiOff + j];
       res.data[j] = y0 * dp00 + d0 * dp10 + y1 * dp01 + d1 * dp11;
     }
   } else {
@@ -174,8 +175,8 @@ export function hermiteOneND(
     for (let j = 0; j < m; j++) {
       const y0 = fp.data[loOff + j];
       const y1 = fp.data[hiOff + j];
-      const d0 = d.data[dLoOff + j];
-      const d1 = d.data[dHiOff + j];
+      const d0 = slopes.data[dLoOff + j];
+      const d1 = slopes.data[dHiOff + j];
       res.data[j] = y0 * p00 + h * d0 * p10 + y1 * p01 + h * d1 * p11;
     }
   }
@@ -187,21 +188,16 @@ export function hermiteManyND(
   x: VectorLike,
   xp: Vector,
   fp: Matrix,
-  d: Matrix,
+  slopes: Matrix,
   leftVal: Vector,
   rightVal: Vector,
   computeDerivative: boolean,
   caller: string
 ): Matrix {
-  const xv = Vector.asVector(x);
-  if (xv.size === 0) {
-    throw new RangeError(
-      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
-    );
-  }
+  const xv = asEvalPointsND(x, caller);
   const res = new Matrix(xv.size, fp.cols);
   for (let i = 0; i < xv.size; i++) {
-    res.setRow(i, hermiteOneND(xv.data[i], xp, fp, d, leftVal, rightVal, computeDerivative));
+    res.setRow(i, hermiteOneND(xv.data[i], xp, fp, slopes, leftVal, rightVal, computeDerivative));
   }
   return res;
 }
@@ -215,14 +211,14 @@ export function hermiteManyND(
 export function hermiteIntegrate1D(
   xp: Vector,
   fp: Vector,
-  d: Float64Array,
+  slopes: Float64Array,
   leftVal: number,
   rightVal: number,
   a: number,
   b: number
 ): number {
   if (a === b) return 0;
-  if (b < a) return -hermiteIntegrate1D(xp, fp, d, leftVal, rightVal, b, a);
+  if (b < a) return -hermiteIntegrate1D(xp, fp, slopes, leftVal, rightVal, b, a);
 
   const xpd = xp.data;
   const fpd = fp.data;
@@ -236,13 +232,7 @@ export function hermiteIntegrate1D(
     total += integrateConstant(end - a, leftVal);
   }
 
-  // 2. Right clamp region (constant area)
-  if (b > xpd[n - 1]) {
-    const start = Math.max(a, xpd[n - 1]);
-    total += integrateConstant(b - start, rightVal);
-  }
-
-  // 3. Interior cubic regions
+  // 2. Interior cubic regions
   const startX = Math.max(a, xpd[0]);
   const endX = Math.min(b, xpd[n - 1]);
 
@@ -264,8 +254,8 @@ export function hermiteIntegrate1D(
 
         const y0 = fpd[i];
         const y1 = fpd[i + 1];
-        const d0 = d[i];
-        const d1 = d[i + 1];
+        const d0 = slopes[i];
+        const d1 = slopes[i + 1];
 
         const Ia = hermiteBasisIntegral(ta);
         const Ib = hermiteBasisIntegral(tb);
@@ -275,6 +265,12 @@ export function hermiteIntegrate1D(
         total += h * (valB - valA);
       }
     }
+  }
+
+  // 3. Right clamp region (constant area)
+  if (b > xpd[n - 1]) {
+    const start = Math.max(a, xpd[n - 1]);
+    total += integrateConstant(b - start, rightVal);
   }
 
   return total;
@@ -287,7 +283,7 @@ export function hermiteIntegrate1D(
 export function hermiteIntegrateND(
   xp: Vector,
   fp: Matrix,
-  d: Matrix,
+  slopes: Matrix,
   leftVal: Vector,
   rightVal: Vector,
   a: number,
@@ -295,7 +291,7 @@ export function hermiteIntegrateND(
 ): Vector {
   const m = fp.cols;
   if (a === b) return new Vector(m);
-  if (b < a) return hermiteIntegrateND(xp, fp, d, leftVal, rightVal, b, a).mult(-1);
+  if (b < a) return hermiteIntegrateND(xp, fp, slopes, leftVal, rightVal, b, a).mult(-1);
 
   const xpd = xp.data;
   const n = xpd.length;
@@ -308,13 +304,7 @@ export function hermiteIntegrateND(
     addConstantIntegral(total, leftVal, end - a);
   }
 
-  // 2. Right clamp region (constant area)
-  if (b > xpd[n - 1]) {
-    const start = Math.max(a, xpd[n - 1]);
-    addConstantIntegral(total, rightVal, b - start);
-  }
-
-  // 3. Interior cubic regions
+  // 2. Interior cubic regions
   const startX = Math.max(a, xpd[0]);
   const endX = Math.min(b, xpd[n - 1]);
 
@@ -336,8 +326,8 @@ export function hermiteIntegrateND(
 
         const y0Off = fp.flatIndex(i, 0);
         const y1Off = fp.flatIndex(i + 1, 0);
-        const d0Off = d.flatIndex(i, 0);
-        const d1Off = d.flatIndex(i + 1, 0);
+        const d0Off = slopes.flatIndex(i, 0);
+        const d1Off = slopes.flatIndex(i + 1, 0);
 
         const Ia = hermiteBasisIntegral(ta);
         const Ib = hermiteBasisIntegral(tb);
@@ -349,16 +339,22 @@ export function hermiteIntegrateND(
         for (let j = 0; j < m; j++) {
           const y0 = fp.data[y0Off + j];
           const y1 = fp.data[y1Off + j];
-          const dd0 = d.data[d0Off + j];
-          const dd1 = d.data[d1Off + j];
+          const d0 = slopes.data[d0Off + j];
+          const d1 = slopes.data[d1Off + j];
 
-          const valA = y0 * Ia.i00 + h * dd0 * Ia.i10 + y1 * Ia.i01 + h * dd1 * Ia.i11;
-          const valB = y0 * Ib.i00 + h * dd0 * Ib.i10 + y1 * Ib.i01 + h * dd1 * Ib.i11;
+          const valA = y0 * Ia.i00 + h * d0 * Ia.i10 + y1 * Ia.i01 + h * d1 * Ia.i11;
+          const valB = y0 * Ib.i00 + h * d0 * Ib.i10 + y1 * Ib.i01 + h * d1 * Ib.i11;
 
           total.data[j] += h * (valB - valA);
         }
       }
     }
+  }
+
+  // 3. Right clamp region (constant area)
+  if (b > xpd[n - 1]) {
+    const start = Math.max(a, xpd[n - 1]);
+    addConstantIntegral(total, rightVal, b - start);
   }
 
   return total;
