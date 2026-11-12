@@ -111,6 +111,22 @@ export interface QuasiNewtonOptions {
    * design and is never checked against finite differences; see `jacCheck`.
    */
   J0?: Matrix;
+  /**
+   * Optional callback invoked after each completed quasi-Newton iteration as
+   * `callback(nIter, x, fx) -> {stop, success}`, where `nIter` is the 1-based
+   * iteration number (as reported in `iterations`), `x` the iterate reached at
+   * the end of that iteration and `fx` the corresponding `f(x)`. Neither
+   * vector should be mutated by the callback. If a global step is rejected, the
+   * callback still receives the unchanged iterate. The callback is not called
+   * for the initial guess, nor for the internal Jacobian restart that follows
+   * a failed global step with Broyden updates (no new iterate is produced).
+   *
+   * The callback is called before the built-in convergence checks, so it takes
+   * precedence over them. If `stop` is `true`, the iteration is terminated and
+   * `x` and `fx` are returned; `success` then decides whether the result is
+   * reported as successful.
+   */
+  callback?: (nIter: number, x: Vector, fx: Vector) => { stop: boolean; success: boolean };
 }
 
 /**
@@ -544,9 +560,16 @@ export function quasiNewton(
       continue;
     }
 
+    // User callback, called before the built-in checks so that it takes precedence.
+    const cb = options.callback?.(nIter, xp, fp);
+
     // Check termination and convergence conditions.
     let stop: boolean;
-    if (nonFiniteStep) {
+    if (cb?.stop) {
+      message = 'Terminated by user callback.';
+      success = cb.success;
+      stop = true;
+    } else if (nonFiniteStep) {
       message =
         'f returned non-finite values at the proposed step. Consider using a global method (`globalMethod`).';
       stop = true;

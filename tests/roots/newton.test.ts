@@ -837,6 +837,135 @@ describe('quasiNewton', () => {
     );
   });
 
+  describe('callback', () => {
+    const { f, x0 } = fRosenbrock;
+
+    it.each([false, true])(
+      'is called once per iteration with 1-based nIter, x and fx (broydenUpdate = %s)',
+      (broydenUpdate) => {
+        const calls: { nIter: number; x: number[]; fx: number[] }[] = [];
+        const result = quasiNewton(f, x0, {
+          broydenUpdate,
+          callback: (nIter, x, fx) => {
+            calls.push({ nIter, x: x.toArray(), fx: fx.toArray() });
+            return { stop: false, success: false };
+          }
+        });
+
+        expect(result.success, result.message).toBe(true);
+        expect(calls.length).toBe(result.iterations);
+        expect(calls.map((c) => c.nIter)).toEqual(calls.map((_, i) => i + 1));
+        // Last call sees the returned solution.
+        expect(calls.at(-1)!.x).toEqual(result.x.toArray());
+        expect(calls.at(-1)!.fx).toEqual(result.fx.toArray());
+        // fx is consistent with f(x).
+        for (const c of calls) expect(f(Vector.from(c.x)).toArray()).toEqual(c.fx);
+      }
+    );
+
+    it.each(['line-search', 'dogleg', null] as const)(
+      'stops early, reports the callback message and honours success = true (%s)',
+      (globalMethod) => {
+        const full = quasiNewton(f, x0, { globalMethod });
+        const result = quasiNewton(f, x0, {
+          globalMethod,
+          callback: (nIter) => ({ stop: nIter >= 2, success: true })
+        });
+
+        expect(result.iterations).toBe(2);
+        expect(result.iterations).toBeLessThan(full.iterations);
+        expect(result.success).toBe(true);
+        expect(result.message).toMatch(/callback/i);
+      }
+    );
+
+    it('reports failure when the callback stops with success = false', () => {
+      const result = quasiNewton(f, x0, {
+        callback: (nIter) => ({ stop: nIter >= 1, success: false })
+      });
+
+      expect(result.iterations).toBe(1);
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/callback/i);
+    });
+
+    it('takes precedence over the built-in convergence check on the same iteration', () => {
+      const converged = quasiNewton(f, x0);
+      expect(converged.success).toBe(true);
+
+      const result = quasiNewton(f, x0, {
+        callback: (nIter) => ({ stop: nIter === converged.iterations, success: false })
+      });
+
+      expect(result.iterations).toBe(converged.iterations);
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/callback/i);
+    });
+
+    it('does not change the result when it never stops', () => {
+      for (const broydenUpdate of [false, true]) {
+        const ref = quasiNewton(f, x0, { broydenUpdate });
+        const res = quasiNewton(f, x0, {
+          broydenUpdate,
+          callback: () => ({ stop: false, success: false })
+        });
+
+        expect(res.success).toBe(ref.success);
+        expect(res.message).toBe(ref.message);
+        expect(res.iterations).toBe(ref.iterations);
+        expect(res.evaluationsFunction).toBe(ref.evaluationsFunction);
+        expect(res.x.toArray()).toEqual(ref.x.toArray());
+      }
+    });
+
+    it('is not called when the initial guess is already a solution', () => {
+      const callback = vi.fn(() => ({ stop: false, success: false }));
+      const result = quasiNewton((x) => Vector.from([x.get(0) - 1]), Vector.from([1]), {
+        callback
+      });
+
+      expect(result.iterations).toBe(0);
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('receives the unchanged iterate when a global step is rejected', () => {
+      // Wrong-sign Jacobian: no step decreases the residual (see test below).
+      const seen: number[] = [];
+      const result = quasiNewton((x) => Vector.from([1 + x.get(0) ** 2]), Vector.from([2]), {
+        jac: () => Matrix.from([[-1]]),
+        jacCheck: false,
+        maxIter: 20,
+        callback: (_nIter, x) => {
+          seen.push(x.get(0));
+          return { stop: false, success: false };
+        }
+      });
+
+      expect(result.success).toBe(false);
+      expect(seen).toEqual([2]);
+    });
+
+    it('reports an iteration-limit stop when the callback never stops', () => {
+      const result = quasiNewton(f, x0, {
+        maxIter: 1,
+        callback: () => ({ stop: false, success: false })
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Maximum number of iterations (1) reached.');
+    });
+
+    it('propagates exceptions thrown by the callback', () => {
+      expect(() =>
+        quasiNewton(f, x0, {
+          callback: () => {
+            throw new Error('boom');
+          }
+        })
+      ).toThrow('boom');
+    });
+  });
+
   it.each(['line-search', 'dogleg'] as const)(
     'returns fx = f(x) at the unchanged iterate when the global step fails (%s)',
     (globalMethod) => {
