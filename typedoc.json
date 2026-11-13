@@ -27,5 +27,5 @@
   "excludeInternal": true,
   "excludePrivate": true,
   "excludeProtected": true,
-  "intentionallyNotExported": ["ComputeAccelerationFn", "StepFn"]
+  "intentionallyNotExported": ["AccelerationFunction", "VerletStepFunction"]
 }

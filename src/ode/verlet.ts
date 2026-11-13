@@ -1,34 +1,35 @@
-/** Plain `number[]` or `Float64Array` holding a vector of positions, velocities or accelerations. */
-export type VectorArray = number[] | Float64Array;
+import type { Vector } from '../linalg/Vector.js';
 
 /**
- * Function that computes the accelerations for the current positions `u` and velocities `v`,
- * writing them in place into `aOut`. It must not mutate `u` or `v`.
+ * Function that computes the accelerations for the current positions `u` and velocities `v`.
+ * It must write the result into the supplied `aOut` buffer, rather than allocating, and return
+ * it. It must not mutate `u` or `v`.
  */
-export type ComputeAccelerationFn = (u: VectorArray, v: VectorArray, aOut: VectorArray) => void;
+export type AccelerationFunction = (u: Vector, v: Vector, aOut: Vector) => Vector;
 
 /**
- * Mutable state of a velocity Verlet simulation, advanced in place by a {@link StepFn}.
+ * Mutable state of a velocity Verlet simulation, advanced in place by a
+ * {@link VerletStepFunction}.
  *
- * All four arrays must have the same length.
+ * All four vectors must have the same size.
  */
 export interface VerletState {
   /** Positions `u(t)`. */
-  u: VectorArray;
+  u: Vector;
   /** Velocities `v(t)`. */
-  v: VectorArray;
+  v: Vector;
   /**
    * Accelerations `a(t)` consistent with the current `u` and `v`. The caller must initialize
    * them before the first step (e.g. by calling the acceleration function once); afterwards the
    * step function keeps them up to date.
    */
-  a: VectorArray;
+  a: Vector;
   /** Scratch space for `a(t + dt)`; its content between steps is meaningless. */
-  aNext: VectorArray;
+  aNext: Vector;
 }
 
 /** Advances a {@link VerletState} in place by one time step `dt`. */
-export type StepFn = (state: VerletState, dt: number) => void;
+export type VerletStepFunction = (state: VerletState, dt: number) => void;
 
 /**
  * Creates a velocity Verlet integrator step function.
@@ -52,25 +53,29 @@ export type StepFn = (state: VerletState, dt: number) => void;
  * calls, but the method is symplectic only for a constant `dt`. No validation is performed.
  *
  * @param computeAcceleration Function that computes the accelerations for the positions `u` and
- * velocities `v`, writing the result in place into `aOut`.
+ * velocities `v`, writing the result into `aOut` and returning it.
  * @returns A `step(state, dt)` function that mutates `state.u`, `state.v` and `state.a` in place
  * to advance the simulation by `dt`. `state.aNext` is used as scratch space, so it must be a
- * pre-allocated array of the same length as the others; it is reused on every call, which avoids
+ * pre-allocated vector of the same size as the others; it is reused on every call, which avoids
  * allocations.
  *
  * @example
  * ```ts
+ * import { Vector } from 'numerics-js/linalg';
  * import { createVelocityVerlet, type VerletState } from 'numerics-js/ode/verlet';
  *
  * // Free fall under constant gravity, starting from rest at u = 0.
  * const g = -9.81;
- * const step = createVelocityVerlet((u, v, aOut) => {
- *   for (let i = 0; i < aOut.length; i++) aOut[i] = g;
- * });
+ * const step = createVelocityVerlet((u, v, aOut) => aOut.set(0, g));
  * // The initial acceleration a(0) must be provided.
- * const state: VerletState = { u: [0], v: [0], a: [g], aNext: [0] };
+ * const state: VerletState = {
+ *   u: new Vector([0]),
+ *   v: new Vector([0]),
+ *   a: new Vector([g]),
+ *   aNext: new Vector(1)
+ * };
  * step(state, 0.016);
- * console.log(state.u[0], state.v[0]);
+ * console.log(state.u.get(0), state.v.get(0));
  * ```
  *
  * Output:
@@ -78,20 +83,26 @@ export type StepFn = (state: VerletState, dt: number) => void;
  * -0.0012556800000000001 -0.15696000000000002
  * ```
  */
-export function createVelocityVerlet(computeAcceleration: ComputeAccelerationFn): StepFn {
+export function createVelocityVerlet(
+  computeAcceleration: AccelerationFunction
+): VerletStepFunction {
   return function step(state: VerletState, dt: number): void {
     const { u, v, a, aNext } = state;
-    const n = u.length;
+    const ud = u.data;
+    const vd = v.data;
+    const ad = a.data;
+    const aNextd = aNext.data;
+    const n = ud.length;
 
     for (let i = 0; i < n; i++) {
-      u[i] += v[i] * dt + 0.5 * a[i] * dt * dt;
+      ud[i] += vd[i] * dt + 0.5 * ad[i] * dt * dt;
     }
 
     computeAcceleration(u, v, aNext);
 
     for (let i = 0; i < n; i++) {
-      v[i] += 0.5 * (a[i] + aNext[i]) * dt;
-      a[i] = aNext[i];
+      vd[i] += 0.5 * (ad[i] + aNextd[i]) * dt;
+      ad[i] = aNextd[i];
     }
   };
 }
