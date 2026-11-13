@@ -2,7 +2,7 @@
 
 These suites compare `numerics-js` algorithms with independent reference
 implementations: SciPy for most modules, and mpmath for the error functions,
-Bessel `J_n(x)`, `Y_n(x)` and `I_n(x)` and the gamma functions.
+Bessel `J_n(x)`, `Y_n(x)`, `I_n(x)` and `K_n(x)`, and the gamma functions.
 Each module directory contains the TypeScript comparison
 tests, the generated JSON reference data, the standalone Python generator, and
 the available Markdown results.
@@ -14,8 +14,8 @@ with:
 npm run test:benchmarks
 ```
 
-SciPy is only required when regenerating reference data. Run an individual
-generator from the repository root with `uv`:
+SciPy and/or mpmath are only required when regenerating reference data. Run an
+individual generator from the repository root with `uv`:
 
 ```bash
 uv run benchmarks/integrate/generate_quad_fixtures.py
@@ -27,26 +27,28 @@ sync when changing a benchmark.
 
 ## Suites
 
-| Module                           | Algorithm                    | Reference                                                                                   |
-| -------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
-| [`integrate/`](./integrate/)     | Adaptive quadrature          | [`quad.scipy.benchmark.md`](./integrate/quad.scipy.benchmark.md)                            |
-| [`interpolate/`](./interpolate/) | Cubic splines                | [`cubicSpline.scipy.benchmark.md`](./interpolate/cubicSpline.scipy.benchmark.md)            |
-| [`linalg/`](./linalg/)           | Eigenvalues and eigenvectors | [`Matrix.eig.scipy.benchmark.md`](./linalg/Matrix.eig.scipy.benchmark.md)                   |
-| [`linalg/`](./linalg/)           | LU factorization             | [`Matrix.lu.scipy.benchmark.md`](./linalg/Matrix.lu.scipy.benchmark.md)                     |
-| [`linalg/`](./linalg/)           | QR factorization             | [`Matrix.qr.scipy.benchmark.md`](./linalg/Matrix.qr.scipy.benchmark.md)                     |
-| [`linalg/`](./linalg/)           | Pivoted QR (compact)         | [`Matrix.qrPivot.scipy.benchmark.md`](./linalg/Matrix.qrPivot.scipy.benchmark.md)           |
-| [`linalg/`](./linalg/)           | SVD, least squares, pinv     | [`Matrix.svd.scipy.benchmark.md`](./linalg/Matrix.svd.scipy.benchmark.md)                   |
-| [`ode/`](./ode/)                 | Adaptive Runge-Kutta         | [`rungeKuttaAdaptive.scipy.benchmark.md`](./ode/rungeKuttaAdaptive.scipy.benchmark.md)      |
-| [`ode/`](./ode/)                 | Adaptive TR-BDF2 (stiff)     | [`trBdf2Adaptive.scipy.benchmark.md`](./ode/trBdf2Adaptive.scipy.benchmark.md)              |
-| [`optimize/`](./optimize/)       | Brent minimization           | [`brent.scipy.benchmark.md`](./optimize/brent.scipy.benchmark.md)                           |
-| [`optimize/`](./optimize/)       | Nelder-Mead minimization     | [`nelderMead.scipy.benchmark.md`](./optimize/nelderMead.scipy.benchmark.md)                 |
-| [`optimize/`](./optimize/)       | Levenberg-Marquardt          | [`levenbergMarquardt.scipy.benchmark.md`](./optimize/levenbergMarquardt.scipy.benchmark.md) |
-| [`optimize/`](./optimize/)       | Nonlinear curve fitting      | [`curveFit.scipy.benchmark.md`](./optimize/curveFit.scipy.benchmark.md)                     |
-| [`roots/`](./roots/)             | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                  |
-| [`special/`](./special/)         | Bessel function `J_n(x)`     | [`besselJ.mpmath.benchmark.md`](./special/besselJ.mpmath.benchmark.md)                      |
-| [`special/`](./special/)         | Bessel function `Y_n(x)`     | [`besselY.mpmath.benchmark.md`](./special/besselY.mpmath.benchmark.md)                      |
-| [`special/`](./special/)         | Modified Bessel `I_n(x)`     | [`besselI.mpmath.benchmark.md`](./special/besselI.mpmath.benchmark.md)                      |
-| [`special/`](./special/)         | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                |
-| [`special/`](./special/)         | Bessel zeros `y_{n,m}`       | [`besselYZero.scipy.benchmark.md`](./special/besselYZero.scipy.benchmark.md)                |
-| [`special/`](./special/)         | Error functions              | [`erf.mpmath.benchmark.md`](./special/erf.mpmath.benchmark.md)                              |
-| [`special/`](./special/)         | Gamma functions              | [`gamma.mpmath.benchmark.md`](./special/gamma.mpmath.benchmark.md)                          |
+| Module                           | Algorithm                    | Reference                                                                                            |
+| -------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [`integrate/`](./integrate/)     | Adaptive quadrature          | [`quad.scipy.benchmark.md`](./integrate/quad.scipy.benchmark.md)                                     |
+| [`interpolate/`](./interpolate/) | Cubic splines                | [`cubicSpline.scipy.benchmark.md`](./interpolate/cubicSpline.scipy.benchmark.md)                     |
+| [`linalg/`](./linalg/)           | Eigenvalues and eigenvectors | [`Matrix.eig.scipy.benchmark.md`](./linalg/Matrix.eig.scipy.benchmark.md)                            |
+| [`linalg/`](./linalg/)           | LU factorization             | [`Matrix.lu.scipy.benchmark.md`](./linalg/Matrix.lu.scipy.benchmark.md)                              |
+| [`linalg/`](./linalg/)           | QR factorization             | [`Matrix.qr.scipy.benchmark.md`](./linalg/Matrix.qr.scipy.benchmark.md)                              |
+| [`linalg/`](./linalg/)           | Pivoted QR (compact)         | [`Matrix.qrPivot.scipy.benchmark.md`](./linalg/Matrix.qrPivot.scipy.benchmark.md)                    |
+| [`linalg/`](./linalg/)           | SVD, least squares, pinv     | [`Matrix.svd.scipy.benchmark.md`](./linalg/Matrix.svd.scipy.benchmark.md)                            |
+| [`ode/`](./ode/)                 | Adaptive Runge-Kutta         | [`rungeKuttaAdaptive.scipy.benchmark.md`](./ode/rungeKuttaAdaptive.scipy.benchmark.md)               |
+| [`ode/`](./ode/)                 | Adaptive Runge-Kutta events  | [`rungeKuttaAdaptive.events.scipy.benchmark.md`](./ode/rungeKuttaAdaptive.events.scipy.benchmark.md) |
+| [`ode/`](./ode/)                 | Adaptive TR-BDF2 (stiff)     | [`trBdf2Adaptive.scipy.benchmark.md`](./ode/trBdf2Adaptive.scipy.benchmark.md)                       |
+| [`optimize/`](./optimize/)       | Brent minimization           | [`brent.scipy.benchmark.md`](./optimize/brent.scipy.benchmark.md)                                    |
+| [`optimize/`](./optimize/)       | Nelder-Mead minimization     | [`nelderMead.scipy.benchmark.md`](./optimize/nelderMead.scipy.benchmark.md)                          |
+| [`optimize/`](./optimize/)       | Levenberg-Marquardt          | [`levenbergMarquardt.scipy.benchmark.md`](./optimize/levenbergMarquardt.scipy.benchmark.md)          |
+| [`optimize/`](./optimize/)       | Nonlinear curve fitting      | [`curveFit.scipy.benchmark.md`](./optimize/curveFit.scipy.benchmark.md)                              |
+| [`roots/`](./roots/)             | Quasi-Newton systems         | [`quasiNewton.scipy.benchmark.md`](./roots/quasiNewton.scipy.benchmark.md)                           |
+| [`special/`](./special/)         | Bessel function `J_n(x)`     | [`besselJ.mpmath.benchmark.md`](./special/besselJ.mpmath.benchmark.md)                               |
+| [`special/`](./special/)         | Bessel function `Y_n(x)`     | [`besselY.mpmath.benchmark.md`](./special/besselY.mpmath.benchmark.md)                               |
+| [`special/`](./special/)         | Modified Bessel `I_n(x)`     | [`besselI.mpmath.benchmark.md`](./special/besselI.mpmath.benchmark.md)                               |
+| [`special/`](./special/)         | Modified Bessel `K_n(x)`     | [`besselK.mpmath.benchmark.md`](./special/besselK.mpmath.benchmark.md)                               |
+| [`special/`](./special/)         | Bessel zeros `j_{n,m}`       | [`besselJZero.scipy.benchmark.md`](./special/besselJZero.scipy.benchmark.md)                         |
+| [`special/`](./special/)         | Bessel zeros `y_{n,m}`       | [`besselYZero.scipy.benchmark.md`](./special/besselYZero.scipy.benchmark.md)                         |
+| [`special/`](./special/)         | Error functions              | [`erf.mpmath.benchmark.md`](./special/erf.mpmath.benchmark.md)                                       |
+| [`special/`](./special/)         | Gamma functions              | [`gamma.mpmath.benchmark.md`](./special/gamma.mpmath.benchmark.md)                                   |
