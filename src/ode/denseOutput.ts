@@ -1,6 +1,14 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
-import type { StepInterpolant } from './events.js';
+
+/**
+ * Dense output of an accepted step: writes the interpolated state at time `t`, inside the step,
+ * into `out` and returns it. It must reproduce the step's starting state exactly at the starting
+ * time and agree with the step's end state at the end time up to rounding.
+ *
+ * @internal
+ */
+export type StepInterpolant = (t: number, out: Vector) => Vector;
 
 /**
  * Evaluates the vector polynomial `c_0 + c_1 x + ... + c_p x^p` component-wise with Horner's
@@ -98,15 +106,15 @@ export class StepPolynomial {
  * solution over the whole integration interval, built from the solver's own step interpolants.
  *
  * It holds one polynomial per accepted step, so the solution can be evaluated at any time
- * within the solved interval without further evaluations of the derivative function. It is 
+ * within the solved interval without further evaluations of the derivative function. It is
  * returned in {@link OdeResult.denseOutput} when the solver's `denseOutput` option is enabled.
  *
  * The approximation is continuous. At every accepted time point it reproduces the stored state
  * (a row of {@link OdeResult.y}), up to rounding at the end of a step. Between points, its
- * accuracy is that of the solver's interpolant, which is documented with each solver. It is 
+ * accuracy is that of the solver's interpolant, which is documented with each solver. It is
  * not controlled by the solver's error tolerances, but is generally close to the accuracy of
  * the step points.
-
+ *
  * The solved interval is `[tStart, tEnd]`, with `tEnd < tStart` when integrating backward. If
  * the integration stopped early, because a terminal event occurred or because the solver
  * failed, the dense output covers the part that was actually solved.

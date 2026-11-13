@@ -2,7 +2,8 @@ import type { Vector } from '../linalg/Vector.js';
 import type { DerivativeFunction } from './types.js';
 
 /**
- * Estimates a reasonable initial step size using Hairer, Norsett & Wanner's algorithm.
+ * Estimates a reasonable initial step size using Hairer, Nørsett & Wanner's algorithm
+ * (_Solving Ordinary Differential Equations I_, section II.4).
  *
  * Two derivative evaluations are performed: `f(t0, y0)` and one at an explicit
  * Euler trial point. On return, `f0` holds `f(t0, y0)`, so callers can reuse it
@@ -19,6 +20,8 @@ import type { DerivativeFunction } from './types.js';
  * @param f1 Work vector of the same dimension as `y0`; receives the derivative at the Euler trial point.
  * @param yTemp Work vector of the same dimension as `y0`; receives the Euler trial state.
  * @returns The signed initial step size, with the sign of `dir`.
+ *
+ * @internal
  */
 export function estimateInitialStep(
   f: DerivativeFunction,

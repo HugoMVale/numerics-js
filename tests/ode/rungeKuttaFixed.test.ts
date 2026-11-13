@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
-import {
-  rungeKuttaFixed,
-  rungeKuttaStep,
-  type RungeKuttaMethod
-} from '../../src/ode/rungeKuttaFixed.js';
-import type { DerivativeFunction } from '../../src/ode/types.js';
+import { rungeKuttaFixed, rungeKuttaStep } from '../../src/ode/rungeKuttaFixed.js';
+import type { DerivativeFunction, RungeKuttaFixedMethod } from '../../src/ode/types.js';
 import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
 /** dy/dt = y -> y(t) = y0 * e^t */
@@ -21,8 +17,8 @@ const shm: DerivativeFunction = (_t, y, out) => {
   return out;
 };
 
-const methods: RungeKuttaMethod[] = ['euler', 'midpoint', 'trapezoid', 'rk4'];
-const orderOf: Record<RungeKuttaMethod, number> = {
+const methods: RungeKuttaFixedMethod[] = ['euler', 'midpoint', 'trapezoid', 'rk4'];
+const orderOf: Record<RungeKuttaFixedMethod, number> = {
   euler: 1,
   midpoint: 2,
   trapezoid: 2,
@@ -107,7 +103,7 @@ describe('rungeKuttaStep', () => {
     const out = new Vector(1);
     expect(() =>
       rungeKuttaStep(
-        'bogus' as unknown as RungeKuttaMethod,
+        'bogus' as unknown as RungeKuttaFixedMethod,
         exponential,
         0,
         new Vector([1]),
@@ -291,7 +287,7 @@ describe('rungeKuttaFixed', () => {
   it('throws a RangeError for an unrecognized method', () => {
     expect(() =>
       rungeKuttaFixed(
-        'bogus' as unknown as RungeKuttaMethod,
+        'bogus' as unknown as RungeKuttaFixedMethod,
         exponential,
         0,
         1,
@@ -357,5 +353,14 @@ describe('rungeKuttaFixed with a VectorLike initial state', () => {
     for (const [, make] of vectorLikeForms) {
       expect(() => rungeKuttaFixed('rk4', decay, 0, 1, make([]), 0.1)).toThrowError(RangeError);
     }
+  });
+});
+
+describe('rungeKuttaFixed error messages', () => {
+  it('prefix every validation error with the solver name', () => {
+    expect(() => rungeKuttaFixed('rk4', exponential, 0, 1, [1], 0)).toThrow(/^rungeKuttaFixed: /);
+    expect(() => rungeKuttaFixed('rk4', exponential, 0, 1, [1], -0.1)).toThrow(
+      /^rungeKuttaFixed: /
+    );
   });
 });

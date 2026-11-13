@@ -2,14 +2,12 @@ import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types.js';
 
-export type { RungeKuttaFixedMethod as RungeKuttaMethod } from './types.js';
-
 /**
- * Reusable intermediate vectors for a Runge-Kutta integration step.
+ * Reusable intermediate vectors for a fixed-step Runge-Kutta integration step.
  *
  * @internal
  */
-export interface RungeKuttaScratch {
+export interface RungeKuttaFixedScratch {
   k1: Vector;
   k2: Vector;
   k3: Vector;
@@ -19,9 +17,9 @@ export interface RungeKuttaScratch {
 
 /**
  * Allocates a scratch workspace of vectors reused across every stage of
- * an integration, ensuring `odeIntegrate` only allocates once per output state.
+ * an integration, so that `rungeKuttaFixed` allocates only once per output state.
  */
-function makeScratch(dim: number): RungeKuttaScratch {
+function makeFixedScratch(dim: number): RungeKuttaFixedScratch {
   return {
     k1: new Vector(dim),
     k2: new Vector(dim),
@@ -68,24 +66,7 @@ function stagesPerStep(method: RungeKuttaFixedMethod): number {
  * step. Defaults to a freshly allocated workspace sized to `y.size` when omitted;
  * pass one explicitly when calling this in a loop.
  * @returns `out`, for chaining.
- * @throws {RangeError} If `method` is not one of the recognized `RungeKuttaMethod` values.
- *
- * @example
- * ```ts
- * import { Vector } from 'numerics-js/linalg';
- * import { rungeKuttaStep, type DerivativeFunction } from 'numerics-js/ode';
- *
- * // Exponential decay: dy/dt = -y
- * const f: DerivativeFunction = (t, y, out) => out.set(y.data).multSelf(-1);
- * const out = new Vector(1);
- * rungeKuttaStep('rk4', f, 0, new Vector([1]), 0.25, out);
- * console.log(out);
- * ```
- *
- * Output:
- * ```text
- * Vector [ 0.7788085937500001 ]
- * ```
+ * @throws {RangeError} If `method` is not one of the recognized `RungeKuttaFixedMethod` values.
  */
 export function rungeKuttaStep(
   method: RungeKuttaFixedMethod,
@@ -94,7 +75,7 @@ export function rungeKuttaStep(
   y: Vector,
   h: number,
   out: Vector,
-  scratch: RungeKuttaScratch = makeScratch(y.size)
+  scratch: RungeKuttaFixedScratch = makeFixedScratch(y.size)
 ): Vector {
   const { k1, k2, k3, k4, yTemp } = scratch;
   const half = h / 2;
@@ -175,7 +156,7 @@ export function rungeKuttaStep(
  * @throws {TypeError} If `y0` is not a `VectorLike`.
  * @throws {RangeError} If `h` is `0`, if the sign of `h` doesn't match the direction
  * from `t0` to `tEnd`, if `y0` has dimension `0`, or if `method` is not one of the
- * recognized `RungeKuttaMethod` values.
+ * recognized `RungeKuttaFixedMethod` values.
  *
  * @example
  * ```ts
@@ -221,11 +202,11 @@ export function rungeKuttaFixed(
 ): OdeResult {
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
-  if (h === 0) throw new RangeError('Step size h must be nonzero.');
+  if (h === 0) throw new RangeError('rungeKuttaFixed: step size h must be nonzero.');
   const totalSpan = tEnd - t0;
   if (totalSpan !== 0 && Math.sign(h) !== Math.sign(totalSpan)) {
     throw new RangeError(
-      `Sign of h (${h}) must match the direction from t0 (${t0}) to tEnd (${tEnd}).`
+      `rungeKuttaFixed: sign of h (${h}) must match the direction from t0 (${t0}) to tEnd (${tEnd}).`
     );
   }
 
@@ -235,7 +216,7 @@ export function rungeKuttaFixed(
       `rungeKuttaFixed: y0 must have at least one component, got dimension ${dim}.`
     );
   }
-  const scratch = makeScratch(dim);
+  const scratch = makeFixedScratch(dim);
 
   const EPS = 1e-9;
   const nFull = Math.floor(Math.abs(totalSpan / h) + EPS);
@@ -274,10 +255,10 @@ export function rungeKuttaFixed(
   }
 
   return {
-    method: method,
+    method,
     success: true,
     message: 'Integration successful.',
-    evaluations: evaluations,
+    evaluations,
     evaluationsJacobian: 0,
     decompositions: 0,
     t: tVec,

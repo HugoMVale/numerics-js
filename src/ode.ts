@@ -1,26 +1,29 @@
 /**
  * Ordinary differential equation solvers for non-stiff and stiff problems.
  *
- * The Runge-Kutta solvers are explicit and are therefore suitable for non-stiff
- * problems only. {@link trBdf2Adaptive} is implicit and handles stiff problems.
+ * The Runge-Kutta solvers are explicit and are therefore suitable for non-stiff problems only.
+ * {@link trBdf2Adaptive} is implicit and handles stiff problems.
  *
  * Choose a method based on the problem and step-size requirements:
  *
- * - Use {@link rungeKuttaAdaptive} for general-purpose integration of non-stiff
- *   problems with automatic step-size and error control.
- * - Use {@link trBdf2Adaptive} for stiff problems at moderate tolerances. It is
- *   second-order accurate and L-stable, and offers the same automatic step-size
- *   and error control.
- * - Locate zero crossings of user-defined functions along the solution, and optionally stop at
- *   them, with the `events` option of {@link rungeKuttaAdaptive} or {@link trBdf2Adaptive}; see
- *   {@link OdeEvent}.
- * - Evaluate the solution of {@link rungeKuttaAdaptive} or {@link trBdf2Adaptive} at any time
- *   inside the integration interval, not only at the steps they took, with their `denseOutput`
- *   option; see {@link OdeDenseOutput}.
- * - Use {@link rungeKuttaFixed} when the time grid is prescribed or a fixed
- *   step size is required.
- * - Use {@link createVelocityVerlet} for second-order mechanical systems,
- *   especially long-running conservative simulations.
+ * - Use {@link rungeKuttaAdaptive} for general-purpose integration of non-stiff problems with
+ *   automatic step-size and error control.
+ * - Use {@link trBdf2Adaptive} for stiff problems at moderate tolerances. It is second-order
+ *   accurate and L-stable, and offers the same automatic step-size and error control.
+ * - Use {@link rungeKuttaFixed} when the time grid is prescribed or a fixed step size is required.
+ * - Use {@link createVelocityVerlet} for second-order mechanical systems, especially long-running
+ *   conservative simulations.
+ *
+ * The adaptive solvers, {@link rungeKuttaAdaptive} and {@link trBdf2Adaptive}, also offer:
+ *
+ * - Event location: their `events` option locates zero crossings of user-defined functions along
+ *   the solution, and optionally stops the integration at them; see {@link OdeEvent}.
+ * - Dense output: their `denseOutput` option makes the solution evaluable at any time inside the
+ *   integration interval, not only at the steps taken; see {@link OdeDenseOutput}.
+ *
+ * Derivative functions write their result into a solver-provided buffer, to avoid allocations;
+ * see {@link DerivativeFunction}. Use {@link wrapAllocatingDerivative} to adapt a function that
+ * returns a new `Vector` instead.
  *
  * @module ode
  */

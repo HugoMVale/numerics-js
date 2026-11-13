@@ -1,6 +1,10 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
-import { Matrix } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
+import {
+  emptyIntervalResult,
+  SolutionRecorder,
+  validateAdaptiveOptions
+} from './adaptiveCommon.js';
 import { OdeDenseOutput, StepPolynomial } from './denseOutput.js';
 import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
@@ -9,12 +13,14 @@ import type { DerivativeFunction, OdeEvent, OdeResult, RungeKuttaAdaptiveMethod 
 /**
  * Reusable intermediate vectors for adaptive Runge-Kutta integration steps.
  *
+ * @internal
+ *
  * The workspace must contain vectors with the same dimension as the state
  * passed to {@link rungeKuttaAdaptiveStep}. The solver uses `k1` and the final
  * stage (`k4` for `'rk23'`, `k7` for `'rk45'`) to reuse first-same-as-last
  * derivatives between accepted steps.
  */
-export interface AdaptiveScratch {
+export interface RungeKuttaAdaptiveScratch {
   /**
    * First stage derivative; may contain the derivative reused from the
    * previous accepted step.
@@ -39,7 +45,7 @@ export interface AdaptiveScratch {
 /**
  * Allocates a scratch workspace of vectors reused across every stage.
  */
-function makeAdaptiveScratch(dim: number): AdaptiveScratch {
+function makeAdaptiveScratch(dim: number): RungeKuttaAdaptiveScratch {
   return {
     k1: new Vector(dim),
     k2: new Vector(dim),
@@ -54,6 +60,8 @@ function makeAdaptiveScratch(dim: number): AdaptiveScratch {
 
 /**
  * Advances the state by one attempted step of the chosen adaptive method.
+ *
+ * @internal
  *
  * This computes the higher-order solution only; it does not accept or reject
  * the step. Callers that need adaptive control should use
@@ -83,7 +91,7 @@ export function rungeKuttaAdaptiveStep(
   y: Vector,
   h: number,
   out: Vector,
-  scratch: AdaptiveScratch,
+  scratch: RungeKuttaAdaptiveScratch,
   k1Ready: boolean = false
 ): Vector {
   const { k1, k2, k3, k4, k5, k6, k7, yTemp } = scratch;
@@ -184,6 +192,8 @@ const DENSE_RK45 = [
  * Computes the coefficients of the continuous extension of an attempted step, without
  * evaluating `f`.
  *
+ * @internal
+ *
  * The extension is a polynomial in the relative position `x = (t - t_n) / h` in the step,
  * built from the stages left in `scratch` by {@link rungeKuttaAdaptiveStep}: a cubic for
  * `'rk23'` (error `O(h^4)`) and a quartic for `'rk45'` (error `O(h^5)`). In vector form,
@@ -203,7 +213,7 @@ export function rungeKuttaAdaptiveDenseCoefficients(
   method: RungeKuttaAdaptiveMethod,
   y: Vector,
   h: number,
-  scratch: AdaptiveScratch,
+  scratch: RungeKuttaAdaptiveScratch,
   out: Float64Array
 ): void {
   const { k1, k2, k3, k4, k5, k6, k7 } = scratch;
@@ -232,7 +242,7 @@ function adaptiveErrorNorm(
   y: Vector,
   out: Vector,
   h: number,
-  scratch: AdaptiveScratch,
+  scratch: RungeKuttaAdaptiveScratch,
   atol: number,
   rtol: number
 ): number {
@@ -388,6 +398,9 @@ export interface RungeKuttaAdaptiveOptions {
  * step points. If the integration stops early, because of a terminal event or
  * a failure, it covers the part that was solved.
  *
+ * Step-size underflow and exceeding `maxSteps` do not throw: they return an unsuccessful result
+ * (`success === false`) with the reason in `message`.
+ *
  * Results are validated against the corresponding `scipy.integrate.solve_ivp`
  * `RK23` and `RK45` methods. With the same `atol` and `rtol`, the number of
  * function calls is essentially identical to SciPy's across the benchmark
@@ -417,8 +430,6 @@ export interface RungeKuttaAdaptiveOptions {
  * `method` is not recognized when `t0 !== tEnd`.
  * @throws {TypeError} If `y0` is not a `VectorLike`, or if an event function is not a
  * function.
- * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
- * with the reason in `message`.
  *
  * @example
  * ```ts
@@ -604,55 +615,20 @@ export function rungeKuttaAdaptive(
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
   const dim = y0v.size;
-  if (dim <= 0)
-    throw new RangeError(
-      `rungeKuttaAdaptive: y0 must have at least one component, got dimension ${dim}.`
-    );
-  if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
-    throw new RangeError(
-      `rungeKuttaAdaptive: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
-    );
-  }
-  if (atol === 0 && rtol === 0)
-    throw new RangeError(
-      'rungeKuttaAdaptive: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.'
-    );
-  if (h0 !== undefined && h0 === 0) throw new RangeError('rungeKuttaAdaptive: h0 must be nonzero.');
-  if (!(hMin > 0)) throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must be positive.`);
-  if (!(hMax > 0)) throw new RangeError(`rungeKuttaAdaptive: hMax (${hMax}) must be positive.`);
-  if (hMin > hMax)
-    throw new RangeError(`rungeKuttaAdaptive: hMin (${hMin}) must not exceed hMax (${hMax}).`);
-  if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
-    throw new RangeError(`rungeKuttaAdaptive: maxSteps (${maxSteps}) must be a positive integer.`);
-  }
-  if (!(safety > 0 && safety <= 1))
-    throw new RangeError(`rungeKuttaAdaptive: safety (${safety}) must be in (0, 1].`);
-  if (!(minScale > 0) || minScale > maxScale) {
-    throw new RangeError(
-      `rungeKuttaAdaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`
-    );
-  }
+  validateAdaptiveOptions('rungeKuttaAdaptive', dim, {
+    atol,
+    rtol,
+    h0,
+    hMax,
+    hMin,
+    maxSteps,
+    safety,
+    minScale,
+    maxScale
+  });
   if (events !== undefined) validateEvents(events, 'rungeKuttaAdaptive');
 
-  if (tEnd === t0) {
-    const tVec = new Vector(1);
-    tVec.data[0] = t0;
-    const yMat = new Matrix(1, dim);
-    yMat.setRow(0, y0v.data);
-    const trivial: OdeResult = {
-      method: method,
-      success: true,
-      message: 'Integration successful.',
-      evaluations: 0,
-      evaluationsJacobian: 0,
-      decompositions: 0,
-      t: tVec,
-      y: yMat
-    };
-    if (events !== undefined) trivial.events = [];
-    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0v);
-    return trivial;
-  }
+  if (tEnd === t0) return emptyIntervalResult(method, t0, y0v, events, denseOutput);
 
   const dir = Math.sign(tEnd - t0) as 1 | -1;
   const scratch = makeAdaptiveScratch(dim);
@@ -718,25 +694,16 @@ export function rungeKuttaAdaptive(
   );
   const dense = denseOutput ? new OdeDenseOutput(t0, y) : null;
 
-  const tBuf: number[] = [t0];
-  const yBuf: Float64Array[] = [y.data.slice()];
+  const recorder = new SolutionRecorder(t0, y);
   const makeResult = (success: boolean, message: string): OdeResult => {
-    const tVec = new Vector(tBuf.length);
-    tVec.set(tBuf);
-    const yMat = new Matrix(tBuf.length, dim);
-    for (let i = 0; i < tBuf.length; i++) {
-      yMat.setRow(i, yBuf[i]);
-    }
-    const result: OdeResult = {
+    const result = recorder.result({
       method,
       success,
       message,
       evaluations,
       evaluationsJacobian: 0,
-      decompositions: 0,
-      t: tVec,
-      y: yMat
-    };
+      decompositions: 0
+    });
     if (detector !== null) result.events = detector.occurrences;
     if (dense !== null) result.denseOutput = dense;
     return result;
@@ -765,16 +732,14 @@ export function rungeKuttaAdaptive(
         const stop = detector.check(tNew, next, stepPolynomial.evaluate);
         if (stop !== null) {
           dense?.append(stop.t, stepPolynomial);
-          tBuf.push(stop.t);
-          yBuf.push(stop.y.data.slice());
+          recorder.push(stop.t, stop.y);
           return makeResult(true, 'Integration stopped by a terminal event.');
         }
       }
       dense?.append(tNew, stepPolynomial);
       t = tNew;
       [y, next] = [next, y];
-      tBuf.push(t);
-      yBuf.push(y.data.slice());
+      recorder.push(t, y);
 
       scratch.k1.set(fsalSource.data);
 

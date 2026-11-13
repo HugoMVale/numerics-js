@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { EventDetector, validateEvents } from '../../src/ode/events.js';
-import type { StepInterpolant } from '../../src/ode/events.js';
+import type { StepInterpolant } from '../../src/ode/denseOutput.js';
 import type { OdeEvent } from '../../src/ode/types.js';
 
 // Synthetic solution y(t) = t, whose dense output is exact: the detector can be tested in isolation.

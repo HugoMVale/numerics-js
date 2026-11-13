@@ -11,10 +11,10 @@ export type DerivativeFunction = (t: number, y: Vector, dydt: Vector) => Vector;
 /** Derivative function that returns a newly allocated result. */
 export type AllocatingDerivativeFunction = (t: number, y: Vector) => Vector;
 
-/** Fixed-step Runge-Kutta scheme used by `rungeKuttaFixed`. */
+/** Explicit Runge-Kutta scheme used by `rungeKuttaFixed`. */
 export type RungeKuttaFixedMethod = 'euler' | 'midpoint' | 'trapezoid' | 'rk4';
 
-/** Fixed-step Runge-Kutta scheme used by `rungeKuttaAdaptive`. */
+/** Embedded Runge-Kutta pair used by `rungeKuttaAdaptive`. */
 export type RungeKuttaAdaptiveMethod = 'rk23' | 'rk45';
 
 /** Implicit scheme used by `trBdf2Adaptive`: the L-stable, 2nd-order TR-BDF2 method. */
@@ -80,7 +80,7 @@ export interface OdeEventOccurrence {
    */
   y: Vector;
   /** Direction of the crossing, relative to the integration direction. */
-  direction: 'rising' | 'falling';
+  direction: Exclude<OdeEventDirection, 'both'>;
 }
 
 /** Result of integrating an ODE over a span of time. */
@@ -98,10 +98,9 @@ export interface OdeResult {
   /** Solution values, one row per time point and one column per state variable. */
   y: Matrix;
   /**
-   * Number of Jacobian refreshes, whether through a user-supplied
-   * {@link JacobianFunction}
-   * or finite differences. Derivative evaluations spent on finite-difference Jacobians
-   * are included in `evaluations`. Always `0` for explicit solvers.
+   * Number of Jacobian refreshes, whether through a user-supplied {@link JacobianFunction} or
+   * finite differences. Derivative evaluations spent on finite-difference Jacobians are included
+   * in `evaluations`. Always `0` for explicit solvers.
    */
   evaluationsJacobian: number;
   /**

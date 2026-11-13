@@ -3,6 +3,11 @@ import { Matrix } from '../linalg/Matrix.js';
 import type { LUDecomposition } from '../linalg/Matrix.js';
 import { clip } from '../math.js';
 import { jacobianForward } from '../numdiff.js';
+import {
+  emptyIntervalResult,
+  SolutionRecorder,
+  validateAdaptiveOptions
+} from './adaptiveCommon.js';
 import { OdeDenseOutput, StepPolynomial } from './denseOutput.js';
 import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
@@ -12,10 +17,10 @@ import type { DerivativeFunction, JacobianFunction, OdeEvent, OdeResult } from '
 // TR-BDF2 (Bank et al., 1985), in the three-stage DIRK form and with the implementation
 // choices recommended by Hosea & Shampine (1996), "Analysis and implementation of TR-BDF2".
 //
-// With scaled derivatives z = h f, one step from (x_n, y_n) to x_n + h has the stages
-//   1. z_n = h f(x_n, y_n)                                  (explicit, c = 0)
-//   2. z_g = h f(x_n + GAMMA h, y_n + D z_n + D z_g)         (implicit, c = GAMMA)
-//   3. z_1 = h f(x_n + h, y_n + W z_n + W z_g + D z_1)       (implicit, c = 1)
+// With scaled derivatives z = h f, one step from (t_n, y_n) to t_n + h has the stages
+//   1. z_n = h f(t_n, y_n)                                 (explicit, c = 0)
+//   2. z_g = h f(t_n + GAMMA h, y_n + D z_n + D z_g)        (implicit, c = GAMMA)
+//   3. z_1 = h f(t_n + h, y_n + W z_n + W z_g + D z_1)      (implicit, c = 1)
 // and y_{n+1} = y_n + W z_n + W z_g + D z_1. Both implicit stages share the Newton iteration
 // matrix I - h D J, so one LU factorization serves the whole step.
 // -----------------------------------------------------------------
@@ -23,7 +28,7 @@ const GAMMA = 2 - Math.SQRT2;
 const D = GAMMA / 2;
 const W = Math.SQRT2 / 4;
 
-// Stage-3 initial guess: derivative at x_n + h of the cubic Hermite interpolant of
+// Stage-3 initial guess: derivative at t_n + h of the cubic Hermite interpolant of
 // (y_n, z_n, y_g, z_g), extrapolated beyond its first sub-interval.
 const GUESS_ZN = 1.5 + Math.SQRT2;
 const GUESS_ZG = 2.5 + 2 * Math.SQRT2;
@@ -58,6 +63,9 @@ const NEWTON_FAILURE_SHRINK = 0.5;
  */
 const MIN_STEP_CHANGE = 1.2;
 
+/** Exponent of the step-size controller: the local error is `O(h^3)`, so `h_new = h err^(-1/3)`. */
+const ERROR_EXPONENT = -1 / 3;
+
 /**
  * Degree of the continuous extension of a TR-BDF2 step; see
  * {@link trBdf2AdaptiveDenseCoefficients}.
@@ -67,6 +75,8 @@ const DENSE_DEGREE = 3;
 /**
  * Computes the coefficients of the continuous extension of an accepted
  * TR-BDF2 step, without evaluating `f`.
+ *
+ * @internal
  *
  * The extension is the cubic
  * `p(x) = y_n + z_n x + c_2 x^2 + c_3 x^3`, with `x = (t - t_n) / h`, that
@@ -214,7 +224,6 @@ export interface TrBdf2AdaptiveOptions {
  * last recorded point. Only sign changes between accepted steps are seen, so
  * use `hMax` if two crossings can occur within a step. An event function that
  * is exactly zero at `t0` is not reported.
- * An event function that is exactly zero at `t0` is not reported.
  *
  * With the `denseOutput` option, the solution can also be evaluated at any time
  * within the integration interval, not only at the accepted steps; see
@@ -227,6 +236,9 @@ export interface TrBdf2AdaptiveOptions {
  * with the step size, as for event times. If the integration stops early,
  * because of a terminal event or a failure, it covers the part that was
  * solved.
+ *
+ * Step-size underflow and exceeding `maxSteps` do not throw: they return an unsuccessful result
+ * (`success === false`) with the reason in `message`.
  *
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into
  * the supplied `dydt` buffer rather than allocating.
@@ -250,8 +262,6 @@ export interface TrBdf2AdaptiveOptions {
  * step-size or controller limit is invalid, or an event option is invalid.
  * @throws {TypeError} If `y0` is not a `VectorLike`, or if an event function is not a
  * function.
- * Step-size underflow and exceeding `maxSteps` return an unsuccessful result
- * with the reason in `message`.
  *
  * @example
  * ```ts
@@ -468,59 +478,24 @@ export function trBdf2Adaptive(
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
   const dim = y0v.size;
-  if (dim <= 0)
-    throw new RangeError(
-      `trBdf2Adaptive: y0 must have at least one component, got dimension ${dim}.`
-    );
-  if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
-    throw new RangeError(
-      `trBdf2Adaptive: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
-    );
-  }
-  if (atol === 0 && rtol === 0)
-    throw new RangeError(
-      'trBdf2Adaptive: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.'
-    );
-  if (h0 !== undefined && h0 === 0) throw new RangeError('trBdf2Adaptive: h0 must be nonzero.');
-  if (!(hMin > 0)) throw new RangeError(`trBdf2Adaptive: hMin (${hMin}) must be positive.`);
-  if (!(hMax > 0)) throw new RangeError(`trBdf2Adaptive: hMax (${hMax}) must be positive.`);
-  if (hMin > hMax)
-    throw new RangeError(`trBdf2Adaptive: hMin (${hMin}) must not exceed hMax (${hMax}).`);
-  if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
-    throw new RangeError(`trBdf2Adaptive: maxSteps (${maxSteps}) must be a positive integer.`);
-  }
-  if (!(safety > 0 && safety <= 1))
-    throw new RangeError(`trBdf2Adaptive: safety (${safety}) must be in (0, 1].`);
-  if (!(minScale > 0) || minScale > maxScale) {
-    throw new RangeError(
-      `trBdf2Adaptive: minScale (${minScale}) must be positive and not exceed maxScale (${maxScale}).`
-    );
-  }
+  validateAdaptiveOptions('trBdf2Adaptive', dim, {
+    atol,
+    rtol,
+    h0,
+    hMax,
+    hMin,
+    maxSteps,
+    safety,
+    minScale,
+    maxScale
+  });
   if (events !== undefined) validateEvents(events, 'trBdf2Adaptive');
+
+  if (tEnd === t0) return emptyIntervalResult('trbdf2', t0, y0v, events, denseOutput);
 
   let evaluations = 0;
   let evaluationsJacobian = 0;
   let decompositions = 0;
-
-  if (tEnd === t0) {
-    const tVec = new Vector(1);
-    tVec.data[0] = t0;
-    const yMat = new Matrix(1, dim);
-    yMat.setRow(0, y0v.data);
-    const trivial: OdeResult = {
-      method: 'trbdf2',
-      success: true,
-      message: 'Integration successful.',
-      evaluations,
-      evaluationsJacobian,
-      decompositions,
-      t: tVec,
-      y: yMat
-    };
-    if (events !== undefined) trivial.events = [];
-    if (denseOutput) trivial.denseOutput = new OdeDenseOutput(t0, y0v);
-    return trivial;
-  }
 
   const dir = Math.sign(tEnd - t0) as 1 | -1;
 
@@ -538,7 +513,7 @@ export function trBdf2Adaptive(
   const zG = new Vector(dim); // converged stage-2 scaled derivative
   const z1 = new Vector(dim); // converged stage-3 scaled derivative
   const zIter = new Vector(dim); // Newton iterate
-  const yG = new Vector(dim); // intermediate state at x_n + GAMMA h
+  const yG = new Vector(dim); // intermediate state at t_n + GAMMA h
   const base = new Vector(dim); // stage state not depending on the unknown z
   const yStage = new Vector(dim); // stage state passed to f
   const fStage = new Vector(dim);
@@ -663,25 +638,16 @@ export function trBdf2Adaptive(
   );
   const dense = denseOutput ? new OdeDenseOutput(t0, y) : null;
 
-  const tBuf: number[] = [t0];
-  const yBuf: Float64Array[] = [y.data.slice()];
+  const recorder = new SolutionRecorder(t0, y);
   const makeResult = (success: boolean, message: string): OdeResult => {
-    const tVec = new Vector(tBuf.length);
-    tVec.set(tBuf);
-    const yMat = new Matrix(tBuf.length, dim);
-    for (let i = 0; i < tBuf.length; i++) {
-      yMat.setRow(i, yBuf[i]);
-    }
-    const result: OdeResult = {
+    const result = recorder.result({
       method: 'trbdf2',
       success,
       message,
       evaluations,
       evaluationsJacobian,
-      decompositions,
-      t: tVec,
-      y: yMat
-    };
+      decompositions
+    });
     if (detector !== null) result.events = detector.occurrences;
     if (dense !== null) result.denseOutput = dense;
     return result;
@@ -713,8 +679,6 @@ export function trBdf2Adaptive(
     if (J === null) refreshJacobian();
     let ok = luValid && h === luH ? true : factorize(h);
 
-    let iterations1: number;
-    let iterations2: number;
     if (ok) {
       const yd = y.data;
       const znd = zN.data;
@@ -729,25 +693,23 @@ export function trBdf2Adaptive(
         znd[i] = h * dyd[i]; // smoothed first stage, rescaled to the current step size
       }
 
-      // Stage 2 (x_n + GAMMA h): initial guess z_n.
+      // Stage 2 (t_n + GAMMA h): initial guess z_n.
       const tG = t + GAMMA * h;
       for (let i = 0; i < dim; i++) {
         bd[i] = yd[i] + D * znd[i];
         zid[i] = znd[i];
       }
-      iterations1 = newton(tG, h);
-      ok = iterations1 > 0;
+      ok = newton(tG, h) > 0;
       if (ok) {
         zG.set(zid);
 
-        // Stage 3 (x_n + h): initial guess from the extrapolated Hermite cubic.
+        // Stage 3 (t_n + h): initial guess from the extrapolated Hermite cubic.
         for (let i = 0; i < dim; i++) {
           ygd[i] = yd[i] + D * znd[i] + D * zgd[i];
           bd[i] = yd[i] + W * znd[i] + W * zgd[i];
           zid[i] = GUESS_ZN * znd[i] + GUESS_ZG * zgd[i] - GUESS_DY * (ygd[i] - yd[i]);
         }
-        iterations2 = newton(t + h, h);
-        ok = iterations2 > 0;
+        ok = newton(t + h, h) > 0;
         if (ok) {
           z1.set(zid);
           const nd = yNew.data;
@@ -808,16 +770,14 @@ export function trBdf2Adaptive(
         const stop = detector.check(tNew, yNew, stepPolynomial.evaluate);
         if (stop !== null) {
           dense?.append(stop.t, stepPolynomial);
-          tBuf.push(stop.t);
-          yBuf.push(stop.y.data.slice());
+          recorder.push(stop.t, stop.y);
           return makeResult(true, 'Integration stopped by a terminal event.');
         }
       }
       dense?.append(tNew, stepPolynomial);
       t = tNew;
       [y, yNew] = [yNew, y];
-      tBuf.push(t);
-      yBuf.push(y.data.slice());
+      recorder.push(t, y);
 
       // Smoothed first stage for the next step: the last stage, rescaled by the new step size.
       const z1d = z1.data;
@@ -825,13 +785,14 @@ export function trBdf2Adaptive(
       for (let i = 0; i < dim; i++) dyd[i] = z1d[i] / h;
       jacCurrent = false;
 
-      let factor = err === 0 ? maxScale : clip(safety * Math.pow(err, -1 / 3), minScale, maxScale);
+      let factor =
+        err === 0 ? maxScale : clip(safety * Math.pow(err, ERROR_EXPONENT), minScale, maxScale);
       if (lastRejected) factor = Math.min(factor, 1);
       if (factor < MIN_STEP_CHANGE) factor = 1;
       h = dir * Math.min(Math.abs(h) * factor, hMax);
       lastRejected = false;
     } else {
-      const shrink = clip(safety * Math.pow(err, -1 / 3), minScale, maxScale);
+      const shrink = clip(safety * Math.pow(err, ERROR_EXPONENT), minScale, maxScale);
       const hNext = h * shrink;
       if (!(Math.abs(hNext) >= hMin)) {
         return makeResult(

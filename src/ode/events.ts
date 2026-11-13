@@ -1,13 +1,7 @@
 import { Vector } from '../linalg/Vector.js';
 import { brent } from '../roots/brent.js';
+import type { StepInterpolant } from './denseOutput.js';
 import type { OdeEvent, OdeEventOccurrence } from './types.js';
-
-/**
- * Dense output of an accepted step: writes the interpolated state at time `t`, inside the step,
- * into `out` and returns it. It must reproduce the step's starting state exactly at the starting
- * time and agree with the step's end state at the end time up to rounding.
- */
-export type StepInterpolant = (t: number, out: Vector) => Vector;
 
 /**
  * Validates the `events` option shared by the adaptive ODE solvers.
@@ -130,7 +124,7 @@ export class EventDetector {
         fb: g1
       });
       // `success` is deliberately ignored: on a flat root the iteration cap is reached,
-      //  but the best estimate is still a point of the bracket very close to the root.
+      // but the best estimate is still a point of the bracket very close to the root.
       const t = root.x;
       const y = new Vector(this.dim);
       y.set((t === tNew ? yNew : dense(t, work)).data);

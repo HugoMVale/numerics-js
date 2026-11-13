@@ -6,7 +6,7 @@ import {
   rungeKuttaAdaptiveDenseCoefficients,
   rungeKuttaAdaptiveStep
 } from '../../src/ode/rungeKuttaAdaptive.js';
-import type { AdaptiveScratch } from '../../src/ode/rungeKuttaAdaptive.js';
+import type { RungeKuttaAdaptiveScratch } from '../../src/ode/rungeKuttaAdaptive.js';
 import type { DerivativeFunction, OdeEvent } from '../../src/ode/types.js';
 
 const methods = ['rk23', 'rk45'] as const;
@@ -264,7 +264,7 @@ describe('rungeKuttaAdaptiveDenseCoefficients', () => {
     return out;
   };
   const exact = (t: number): number => 1 / (1 + (1 / 0.1 - 1) * Math.exp(-3 * t));
-  const makeScratch = (): AdaptiveScratch => ({
+  const makeScratch = (): RungeKuttaAdaptiveScratch => ({
     k1: new Vector(1),
     k2: new Vector(1),
     k3: new Vector(1),
@@ -330,7 +330,7 @@ describe('rungeKuttaAdaptiveDenseCoefficients', () => {
       };
       const y0 = new Vector([1, -0.5, 2]);
       const h = 0.3;
-      const scratch: AdaptiveScratch = {
+      const scratch: RungeKuttaAdaptiveScratch = {
         k1: new Vector(dim),
         k2: new Vector(dim),
         k3: new Vector(dim),
