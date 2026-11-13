@@ -18,10 +18,10 @@ export type RungeKuttaFixedMethod = 'euler' | 'midpoint' | 'trapezoid' | 'rk4';
 export type RungeKuttaAdaptiveMethod = 'rk23' | 'rk45';
 
 /** Implicit scheme used by `trBdf2Adaptive`: the L-stable, 2nd-order TR-BDF2 method. */
-export type TrBdf2Method = 'trbdf2';
+export type TrBdf2AdaptiveMethod = 'trbdf2';
 
 /** Identifies which ODE solver produced an {@link OdeResult}. */
-export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod | TrBdf2Method;
+export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod | TrBdf2AdaptiveMethod;
 
 /**
  * Options shared by the adaptive solvers, {@link rungeKuttaAdaptive} and {@link trBdf2Adaptive}.

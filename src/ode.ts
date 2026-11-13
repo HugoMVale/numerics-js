@@ -51,7 +51,7 @@ export type {
   OdeResult,
   RungeKuttaFixedMethod,
   RungeKuttaAdaptiveMethod,
-  TrBdf2Method,
+  TrBdf2AdaptiveMethod,
   OdeMethod
 } from './ode/types.js';
 
