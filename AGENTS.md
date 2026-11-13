@@ -2,7 +2,7 @@
 
 ## Project at a glance
 
-- `numerics-js` is a dependency-free TypeScript library of numerical methods.
+- `numerics-js` is a TypeScript numerical-methods library with no runtime dependencies.
 - It publishes native ESM only. Source is in `src/`; compiled artifacts are in `dist/`.
 - Tests are in `tests/`, organized to mirror the source modules.
 - `docs/` is generated API documentation. Do not edit it by hand; regenerate it with `npm run docs` when documentation output must change.
@@ -10,6 +10,7 @@
 ## Commands
 
 - `npm test` runs the complete Vitest suite. Use `npm test -- --reporter=verbose` for per-example progress and failures labeled with the offending example. `tests/examples.test.ts` warms the shared checker in a `beforeAll` with a 120 s timeout so slow startup does not make the first example hit Vitest's 5 s default timeout.
+- `npm run test:benchmarks` runs only the independent-reference comparisons under `benchmarks/`; these tests also run as part of `npm test`.
 - `npm run lint` runs Oxlint; this also runs from the pre-commit hook.
 - `npm run format` formats the project with oxfmt (configured in `.oxfmtrc.json`); `npm run format:check` verifies formatting without writing and runs in CI. Generated outputs (`dist/`, `docs/`, `coverage/`, and the benchmark JSON/Markdown reports) are excluded.
 - `npm run typecheck` runs TypeScript without emitting files.
@@ -21,12 +22,12 @@
 
 ## Independent numerical benchmarks
 
-- Some algorithms have a companion test that checks results against an independent reference implementation (e.g. SciPy) instead of only hand-derived closed-form values, guarding against correct-looking-but-wrong numerics.
+- Some algorithms have companion tests that check results against independent references (e.g. SciPy or mpmath), supplementing hand-derived values and guarding against plausible-looking but incorrect numerics.
 - Reference values are generated offline by PEP 723 standalone Python scripts under `benchmarks/<module>/`, run via `uv run benchmarks/<module>/<script>.py`. `uv` resolves each script's inline `dependencies` into an ephemeral, cached environment, so no `pyproject.toml`/`requirements.txt` or persistent Python env is added to the repo.
 - Each benchmark directory contains its Python generator, JSON fixture, matching Vitest comparison, and optional Markdown report.
-- A matching Vitest file (e.g. `benchmarks/integrate/quad.scipy.test.ts`) loads the fixture and re-implements each case's function in TypeScript by id, then asserts the library result agrees with the reference within a tolerance derived from both sides' error estimates.
+- Matching Vitest files load the fixture and compare library results with the reference using tolerances appropriate to the algorithm and reference data; some also check reported errors, documented accuracy, or performance-related counts.
 - The Python script and the TS test's integrand map must stay in sync (same id, math, and bounds). When adding or changing benchmark cases, update both, then rerun the generation script to refresh the fixture before rerunning the test.
-- This is a generation-time tool only; Python/SciPy are never required to run `npm test` or build.
+- Python and the reference packages are needed only to regenerate fixtures; they are not required to run `npm test` or build.
 
 Use the narrowest relevant test while iterating, then run `npm run typecheck` and the relevant test suite before completing a code change.
 
@@ -40,7 +41,7 @@ Use the narrowest relevant test while iterating, then run `npm run typecheck` an
 ## Numerical code expectations
 
 - Prefer clear, allocation-conscious loops and reusable working buffers in hot solver paths.
-- Public parameters that take a numeric sequence accept `VectorLike` and are normalized once with `Vector.asVector`; results are `Vector`.
+- APIs that take vector-shaped numeric inputs use `VectorLike` and normalize inputs once with `Vector.asVector`; follow each API's documented return shape (`Vector`, `Matrix`, or scalar).
 - Preserve documented mutability contracts. In particular, methods ending in `Self` mutate their instance; other `Vector` and `Vec3` operations return new values.
 - `Vector` and `Matrix` public accessors and exposed `data` storage use zero-based indexing.
 - Numerical changes need targeted tests covering expected values, boundary conditions, invalid inputs, and convergence or iteration-limit behavior where applicable.
