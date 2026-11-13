@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { rungeKuttaFixed, rungeKuttaStep } from '../../src/ode/rungeKuttaFixed.js';
 import type { DerivativeFunction, RungeKuttaFixedMethod } from '../../src/ode/types.js';
@@ -377,5 +377,99 @@ describe('rungeKuttaFixed error messages', () => {
     expect(() => rungeKuttaFixed('rk4', exponential, 0, 1, [1], -0.1)).toThrow(
       /^rungeKuttaFixed: /
     );
+  });
+});
+
+describe('rungeKuttaFixed argument checks', () => {
+  it.each<[string, number[], RegExp]>([
+    [
+      'an empty y0',
+      [],
+      /^rungeKuttaFixed: y0 must have at least one component, got dimension 0\.$/
+    ],
+    ['a NaN in y0', [1, NaN], /^rungeKuttaFixed: y0 must be finite, got y0\[1\] = NaN\.$/],
+    [
+      'an infinite y0',
+      [-Infinity],
+      /^rungeKuttaFixed: y0 must be finite, got y0\[0\] = -Infinity\.$/
+    ]
+  ])('rejects %s, with the same wording as the adaptive solvers', (_label, y0, message) => {
+    const f = vi.fn(exponential);
+    expect(() => rungeKuttaFixed('rk4', f, 0, 1, y0, 0.1)).toThrow(RangeError);
+    expect(() => rungeKuttaFixed('rk4', f, 0, 1, y0, 0.1)).toThrow(message);
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid y0 even when the interval is empty', () => {
+    expect(() => rungeKuttaFixed('rk4', exponential, 1, 1, [NaN], 0.1)).toThrow(
+      /y0 must be finite/
+    );
+  });
+
+  it('rejects an unrecognized method even when the interval is empty', () => {
+    expect(() =>
+      rungeKuttaFixed('bogus' as unknown as RungeKuttaFixedMethod, exponential, 1, 1, [1], 0.1)
+    ).toThrow(RangeError);
+  });
+
+  it.each([0, -1, 1.5, NaN, Infinity])('rejects maxSteps = %s', (maxSteps) => {
+    expect(() => rungeKuttaFixed('rk4', exponential, 0, 1, [1], 0.1, { maxSteps })).toThrow(
+      `rungeKuttaFixed: maxSteps (${maxSteps}) must be a positive integer.`
+    );
+  });
+});
+
+describe('rungeKuttaFixed maxSteps', () => {
+  it('rejects a huge number of steps up front, without evaluating f or allocating the result', () => {
+    const f = vi.fn(exponential);
+    const call = () => rungeKuttaFixed('euler', f, 0, 1e9, [1], 1e-3);
+    expect(call).toThrow(RangeError);
+    expect(call).toThrow(
+      /^rungeKuttaFixed: the integration needs 1000000000000 steps, which exceeds maxSteps \(100000\)/
+    );
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it('rejects a step count that overflows to infinity', () => {
+    expect(() => rungeKuttaFixed('rk4', exponential, 0, 1e308, [1], 1e-308)).toThrow(
+      /needs Infinity steps/
+    );
+  });
+
+  it('applies the default limit of 1e5 steps, inclusive', () => {
+    const atLimit = rungeKuttaFixed('euler', exponential, 0, 1e5, [1], 1);
+    expect(atLimit.t.size).toBe(1e5 + 1);
+    expect(() => rungeKuttaFixed('euler', exponential, 0, 1e5 + 1, [1], 1)).toThrow(
+      /needs 100001 steps/
+    );
+  });
+
+  it('counts a final shortened step', () => {
+    // 10 full steps of 0.1 plus a partial one to reach 1.05.
+    expect(() =>
+      rungeKuttaFixed('euler', exponential, 0, 1.05, [1], 0.1, { maxSteps: 10 })
+    ).toThrow(/needs 11 steps, which exceeds maxSteps \(10\)/);
+    const result = rungeKuttaFixed('euler', exponential, 0, 1.05, [1], 0.1, { maxSteps: 11 });
+    expect(result.t.size).toBe(12);
+    expect(result.t.get(11)).toBe(1.05);
+  });
+
+  it('counts the steps of a backward integration', () => {
+    expect(() => rungeKuttaFixed('euler', exponential, 1, 0, [1], -0.1, { maxSteps: 9 })).toThrow(
+      /needs 10 steps/
+    );
+    expect(rungeKuttaFixed('euler', exponential, 1, 0, [1], -0.1, { maxSteps: 10 }).t.size).toBe(
+      11
+    );
+  });
+
+  it('allows a larger grid when maxSteps is raised', () => {
+    const result = rungeKuttaFixed('euler', exponential, 0, 2e5, [1], 1, { maxSteps: 2e5 });
+    expect(result.t.size).toBe(2e5 + 1);
+    expect(result.evaluations).toBe(2e5);
+  });
+
+  it('does not limit an empty interval', () => {
+    expect(rungeKuttaFixed('rk4', exponential, 1, 1, [1], 0.1, { maxSteps: 1 }).t.size).toBe(1);
   });
 });

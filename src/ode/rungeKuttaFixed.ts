@@ -1,6 +1,7 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import type { DerivativeFunction, OdeResult, RungeKuttaFixedMethod } from './types.js';
+import { DEFAULT_MAX_STEPS, validateMaxSteps, validateProblem } from './validation.js';
 
 /**
  * Reusable intermediate vectors for a fixed-step Runge-Kutta integration step.
@@ -129,6 +130,20 @@ export function rungeKuttaStep(
 }
 
 /**
+ * Options of {@link rungeKuttaFixed}.
+ */
+export interface RungeKuttaFixedOptions {
+  /**
+   * Maximum number of steps. Because the step size is fixed, the number of steps is known before
+   * the integration starts, and a larger number is rejected up front rather than after a long
+   * computation. Increase it for very fine grids, which also take memory in proportion to
+   * the number of steps and the size of the state.
+   * @default 1e5
+   */
+  maxSteps?: number;
+}
+
+/**
  * Integrates `dy/dt = f(t, y)` from `t0` to `tEnd` using a constant step size `h`
  * and the specified numerical method, recording the state at every step.
  *
@@ -143,20 +158,22 @@ export function rungeKuttaStep(
  * @param tEnd The time to integrate to. Must be finite. May be less than `t0` to integrate
  * backwards, as long as the sign of `h` matches the direction of travel.
  * @param y0 The initial state at `t0`: a `Vector`, a plain `number[]` or a `Float64Array`.
- * Must have at least one component; copied internally, so the caller's data is left
- * unchanged.
+ * Must have at least one component, all of them finite; copied internally, so the caller's data
+ * is left unchanged.
  * @param h The fixed step size. Must be finite and nonzero, and (when `t0 !== tEnd`) its sign
  * must match the direction from `t0` to `tEnd` (positive to integrate forward,
  * negative to integrate backward).
+ * @param options Optional parameters; see {@link RungeKuttaFixedOptions}.
  * @returns An {@link OdeResult}: `t`, the recorded time points (length `n`), and
  * `y`, an `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
  * always `y0` and the last row is always the state at `tEnd`. `method` echoes the
  * `method` argument, `evaluations` is the number of calls to `f`, and successful
  * integrations have `success` set to `true` with a descriptive `message`.
  * @throws {TypeError} If `y0` is not a `VectorLike`.
- * @throws {RangeError} If `t0`, `tEnd` or `h` is not finite, if `h` is `0`, if the sign of `h`
- * doesn't match the direction from `t0` to `tEnd`, if `y0` has dimension `0`, or if `method` is
- * not one of the recognized `RungeKuttaFixedMethod` values.
+ * @throws {RangeError} If `y0` has no components or a non-finite component, if `t0`, `tEnd` or
+ * `h` is not finite, if `h` is `0`, if the sign of `h` doesn't match the direction from `t0` to
+ * `tEnd`, if `maxSteps` is not a positive integer, if the integration would need more than
+ * `maxSteps` steps, or if `method` is not one of the recognized `RungeKuttaFixedMethod` values.
  *
  * @example
  * ```ts
@@ -198,13 +215,14 @@ export function rungeKuttaFixed(
   t0: number,
   tEnd: number,
   y0: VectorLike,
-  h: number
+  h: number,
+  options: RungeKuttaFixedOptions = {}
 ): OdeResult {
+  const { maxSteps = DEFAULT_MAX_STEPS } = options;
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
-  if (!Number.isFinite(t0) || !Number.isFinite(tEnd)) {
-    throw new RangeError(`rungeKuttaFixed: t0 (${t0}) and tEnd (${tEnd}) must be finite.`);
-  }
+  const dim = y0v.size;
+  validateProblem('rungeKuttaFixed', t0, tEnd, y0v);
   if (!Number.isFinite(h) || h === 0) {
     throw new RangeError(`rungeKuttaFixed: step size h (${h}) must be finite and nonzero.`);
   }
@@ -215,22 +233,24 @@ export function rungeKuttaFixed(
     );
   }
 
-  const dim = y0v.size;
-  if (dim <= 0) {
-    throw new RangeError(
-      `rungeKuttaFixed: y0 must have at least one component, got dimension ${dim}.`
-    );
-  }
-  const scratch = makeFixedScratch(dim);
+  validateMaxSteps('rungeKuttaFixed', maxSteps);
+  const evaluationsPerStep = stagesPerStep(method);
 
+  // The number of steps is checked before anything is allocated.
+  const tooManySteps = (nSteps: number): RangeError =>
+    new RangeError(
+      `rungeKuttaFixed: the integration needs ${nSteps} steps, which exceeds maxSteps (${maxSteps}); increase maxSteps or the step size h.`
+    );
   const EPS = 1e-9;
   const nFull = Math.floor(Math.abs(totalSpan / h) + EPS);
+  if (nFull > maxSteps) throw tooManySteps(nFull);
   const remainder = totalSpan - nFull * h;
-  const hasPartialStep = Math.abs(remainder) > EPS * Math.abs(h || 1);
-
+  const hasPartialStep = Math.abs(remainder) > EPS * Math.abs(h);
   const nRecorded = nFull + (hasPartialStep ? 1 : 0);
+  if (nRecorded > maxSteps) throw tooManySteps(nRecorded);
+
+  const scratch = makeFixedScratch(dim);
   const nTimes = nRecorded + 1;
-  const evaluationsPerStep = stagesPerStep(method);
   const tVec = new Vector(nTimes);
   const yMat = new Matrix(nTimes, dim);
   let evaluations = 0;

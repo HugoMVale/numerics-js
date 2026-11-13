@@ -3,12 +3,18 @@ import { clip } from '../math.js';
 import {
   emptyIntervalResult,
   SolutionRecorder,
+  resolveAdaptiveControl,
   validateAdaptiveOptions
 } from './adaptiveCommon.js';
 import { OdeDenseOutput, StepPolynomial } from './denseOutput.js';
 import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
-import type { DerivativeFunction, OdeEvent, OdeResult, RungeKuttaAdaptiveMethod } from './types.js';
+import type {
+  DerivativeFunction,
+  OdeAdaptiveOptions,
+  OdeResult,
+  RungeKuttaAdaptiveMethod
+} from './types.js';
 
 /**
  * Reusable intermediate vectors for adaptive Runge-Kutta integration steps.
@@ -301,72 +307,7 @@ function adaptiveErrorNorm(
 /**
  * Optional tuning parameters for {@link rungeKuttaAdaptive}.
  */
-export interface RungeKuttaAdaptiveOptions {
-  /**
-   * Absolute error tolerance per state component.
-   * @default 1e-6
-   */
-  atol?: number;
-  /**
-   * Relative error tolerance per state component.
-   * @default 1e-3
-   */
-  rtol?: number;
-  /**
-   * Optional initial step-size magnitude. Must be finite and nonzero. Its sign is ignored
-   * because the integration direction follows `tEnd - t0`. Estimated automatically when
-   * omitted.
-   */
-  h0?: number;
-  /**
-   * Maximum permitted step-size magnitude.
-   * @default Infinity
-   */
-  hMax?: number;
-  /**
-   * Minimum permitted step-size magnitude after a rejected step.
-   * @default 1e-12
-   */
-  hMin?: number;
-  /**
-   * Maximum number of attempted steps, including rejected steps.
-   * @default 1e5
-   */
-  maxSteps?: number;
-  /**
-   * Safety factor applied when scaling a step after error estimation. Must
-   * be in `(0, 1]`.
-   * @default 0.9
-   */
-  safety?: number;
-  /**
-   * Smallest allowed multiplier for the next step size.
-   * @default 0.2
-   */
-  minScale?: number;
-  /**
-   * Largest allowed multiplier for the next step size.
-   * @default 10
-   */
-  maxScale?: number;
-  /**
-   * Events to detect along the solution; see {@link OdeEvent}. Occurrences are
-   * located inside each accepted step from the step's dense output and reported
-   * in {@link OdeResult.events}.
-   * Detection does not change the step sequence. If omitted, no events are evaluated.
-   */
-  events?: OdeEvent[];
-  /**
-   * Whether to also return the dense output, a continuous approximation of the
-   * whole solution that can be evaluated at any time in the solved interval;
-   * see {@link OdeResult.denseOutput}. It is built from the step interpolants,
-   * which also serve the `events` option, at no further evaluations of `f`,
-   * and does not change the step sequence. It stores a few vectors per
-   * accepted step.
-   * @default false
-   */
-  denseOutput?: boolean;
-}
+export interface RungeKuttaAdaptiveOptions extends OdeAdaptiveOptions {}
 
 /**
  * Integrates `dy/dt = f(t, y)` from `t0` to `tEnd` using adaptive step size control.
@@ -600,33 +541,13 @@ export function rungeKuttaAdaptive(
   y0: VectorLike,
   options: RungeKuttaAdaptiveOptions = {}
 ): OdeResult {
-  const {
-    atol = 1e-6,
-    rtol = 1e-3,
-    h0,
-    hMax = Infinity,
-    hMin = 1e-12,
-    maxSteps = 1e5,
-    safety = 0.9,
-    minScale = 0.2,
-    maxScale = 10,
-    events,
-    denseOutput = false
-  } = options;
+  const control = resolveAdaptiveControl(options);
+  const { atol, rtol, h0, hMax, hMin, maxSteps, safety, minScale, maxScale } = control;
+  const { events, denseOutput = false } = options;
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
   const dim = y0v.size;
-  validateAdaptiveOptions('rungeKuttaAdaptive', t0, tEnd, y0v, {
-    atol,
-    rtol,
-    h0,
-    hMax,
-    hMin,
-    maxSteps,
-    safety,
-    minScale,
-    maxScale
-  });
+  validateAdaptiveOptions('rungeKuttaAdaptive', t0, tEnd, y0v, control);
   if (events !== undefined) validateEvents(events, 'rungeKuttaAdaptive');
 
   // Method-dependent constants. This also validates `method`, even if the interval is empty.

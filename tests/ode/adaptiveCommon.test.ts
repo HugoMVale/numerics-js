@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import {
   emptyIntervalResult,
+  resolveAdaptiveControl,
   SolutionRecorder,
   validateAdaptiveOptions,
   type AdaptiveControlOptions
@@ -127,5 +128,36 @@ describe('emptyIntervalResult', () => {
     expect(result.events).toEqual([]);
     expect(result.denseOutput).toBeInstanceOf(OdeDenseOutput);
     expect(Array.from(result.denseOutput!.eval(0).data)).toEqual([1]);
+  });
+});
+
+describe('resolveAdaptiveControl', () => {
+  it('applies the documented defaults', () => {
+    expect(resolveAdaptiveControl({})).toEqual({
+      atol: 1e-6,
+      rtol: 1e-3,
+      h0: undefined,
+      hMax: Infinity,
+      hMin: 1e-12,
+      maxSteps: 1e5,
+      safety: 0.9,
+      minScale: 0.2,
+      maxScale: 10
+    });
+  });
+
+  it('keeps the given values, and treats explicit undefined as omitted', () => {
+    const control = resolveAdaptiveControl({ atol: 1e-9, h0: -0.5, maxSteps: 7, rtol: undefined });
+    expect(control.atol).toBe(1e-9);
+    expect(control.h0).toBe(-0.5);
+    expect(control.maxSteps).toBe(7);
+    expect(control.rtol).toBe(1e-3);
+  });
+
+  it('ignores options that are not step-size controls', () => {
+    const control = resolveAdaptiveControl({ events: [], denseOutput: true });
+    expect(Object.keys(control).sort()).toEqual(
+      ['atol', 'h0', 'hMax', 'hMin', 'maxScale', 'maxSteps', 'minScale', 'rtol', 'safety'].sort()
+    );
   });
 });

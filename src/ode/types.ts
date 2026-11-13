@@ -24,6 +24,74 @@ export type TrBdf2Method = 'trbdf2';
 export type OdeMethod = RungeKuttaFixedMethod | RungeKuttaAdaptiveMethod | TrBdf2Method;
 
 /**
+ * Options shared by the adaptive solvers, {@link rungeKuttaAdaptive} and {@link trBdf2Adaptive}.
+ */
+export interface OdeAdaptiveOptions {
+  /**
+   * Absolute error tolerance per state component.
+   * @default 1e-6
+   */
+  atol?: number;
+  /**
+   * Relative error tolerance per state component.
+   * @default 1e-3
+   */
+  rtol?: number;
+  /**
+   * Optional initial step-size magnitude. Must be finite and nonzero. Its sign is ignored
+   * because the integration direction follows `tEnd - t0`. Estimated automatically when
+   * omitted.
+   */
+  h0?: number;
+  /**
+   * Maximum permitted step-size magnitude.
+   * @default Infinity
+   */
+  hMax?: number;
+  /**
+   * Minimum permitted step-size magnitude after a rejected step.
+   * @default 1e-12
+   */
+  hMin?: number;
+  /**
+   * Maximum number of attempted steps, including rejected steps.
+   * @default 1e5
+   */
+  maxSteps?: number;
+  /**
+   * Safety factor applied when scaling a step after error estimation. Must
+   * be in `(0, 1]`.
+   * @default 0.9
+   */
+  safety?: number;
+  /**
+   * Smallest allowed multiplier for the next step size.
+   * @default 0.2
+   */
+  minScale?: number;
+  /**
+   * Largest allowed multiplier for the next step size.
+   * @default 10
+   */
+  maxScale?: number;
+  /**
+   * Events to detect along the solution; see {@link OdeEvent}. Occurrences are located inside
+   * each accepted step from the step's dense output and reported in {@link OdeResult.events}.
+   * Detection does not change the step sequence. If omitted, no events are evaluated.
+   */
+  events?: OdeEvent[];
+  /**
+   * Whether to also return the dense output, a continuous approximation of the whole solution
+   * that can be evaluated at any time in the solved interval; see
+   * {@link OdeResult.denseOutput}. It is built from the step interpolants, which also serve the
+   * `events` option, at no further evaluations of `f`, and does not change the step sequence. It
+   * stores a few vectors per accepted step.
+   * @default false
+   */
+  denseOutput?: boolean;
+}
+
+/**
  * Jacobian function `J = ∂f/∂y` of an ODE right-hand side `dy/dt = f(t, y)`.
  *
  * It must write the Jacobian evaluated at `(t, y)` into the provided `J` buffer,

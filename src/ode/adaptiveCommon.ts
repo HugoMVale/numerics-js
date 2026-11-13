@@ -1,7 +1,8 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import { OdeDenseOutput } from './denseOutput.js';
-import type { OdeEvent, OdeMethod, OdeResult } from './types.js';
+import type { OdeAdaptiveOptions, OdeEvent, OdeMethod, OdeResult } from './types.js';
+import { DEFAULT_MAX_STEPS, validateMaxSteps, validateProblem } from './validation.js';
 
 /**
  * Step-size control options shared by the adaptive ODE solvers, with defaults already applied
@@ -22,6 +23,29 @@ export interface AdaptiveControlOptions {
 }
 
 /**
+ * Applies the defaults of the step-size control options shared by the adaptive ODE solvers. These
+ * are the defaults documented in {@link OdeAdaptiveOptions}.
+ *
+ * @internal
+ *
+ * @param options Options given by the caller.
+ */
+export function resolveAdaptiveControl(options: OdeAdaptiveOptions): AdaptiveControlOptions {
+  const {
+    atol = 1e-6,
+    rtol = 1e-3,
+    h0,
+    hMax = Infinity,
+    hMin = 1e-12,
+    maxSteps = DEFAULT_MAX_STEPS,
+    safety = 0.9,
+    minScale = 0.2,
+    maxScale = 10
+  } = options;
+  return { atol, rtol, h0, hMax, hMin, maxSteps, safety, minScale, maxScale };
+}
+
+/**
  * Validates the integration interval, the initial state and the step-size control options shared
  * by the adaptive ODE solvers.
  *
@@ -32,8 +56,8 @@ export interface AdaptiveControlOptions {
  * @param tEnd Final time.
  * @param y0 Initial state.
  * @param options Options to validate, with defaults applied.
- * @throws {RangeError} If the state has no components or a non-finite component, `t0` or `tEnd`
- * is not finite, the tolerances are invalid, or a step-size or controller limit is invalid.
+ * @throws {RangeError} If the problem is invalid (see {@link validateProblem}), the tolerances
+ * are invalid, or a step-size or controller limit is invalid.
  */
 export function validateAdaptiveOptions(
   who: string,
@@ -43,18 +67,7 @@ export function validateAdaptiveOptions(
   options: AdaptiveControlOptions
 ): void {
   const { atol, rtol, h0, hMax, hMin, maxSteps, safety, minScale, maxScale } = options;
-  const dim = y0.size;
-  if (dim <= 0) {
-    throw new RangeError(`${who}: y0 must have at least one component, got dimension ${dim}.`);
-  }
-  if (!Number.isFinite(t0) || !Number.isFinite(tEnd)) {
-    throw new RangeError(`${who}: t0 (${t0}) and tEnd (${tEnd}) must be finite.`);
-  }
-  for (let i = 0; i < dim; i++) {
-    if (!Number.isFinite(y0.data[i])) {
-      throw new RangeError(`${who}: y0 must be finite, got y0[${i}] = ${y0.data[i]}.`);
-    }
-  }
+  validateProblem(who, t0, tEnd, y0);
   if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
     throw new RangeError(
       `${who}: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
@@ -71,9 +84,7 @@ export function validateAdaptiveOptions(
   if (!(hMin > 0)) throw new RangeError(`${who}: hMin (${hMin}) must be positive.`);
   if (!(hMax > 0)) throw new RangeError(`${who}: hMax (${hMax}) must be positive.`);
   if (hMin > hMax) throw new RangeError(`${who}: hMin (${hMin}) must not exceed hMax (${hMax}).`);
-  if (!Number.isInteger(maxSteps) || maxSteps <= 0) {
-    throw new RangeError(`${who}: maxSteps (${maxSteps}) must be a positive integer.`);
-  }
+  validateMaxSteps(who, maxSteps);
   if (!(safety > 0 && safety <= 1)) {
     throw new RangeError(`${who}: safety (${safety}) must be in (0, 1].`);
   }

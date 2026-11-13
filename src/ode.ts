@@ -28,6 +28,7 @@
  * @module ode
  */
 export { rungeKuttaFixed } from './ode/rungeKuttaFixed.js';
+export type { RungeKuttaFixedOptions } from './ode/rungeKuttaFixed.js';
 
 export { rungeKuttaAdaptive } from './ode/rungeKuttaAdaptive.js';
 export type { RungeKuttaAdaptiveOptions } from './ode/rungeKuttaAdaptive.js';
@@ -43,6 +44,7 @@ export type {
   DerivativeFunction,
   AllocatingDerivativeFunction,
   JacobianFunction,
+  OdeAdaptiveOptions,
   OdeEvent,
   OdeEventDirection,
   OdeEventOccurrence,
