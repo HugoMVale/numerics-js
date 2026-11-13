@@ -22,25 +22,38 @@ export interface AdaptiveControlOptions {
 }
 
 /**
- * Validates the state dimension and the step-size control options shared by the adaptive ODE
- * solvers.
+ * Validates the integration interval, the initial state and the step-size control options shared
+ * by the adaptive ODE solvers.
  *
  * @internal
  *
  * @param who Name of the calling solver, used as prefix of error messages.
- * @param dim Dimension of the initial state.
+ * @param t0 Initial time.
+ * @param tEnd Final time.
+ * @param y0 Initial state.
  * @param options Options to validate, with defaults applied.
- * @throws {RangeError} If the state has no components, the tolerances are invalid, or a
- * step-size or controller limit is invalid.
+ * @throws {RangeError} If the state has no components or a non-finite component, `t0` or `tEnd`
+ * is not finite, the tolerances are invalid, or a step-size or controller limit is invalid.
  */
 export function validateAdaptiveOptions(
   who: string,
-  dim: number,
+  t0: number,
+  tEnd: number,
+  y0: Vector,
   options: AdaptiveControlOptions
 ): void {
   const { atol, rtol, h0, hMax, hMin, maxSteps, safety, minScale, maxScale } = options;
+  const dim = y0.size;
   if (dim <= 0) {
     throw new RangeError(`${who}: y0 must have at least one component, got dimension ${dim}.`);
+  }
+  if (!Number.isFinite(t0) || !Number.isFinite(tEnd)) {
+    throw new RangeError(`${who}: t0 (${t0}) and tEnd (${tEnd}) must be finite.`);
+  }
+  for (let i = 0; i < dim; i++) {
+    if (!Number.isFinite(y0.data[i])) {
+      throw new RangeError(`${who}: y0 must be finite, got y0[${i}] = ${y0.data[i]}.`);
+    }
   }
   if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
     throw new RangeError(
@@ -52,7 +65,9 @@ export function validateAdaptiveOptions(
       `${who}: atol and rtol cannot both be 0; no step could ever satisfy the tolerance.`
     );
   }
-  if (h0 !== undefined && h0 === 0) throw new RangeError(`${who}: h0 must be nonzero.`);
+  if (h0 !== undefined && (!Number.isFinite(h0) || h0 === 0)) {
+    throw new RangeError(`${who}: h0 (${h0}) must be finite and nonzero.`);
+  }
   if (!(hMin > 0)) throw new RangeError(`${who}: hMin (${hMin}) must be positive.`);
   if (!(hMax > 0)) throw new RangeError(`${who}: hMax (${hMax}) must be positive.`);
   if (hMin > hMax) throw new RangeError(`${who}: hMin (${hMin}) must not exceed hMax (${hMax}).`);

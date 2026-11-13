@@ -135,8 +135,8 @@ export interface TrBdf2AdaptiveOptions {
    */
   rtol?: number;
   /**
-   * Optional initial step-size magnitude. Its sign is ignored because the
-   * integration direction follows `tEnd - t0`. Estimated automatically when
+   * Optional initial step-size magnitude. Must be finite and nonzero. Its sign is ignored
+   * because the integration direction follows `tEnd - t0`. Estimated automatically when
    * omitted.
    */
   h0?: number;
@@ -242,11 +242,12 @@ export interface TrBdf2AdaptiveOptions {
  *
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into
  * the supplied `dydt` buffer rather than allocating.
- * @param t0 Starting time.
- * @param tEnd Final integration time. May be less than `t0` to integrate
+ * @param t0 Starting time. Must be finite.
+ * @param tEnd Final integration time. Must be finite. May be less than `t0` to integrate
  * backward; the solver selects the required direction automatically.
  * @param y0 Initial state at `t0`: a `Vector`, a plain `number[]` or a `Float64Array`. It
- * must have at least one component and is copied internally, so it is never mutated.
+ * must have at least one component, all of them finite, and is copied internally, so it is
+ * never mutated.
  * @param options Optional tuning parameters; see {@link TrBdf2AdaptiveOptions}.
  * @returns An {@link OdeResult}: `t`, the accepted time points, and `y`, an
  * `n x y0.size` matrix whose row `i` is the state at `t.get(i)`. Row 0 is
@@ -258,8 +259,9 @@ export interface TrBdf2AdaptiveOptions {
  * `tEnd` or was stopped by a terminal event, and `message` provides additional
  * status information. `events` is present when the `events` option was given,
  * and so is `denseOutput` when the `denseOutput` option was.
- * @throws {RangeError} If the state has no components, tolerances are invalid, a
- * step-size or controller limit is invalid, or an event option is invalid.
+ * @throws {RangeError} If the state has no components or a non-finite component, `t0` or `tEnd`
+ * is not finite, tolerances are invalid, a step-size or controller limit is invalid, or an event
+ * option is invalid.
  * @throws {TypeError} If `y0` is not a `VectorLike`, or if an event function is not a
  * function.
  *
@@ -478,7 +480,7 @@ export function trBdf2Adaptive(
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
   const dim = y0v.size;
-  validateAdaptiveOptions('trBdf2Adaptive', dim, {
+  validateAdaptiveOptions('trBdf2Adaptive', t0, tEnd, y0v, {
     atol,
     rtol,
     h0,

@@ -20,11 +20,29 @@ const valid: AdaptiveControlOptions = {
   maxScale: 10
 };
 
+const validate = (options: AdaptiveControlOptions, y0: number[] = [1], t0 = 0, tEnd = 1): void =>
+  validateAdaptiveOptions('solver', t0, tEnd, new Vector(y0), options);
+
 describe('validateAdaptiveOptions', () => {
-  it('accepts valid options, with or without h0', () => {
-    expect(() => validateAdaptiveOptions('solver', 2, valid)).not.toThrow();
-    expect(() => validateAdaptiveOptions('solver', 2, { ...valid, h0: -0.1 })).not.toThrow();
-    expect(() => validateAdaptiveOptions('solver', 1, { ...valid, atol: 0 })).not.toThrow();
+  it('accepts valid options, with or without h0, and either integration direction', () => {
+    expect(() => validate(valid, [1, 2])).not.toThrow();
+    expect(() => validate({ ...valid, h0: -0.1 }, [1, 2])).not.toThrow();
+    expect(() => validate({ ...valid, atol: 0 })).not.toThrow();
+    expect(() => validate(valid, [1], 1, 0)).not.toThrow();
+    expect(() => validate(valid, [1], 2, 2)).not.toThrow();
+  });
+
+  it.each<[string, number[], number, number, RegExp]>([
+    ['NaN t0', [1], NaN, 1, /^solver: t0 \(NaN\) and tEnd \(1\) must be finite\.$/],
+    ['NaN tEnd', [1], 0, NaN, /^solver: t0 \(0\) and tEnd \(NaN\) must be finite\.$/],
+    ['infinite tEnd', [1], 0, Infinity, /tEnd \(Infinity\) must be finite/],
+    ['infinite t0', [1], -Infinity, 0, /t0 \(-Infinity\) and tEnd \(0\) must be finite/],
+    ['NaN t0 and tEnd', [1], NaN, NaN, /must be finite/],
+    ['NaN in y0', [1, NaN], 0, 1, /^solver: y0 must be finite, got y0\[1\] = NaN\.$/],
+    ['infinite y0', [-Infinity], 0, 1, /y0\[0\] = -Infinity/]
+  ])('rejects %s', (_label, y0, t0, tEnd, message) => {
+    expect(() => validate(valid, y0, t0, tEnd)).toThrow(RangeError);
+    expect(() => validate(valid, y0, t0, tEnd)).toThrow(message);
   });
 
   it.each<[string, number, Partial<AdaptiveControlOptions>, RegExp]>([
@@ -33,7 +51,9 @@ describe('validateAdaptiveOptions', () => {
     ['infinite rtol', 1, { rtol: Infinity }, /must be finite and non-negative/],
     ['NaN atol', 1, { atol: NaN }, /must be finite and non-negative/],
     ['both tolerances zero', 1, { atol: 0, rtol: 0 }, /cannot both be 0/],
-    ['zero h0', 1, { h0: 0 }, /^solver: h0 must be nonzero\.$/],
+    ['zero h0', 1, { h0: 0 }, /^solver: h0 \(0\) must be finite and nonzero\.$/],
+    ['NaN h0', 1, { h0: NaN }, /^solver: h0 \(NaN\) must be finite and nonzero\.$/],
+    ['infinite h0', 1, { h0: -Infinity }, /h0 \(-Infinity\) must be finite/],
     ['zero hMin', 1, { hMin: 0 }, /^solver: hMin \(0\) must be positive\.$/],
     ['NaN hMax', 1, { hMax: NaN }, /^solver: hMax \(NaN\) must be positive\.$/],
     ['hMin above hMax', 1, { hMin: 1, hMax: 0.5 }, /hMin \(1\) must not exceed hMax \(0.5\)/],
@@ -44,12 +64,9 @@ describe('validateAdaptiveOptions', () => {
     ['zero minScale', 1, { minScale: 0 }, /minScale \(0\) must be positive/],
     ['minScale above maxScale', 1, { minScale: 2, maxScale: 1 }, /not exceed maxScale \(1\)/]
   ])('rejects %s', (_label, dim, override, message) => {
-    expect(() => validateAdaptiveOptions('solver', dim, { ...valid, ...override })).toThrow(
-      RangeError
-    );
-    expect(() => validateAdaptiveOptions('solver', dim, { ...valid, ...override })).toThrow(
-      message
-    );
+    const y0 = new Array<number>(dim).fill(1);
+    expect(() => validate({ ...valid, ...override }, y0)).toThrow(RangeError);
+    expect(() => validate({ ...valid, ...override }, y0)).toThrow(message);
   });
 });
 
