@@ -1,5 +1,5 @@
 // Chamber II: gravity sandbox driven by ode.createVelocityVerlet (symplectic, energy stays bounded).
-import { ode, math } from 'numerics-js';
+import { ode, math, linalg } from 'numerics-js';
 import {
   $,
   createStage,
@@ -45,32 +45,37 @@ export function mountOrbits() {
   let errHead = 0;
 
   const makeAcc = (masses, e2) => (u, _v, a) => {
+    const ud = u.data;
+    const ad = a.data;
     const n = masses.length;
-    a.fill(0);
+    ad.fill(0);
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
-        const dx = u[2 * j] - u[2 * i];
-        const dy = u[2 * j + 1] - u[2 * i + 1];
+        const dx = ud[2 * j] - ud[2 * i];
+        const dy = ud[2 * j + 1] - ud[2 * i + 1];
         const r2 = dx * dx + dy * dy + e2;
         const inv = G / (r2 * Math.sqrt(r2));
         const fi = masses[j] * inv;
         const fj = masses[i] * inv;
-        a[2 * i] += dx * fi;
-        a[2 * i + 1] += dy * fi;
-        a[2 * j] -= dx * fj;
-        a[2 * j + 1] -= dy * fj;
+        ad[2 * i] += dx * fi;
+        ad[2 * i + 1] += dy * fi;
+        ad[2 * j] -= dx * fj;
+        ad[2 * j + 1] -= dy * fj;
       }
     }
+    return a;
   };
 
   function energy() {
     const { u, v } = state;
+    const ud = u.data;
+    const vd = v.data;
     const n = bodies.length;
     let e = 0;
     for (let i = 0; i < n; i++) {
-      e += 0.5 * bodies[i].m * (v[2 * i] ** 2 + v[2 * i + 1] ** 2);
+      e += 0.5 * bodies[i].m * (vd[2 * i] ** 2 + vd[2 * i + 1] ** 2);
       for (let j = i + 1; j < n; j++) {
-        const r = Math.hypot(u[2 * j] - u[2 * i], u[2 * j + 1] - u[2 * i + 1]);
+        const r = Math.hypot(ud[2 * j] - ud[2 * i], ud[2 * j + 1] - ud[2 * i + 1]);
         e -= (G * bodies[i].m * bodies[j].m) / Math.sqrt(r * r + eps2);
       }
     }
@@ -83,16 +88,16 @@ export function mountOrbits() {
     const n = list.length;
     const masses = list.map((b) => b.m);
     state = {
-      u: new Float64Array(2 * n),
-      v: new Float64Array(2 * n),
-      a: new Float64Array(2 * n),
-      aNext: new Float64Array(2 * n)
+      u: new linalg.Vector(2 * n),
+      v: new linalg.Vector(2 * n),
+      a: new linalg.Vector(2 * n),
+      aNext: new linalg.Vector(2 * n)
     };
     list.forEach((b, i) => {
-      state.u[2 * i] = b.x;
-      state.u[2 * i + 1] = b.y;
-      state.v[2 * i] = b.vx;
-      state.v[2 * i + 1] = b.vy;
+      state.u.data[2 * i] = b.x;
+      state.u.data[2 * i + 1] = b.y;
+      state.v.data[2 * i] = b.vx;
+      state.v.data[2 * i + 1] = b.vy;
     });
     const acc = makeAcc(masses, eps2);
     acc(state.u, state.v, state.a);
@@ -109,11 +114,13 @@ export function mountOrbits() {
   }
 
   function snapshot() {
+    const u = state.u.data;
+    const v = state.v.data;
     return bodies.map((b, i) => ({
-      x: state.u[2 * i],
-      y: state.u[2 * i + 1],
-      vx: state.v[2 * i],
-      vy: state.v[2 * i + 1],
+      x: u[2 * i],
+      y: u[2 * i + 1],
+      vx: v[2 * i],
+      vy: v[2 * i + 1],
       m: b.m,
       hue: b.hue,
       from: i
@@ -259,16 +266,16 @@ export function mountOrbits() {
     const n = list.length;
     const masses = list.map((b) => b.m);
     const s = {
-      u: new Float64Array(2 * n),
-      v: new Float64Array(2 * n),
-      a: new Float64Array(2 * n),
-      aNext: new Float64Array(2 * n)
+      u: new linalg.Vector(2 * n),
+      v: new linalg.Vector(2 * n),
+      a: new linalg.Vector(2 * n),
+      aNext: new linalg.Vector(2 * n)
     };
     list.forEach((b, i) => {
-      s.u[2 * i] = b.x;
-      s.u[2 * i + 1] = b.y;
-      s.v[2 * i] = b.vx;
-      s.v[2 * i + 1] = b.vy;
+      s.u.data[2 * i] = b.x;
+      s.u.data[2 * i + 1] = b.y;
+      s.v.data[2 * i] = b.vx;
+      s.v.data[2 * i + 1] = b.vy;
     });
     const acc = makeAcc(masses, eps2);
     acc(s.u, s.v, s.a);
@@ -276,7 +283,7 @@ export function mountOrbits() {
     const pts = [];
     for (let k = 0; k < 360; k++) {
       stp(s, 0.006);
-      if (k % 6 === 0) pts.push([s.u[2 * (n - 1)], s.u[2 * (n - 1) + 1]]);
+      if (k % 6 === 0) pts.push([s.u.data[2 * (n - 1)], s.u.data[2 * (n - 1) + 1]]);
     }
     return pts;
   }
@@ -292,11 +299,9 @@ export function mountOrbits() {
 
     // drop escapees
     let escaped = false;
+    const u = state.u.data;
     for (let i = 0; i < bodies.length; i++) {
-      if (
-        Math.hypot(state.u[2 * i], state.u[2 * i + 1]) > viewR * 14 ||
-        !Number.isFinite(state.u[2 * i])
-      )
+      if (Math.hypot(u[2 * i], u[2 * i + 1]) > viewR * 14 || !Number.isFinite(u[2 * i]))
         escaped = true;
     }
     if (escaped) {
@@ -309,10 +314,11 @@ export function mountOrbits() {
     const sc = Math.min(st.w, st.h) / (2 * viewR);
     const cx = st.w / 2;
     const cy = st.h / 2;
+    const uNow = state.u.data;
     for (let i = 0; i < bodies.length; i++) {
       const b = bodies[i];
-      b.trail[2 * b.head] = state.u[2 * i];
-      b.trail[2 * b.head + 1] = state.u[2 * i + 1];
+      b.trail[2 * b.head] = uNow[2 * i];
+      b.trail[2 * b.head + 1] = uNow[2 * i + 1];
       b.head = (b.head + 1) % TRAIL;
       b.len = Math.min(TRAIL, b.len + 1);
     }
@@ -373,8 +379,8 @@ export function mountOrbits() {
       const b = bodies[i];
       const col =
         i === 0 && b.m >= 0.9 && preset === 'solar' ? PALETTE.amber : COLORS[b.hue % COLORS.length];
-      const x = cx + state.u[2 * i] * sc;
-      const y = cy - state.u[2 * i + 1] * sc;
+      const x = cx + uNow[2 * i] * sc;
+      const y = cy - uNow[2 * i + 1] * sc;
       const r = 2.2 + 5.5 * Math.cbrt(b.m);
       const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4.2);
       g.addColorStop(0, rgba(col, 0.75));
