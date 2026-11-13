@@ -139,13 +139,13 @@ export function rungeKuttaStep(
  * or `'trapezoid'` (order 2), or `'rk4'` (order 4, the classic 4-stage method).
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into the
  * `dydt` buffer it's given (the third argument) rather than allocating.
- * @param t0 The starting time.
- * @param tEnd The time to integrate to. May be less than `t0` to integrate
+ * @param t0 The starting time. Must be finite.
+ * @param tEnd The time to integrate to. Must be finite. May be less than `t0` to integrate
  * backwards, as long as the sign of `h` matches the direction of travel.
  * @param y0 The initial state at `t0`: a `Vector`, a plain `number[]` or a `Float64Array`.
  * Must have at least one component; copied internally, so the caller's data is left
  * unchanged.
- * @param h The fixed step size. Must be nonzero, and (when `t0 !== tEnd`) its sign
+ * @param h The fixed step size. Must be finite and nonzero, and (when `t0 !== tEnd`) its sign
  * must match the direction from `t0` to `tEnd` (positive to integrate forward,
  * negative to integrate backward).
  * @returns An {@link OdeResult}: `t`, the recorded time points (length `n`), and
@@ -154,9 +154,9 @@ export function rungeKuttaStep(
  * `method` argument, `evaluations` is the number of calls to `f`, and successful
  * integrations have `success` set to `true` with a descriptive `message`.
  * @throws {TypeError} If `y0` is not a `VectorLike`.
- * @throws {RangeError} If `h` is `0`, if the sign of `h` doesn't match the direction
- * from `t0` to `tEnd`, if `y0` has dimension `0`, or if `method` is not one of the
- * recognized `RungeKuttaFixedMethod` values.
+ * @throws {RangeError} If `t0`, `tEnd` or `h` is not finite, if `h` is `0`, if the sign of `h`
+ * doesn't match the direction from `t0` to `tEnd`, if `y0` has dimension `0`, or if `method` is
+ * not one of the recognized `RungeKuttaFixedMethod` values.
  *
  * @example
  * ```ts
@@ -202,7 +202,12 @@ export function rungeKuttaFixed(
 ): OdeResult {
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
-  if (h === 0) throw new RangeError('rungeKuttaFixed: step size h must be nonzero.');
+  if (!Number.isFinite(t0) || !Number.isFinite(tEnd)) {
+    throw new RangeError(`rungeKuttaFixed: t0 (${t0}) and tEnd (${tEnd}) must be finite.`);
+  }
+  if (!Number.isFinite(h) || h === 0) {
+    throw new RangeError(`rungeKuttaFixed: step size h (${h}) must be finite and nonzero.`);
+  }
   const totalSpan = tEnd - t0;
   if (totalSpan !== 0 && Math.sign(h) !== Math.sign(totalSpan)) {
     throw new RangeError(

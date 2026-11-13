@@ -270,6 +270,21 @@ describe('rungeKuttaFixed', () => {
     );
   });
 
+  it.each([
+    ['NaN h', 0, 1, NaN, /step size h \(NaN\) must be finite and nonzero/],
+    ['infinite h', 0, 1, Infinity, /step size h \(Infinity\) must be finite and nonzero/],
+    ['negative infinite h', 1, 0, -Infinity, /must be finite and nonzero/],
+    ['NaN h with t0 === tEnd', 1, 1, NaN, /must be finite and nonzero/],
+    ['NaN t0', NaN, 1, 0.1, /t0 \(NaN\) and tEnd \(1\) must be finite/],
+    ['NaN tEnd', 0, NaN, 0.1, /t0 \(0\) and tEnd \(NaN\) must be finite/],
+    ['infinite tEnd', 0, Infinity, 0.1, /tEnd \(Infinity\) must be finite/],
+    ['infinite t0', -Infinity, 0, 0.1, /t0 \(-Infinity\) and tEnd \(0\) must be finite/]
+  ])('throws a RangeError for %s', (_label, t0, tEnd, h, message) => {
+    const call = () => rungeKuttaFixed('rk4', exponential, t0, tEnd, [1], h);
+    expect(call).toThrow(RangeError);
+    expect(call).toThrow(message);
+  });
+
   it('returns a single row when t0 === tEnd', () => {
     const result = rungeKuttaFixed('rk4', exponential, 5, 5, new Vector([1]), 0.1);
     expect(result.t.size).toBe(1);

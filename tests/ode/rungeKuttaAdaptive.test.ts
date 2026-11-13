@@ -273,6 +273,14 @@ describe('rungeKuttaAdaptive additional coverage', () => {
     ).toThrow(RangeError);
   });
 
+  it('throws for an unrecognized method even when the interval is empty', () => {
+    const f: DerivativeFunction = (t, y, out) => out.set(y.data);
+
+    expect(() =>
+      rungeKuttaAdaptive('bogus' as unknown as RungeKuttaAdaptiveMethod, f, 1, 1, [1])
+    ).toThrow(/unknown method "bogus"/);
+  });
+
   it.each(methods)(
     '(%s) produces a monotonically increasing t for forward integration',
     (method) => {

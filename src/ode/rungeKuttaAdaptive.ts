@@ -427,7 +427,7 @@ export interface RungeKuttaAdaptiveOptions {
  * and so is `denseOutput` when the `denseOutput` option was.
  * @throws {RangeError} If the state has no components, tolerances are invalid,
  * a step-size or controller limit is invalid, an event option is invalid, or
- * `method` is not recognized when `t0 !== tEnd`.
+ * `method` is not recognized (even if `t0 === tEnd`).
  * @throws {TypeError} If `y0` is not a `VectorLike`, or if an event function is not a
  * function.
  *
@@ -628,21 +628,17 @@ export function rungeKuttaAdaptive(
   });
   if (events !== undefined) validateEvents(events, 'rungeKuttaAdaptive');
 
-  if (tEnd === t0) return emptyIntervalResult(method, t0, y0v, events, denseOutput);
-
-  const dir = Math.sign(tEnd - t0) as 1 | -1;
-  const scratch = makeAdaptiveScratch(dim);
-
+  // Method-dependent constants. This also validates `method`, even if the interval is empty.
   let methodOrder: number;
   let errExp: number;
-  let fsalSource: Vector;
+  let fsalStage: 'k4' | 'k7';
   let stagesPerAttempt: number;
   let denseDegree: number;
   switch (method) {
     case 'rk23':
       methodOrder = 3;
       errExp = -1 / 3;
-      fsalSource = scratch.k4;
+      fsalStage = 'k4';
       stagesPerAttempt = 4;
       denseDegree = DENSE_RK23[0].length;
       break;
@@ -650,7 +646,7 @@ export function rungeKuttaAdaptive(
     case 'rk45':
       methodOrder = 5;
       errExp = -1 / 5;
-      fsalSource = scratch.k7;
+      fsalStage = 'k7';
       stagesPerAttempt = 7;
       denseDegree = DENSE_RK45[0].length;
       break;
@@ -658,6 +654,11 @@ export function rungeKuttaAdaptive(
     default:
       throw new RangeError(`rungeKuttaAdaptive: unknown method "${method satisfies never}"`);
   }
+
+  if (tEnd === t0) return emptyIntervalResult(method, t0, y0v, events, denseOutput);
+
+  const dir = Math.sign(tEnd - t0) as 1 | -1;
+  const scratch = makeAdaptiveScratch(dim);
 
   let t = t0;
   let y = y0v;
@@ -741,7 +742,7 @@ export function rungeKuttaAdaptive(
       [y, next] = [next, y];
       recorder.push(t, y);
 
-      scratch.k1.set(fsalSource.data);
+      scratch.k1.set(scratch[fsalStage].data);
 
       const growth =
         err === 0 ? maxScale : clip(safety * Math.pow(err, errExp), minScale, maxScale);
