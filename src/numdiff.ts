@@ -171,6 +171,201 @@ export function jacobianForward(
 
   return jacobian;
 }
+
+/**
+ * Calculate the numerical gradient of a scalar function `f(x)` using the forward
+ * finite-difference scheme.
+ *
+ * The step size is optimally determined according to the machine precision of the
+ * function values. Typically, the gradient is accurate to about half the number of
+ * reliable digits returned by the function.
+ *
+ * If the function value at `x` is provided, `N` function evaluations are
+ * required to compute the gradient, where `N` is the dimension of `x`.
+ *
+ * **References**
+ *
+ * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
+ *   Optimization and Nonlinear Equations", SIAM, 1996, p. 323.
+ *
+ * @param f Function `f` to be differentiated.
+ * @param x Differentiation point `x`.
+ * @param options Configuration options for the gradient calculation.
+ * @returns Gradient vector.
+ * @throws {RangeError} If `sclx` has fewer components than `x`.
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { gradientForward } from 'numerics-js/numdiff';
+ *
+ * // Evaluate the numerical gradient of `f(x, y) = x**2 * y**3` at `(2, -2)`.
+ * const f = (x: Vector) => x.get(0) ** 2 * x.get(1) ** 3;
+ * const gradient = gradientForward(f, Vector.from([2.0, -2.0]));
+ * console.log(gradient.toString());
+ * ```
+ *
+ * Output:
+ * ```text
+ * Vector(-32.00000023841858, 47.99999928474426)
+ * ```
+ */
+export function gradientForward(
+  f: (x: Vector) => number,
+  x: Vector,
+  options: {
+    /** Function value at `x`, if available. */
+    fx?: number;
+    /**
+     * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
+     * default, the factors are set internally based on the magnitudes of `x`.
+     */
+    sclx?: Vector;
+    /**
+     * Machine precision of the function values. If undefined, machine precision of 64-bit
+     * floating-point type is assumed. If the number of reliable base-10 digits in the
+     * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
+     */
+    epsf?: number;
+  } = {}
+): Vector {
+  const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
+  if (sclx.size < x.size) {
+    throw new RangeError(`gradientForward: sclx must have ${x.size} components, got ${sclx.size}`);
+  }
+  const fx = options.fx ?? f(x);
+
+  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
+  const h0 = Math.sqrt(epsf);
+
+  const gradient = new Vector(x.size);
+  const xh = x.copy();
+
+  for (let i = 0; i < x.size; i++) {
+    let h = h0 * Math.max(Math.abs(x.get(i)), 1.0 / sclx.get(i));
+    const xTemp = xh.get(i);
+
+    xh.set(i, xTemp + h);
+
+    // Recompute step size to minimize floating-point error
+    h = xh.get(i) - xTemp;
+
+    gradient.set(i, (f(xh) - fx) / h);
+
+    // Restore the modified component
+    xh.set(i, xTemp);
+  }
+
+  return gradient;
+}
+
+/**
+ * Calculate the numerical Hessian of a scalar function `f(x)` using the forward
+ * finite-difference scheme.
+ *
+ * The step size is optimally determined according to the machine precision of the
+ * function values. Typically, the Hessian is accurate to about a third of the number of
+ * reliable digits returned by the function. The returned matrix is exactly symmetric.
+ *
+ * If the function value at `x` is provided, `N*(N+3)/2` function evaluations are
+ * required to compute the Hessian, where `N` is the dimension of `x`.
+ *
+ * **References**
+ *
+ * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
+ *   Optimization and Nonlinear Equations", SIAM, 1996, p. 321.
+ *
+ * @param f Function `f` to be differentiated.
+ * @param x Differentiation point `x`.
+ * @param options Configuration options for the Hessian calculation.
+ * @returns Hessian matrix.
+ * @throws {RangeError} If `sclx` has fewer components than `x`.
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { hessianForward } from 'numerics-js/numdiff';
+ *
+ * // Evaluate the numerical Hessian of `f(x, y) = x**2 * y**3` at `(2, -2)`.
+ * const f = (x: Vector) => x.get(0) ** 2 * x.get(1) ** 3;
+ * const hessian = hessianForward(f, Vector.from([2.0, -2.0]));
+ * console.log(hessian.toString());
+ * ```
+ *
+ * Output:
+ * ```text
+ * Matrix[[-16.00001241634706, 47.99984347361866], [47.99984347361866, -47.999722363649575]]
+ * ```
+ */
+export function hessianForward(
+  f: (x: Vector) => number,
+  x: Vector,
+  options: {
+    /** Function value at `x`, if available. */
+    fx?: number;
+    /**
+     * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
+     * default, the factors are set internally based on the magnitudes of `x`.
+     */
+    sclx?: Vector;
+    /**
+     * Machine precision of the function values. If undefined, machine precision of 64-bit
+     * floating-point type is assumed. If the number of reliable base-10 digits in the
+     * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
+     */
+    epsf?: number;
+  } = {}
+): Matrix {
+  const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
+  if (sclx.size < x.size) {
+    throw new RangeError(`hessianForward: sclx must have ${x.size} components, got ${sclx.size}`);
+  }
+  const fx = options.fx ?? f(x);
+
+  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
+  const h0 = Math.cbrt(epsf);
+
+  const n = x.size;
+  const H = new Matrix(n, n);
+  const fh = new Float64Array(n);
+  const h = new Float64Array(n);
+  const xh = x.copy();
+
+  // Function values at the single-perturbed points x + h_i*e_i
+  for (let i = 0; i < n; i++) {
+    const xTemp = xh.get(i);
+    xh.set(i, xTemp + h0 * Math.max(Math.abs(xTemp), 1.0 / sclx.get(i)));
+
+    // Recompute step size to minimize floating-point error
+    h[i] = xh.get(i) - xTemp;
+
+    fh[i] = f(xh);
+    xh.set(i, xTemp);
+  }
+
+  for (let i = 0; i < n; i++) {
+    const xTemp1 = xh.get(i);
+
+    // Diagonal: uses x + 2*h_i*e_i
+    xh.set(i, xTemp1 + 2 * h[i]);
+    H.set(i, i, (fx - fh[i] + (f(xh) - fh[i])) / (h[i] * h[i]));
+
+    // Off-diagonal: x_i stays perturbed by h_i while x_j is perturbed by h_j
+    xh.set(i, xTemp1 + h[i]);
+    for (let j = i + 1; j < n; j++) {
+      const xTemp2 = xh.get(j);
+      xh.set(j, xTemp2 + h[j]);
+      const Hij = (fx - fh[i] + (f(xh) - fh[j])) / (h[i] * h[j]);
+      H.set(i, j, Hij);
+      H.set(j, i, Hij);
+      xh.set(j, xTemp2);
+    }
+    xh.set(i, xTemp1);
+  }
+
+  return H;
+}
+
 /**
  * Calculate the numerical derivative of a scalar function `f(x)` using the centered
  * finite-difference scheme.
