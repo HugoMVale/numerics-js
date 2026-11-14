@@ -64,6 +64,7 @@ describe('public API', () => {
     expect(typeof ode.wrapAllocatingDerivative).toBe('function');
     expect(typeof optimize.brent).toBe('function');
     expect(typeof optimize.nelderMead).toBe('function');
+    expect(typeof optimize.quasiNewton).toBe('function');
     expect(typeof optimize.levenbergMarquardt).toBe('function');
     expect(typeof optimize.curveFit).toBe('function');
   });

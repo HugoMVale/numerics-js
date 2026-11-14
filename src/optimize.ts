@@ -7,6 +7,10 @@
  *   search interval.
  * - Use {@link nelderMead} to minimize an unconstrained multivariate
  *   function when derivatives are unavailable or inconvenient to provide.
+ * - Use {@link quasiNewton} to minimize an unconstrained multivariate
+ *   function using gradient information (supplied or approximated by finite
+ *   differences); it is typically faster and more accurate than
+ *   {@link nelderMead} for smooth functions.
  * - Use {@link levenbergMarquardt} to minimize the sum of squares of a vector
  *   function (nonlinear least squares); derivatives are supplied or
  *   approximated by finite differences.
@@ -17,10 +21,12 @@
  */
 export { brent } from './optimize/brent.js';
 export { nelderMead } from './optimize/nelderMead.js';
+export { quasiNewton } from './optimize/quasiNewton.js';
 export { levenbergMarquardt } from './optimize/levenbergMarquardt.js';
 export { curveFit } from './optimize/curveFit.js';
 export type { BrentResult } from './optimize/brent.js';
 export type { NelderMeadResult, NelderMeadOptions } from './optimize/nelderMead.js';
+export type { QuasiNewtonOptions, QuasiNewtonResult, BfgsMethod } from './optimize/quasiNewton.js';
 export type {
   LevenbergMarquardtResult,
   LevenbergMarquardtOptions
