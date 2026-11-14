@@ -15,8 +15,8 @@
  *
  * @module roots
  */
-export { bisection } from './roots/bisection.js';
-export { brent } from './roots/brent.js';
-export { secant } from './roots/secant.js';
+export { bisection, type BisectionOptions } from './roots/bisection.js';
+export { brent, type BrentOptions } from './roots/brent.js';
+export { secant, type SecantOptions } from './roots/secant.js';
+export { quasiNewton, type QuasiNewtonOptions } from './roots/quasiNewton.js';
 export type { ScalarRootResult, VectorRootResult, GlobalMethod } from './roots/types.js';
-export { quasiNewton, type QuasiNewtonOptions } from './roots/newton.js';

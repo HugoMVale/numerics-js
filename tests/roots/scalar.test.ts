@@ -202,7 +202,7 @@ describe('brent', () => {
   it('should converge by bracket width when function-value tolerance is disabled', () => {
     const result = brent((x) => x * x - 2, 0, 2, { tolf: 0 });
     expect(result.success).toBe(true);
-    expect(result.message).toBe('converged: bracket half-width below tolx');
+    expect(result.message).toBe('converged: bracket width below tolx');
     expect(result.x).toBeCloseTo(Math.SQRT2, 8);
   });
   describe('known endpoint values (fa, fb)', () => {
@@ -261,5 +261,114 @@ describe('brent', () => {
         'brent: root is not bracketed (f(xa) and f(xb) must have opposite signs)'
       );
     });
+  });
+});
+
+describe('argument validation (all scalar solvers)', () => {
+  const solvers = {
+    bisection: (opts: object, a = 0, b = 5) => bisection(f, a, b, opts),
+    brent: (opts: object, a = 0, b = 5) => brent(f, a, b, opts),
+    secant: (opts: object, a = 0, b = 5) => secant(f, a, b, opts)
+  };
+
+  describe.each(Object.entries(solvers))('%s', (name, run) => {
+    it.each([0, -1, 1.5, NaN, Infinity])('rejects maxIter = %s', (maxIter) => {
+      expect(() => run({ maxIter })).toThrowError(RangeError);
+      expect(() => run({ maxIter })).toThrow(`${name}: maxIter must be a finite strictly positive`);
+    });
+
+    it.each([-1e-8, NaN, Infinity])('rejects tolx = %s', (tolx) => {
+      expect(() => run({ tolx })).toThrow(`${name}: tolx must be a finite non-negative number`);
+    });
+
+    it('accepts tolx = 0', () => {
+      expect(run({ tolx: 0, maxIter: 5 }).evaluations).toBeGreaterThan(0);
+    });
+
+    it.each([NaN, Infinity, -Infinity])('rejects a non-finite starting point (%s)', (bad) => {
+      expect(() => run({}, bad, 5)).toThrowError(RangeError);
+      expect(() => run({}, 0, bad)).toThrowError(RangeError);
+    });
+
+    it('rejects equal starting points', () => {
+      expect(() => run({}, 2, 2)).toThrow(/must be different/);
+    });
+  });
+
+  it('rejects an invalid tolf in brent', () => {
+    for (const tolf of [-1, NaN, Infinity]) {
+      expect(() => brent(f, 0, 5, { tolf })).toThrow('brent: tolf must be a finite non-negative');
+    }
+  });
+
+  it('reports a missing bracket as a RangeError', () => {
+    expect(() => bisection(f, 3, 5)).toThrowError(RangeError);
+    expect(() => brent(f, 3, 5)).toThrowError(RangeError);
+  });
+});
+
+describe('non-finite function values (scalar solvers)', () => {
+  const g = (x: number): number => x - 0.3;
+  const nanAt = (bad: (x: number) => boolean) => (x: number) => (bad(x) ? NaN : g(x));
+
+  it('bisection stops at a NaN endpoint without reporting convergence', () => {
+    for (const [a, b, which] of [
+      [0, 1, 'xb'],
+      [-1, 0.5, 'xa']
+    ] as const) {
+      const bad = which === 'xb' ? b : a;
+      const res = bisection(
+        nanAt((x) => x === bad),
+        a,
+        b
+      );
+      expect(res.success).toBe(false);
+      expect(res.message).toBe(`did not converge: f(${which}) is NaN`);
+      expect(res.evaluations).toBe(2);
+    }
+  });
+
+  it('bisection stops at a NaN midpoint', () => {
+    const res = bisection(
+      nanAt((x) => x === 0.5),
+      0,
+      1
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toBe('did not converge: f is NaN at x=0.5');
+    expect(res.x).toBe(0.5);
+  });
+
+  it('brent stops at a NaN endpoint, whether computed or supplied', () => {
+    const computed = brent(
+      nanAt((x) => x === 1),
+      0,
+      1
+    );
+    expect(computed.success).toBe(false);
+    expect(computed.message).toBe('did not converge: f(xb) is NaN');
+
+    const supplied = brent(g, 0, 1, { fa: NaN });
+    expect(supplied.success).toBe(false);
+    expect(supplied.message).toBe('did not converge: f(xa) is NaN');
+  });
+
+  it('brent stops at a NaN trial point', () => {
+    const h = (x: number): number => (x >= 0.25 && x < 1 ? NaN : x ** 3 - 0.2);
+    const res = brent(h, 0, 1, { tolf: 0 });
+    expect(res.success).toBe(false);
+    expect(res.message).toMatch(/^did not converge: f is NaN at x=/);
+    expect(Number.isNaN(res.fx)).toBe(true);
+  });
+
+  it('secant stops at a non-finite starting or trial value', () => {
+    const start = secant((x) => (x === 1 ? NaN : x - 0.3), 0, 1);
+    expect(start.success).toBe(false);
+    expect(start.message).toContain('f(x1) is not finite');
+
+    const trial = secant((x) => (Math.abs(x) > 1 ? Infinity : x ** 3 - 8), 0, 1);
+    expect(trial.success).toBe(false);
+    expect(trial.message).toContain('is not finite');
+    expect(trial.evaluations).toBeLessThan(10);
   });
 });

@@ -1,7 +1,38 @@
 import { copysign } from '../math.js';
 import type { ScalarRootResult } from './types.js';
+import { validateDistinctFinite, validateMaxIter, validateTolerance } from './validation.js';
 
 const METHOD = 'brent';
+
+/** Options for {@link brent}. */
+export interface BrentOptions {
+  /**
+   * Absolute tolerance on `x`. The iteration stops when the width of the bracketing interval
+   * is below this threshold (plus a small relative term, `4*eps*|x|`, that accounts for the
+   * floating-point resolution). Must be finite and non-negative.
+   * @default 1e-8
+   */
+  tolx?: number;
+  /**
+   * Absolute tolerance on the function value. The iteration stops as soon as `|f(x)|` is
+   * at or below this threshold. Use `0` to disable this criterion and rely on `tolx` alone.
+   * Must be finite and non-negative.
+   * @default 1e-8
+   */
+  tolf?: number;
+  /**
+   * Maximum number of iterations. Must be a finite, strictly positive integer.
+   * @default 50
+   */
+  maxIter?: number;
+  /**
+   * Known value of `f(xa)`. If given, `f(xa)` is not evaluated, which saves a function
+   * evaluation when the caller already has it. It must be consistent with `f`.
+   */
+  fa?: number;
+  /** Known value of `f(xb)`; same meaning as `fa`. */
+  fb?: number;
+}
 
 /**
  * Finds a root of a scalar function `f(x)` using Brent's method,
@@ -13,22 +44,20 @@ const METHOD = 'brent';
  * the secant method.
  *
  * Unlike the secant method, Brent's method requires `f(xa)` and `f(xb)` to
- * have opposite signs (i.e. the root must be bracketed by `[xa, xb]`).
+ * have opposite signs (i.e. the root must be bracketed by `[xa, xb]`), unless one of them is
+ * already within `tolf` of zero. If `f` returns `NaN` at an endpoint or at a trial point, the
+ * search stops and the result has `success: false`.
  *
  * @param f Function to find a root of.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
- * @param options Optional settings.
- * @param options.tolx Stop when the bracket half-width is below this (absolute `x` tolerance). Defaults to `1e-8`.
- * @param options.tolf Stop when `|f(x)|` is below this (absolute function-value tolerance). Defaults to `1e-8`.
- * @param options.maxIter Maximum number of iterations. Defaults to `50`.
- * @param options.fa Known value of `f(xa)`. If given, `f(xa)` is not evaluated, which saves a
- * function evaluation when the caller already has it. It must be consistent with `f`.
- * @param options.fb Known value of `f(xb)`; same meaning as `fa`.
+ * @param options Optional settings; see {@link BrentOptions}.
  * @returns Result containing success status, a message, the approximate root, function value, and
  * evaluation count. The count includes only calls to `f` actually made, i.e. it excludes the
  * endpoint values supplied through `options.fa` and `options.fb`.
- * @throws {Error} If f(xa) and f(xb) do not have opposite signs.
+ * @throws {RangeError} If `xa` or `xb` is not finite, if `xa` and `xb` are equal, if `f(xa)` and
+ * `f(xb)` do not have opposite signs (and neither is within `tolf` of zero), or if an option is
+ * out of range.
  *
  * @example
  * ```ts
@@ -82,19 +111,26 @@ export function brent(
   f: (x: number) => number,
   xa: number,
   xb: number,
-  options: {
-    tolx?: number;
-    tolf?: number;
-    maxIter?: number;
-    fa?: number;
-    fb?: number;
-  } = {}
+  options: BrentOptions = {}
 ): ScalarRootResult {
   const { tolx = 1e-8, tolf = 1e-8, maxIter = 50, fa: faKnown, fb: fbKnown } = options;
+
+  validateDistinctFinite(METHOD, 'xa', xa, 'xb', xb);
+  validateTolerance(METHOD, 'tolx', tolx);
+  validateTolerance(METHOD, 'tolf', tolf);
+  validateMaxIter(METHOD, maxIter);
 
   const eps = Number.EPSILON;
 
   let evaluations = 0;
+  const result = (success: boolean, message: string, x: number, fx: number): ScalarRootResult => ({
+    method: METHOD,
+    success,
+    message,
+    evaluations,
+    x,
+    fx
+  });
 
   let fa: number;
   if (faKnown === undefined) {
@@ -104,14 +140,7 @@ export function brent(
     fa = faKnown;
   }
   if (Math.abs(fa) <= tolf) {
-    return {
-      method: METHOD,
-      success: true,
-      message: 'converged: |f(xa)| below tolf',
-      evaluations,
-      x: xa,
-      fx: fa
-    };
+    return result(true, 'converged: |f(xa)| below tolf', xa, fa);
   }
 
   let fb: number;
@@ -122,18 +151,20 @@ export function brent(
     fb = fbKnown;
   }
   if (Math.abs(fb) <= tolf) {
-    return {
-      method: METHOD,
-      success: true,
-      message: 'converged: |f(xb)| below tolf',
-      evaluations,
-      x: xb,
-      fx: fb
-    };
+    return result(true, 'converged: |f(xb)| below tolf', xb, fb);
+  }
+
+  if (Number.isNaN(fa)) {
+    return result(false, 'did not converge: f(xa) is NaN', xa, fa);
+  }
+  if (Number.isNaN(fb)) {
+    return result(false, 'did not converge: f(xb) is NaN', xb, fb);
   }
 
   if (Math.sign(fa) === Math.sign(fb)) {
-    throw new Error(`${METHOD}: root is not bracketed (f(xa) and f(xb) must have opposite signs)`);
+    throw new RangeError(
+      `${METHOD}: root is not bracketed (f(xa) and f(xb) must have opposite signs)`
+    );
   }
 
   let xc = xb;
@@ -162,25 +193,11 @@ export function brent(
     const m = 0.5 * (xc - xb);
 
     if (Math.abs(fb) <= tolf) {
-      return {
-        method: METHOD,
-        success: true,
-        message: 'converged: |f(x)| below tolf',
-        evaluations,
-        x: xb,
-        fx: fb
-      };
+      return result(true, 'converged: |f(x)| below tolf', xb, fb);
     }
 
     if (Math.abs(m) <= tol1) {
-      return {
-        method: METHOD,
-        success: true,
-        message: 'converged: bracket half-width below tolx',
-        evaluations,
-        x: xb,
-        fx: fb
-      };
+      return result(true, 'converged: bracket width below tolx', xb, fb);
     }
 
     if (Math.abs(e) >= tol1 && Math.abs(fa) > Math.abs(fb)) {
@@ -229,14 +246,16 @@ export function brent(
 
     fb = f(xb);
     evaluations++;
+
+    if (Number.isNaN(fb)) {
+      return result(false, `did not converge: f is NaN at x=${xb}`, xb, fb);
+    }
   }
 
-  return {
-    method: METHOD,
-    success: false,
-    message: `did not converge: reached maxIter (${maxIter}) without meeting tolx/tolf`,
-    evaluations,
-    x: xb,
-    fx: fb
-  };
+  return result(
+    false,
+    `did not converge: reached maxIter (${maxIter}) without meeting tolx/tolf`,
+    xb,
+    fb
+  );
 }

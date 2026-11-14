@@ -3,6 +3,8 @@ import { Matrix, type QRDecomposition } from '../linalg/Matrix.js';
 import { jacobianForward, scaleVector } from '../numdiff.js';
 import { lineSearch } from './lineSearch.js';
 import { dogleg } from './dogleg.js';
+import { relativeStepLength } from './common.js';
+import { validateMaxIter, validateTolerance } from './validation.js';
 import type {
   VectorRootResult,
   GlobalMethod,
@@ -21,7 +23,7 @@ export interface QuasiNewtonOptions {
    * `||Δx/max(x, 1/sclx)||∞` is below this threshold. If too large, the
    * algorithm may terminate with `success: true` at an approximate point
    * that is not a root. A value on the order of `eps^(2/3)` is typically
-   * recommended.
+   * recommended. Must be finite and strictly positive.
    * @default 1e-10
    */
   tolx?: number;
@@ -29,22 +31,23 @@ export interface QuasiNewtonOptions {
    * Tolerance for the scaled residual norm. This is the main convergence
    * criterion: the algorithm terminates when `||sclf*f(x)||∞` is below
    * this threshold. A value on the order of `eps^(1/3)` is typically
-   * recommended.
+   * recommended. Must be finite and non-negative.
    * @default 1e-5
    */
   tolf?: number;
   /**
    * Positive scaling factors for the components of `x`. Ideally chosen so
-   * that `sclx*x` is of order 1 near the solution for all components. By
-   * default, scaling is determined from `x0` via {@link scaleVector}. A `Vector`, a plain
-   * `number[]` or a `Float64Array`, with one factor per component of `x`.
+   * that `sclx*x` is of order 1 near the solution for all components. A `Vector`, a plain
+   * `number[]` or a `Float64Array`, with one factor per component of `x`. By default, the
+   * scaling is determined from `x0` via {@link scaleVector}.
    */
   sclx?: VectorLike;
   /**
    * Positive scaling factors for the components of `f`. Ideally chosen so
-   * that `sclf*f` is of order 1 near the root for all components. By
-   * default, scaling is determined from the initial Jacobian. A `Vector`, a plain
-   * `number[]` or a `Float64Array`, with one factor per component of `f`.
+   * that `sclf*f` is of order 1 near the root for all components. A `Vector`, a plain
+   * `number[]` or a `Float64Array`, with one factor per component of `f`. By default, the
+   * scaling is the inverse of the largest absolute entry in each row of the initial Jacobian
+   * (or `1` for a zero row).
    */
   sclf?: VectorLike;
   /**
@@ -55,22 +58,27 @@ export interface QuasiNewtonOptions {
   maxIter?: number;
   /**
    * Factor determining the maximum allowable scaled step length
-   * `||sclx*Δx||₂` for global methods. Prevents steps that would overflow,
-   * leave the domain of interest, or diverge.
+   * `||sclx*Δx||₂` for global methods: the limit is `maxLenFactor` times the larger of
+   * `||sclx*x0||₂` and `||sclx||₂`. Prevents steps that would overflow,
+   * leave the domain of interest, or diverge. Must be strictly positive
+   * (`Infinity` removes the limit).
    * @default 1e3
    */
   maxLenFactor?: number;
   /**
    * Initial trust-region radius for the dogleg global method. The value is
    * capped at the maximum step length; if omitted or non-positive, the
-   * length of the initial scaled gradient is used.
+   * length of the initial Cauchy step (along the scaled gradient) is used.
+   * Ignored by the other global methods.
    */
   trustLen?: number;
   /**
-   * Machine precision of the function values. If `undefined`, machine
-   * precision of the 64-bit floating-point type is assumed. If the number
-   * of reliable base-10 digits in `f`'s results is `n`, then `epsf` is
-   * approximately `10^(-n)`.
+   * Machine precision of the function values, used to choose the step of
+   * the finite-difference Jacobian. If the number of reliable base-10
+   * digits in `f`'s results is `n`, then `epsf` is approximately `10^(-n)`.
+   * Values below the machine precision of the 64-bit floating-point type
+   * are raised to it. Must be finite and non-negative.
+   * @default Number.EPSILON
    */
   epsf?: number;
   /**
@@ -88,8 +96,8 @@ export interface QuasiNewtonOptions {
    */
   broydenUpdate?: boolean;
   /**
-   * Function to compute the Jacobian of `f`. By default, the Jacobian is
-   * approximated using forward finite differences ({@link jacobianForward}).
+   * Function to compute the Jacobian of `f`, which must return an `n`×`n` matrix. By default,
+   * the Jacobian is approximated using forward finite differences ({@link jacobianForward}).
    * In that case, setting `epsf` appropriately is essential.
    */
   jac?: (x: Vector) => Matrix;
@@ -160,22 +168,23 @@ export interface QuasiNewtonOptions {
  * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
  *   Optimization and Nonlinear Equations", SIAM, 1996.
  *
- * @param f Function whose root is to be found.
- * @param x0 Initial guess for the root: a `Vector`, a plain `number[]` or a `Float64Array`.
- * If no user-defined `sclx` is provided, the scaling factors are determined from this value.
- * @param options Configuration options for the solver.
- * @returns A `VectorRootResult` with the root solution and diagnostics.
- *
  * Non-finite values (`NaN` or `±Infinity`) are handled as follows: if `f(x0)`
  * or a Jacobian is not finite, the solver returns a failure result
  * (`success: false`). If `f` is not finite at a trial point, the global
  * strategies reject the step and backtrack, whereas with `globalMethod: null`
  * the solver returns a failure result.
+ *
+ * @param f Function whose root is to be found. It must map `n` unknowns to `n` equations.
+ * @param x0 Initial guess for the root: a `Vector`, a plain `number[]` or a `Float64Array`.
+ * If no user-defined `sclx` is provided, the scaling factors are determined from this value.
+ * @param options Configuration options for the solver; see {@link QuasiNewtonOptions}.
+ * @returns A `VectorRootResult` with the root solution and diagnostics.
  * @throws {TypeError} If `x0`, `options.sclx` or `options.sclf` is not a `VectorLike`.
  * @throws {RangeError} If `x0` has no components, if `sclx` or `sclf` does not have as many
  * components as `x0` (`f` maps `n` unknowns to `n` equations), if `maxIter` is not a finite
- * strictly positive integer, if `f(x0)` has a different dimension than `x0`,
- * or if `J0` or `jac(x0)` is not an `n`×`n` matrix.
+ * strictly positive integer, if `tolx`, `tolf`, `maxLenFactor`, `trustLen` or `epsf` is outside its
+ * documented range, if `f(x0)` has a different dimension than `x0`, if `J0` is not an `n`×`n`
+ * matrix, or if `jac` returns a matrix that is not `n`×`n` (at any iteration).
  * @throws {Error} If `sclx` or `sclf` contains a value that is not strictly
  * positive, or if `globalMethod` is not `'line-search'`, `'dogleg'`, or
  * `null`.
@@ -256,13 +265,19 @@ export function quasiNewton(
     throw new RangeError('quasiNewton: x0 must have at least one component');
   }
 
-  if (
-    options.maxIter !== undefined &&
-    !(Number.isInteger(options.maxIter) && options.maxIter >= 1)
-  ) {
+  // Option ranges. Non-finite or non-positive values would otherwise make the solver loop
+  // forever (e.g. `tolx <= 0` or `NaN` radii in dogleg) or fail with obscure errors.
+  if (options.maxIter !== undefined) validateMaxIter('quasiNewton', options.maxIter);
+  validateTolerance('quasiNewton', 'tolx', options.tolx, true);
+  validateTolerance('quasiNewton', 'tolf', options.tolf);
+  validateTolerance('quasiNewton', 'epsf', options.epsf);
+  if (options.maxLenFactor !== undefined && !(options.maxLenFactor > 0)) {
     throw new RangeError(
-      `quasiNewton: maxIter must be a finite strictly positive integer, got ${options.maxIter}`
+      `quasiNewton: maxLenFactor must be strictly positive, got ${options.maxLenFactor}`
     );
+  }
+  if (options.trustLen !== undefined && Number.isNaN(options.trustLen)) {
+    throw new RangeError('quasiNewton: trustLen must not be NaN');
   }
 
   // Scaling factors are only read, so they are not copied.
@@ -328,12 +343,18 @@ export function quasiNewton(
   });
 
   // Evaluates the Jacobian at `x` (with `fx = f(x)`), either with the user-supplied
-  // `jac` or by forward finite differences, and counts the evaluations.
-  const evaluateJacobian = (x: Vector, fx: Vector): { J: Matrix; finite: boolean } => {
+  // `jac` or by forward finite differences, and counts the evaluations. `at` names the point in
+  // error messages.
+  const evaluateJacobian = (x: Vector, fx: Vector, at: string): { J: Matrix; finite: boolean } => {
     let J: Matrix;
     if (options.jac) {
       J = options.jac(x);
       nJev += 1;
+      if (J.rows !== n || J.cols !== n) {
+        throw new RangeError(
+          `quasiNewton: jac(${at}) must have dimensions ${n}x${n}, got ${J.rows}x${J.cols}`
+        );
+      }
     } else {
       J = jacobianForward(countedF, x, { fx, sclx, epsf: options.epsf });
     }
@@ -372,12 +393,7 @@ export function quasiNewton(
   // provided) or to check it against a finite-difference approximation.
   let Jjac: Matrix | undefined;
   if (options.jac && (!J0 || jacCheck)) {
-    const { J, finite } = evaluateJacobian(xc, fc);
-    if (J.rows !== n || J.cols !== n) {
-      throw new RangeError(
-        `quasiNewton: jac(x0) must have dimensions ${n}x${n}, got ${J.rows}x${J.cols}`
-      );
-    }
+    const { J, finite } = evaluateJacobian(xc, fc, 'x0');
     if (!finite) {
       return nonFiniteJacobianX0(J);
     }
@@ -407,7 +423,7 @@ export function quasiNewton(
   } else if (Jjac) {
     Jc = Jjac;
   } else {
-    const { J, finite } = evaluateJacobian(xc, fc);
+    const { J, finite } = evaluateJacobian(xc, fc, 'x0');
     if (!finite) {
       return nonFiniteJacobianX0(J);
     }
@@ -437,7 +453,7 @@ export function quasiNewton(
   }
 
   // Set maximum step length for global methods.
-  const maxLen = Math.max(0, maxLenFactor) * Math.max(sclx.mult(x0v).norm(), sclx.norm());
+  const maxLen = maxLenFactor * Math.max(sclx.mult(x0v).norm(), sclx.norm());
 
   // Objective function for global methods: 1/2*||sclf*f(x)||².
   const fN = (x: Vector): [number, Vector] => {
@@ -458,7 +474,7 @@ export function quasiNewton(
   let success = false;
   let xp: Vector;
   let fp: Vector;
-  let broke = false;
+  let terminated = false;
 
   for (nIter = 1; nIter <= maxIter; nIter++) {
     // QR decomposition of the scaled Jacobian.
@@ -545,7 +561,7 @@ export function quasiNewton(
 
     // If the global-method step failed, restart once with a fresh Jacobian.
     if (broydenUpdate && !step.success && !restart) {
-      const { J, finite } = evaluateJacobian(xc, fc);
+      const { J, finite } = evaluateJacobian(xc, fc, 'x');
       Jc = J;
       if (!finite) {
         return failure(
@@ -583,12 +599,7 @@ export function quasiNewton(
       message = '||sclf*f(x)||∞ ≤ tolf';
       success = true;
       stop = true;
-    } else if (
-      xp
-        .sub(xc)
-        .div(xp.abs().map((val, idx) => Math.max(val, 1 / sclx.get(idx))))
-        .normInf() <= tolx
-    ) {
+    } else if (relativeStepLength(xp.sub(xc), xp, sclx) <= tolx) {
       message =
         '||Δx/max(x, 1/sclx)||∞ ≤ tolx: `x` may be an approximate root, but it is also ' +
         'possible that the algorithm is making slow progress and is not near a root, or ' +
@@ -607,7 +618,7 @@ export function quasiNewton(
     if (stop) {
       xc = xp;
       fc = fp;
-      broke = true;
+      terminated = true;
       break;
     }
 
@@ -615,7 +626,7 @@ export function quasiNewton(
     if (broydenUpdate) {
       ({ Q, R } = updateBroyden(xc, xp, fc, fp, Q, R, sclx, sclf));
     } else {
-      const { J, finite } = evaluateJacobian(xp, fp);
+      const { J, finite } = evaluateJacobian(xp, fp, 'x');
       Jc = J;
       if (!finite) {
         return failure(
@@ -634,7 +645,7 @@ export function quasiNewton(
     restart = false;
   }
 
-  if (!broke) {
+  if (!terminated) {
     message = `Maximum number of iterations (${maxIter}) reached.`;
   }
 

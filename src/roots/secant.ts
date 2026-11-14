@@ -1,6 +1,22 @@
 import type { ScalarRootResult } from './types.js';
+import { validateDistinctFinite, validateMaxIter, validateTolerance } from './validation.js';
 
 const METHOD = 'secant';
+
+/** Options for {@link secant}. */
+export interface SecantOptions {
+  /**
+   * Absolute tolerance on `x`. The iteration stops when the distance between two successive
+   * iterates (the step size) is below this threshold. Must be finite and non-negative.
+   * @default 1e-8
+   */
+  tolx?: number;
+  /**
+   * Maximum number of iterations. Must be a finite, strictly positive integer.
+   * @default 50
+   */
+  maxIter?: number;
+}
 
 /**
  * Finds a root of a scalar function `f(x)` using the secant method,
@@ -9,16 +25,17 @@ const METHOD = 'secant';
  * Unlike bisection, the secant method does not require a bracketing interval
  * (`f(x0)` and `f(x1)` need not have opposite signs), and typically converges
  * faster (superlinear, order `~1.618`) when it converges. It is not guaranteed
- * to converge for all inputs.
+ * to converge for all inputs. The search stops with `success: false` if two
+ * successive function values are equal (the secant is horizontal) or if `f`
+ * returns a non-finite value.
  *
  * @param f Function to find a root of.
  * @param x0 First initial guess.
- * @param x1 Second initial guess (should differ from `x0`).
- * @param options Optional settings.
- * @param options.tolx Stop when `|x1 - x0|` (the step size) is below this. Defaults to `1e-8`.
- * @param options.maxIter Maximum number of iterations. Defaults to `50`.
+ * @param x1 Second initial guess (must differ from `x0`).
+ * @param options Optional settings; see {@link SecantOptions}.
  * @returns Result containing success status, a message, the approximate root, function value, and evaluation count.
- * @throws {Error} If x0 and x1 are equal.
+ * @throws {RangeError} If `x0` or `x1` is not finite, if `x0` and `x1` are equal, or if an
+ * option is out of range.
  *
  * @example
  * ```ts
@@ -72,56 +89,52 @@ export function secant(
   f: (x: number) => number,
   x0: number,
   x1: number,
-  options: {
-    tolx?: number;
-    maxIter?: number;
-  } = {}
+  options: SecantOptions = {}
 ): ScalarRootResult {
   const { tolx = 1e-8, maxIter = 50 } = options;
 
-  if (x0 === x1) {
-    throw new Error(`${METHOD}: x0 and x1 must be different`);
-  }
+  validateDistinctFinite(METHOD, 'x0', x0, 'x1', x1);
+  validateTolerance(METHOD, 'tolx', tolx);
+  validateMaxIter(METHOD, maxIter);
 
   let evaluations = 0;
+  const result = (success: boolean, message: string, x: number, fx: number): ScalarRootResult => ({
+    method: METHOD,
+    success,
+    message,
+    evaluations,
+    x,
+    fx
+  });
+
   let f0 = f(x0);
   evaluations++;
   let f1 = f(x1);
   evaluations++;
 
   if (f0 === 0) {
-    return {
-      method: METHOD,
-      success: true,
-      message: 'converged: exact root at x0',
-      evaluations,
-      x: x0,
-      fx: f0
-    };
+    return result(true, 'converged: exact root at x0', x0, f0);
   }
   if (f1 === 0) {
-    return {
-      method: METHOD,
-      success: true,
-      message: 'converged: exact root at x1',
-      evaluations,
-      x: x1,
-      fx: f1
-    };
+    return result(true, 'converged: exact root at x1', x1, f1);
+  }
+  if (!Number.isFinite(f0)) {
+    return result(false, `did not converge: f(x0) is not finite (${f0})`, x0, f0);
+  }
+  if (!Number.isFinite(f1)) {
+    return result(false, `did not converge: f(x1) is not finite (${f1})`, x1, f1);
   }
 
   for (let k = 0; k < maxIter; k++) {
     const denom = f1 - f0;
 
     if (denom === 0) {
-      return {
-        method: METHOD,
-        success: false,
-        message: `did not converge: zero denominator encountered (f(x0)=${f0}, f(x1)=${f1})`,
-        evaluations,
-        x: x1,
-        fx: f1
-      };
+      return result(
+        false,
+        `did not converge: zero denominator encountered (f(x0)=${f0}, f(x1)=${f1})`,
+        x1,
+        f1
+      );
     }
 
     const x2 = x1 - (f1 * (x1 - x0)) / denom;
@@ -129,14 +142,7 @@ export function secant(
     if (Math.abs(x2 - x1) < tolx) {
       const fx2 = f(x2);
       evaluations++;
-      return {
-        method: METHOD,
-        success: true,
-        message: 'converged: step size below tolx',
-        evaluations,
-        x: x2,
-        fx: fx2
-      };
+      return result(true, 'converged: step size below tolx', x2, fx2);
     }
 
     x0 = x1;
@@ -146,23 +152,17 @@ export function secant(
     evaluations++;
 
     if (f1 === 0) {
-      return {
-        method: METHOD,
-        success: true,
-        message: 'converged: exact root found',
-        evaluations,
-        x: x1,
-        fx: f1
-      };
+      return result(true, 'converged: exact root found', x1, f1);
+    }
+    if (!Number.isFinite(f1)) {
+      return result(false, `did not converge: f is not finite (${f1}) at x=${x1}`, x1, f1);
     }
   }
 
-  return {
-    method: METHOD,
-    success: false,
-    message: `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
-    evaluations,
-    x: x1,
-    fx: f1
-  };
+  return result(
+    false,
+    `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
+    x1,
+    f1
+  );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
-import { quasiNewton } from '../../src/roots/newton.js';
+import { quasiNewton } from '../../src/roots/quasiNewton.js';
 import fixtures from './quasiNewton.scipy.json' with { type: 'json' };
 import {
   fExample65,

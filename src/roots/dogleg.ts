@@ -1,5 +1,6 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
+import { ARMIJO_ALPHA, relativeStepLength } from './common.js';
 import type { GlobalStepContext, GlobalStepResult } from './types.js';
 
 /** Codes for the status of the trust region step and update. */
@@ -12,12 +13,12 @@ enum TrustState {
 }
 
 /**
- * Perform a dogleg step.
+ * Performs a trust-region step with the double-dogleg strategy.
  *
- * This function performs a trust-region step along a path that
- * interpolates between the Cauchy (steepest-descent) point and the
- * quasi-Newton step, adapting the trust-region radius from iteration to
- * iteration.
+ * The step follows a path that interpolates between the Cauchy (steepest-descent) point and the
+ * quasi-Newton step, subject to the trust-region radius `ctx.trustLen`, which is adapted from
+ * iteration to iteration. The result has `success: false` if no acceptable step was found, which
+ * includes the case where the step becomes shorter than `tolx` (relative).
  *
  * A trial point at which the objective is not finite (`NaN` or `±Infinity`)
  * is treated as a rejected step and the trust-region radius is reduced. After
@@ -29,8 +30,10 @@ enum TrustState {
  * *   J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
  *     Optimization and Nonlinear Equations", SIAM, 1996.
  *
+ * @internal
+ *
  * @param ctx Global-step context containing the objective, current iterate, search direction, and scaling information. `ctx.trustLen` carries the trust-region radius across calls — see `GlobalStepContext.trustLen`.
- * @returns A `GlobalStepResult` object containing the updated state, evaluation metrics, and the updated trust-region radius (`trustLen`).
+ * @returns A `GlobalStepResult` with the accepted iterate and its objective values, and the updated trust-region radius (`trustLen`).
  */
 export function dogleg(ctx: GlobalStepContext): GlobalStepResult {
   const { fN, p, xc, fc, gc, R, tolx, sclx, maxLen } = ctx;
@@ -67,11 +70,12 @@ export function dogleg(ctx: GlobalStepContext): GlobalStepResult {
       isNewtStep = false;
       if (first) {
         first = false;
-        const alpha = gc.div(sclx).norm() ** 2;
-        const beta = R.mulVec(gc.div(sclx.mult(sclx))).norm() ** 2;
-        sSD = gc.div(sclx).mult(-(alpha / beta));
-        cauchyLen = (alpha * Math.sqrt(alpha)) / beta;
-        eta = 0.2 + (0.8 * alpha ** 2) / (beta * Math.abs(gc.dot(p)));
+        // Cauchy point: minimizer of the quadratic model along the scaled steepest descent.
+        const gNormSq = gc.div(sclx).norm() ** 2;
+        const RgNormSq = R.mulVec(gc.div(sclx.mult(sclx))).norm() ** 2;
+        sSD = gc.div(sclx).mult(-(gNormSq / RgNormSq));
+        cauchyLen = (gNormSq * Math.sqrt(gNormSq)) / RgNormSq;
+        eta = 0.2 + (0.8 * gNormSq ** 2) / (RgNormSq * Math.abs(gc.dot(p)));
         v = p.mult(sclx).mult(eta).sub(sSD);
         if (trustLen <= 0.0) {
           trustLen = Math.min(cauchyLen, maxLen);
@@ -129,7 +133,7 @@ export function dogleg(ctx: GlobalStepContext): GlobalStepResult {
   };
 }
 
-/** Result of a single trust-region update sub-step. */
+/** Result of a single trust-region update sub-step (internal bookkeeping of {@link dogleg}). */
 interface TrustRegionUpdate {
   state: TrustState;
   wasMaxStep: boolean;
@@ -143,7 +147,8 @@ interface TrustRegionUpdate {
 }
 
 /**
- * Perform trust-region update.
+ * Evaluates the trial step `s`, decides whether to accept, reject or expand it, and updates the
+ * trust-region radius accordingly.
  *
  * **References**
  *
@@ -184,7 +189,6 @@ function updateTrustRegion(
   fpPrev: number,
   FpPrev: Vector
 ): TrustRegionUpdate {
-  const alpha = 1e-4;
   let wasMaxStep = false;
 
   const stepLen = sclx.mult(s).norm();
@@ -192,32 +196,22 @@ function updateTrustRegion(
 
   let xp = xc.add(s);
 
-  const res = fN(xp);
-  let fp: number;
-  let Fp: Vector;
-  if (Array.isArray(res)) {
-    fp = res[0];
-    Fp = res[1];
-  } else {
-    fp = res;
-    Fp = new Vector(0);
-  }
+  let [fp, Fp] = fN(xp);
 
   const df = fp - fc;
   const finite = Number.isFinite(fp);
 
-  if (state === TrustState.ExploratorySuccess && (!finite || fp >= fpPrev || df > alpha * slope)) {
+  if (
+    state === TrustState.ExploratorySuccess &&
+    (!finite || fp >= fpPrev || df > ARMIJO_ALPHA * slope)
+  ) {
     state = TrustState.Accepted;
     xp = xpPrev;
     fp = fpPrev;
     Fp = FpPrev;
     trustLen *= 0.5;
-  } else if (!finite || df >= alpha * slope) {
-    const rLen = s
-      .abs()
-      .div(xp.abs().map((val, idx) => Math.max(val, 1 / sclx.get(idx))))
-      .max();
-    if (rLen < tolx) {
+  } else if (!finite || df >= ARMIJO_ALPHA * slope) {
+    if (relativeStepLength(s, xp, sclx) < tolx) {
       state = TrustState.Convergence;
       xp = xc;
     } else {

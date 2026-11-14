@@ -1,17 +1,20 @@
 import { Vector } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
+import { ARMIJO_ALPHA, relativeStepLength } from './common.js';
 import type { GlobalStepContext, GlobalStepResult } from './types.js';
 
 const SQRT_EPS = Math.sqrt(Number.EPSILON);
-const alpha = 1e-4;
 
 /**
- * Perform a line search.
+ * Performs a backtracking line search along the quasi-Newton direction.
  *
- * This function performs a line search along the quasi-Newton direction to find a step
- * size that satisfies the Armijo condition. If `p` is not a descent direction
- * (`gc·p >= 0`), no evaluations are made and the search fails immediately,
- * returning `xc` and `fc`.
+ * The step length `lambda` starts at `1` and is reduced, using quadratic and then cubic
+ * interpolation of the objective (safeguarded to `[0.1, 0.5]` of the previous length), until the
+ * Armijo condition `f(xc + lambda*p) ≤ f(xc) + 1e-4*lambda*gc·p` holds. If `p` is longer than
+ * `maxLen`, it is first rescaled **in place** to length `maxLen`. If `p` is not a descent
+ * direction (`gc·p >= 0`), no evaluations are made and the search fails immediately,
+ * returning `xc` and `fc`. The search also fails if `lambda` falls below the smallest
+ * step that would still move `x` by more than `tolx` (relative).
  *
  * A trial point at which the objective is not finite (`NaN` or `±Infinity`)
  * is treated as a rejected step: the step length is reduced by a factor of
@@ -23,8 +26,11 @@ const alpha = 1e-4;
  * *   J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
  *     Optimization and Nonlinear Equations", SIAM, 1996.
  *
+ * @internal
+ *
  * @param ctx Global-step context containing the objective, current iterate, search direction, and scaling information.
- * @returns A `GlobalStepResult` object containing the updated state and evaluation metrics.
+ * @returns A `GlobalStepResult` with the accepted iterate and its objective values (or the unchanged
+ * iterate if the search failed). `trustLen` is echoed back unchanged (`0` if unset).
  */
 export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
   const { fN, p, xc, fc, gc, tolx, sclx, maxLen, trustLen } = ctx;
@@ -43,11 +49,7 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
     return { success: false, wasMaxStep, xp: xc, fp: fc, Fp: Fp, trustLen: trustLen ?? 0 };
   }
 
-  const maxDenominator = p
-    .abs()
-    .div(xc.abs().map((val, idx) => Math.max(val, 1 / sclx.get(idx))))
-    .max();
-  const lambdaMin = tolx / maxDenominator;
+  const lambdaMin = tolx / relativeStepLength(p, xc, sclx);
 
   let first = true;
   let xp = xc;
@@ -62,18 +64,11 @@ export function lineSearch(ctx: GlobalStepContext): GlobalStepResult {
   while (true) {
     xp = xc.add(p.mult(lambda));
 
-    const res = fN(xp);
-
-    if (Array.isArray(res)) {
-      fp = res[0];
-      Fp = res[1];
-    } else {
-      fp = res;
-    }
+    [fp, Fp] = fN(xp);
 
     const finite = Number.isFinite(fp);
 
-    if (finite && fp <= fc + alpha * lambda * slope) {
+    if (finite && fp <= fc + ARMIJO_ALPHA * lambda * slope) {
       success = true;
       if (first && newtLen > 0.99 * maxLen) {
         wasMaxStep = true;

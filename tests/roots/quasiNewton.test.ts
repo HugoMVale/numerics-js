@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { lineSearch } from '../../src/roots/lineSearch.js';
-import { quasiNewton } from '../../src/roots/newton.js';
+import { quasiNewton } from '../../src/roots/quasiNewton.js';
 import { fExample65, fPowellSingular, fRosenbrock, fTrigonometric } from './testFunctions.js';
 import { vectorLikeForms, mutableVectorLikeForms } from '../vectorLikeForms.js';
 
