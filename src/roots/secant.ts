@@ -54,7 +54,7 @@ export interface SecantOptions {
  * {
  *   method: 'secant',
  *   success: true,
- *   message: 'converged: step size below tolx',
+ *   message: 'Step size is below `tolx`.',
  *   evaluations: 10,
  *   x: 0.5369737680962301,
  *   fx: -2.220446049250313e-16
@@ -78,7 +78,7 @@ export interface SecantOptions {
  * {
  *   method: 'secant',
  *   success: true,
- *   message: 'converged: step size below tolx',
+ *   message: 'Step size is below `tolx`.',
  *   evaluations: 9,
  *   x: 0.5369737680249199,
  *   fx: -5.010138970362732e-10
@@ -113,16 +113,16 @@ export function secant(
   evaluations++;
 
   if (f0 === 0) {
-    return result(true, 'converged: exact root at x0', x0, f0);
+    return result(true, 'Exact root at `x0`.', x0, f0);
   }
   if (f1 === 0) {
-    return result(true, 'converged: exact root at x1', x1, f1);
+    return result(true, 'Exact root at `x1`.', x1, f1);
   }
   if (!Number.isFinite(f0)) {
-    return result(false, `did not converge: f(x0) is not finite (${f0})`, x0, f0);
+    return result(false, `f(x0) is not finite (${f0}).`, x0, f0);
   }
   if (!Number.isFinite(f1)) {
-    return result(false, `did not converge: f(x1) is not finite (${f1})`, x1, f1);
+    return result(false, `f(x1) is not finite (${f1}).`, x1, f1);
   }
 
   for (let k = 0; k < maxIter; k++) {
@@ -131,7 +131,7 @@ export function secant(
     if (denom === 0) {
       return result(
         false,
-        `did not converge: zero denominator encountered (f(x0)=${f0}, f(x1)=${f1})`,
+        `Successive function values are equal (${f1}); the secant update is undefined.`,
         x1,
         f1
       );
@@ -142,7 +142,7 @@ export function secant(
     if (Math.abs(x2 - x1) < tolx) {
       const fx2 = f(x2);
       evaluations++;
-      return result(true, 'converged: step size below tolx', x2, fx2);
+      return result(true, 'Step size is below `tolx`.', x2, fx2);
     }
 
     x0 = x1;
@@ -152,17 +152,12 @@ export function secant(
     evaluations++;
 
     if (f1 === 0) {
-      return result(true, 'converged: exact root found', x1, f1);
+      return result(true, 'Exact root found.', x1, f1);
     }
     if (!Number.isFinite(f1)) {
-      return result(false, `did not converge: f is not finite (${f1}) at x=${x1}`, x1, f1);
+      return result(false, `f is not finite (${f1}) at x = ${x1}.`, x1, f1);
     }
   }
 
-  return result(
-    false,
-    `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
-    x1,
-    f1
-  );
+  return result(false, `Maximum number of iterations (${maxIter}) reached.`, x1, f1);
 }

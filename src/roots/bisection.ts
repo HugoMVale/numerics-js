@@ -56,7 +56,7 @@ function stableMidpoint(xa: number, xb: number): number {
  * {
  *   method: 'bisection',
  *   success: true,
- *   message: 'converged: interval half-width below tolx',
+ *   message: 'Bracket half-width is below `tolx`.',
  *   evaluations: 29,
  *   x: 0.5369737669825554,
  *   fx: -7.824495273922594e-9
@@ -80,7 +80,7 @@ function stableMidpoint(xa: number, xb: number): number {
  * {
  *   method: 'bisection',
  *   success: true,
- *   message: 'converged: interval half-width below tolx',
+ *   message: 'Bracket half-width is below `tolx`.',
  *   evaluations: 22,
  *   x: 0.5369729995727539,
  *   fx: -0.0000053995149571495205
@@ -119,16 +119,16 @@ export function bisection(
   evaluations++;
 
   if (fa === 0) {
-    return result(true, 'converged: exact root at xa', xa, fa);
+    return result(true, 'Exact root at `xa`.', xa, fa);
   }
   if (fb === 0) {
-    return result(true, 'converged: exact root at xb', xb, fb);
+    return result(true, 'Exact root at `xb`.', xb, fb);
   }
   if (Number.isNaN(fa)) {
-    return result(false, 'did not converge: f(xa) is NaN', xa, fa);
+    return result(false, 'f(xa) is NaN.', xa, fa);
   }
   if (Number.isNaN(fb)) {
-    return result(false, 'did not converge: f(xb) is NaN', xb, fb);
+    return result(false, 'f(xb) is NaN.', xb, fb);
   }
 
   if (Math.sign(fa) === Math.sign(fb)) {
@@ -146,13 +146,13 @@ export function bisection(
     evaluations++;
 
     if (fmid === 0) {
-      return result(true, 'converged: exact root found', mid, fmid);
+      return result(true, 'Exact root found.', mid, fmid);
     }
     if (Number.isNaN(fmid)) {
-      return result(false, `did not converge: f is NaN at x=${mid}`, mid, fmid);
+      return result(false, `f is NaN at x = ${mid}.`, mid, fmid);
     }
     if ((xb - xa) / 2 < tolx) {
-      return result(true, 'converged: interval half-width below tolx', mid, fmid);
+      return result(true, 'Bracket half-width is below `tolx`.', mid, fmid);
     }
 
     if (Math.sign(fmid) === Math.sign(fa)) {
@@ -163,10 +163,5 @@ export function bisection(
     }
   }
 
-  return result(
-    false,
-    `did not converge: reached maxIter (${maxIter}) without meeting tolx`,
-    mid,
-    fmid
-  );
+  return result(false, `Maximum number of iterations (${maxIter}) reached.`, mid, fmid);
 }

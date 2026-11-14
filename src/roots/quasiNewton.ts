@@ -216,8 +216,8 @@ export interface QuasiNewtonOptions {
  * {
  *   method: 'Quasi-Newton (Global: Dogleg, Broyden update)',
  *   success: true,
- *   message: '||sclf*f(x)||∞ ≤ tolf',
- *   evaluationsFunction: 11,
+ *   message: 'Scaled residual ||sclf*f(x)||∞ is at most `tolf`.',
+ *   evaluations: 11,
  *   evaluationsJacobian: 0,
  *   iterations: 5,
  *   x: Vector {
@@ -334,7 +334,7 @@ export function quasiNewton(
     method,
     success: false,
     message,
-    evaluationsFunction: nFev,
+    evaluations: nFev,
     evaluationsJacobian: nJev,
     iterations,
     x,
@@ -442,8 +442,8 @@ export function quasiNewton(
     return {
       method,
       success: true,
-      message: '||sclf*f(x0)||∞ ≤ 1e-2*tolf',
-      evaluationsFunction: nFev,
+      message: 'Scaled residual ||sclf*f(x0)||∞ of the initial guess is at most 1e-2*`tolf`.',
+      evaluations: nFev,
       evaluationsJacobian: nJev,
       iterations: 0,
       x: xc,
@@ -596,12 +596,12 @@ export function quasiNewton(
         'the Jacobian is inaccurate, or `tolx` is too large.';
       stop = true;
     } else if (sclf.mult(fp).normInf() <= tolf) {
-      message = '||sclf*f(x)||∞ ≤ tolf';
+      message = 'Scaled residual ||sclf*f(x)||∞ is at most `tolf`.';
       success = true;
       stop = true;
     } else if (relativeStepLength(xp.sub(xc), xp, sclx) <= tolx) {
       message =
-        '||Δx/max(x, 1/sclx)||∞ ≤ tolx: `x` may be an approximate root, but it is also ' +
+        'Scaled step size ||Δx/max(x, 1/sclx)||∞ is at most `tolx`. `x` may be an approximate root, but it is also ' +
         'possible that the algorithm is making slow progress and is not near a root, or ' +
         'that `tolx` is too large.';
       success = true;
@@ -658,7 +658,7 @@ export function quasiNewton(
     method,
     success,
     message,
-    evaluationsFunction: nFev,
+    evaluations: nFev,
     evaluationsJacobian: nJev,
     iterations: Math.min(nIter, maxIter),
     x: xc,

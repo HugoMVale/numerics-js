@@ -85,20 +85,20 @@ describe('quasiNewton vs scipy.optimize.root hybr reference values', () => {
       });
 
       expect(result.success, result.message).toBe(true);
-      if (result.message === '||sclf*f(x)||∞ ≤ tolf') {
+      if (result.message === 'Scaled residual ||sclf*f(x)||∞ is at most `tolf`.') {
         // With tolf = 0 this can only be an exactly zero residual.
         expect(result.fx.normInf()).toBe(0);
       } else {
-        expect(result.message).toContain('||Δx/max(x, 1/sclx)||∞ ≤ tolx');
+        expect(result.message).toContain(
+          'Scaled step size ||Δx/max(x, 1/sclx)||∞ is at most `tolx`.'
+        );
       }
       expect(result.x.size).toBe(fixture.scipyX.length);
       for (let i = 0; i < fixture.scipyX.length; i++) {
         expect(Math.abs(result.x.get(i) - fixture.scipyX[i])).toBeLessThanOrEqual(X_TOLERANCE);
       }
       expect(result.fx.normInf()).toBeLessThanOrEqual(F_TOLERANCE);
-      expect(result.evaluationsFunction).toBeLessThanOrEqual(
-        fixture.scipyEvaluations * EVALUATION_FACTOR
-      );
+      expect(result.evaluations).toBeLessThanOrEqual(fixture.scipyEvaluations * EVALUATION_FACTOR);
     });
   }
 });

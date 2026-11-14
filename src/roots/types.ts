@@ -41,7 +41,7 @@ export interface VectorRootResult {
   /** Message describing the reason for termination. */
   message: string;
   /** Number of function evaluations, including those made by finite-difference Jacobians. */
-  evaluationsFunction: number;
+  evaluations: number;
   /** Number of user-supplied Jacobian evaluations. */
   evaluationsJacobian: number;
   /** Number of outer quasi-Newton iterations performed. */

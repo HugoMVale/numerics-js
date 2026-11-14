@@ -76,7 +76,7 @@ export interface BrentOptions {
  * {
  *   method: 'brent',
  *   success: true,
- *   message: 'converged: |f(x)| below tolf',
+ *   message: '|f(x)| is at most `tolf`.',
  *   evaluations: 9,
  *   x: 0.5369737681040232,
  *   fx: 5.475264686083392e-11
@@ -100,7 +100,7 @@ export interface BrentOptions {
  * {
  *   method: 'brent',
  *   success: true,
- *   message: 'converged: |f(x)| below tolf',
+ *   message: '|f(x)| is at most `tolf`.',
  *   evaluations: 10,
  *   x: 0.5369737680962301,
  *   fx: -2.220446049250313e-16
@@ -140,7 +140,7 @@ export function brent(
     fa = faKnown;
   }
   if (Math.abs(fa) <= tolf) {
-    return result(true, 'converged: |f(xa)| below tolf', xa, fa);
+    return result(true, '|f(xa)| is at most `tolf`.', xa, fa);
   }
 
   let fb: number;
@@ -151,14 +151,14 @@ export function brent(
     fb = fbKnown;
   }
   if (Math.abs(fb) <= tolf) {
-    return result(true, 'converged: |f(xb)| below tolf', xb, fb);
+    return result(true, '|f(xb)| is at most `tolf`.', xb, fb);
   }
 
   if (Number.isNaN(fa)) {
-    return result(false, 'did not converge: f(xa) is NaN', xa, fa);
+    return result(false, 'f(xa) is NaN.', xa, fa);
   }
   if (Number.isNaN(fb)) {
-    return result(false, 'did not converge: f(xb) is NaN', xb, fb);
+    return result(false, 'f(xb) is NaN.', xb, fb);
   }
 
   if (Math.sign(fa) === Math.sign(fb)) {
@@ -193,11 +193,11 @@ export function brent(
     const m = 0.5 * (xc - xb);
 
     if (Math.abs(fb) <= tolf) {
-      return result(true, 'converged: |f(x)| below tolf', xb, fb);
+      return result(true, '|f(x)| is at most `tolf`.', xb, fb);
     }
 
     if (Math.abs(m) <= tol1) {
-      return result(true, 'converged: bracket width below tolx', xb, fb);
+      return result(true, 'Bracket width is at most `tolx`.', xb, fb);
     }
 
     if (Math.abs(e) >= tol1 && Math.abs(fa) > Math.abs(fb)) {
@@ -248,14 +248,9 @@ export function brent(
     evaluations++;
 
     if (Number.isNaN(fb)) {
-      return result(false, `did not converge: f is NaN at x=${xb}`, xb, fb);
+      return result(false, `f is NaN at x = ${xb}.`, xb, fb);
     }
   }
 
-  return result(
-    false,
-    `did not converge: reached maxIter (${maxIter}) without meeting tolx/tolf`,
-    xb,
-    fb
-  );
+  return result(false, `Maximum number of iterations (${maxIter}) reached.`, xb, fb);
 }

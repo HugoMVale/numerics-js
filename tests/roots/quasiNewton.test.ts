@@ -382,7 +382,7 @@ describe('quasiNewton', () => {
         // Broyden: one Jacobian at x0 plus one for the restart, and no others.
         expect(result.evaluationsJacobian).toBe(useJac ? 2 : 0);
         expect(jacCalls).toBe(useJac ? 2 : 0);
-        expect(result.evaluationsFunction).toBe(fCalls);
+        expect(result.evaluations).toBe(fCalls);
       }
     );
 
@@ -614,7 +614,7 @@ describe('quasiNewton', () => {
         expect(jacCalls).toBe(expectedJacCalls);
         expect(fCalls).toBe(expectedFCalls);
         expect(result.evaluationsJacobian).toBe(expectedJacCalls);
-        expect(result.evaluationsFunction).toBe(expectedFCalls);
+        expect(result.evaluations).toBe(expectedFCalls);
       }
     );
 
@@ -689,7 +689,7 @@ describe('quasiNewton', () => {
           expect(result.success).toBe(false);
           expect(result.message).toBe('f(x0) contains non-finite values.');
           expect(result.iterations).toBe(0);
-          expect(result.evaluationsFunction).toBe(1);
+          expect(result.evaluations).toBe(1);
           expect(result.evaluationsJacobian).toBe(0);
           expect(result.x.allClose(x0)).toBe(true);
           expect(result.fx.get(0)).toBe(value);
@@ -831,7 +831,9 @@ describe('quasiNewton', () => {
         });
 
         expect(result.success).toBe(true);
-        expect(result.message).toContain('||Δx/max(x, 1/sclx)||∞ ≤ tolx');
+        expect(result.message).toContain(
+          'Scaled step size ||Δx/max(x, 1/sclx)||∞ is at most `tolx`.'
+        );
         expect(result.fx.get(0)).toBeGreaterThan(1e-30);
       }
     );
@@ -913,7 +915,7 @@ describe('quasiNewton', () => {
         expect(res.success).toBe(ref.success);
         expect(res.message).toBe(ref.message);
         expect(res.iterations).toBe(ref.iterations);
-        expect(res.evaluationsFunction).toBe(ref.evaluationsFunction);
+        expect(res.evaluations).toBe(ref.evaluations);
         expect(res.x.toArray()).toEqual(ref.x.toArray());
       }
     });
@@ -1031,7 +1033,7 @@ describe('quasiNewton', () => {
               });
 
               const label = `${globalMethod}, ${broydenUpdate}, ${testFunction.f.name}`;
-              expect(result.evaluationsFunction, label).toBe(f.calls);
+              expect(result.evaluations, label).toBe(f.calls);
               expect(result.evaluationsJacobian, label).toBe(jac.calls);
             }
           }
@@ -1048,7 +1050,7 @@ describe('quasiNewton', () => {
         broydenUpdate: true
       });
 
-      expect(result.evaluationsFunction).toBe(f.calls);
+      expect(result.evaluations).toBe(f.calls);
       expect(result.evaluationsJacobian).toBe(0);
       expect(jac.calls).toBe(0);
     });
@@ -1071,14 +1073,14 @@ describe('quasiNewton with VectorLike inputs', () => {
       const res = quasiNewton(f, make(x0Raw));
       expect(res.success, res.message).toBe(true);
       expect(res.x.toArray()).toEqual(refPlain.x.toArray());
-      expect(res.evaluationsFunction).toBe(refPlain.evaluationsFunction);
+      expect(res.evaluations).toBe(refPlain.evaluations);
     });
 
     it(`accepts sclx and sclf as ${name}`, () => {
       const res = quasiNewton(f, x0Raw, { sclx: make(sclxRaw), sclf: make(sclfRaw) });
       expect(res.success, res.message).toBe(true);
       expect(res.x.toArray()).toEqual(refScaled.x.toArray());
-      expect(res.evaluationsFunction).toBe(refScaled.evaluationsFunction);
+      expect(res.evaluations).toBe(refScaled.evaluations);
     });
   }
 

@@ -53,7 +53,7 @@ describe('bisection', () => {
     const result = bisection(f, 0, 4);
     expect(result.x).toBe(2);
     expect(result.fx).toBe(0);
-    expect(result.message).toBe('converged: exact root found');
+    expect(result.message).toBe('Exact root found.');
     expect(result.evaluations).toBe(3);
   });
 
@@ -70,7 +70,7 @@ describe('bisection', () => {
     const result = bisection(f, 0, 5, { maxIter: 2 });
 
     expect(result.success).toBe(false);
-    expect(result.message).toContain('did not converge: reached maxIter (2)');
+    expect(result.message).toContain('Maximum number of iterations (2) reached.');
     expect(result.x).toBeGreaterThan(0);
     expect(result.x).toBeLessThan(5);
   });
@@ -107,7 +107,7 @@ describe('secant', () => {
     const result = secant((x) => x - 2, 0, 5);
     expect(result.x).toBe(2);
     expect(result.fx).toBe(0);
-    expect(result.message).toBe('converged: exact root found');
+    expect(result.message).toBe('Exact root found.');
     expect(result.evaluations).toBe(3);
   });
 
@@ -119,7 +119,7 @@ describe('secant', () => {
     // f(1) = -3, f(-1) = -3, so f1 - f0 = 0
     const result = secant(f, -1, 1);
     expect(result.success).toBe(false);
-    expect(result.message).toContain('did not converge: zero denominator encountered');
+    expect(result.message).toContain('Successive function values are equal');
   });
 
   it('should return the last estimate with success false if maxIter is reached', () => {
@@ -127,7 +127,7 @@ describe('secant', () => {
     const result = secant(f, 0, 5, { maxIter: 1 });
 
     expect(result.success).toBe(false);
-    expect(result.message).toContain('did not converge: reached maxIter (1)');
+    expect(result.message).toContain('Maximum number of iterations (1) reached.');
     expect(result.x).toBeDefined();
   });
 });
@@ -187,7 +187,7 @@ describe('brent', () => {
     const result = brent(f, 0, 5, { maxIter: 1 });
 
     expect(result.success).toBe(false);
-    expect(result.message).toContain('did not converge: reached maxIter (1)');
+    expect(result.message).toContain('Maximum number of iterations (1) reached.');
     expect(result.x).toBeGreaterThan(0);
     expect(result.x).toBeLessThan(5);
   });
@@ -202,7 +202,7 @@ describe('brent', () => {
   it('should converge by bracket width when function-value tolerance is disabled', () => {
     const result = brent((x) => x * x - 2, 0, 2, { tolf: 0 });
     expect(result.success).toBe(true);
-    expect(result.message).toBe('converged: bracket width below tolx');
+    expect(result.message).toBe('Bracket width is at most `tolx`.');
     expect(result.x).toBeCloseTo(Math.SQRT2, 8);
   });
   describe('known endpoint values (fa, fb)', () => {
@@ -323,7 +323,7 @@ describe('non-finite function values (scalar solvers)', () => {
         b
       );
       expect(res.success).toBe(false);
-      expect(res.message).toBe(`did not converge: f(${which}) is NaN`);
+      expect(res.message).toBe(`f(${which}) is NaN.`);
       expect(res.evaluations).toBe(2);
     }
   });
@@ -335,7 +335,7 @@ describe('non-finite function values (scalar solvers)', () => {
       1
     );
     expect(res.success).toBe(false);
-    expect(res.message).toBe('did not converge: f is NaN at x=0.5');
+    expect(res.message).toBe('f is NaN at x = 0.5.');
     expect(res.x).toBe(0.5);
   });
 
@@ -346,18 +346,18 @@ describe('non-finite function values (scalar solvers)', () => {
       1
     );
     expect(computed.success).toBe(false);
-    expect(computed.message).toBe('did not converge: f(xb) is NaN');
+    expect(computed.message).toBe('f(xb) is NaN.');
 
     const supplied = brent(g, 0, 1, { fa: NaN });
     expect(supplied.success).toBe(false);
-    expect(supplied.message).toBe('did not converge: f(xa) is NaN');
+    expect(supplied.message).toBe('f(xa) is NaN.');
   });
 
   it('brent stops at a NaN trial point', () => {
     const h = (x: number): number => (x >= 0.25 && x < 1 ? NaN : x ** 3 - 0.2);
     const res = brent(h, 0, 1, { tolf: 0 });
     expect(res.success).toBe(false);
-    expect(res.message).toMatch(/^did not converge: f is NaN at x=/);
+    expect(res.message).toMatch(/^f is NaN at x = /);
     expect(Number.isNaN(res.fx)).toBe(true);
   });
 
