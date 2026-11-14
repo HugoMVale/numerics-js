@@ -97,7 +97,7 @@ amplitude for +10 % (deg): 69.33
 - `interpolate`: linear, shape-preserving (PCHIP) and cubic spline interpolation for scalar and vector-valued data.
 - `numdiff`: finite-difference derivatives and Jacobians.
 - `ode`: fixed-step and adaptive Runge-Kutta solvers, an adaptive implicit solver for stiff problems, plus velocity Verlet integration.
-- `optimize`: scalar and multidimensional derivative-free optimization, Levenberg-Marquardt nonlinear least squares, and nonlinear curve fitting with parameter uncertainties.
+- `optimize`: scalar and multidimensional derivative-free optimization, gradient-based quasi-Newton minimization, Levenberg-Marquardt nonlinear least squares, and nonlinear curve fitting with parameter uncertainties.
 - `roots`: scalar bisection, Brent, and secant methods, plus quasi-Newton system solving.
 - `special`: Bessel functions `J_n`, `Y_n`, `I_n` and `K_n` of integer order (with exponentially scaled `I_n` and `K_n`), the positive zeros of `J_n` and `Y_n`, the error function and its complement, and the gamma function and its logarithm.
 - `math`: clipping, signed magnitude, approximate equality, and seeded random numbers.
