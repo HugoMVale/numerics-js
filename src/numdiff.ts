@@ -222,6 +222,11 @@ export function scaleVector(x: Vector): Vector {
  * between calls. Therefore, `f` must neither modify it nor keep a reference to it (copy it
  * if needed). The argument `x` is never modified.
  *
+ * **References**
+ *
+ * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
+ *   Optimization and Nonlinear Equations", SIAM, 1996, p. 314.
+ *
  * @param f Function `f` to be differentiated.
  * @param x Differentiation point `x`.
  * @param options Optional settings; see {@link JacobianForwardOptions}.
@@ -308,7 +313,7 @@ export function jacobianForward(
  * **References**
  *
  * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
- *   Optimization and Nonlinear Equations", SIAM, 1996, p. 323.
+ *   Optimization and Nonlinear Equations", SIAM, 1996, p. 322.
  *
  * @param f Function `f` to be differentiated.
  * @param x Differentiation point `x`.
