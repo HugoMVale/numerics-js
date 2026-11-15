@@ -24,13 +24,14 @@ export interface NelderMeadOptions {
   /**
    * Absolute tolerance for `x`. The algorithm terminates when the maximum
    * scaled distance between the simplex vertices is less than `tolx`.
+   * Must be non-negative and not `NaN`.
    * @default 1e-8
    */
   tolx?: number;
   /**
    * Absolute tolerance for `f`. The algorithm terminates when the maximum
    * difference between the function values at the simplex vertices is less
-   * than `tolf`.
+   * than `tolf`. Must be non-negative and not `NaN`.
    * @default 1e-8
    */
   tolf?: number;
@@ -51,6 +52,7 @@ export interface NelderMeadOptions {
   /**
    * Soft limit for function evaluations. Checked between iterations, so
    * simplex initialization or an iteration already in progress may exceed it.
+   * Must be non-negative and not `NaN` (`Infinity` removes the limit).
    * @default 200*n
    */
   maxFunEvals?: number;
@@ -155,8 +157,9 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * @param options Optional settings; see {@link NelderMeadOptions}.
  * @returns A {@link NelderMeadResult} with the best point found and convergence information.
  * @throws {TypeError} If `x0` or `options.sclx` is not a `VectorLike`.
- * @throws {RangeError} If `x0` has no components, if `options.sclx` does not have as many
- * components as `x0`, or if `maxIter` is not a non-negative integer.
+ * @throws {RangeError} If `x0` has no components or non-finite values, if `options.sclx`
+ * does not have as many components as `x0` or contains non-finite or zero values, if `tolx`,
+ * `tolf` or `maxFunEvals` is negative or `NaN`, or if `maxIter` is not a non-negative integer.
  *
  * @example
  * ```ts
@@ -204,6 +207,14 @@ export function nelderMead(
   if (n === 0) {
     throw new RangeError('nelderMead: x0 must have at least one component');
   }
+  for (let i = 0; i < n; i++) {
+    if (!Number.isFinite(x0v.get(i))) {
+      throw new RangeError(`nelderMead: x0 must be finite, got ${x0v.get(i)} at index ${i}`);
+    }
+  }
+  if (!(tolx >= 0) || !(tolf >= 0)) {
+    throw new RangeError(`nelderMead: tolx and tolf must be non-negative, got ${tolx} and ${tolf}`);
+  }
 
   let xScale: Vector;
   if (sclx === undefined) {
@@ -214,12 +225,22 @@ export function nelderMead(
       throw new RangeError(`nelderMead: sclx must have ${n} components, got ${sclxv.size}`);
     }
     xScale = sclxv.map(Math.abs);
+    for (let i = 0; i < n; i++) {
+      if (!Number.isFinite(xScale.get(i)) || xScale.get(i) === 0) {
+        throw new RangeError(
+          `nelderMead: sclx must be finite and nonzero, got ${sclxv.get(i)} at index ${i}`
+        );
+      }
+    }
   }
 
   const iterLimit = maxIter ?? 200 * n;
   const fevalLimit = maxFunEvals ?? 200 * n;
   if (!Number.isInteger(iterLimit) || iterLimit < 0) {
     throw new RangeError(`nelderMead: maxIter must be a non-negative integer, got ${iterLimit}`);
+  }
+  if (!(fevalLimit >= 0)) {
+    throw new RangeError(`nelderMead: maxFunEvals must be non-negative, got ${fevalLimit}`);
   }
 
   // Algorithm parameters

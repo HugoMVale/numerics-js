@@ -136,9 +136,9 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  * `VectorLike`.
  * @throws {RangeError} If `xdata` and `ydata` (or `sigma`) have different lengths, if `p0`
  * has no components, if there are fewer data points than parameters, if `f` does not return
- * `m` components, if `jac` does not return an `m x n` matrix, or for the invalid options
- * listed in {@link levenbergMarquardt}.
- * @throws {Error} If `sigma` or `sclx` contains a value that is not strictly positive.
+ * `m` components, if `jac` does not return an `m x n` matrix, if `sigma` contains a value
+ * that is not strictly positive, or for the invalid options listed in
+ * {@link levenbergMarquardt} (which include a non-positive `sclx`).
  *
  * @example
  * ```ts
@@ -240,7 +240,7 @@ export function curveFit(
     }
     for (let i = 0; i < m; i++) {
       if (!(sigma.get(i) > 0))
-        throw new Error('curveFit: sigma must contain strictly positive values');
+        throw new RangeError('curveFit: sigma must contain strictly positive values');
     }
   }
   const unweighted = sigmaOption === undefined;

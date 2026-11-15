@@ -59,6 +59,7 @@ describe('quasiNewton input validation', () => {
         'sclx must contain strictly positive values'
       );
     }
+    expect(() => call(t.x0, { sclx: [1, 0] })).toThrow(RangeError);
     expect(() => call(t.x0, { sclx: 'ab' as unknown as number[] })).toThrow(TypeError);
   });
 
@@ -67,6 +68,8 @@ describe('quasiNewton input validation', () => {
       "unknown globalMethod 'newton'"
     );
     expect(() => call(t.x0, { bfgsMethod: 'dfp' as never })).toThrow("unknown bfgsMethod 'dfp'");
+    expect(() => call(t.x0, { globalMethod: 'newton' as never })).toThrow(RangeError);
+    expect(() => call(t.x0, { bfgsMethod: 'dfp' as never })).toThrow(RangeError);
     // the names are checked even if they would be ignored
     expect(() => call(t.x0, { bfgsMethod: 'dfp' as never, bfgsUpdate: false })).toThrow(
       "unknown bfgsMethod 'dfp'"

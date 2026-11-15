@@ -247,13 +247,12 @@ export interface QuasiNewtonResult {
  * @returns A `QuasiNewtonResult` with the solution and diagnostics.
  * @throws {TypeError} If `x0` or `options.sclx` is not a `VectorLike`.
  * @throws {RangeError} If `x0` has no components or non-finite values, if `sclx` does not have
- * as many components as `x0`, if `maxIter` is not a finite strictly positive integer, if
- * `tolx`, `tolg`, `sclf`, `maxLenFactor`, `trustLen` or `epsf` is outside its documented range,
- * if `H0` is not an `n`×`n` matrix, or if `grad` or `hess` returns an object of the wrong size
- * (at any iteration).
- * @throws {Error} If `sclx` contains a value that is not strictly positive, or if
- * `globalMethod` is not `'line-search'`, `'dogleg'` or `null`, or if `bfgsMethod` is not
- * `'factored'`, `'unfactored'` or `'inverse'`.
+ * as many components as `x0` or contains a value that is not strictly positive, if `maxIter`
+ * is not a finite strictly positive integer, if `tolx`, `tolg`, `sclf`, `maxLenFactor`,
+ * `trustLen` or `epsf` is outside its documented range, if `globalMethod` is not
+ * `'line-search'`, `'dogleg'` or `null`, if `bfgsMethod` is not `'factored'`, `'unfactored'` or
+ * `'inverse'`, if `H0` is not an `n`×`n` matrix, or if `grad` or `hess` returns an object of
+ * the wrong size (at any iteration).
  *
  * @example
  * ```ts
@@ -314,14 +313,14 @@ export function quasiNewton(
       throw new RangeError(`quasiNewton: sclx must have ${n} components, got ${sclxUser.size}`);
     }
     if (!sclxUser.data.every((value) => value > 0)) {
-      throw new Error('quasiNewton: sclx must contain strictly positive values');
+      throw new RangeError('quasiNewton: sclx must contain strictly positive values');
     }
   }
 
   const globalMethod: GlobalMethod =
     options.globalMethod === undefined ? 'dogleg' : options.globalMethod;
   if (globalMethod !== null && globalMethod !== 'line-search' && globalMethod !== 'dogleg') {
-    throw new Error(`quasiNewton: unknown globalMethod '${String(globalMethod)}'`);
+    throw new RangeError(`quasiNewton: unknown globalMethod '${String(globalMethod)}'`);
   }
   const bfgsMethodUser = options.bfgsMethod;
   if (
@@ -330,7 +329,7 @@ export function quasiNewton(
     bfgsMethodUser !== 'unfactored' &&
     bfgsMethodUser !== 'inverse'
   ) {
-    throw new Error(`quasiNewton: unknown bfgsMethod '${String(bfgsMethodUser)}'`);
+    throw new RangeError(`quasiNewton: unknown bfgsMethod '${String(bfgsMethodUser)}'`);
   }
 
   const H0 = options.H0?.copy();

@@ -441,6 +441,9 @@ describe('levenbergMarquardt with VectorLike inputs', () => {
         RangeError
       );
       expect(() => levenbergMarquardt(rosenbrock.f, x0Raw, { sclx: make([1, 0]) })).toThrowError(
+        RangeError
+      );
+      expect(() => levenbergMarquardt(rosenbrock.f, x0Raw, { sclx: make([1, 0]) })).toThrowError(
         /strictly positive/
       );
     }

@@ -371,14 +371,14 @@ describe('curveFit — limits and validation', () => {
       RangeError
     );
     expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sigma: Vector.zero(10) })).toThrow(
-      Error
+      RangeError
     );
     expect(() => curveFit(line, x, y, Vector.from([0, 0]), { sigma: Vector.full(10, -1) })).toThrow(
-      Error
+      RangeError
     );
     expect(() =>
       curveFit(line, x, y, Vector.from([0, 0]), { sigma: Vector.full(10, NaN) })
-    ).toThrow(Error);
+    ).toThrow(RangeError);
   });
 
   it('throws for invalid solver options', () => {

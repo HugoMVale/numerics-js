@@ -88,6 +88,27 @@ describe('brent', () => {
     expect(() => brent(fn, -5, 5, { tolx: 1e-8, maxIter: 5 })).not.toThrow();
   });
 
+  it.each([
+    ['xa', NaN, 3],
+    ['xb', 0, Infinity],
+    ['xa', -Infinity, 3]
+  ])('rejects a non-finite bracket end (%s)', (_name, xa, xb) => {
+    expect(() => brent((x) => x * x, xa, xb)).toThrow(RangeError);
+  });
+
+  it.each([NaN, -1, Infinity])('rejects an invalid tolx (%s)', (tolx) => {
+    expect(() => brent((x) => x * x, -1, 1, { tolx })).toThrow(/tolx/);
+  });
+
+  it.each([NaN, -1, 1.5, Infinity])('rejects an invalid maxIter (%s)', (maxIter) => {
+    expect(() => brent((x) => x * x, -1, 1, { maxIter })).toThrow(/maxIter/);
+  });
+
+  it('accepts tolx = 0 and maxIter = 0', () => {
+    expect(brent((x) => (x - 1) ** 2, -3, 3, { tolx: 0 }).x).toBeCloseTo(1, 6);
+    expect(brent((x) => (x - 1) ** 2, -3, 3, { maxIter: 0 }).success).toBe(false);
+  });
+
   it('handles a flat (constant) function without infinite looping', () => {
     const fn = () => 42;
     expect(() => brent(fn, -1, 1)).not.toThrow();

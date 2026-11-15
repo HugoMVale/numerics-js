@@ -194,8 +194,8 @@ export interface LevenbergMarquardtOptions {
  * components), if `tolf`, `tolx`, `tolg` or `trustLenFactor` are not
  * valid, if `maxFunEvals` or `maxIter` are not strictly positive integers
  * (`maxIter` may also be `Infinity`), if `sclx` does not have the size of
- * `x0`, or if `jac` does not return an `m`×`n` matrix.
- * @throws {Error} If `sclx` contains a value that is not strictly positive.
+ * `x0` or contains a value that is not strictly positive, or if `jac` does not return an
+ * `m`×`n` matrix.
  *
  * @example
  * ```ts
@@ -310,7 +310,7 @@ export function levenbergMarquardt(
     }
     for (let i = 0; i < n; i++) {
       if (!(userSclx.get(i) > 0))
-        throw new Error('levenbergMarquardt: sclx must contain strictly positive values');
+        throw new RangeError('levenbergMarquardt: sclx must contain strictly positive values');
     }
   }
   const sclx = userSclx ?? scaleVector(x);

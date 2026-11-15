@@ -6,11 +6,12 @@ import { copysign } from '../math.js';
 export interface BrentOptions {
   /**
    * Stop when the search interval shrinks to approximately this width.
+   * Must be finite and non-negative.
    * @default 1e-8
    */
   tolx?: number;
   /**
-   * Maximum number of iterations.
+   * Maximum number of iterations, as a non-negative integer.
    * @default 50
    */
   maxIter?: number;
@@ -53,6 +54,8 @@ export interface BrentResult {
  * @param xb Other end of the bracketing interval.
  * @param options Optional settings; see {@link BrentOptions}.
  * @returns A {@link BrentResult} with the minimizer, the function value and convergence information.
+ * @throws {RangeError} If `xa` or `xb` is not finite, if `tolx` is not finite and
+ * non-negative, or if `maxIter` is not a non-negative integer.
  *
  * @example
  * ```ts
@@ -81,6 +84,16 @@ export function brent(
   options: BrentOptions = {}
 ): BrentResult {
   const { tolx = 1e-8, maxIter = 50 } = options;
+
+  if (!Number.isFinite(xa) || !Number.isFinite(xb)) {
+    throw new RangeError(`brent: xa and xb must be finite, got ${xa} and ${xb}`);
+  }
+  if (!(Number.isFinite(tolx) && tolx >= 0)) {
+    throw new RangeError(`brent: tolx must be finite and non-negative, got ${tolx}`);
+  }
+  if (!Number.isInteger(maxIter) || maxIter < 0) {
+    throw new RangeError(`brent: maxIter must be a non-negative integer, got ${maxIter}`);
+  }
 
   // Golden ratio constant: (3 - sqrt(5)) / 2
   const GOLDEN = 0.38196601125010515;

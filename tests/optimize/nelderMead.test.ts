@@ -138,6 +138,27 @@ describe('nelderMead — options and edge cases', () => {
     expect(() => nelderMead(() => 0, Vector.from([1]), { maxIter })).toThrow(RangeError);
   });
 
+  it('rejects non-finite x0 components', () => {
+    expect(() => nelderMead(() => 0, [1, NaN])).toThrow(/x0 must be finite/);
+    expect(() => nelderMead(() => 0, [Infinity, 1])).toThrow(RangeError);
+  });
+
+  it.each([[[0, 1]], [[1, NaN]], [[Infinity, 1]]])('rejects invalid sclx values (%j)', (sclx) => {
+    expect(() => nelderMead(() => 0, [1, 1], { sclx })).toThrow(/sclx must be finite and nonzero/);
+  });
+
+  it('accepts negative sclx entries by using their magnitude', () => {
+    const f = (x: Vector) => (x.get(0) - 1) ** 2 + (x.get(1) - 2) ** 2;
+    const res = nelderMead(f, [0, 0], { sclx: [-1, -1], tolx: 1e-8, tolf: 1e-12 });
+    expect(res.x.get(0)).toBeCloseTo(1, 4);
+    expect(res.x.get(1)).toBeCloseTo(2, 4);
+  });
+
+  it.each(['tolx', 'tolf', 'maxFunEvals'] as const)('rejects NaN or negative %s', (key) => {
+    expect(() => nelderMead(() => 0, [1], { [key]: NaN })).toThrow(RangeError);
+    expect(() => nelderMead(() => 0, [1], { [key]: -1 })).toThrow(RangeError);
+  });
+
   it('respects a custom maxfeval and reports failure without throwing', () => {
     const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([10, 10]), {
       maxFunEvals: 5
