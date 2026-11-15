@@ -43,14 +43,13 @@ export interface NelderMeadOptions {
   /**
    * Scaling factors for the components of `x`: a `Vector`, a plain `number[]` or a
    * `Float64Array`, with one factor per component of `x0`. Ideally, they are chosen so that
-   * `sclx[i]*x[i]` is of order 1 near the solution for all components. Only the magnitudes
-   * are used, i.e. `abs(sclx)`, and all of them must be finite and nonzero. If omitted, the
-   * scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
+   * `sclx[i]*x[i]` is of order 1 near the solution for all components. All factors must be
+   * finite and strictly positive. If omitted, the scaling is inferred from `x0` as
+   * `1 / max(|x0[i]|, 1)`.
    */
   sclx?: VectorLike;
   /**
-   * Maximum number of simplex updates, as a non-negative integer. If zero,
-   * the initial simplex is checked for convergence but not updated.
+   * Maximum number of simplex updates. Must be a strictly positive integer.
    * @default 200*n
    */
   maxIter?: number;
@@ -140,7 +139,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * The initial simplex is aligned with the coordinate axes. For each coordinate, the
  * corresponding simplex vertex offset is:
  *
- * `dx[i] = 0.05 * max(|x0[i]|, 1/|sclx[i]|)`
+ * `dx[i] = 0.05 * max(|x0[i]|, 1/sclx[i])`
  *
  * where `x0` is the initial guess and `sclx[i]` is the scaling factor associated with
  * variable `x[i]`. Therefore, it is important that `x0` and/or `sclx` reflect the expected
@@ -163,8 +162,9 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * @returns A {@link NelderMeadResult} with the best point found and convergence information.
  * @throws {TypeError} If `x0` or `options.sclx` is not a `VectorLike`.
  * @throws {RangeError} If `x0` has no components or non-finite values, if `options.sclx`
- * does not have as many components as `x0` or contains non-finite or zero values, if `tolx`,
- * `tolf` or `maxFunEvals` is negative or `NaN`, or if `maxIter` is not a non-negative integer.
+ * does not have as many components as `x0` or contains values that are not finite and strictly
+ * positive, if `tolx`, `tolf` or `maxFunEvals` is negative or `NaN`, or if `maxIter` is not a
+ * strictly positive integer.
  *
  * @example
  * ```ts
@@ -226,15 +226,15 @@ export function nelderMead(
   if (sclx === undefined) {
     xScale = defaultScale(x0v);
   } else {
-    const sclxv = Vector.asVector(sclx);
-    if (sclxv.size !== n) {
-      throw new RangeError(`nelderMead: sclx must have ${n} components, got ${sclxv.size}`);
+    xScale = Vector.asVector(sclx, true);
+    if (xScale.size !== n) {
+      throw new RangeError(`nelderMead: sclx must have ${n} components, got ${xScale.size}`);
     }
-    xScale = sclxv.map(Math.abs);
     for (let i = 0; i < n; i++) {
-      if (!Number.isFinite(xScale.get(i)) || xScale.get(i) === 0) {
+      const value = xScale.get(i);
+      if (!(value > 0 && Number.isFinite(value))) {
         throw new RangeError(
-          `nelderMead: sclx must be finite and nonzero, got ${sclxv.get(i)} at index ${i}`
+          `nelderMead: sclx must contain finite, strictly positive values, got ${value} at index ${i}`
         );
       }
     }
@@ -242,8 +242,10 @@ export function nelderMead(
 
   const iterLimit = maxIter ?? 200 * n;
   const fevalLimit = maxFunEvals ?? 200 * n;
-  if (!Number.isInteger(iterLimit) || iterLimit < 0) {
-    throw new RangeError(`nelderMead: maxIter must be a non-negative integer, got ${iterLimit}`);
+  if (!Number.isInteger(iterLimit) || iterLimit < 1) {
+    throw new RangeError(
+      `nelderMead: maxIter must be a strictly positive integer, got ${iterLimit}`
+    );
   }
   if (!(fevalLimit >= 0)) {
     throw new RangeError(`nelderMead: maxFunEvals must be non-negative, got ${fevalLimit}`);

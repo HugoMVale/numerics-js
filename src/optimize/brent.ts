@@ -11,7 +11,7 @@ export interface BrentOptions {
    */
   tolx?: number;
   /**
-   * Maximum number of iterations, as a non-negative integer.
+   * Maximum number of iterations. Must be a strictly positive integer.
    * @default 50
    */
   maxIter?: number;
@@ -55,7 +55,7 @@ export interface BrentResult {
  * @param options Optional settings; see {@link BrentOptions}.
  * @returns A {@link BrentResult} with the minimizer, the function value and convergence information.
  * @throws {RangeError} If `xa` or `xb` is not finite, if `tolx` is not finite and
- * non-negative, or if `maxIter` is not a non-negative integer.
+ * non-negative, or if `maxIter` is not a strictly positive integer.
  *
  * @example
  * ```ts
@@ -91,8 +91,8 @@ export function brent(
   if (!(Number.isFinite(tolx) && tolx >= 0)) {
     throw new RangeError(`brent: tolx must be finite and non-negative, got ${tolx}`);
   }
-  if (!Number.isInteger(maxIter) || maxIter < 0) {
-    throw new RangeError(`brent: maxIter must be a non-negative integer, got ${maxIter}`);
+  if (!Number.isInteger(maxIter) || maxIter < 1) {
+    throw new RangeError(`brent: maxIter must be a strictly positive integer, got ${maxIter}`);
   }
 
   // Golden ratio constant: (3 - sqrt(5)) / 2

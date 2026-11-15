@@ -100,13 +100,12 @@ describe('brent', () => {
     expect(() => brent((x) => x * x, -1, 1, { tolx })).toThrow(/tolx/);
   });
 
-  it.each([NaN, -1, 1.5, Infinity])('rejects an invalid maxIter (%s)', (maxIter) => {
+  it.each([NaN, -1, 0, 1.5, Infinity])('rejects an invalid maxIter (%s)', (maxIter) => {
     expect(() => brent((x) => x * x, -1, 1, { maxIter })).toThrow(/maxIter/);
   });
 
-  it('accepts tolx = 0 and maxIter = 0', () => {
+  it('accepts tolx = 0', () => {
     expect(brent((x) => (x - 1) ** 2, -3, 3, { tolx: 0 }).x).toBeCloseTo(1, 6);
-    expect(brent((x) => (x - 1) ** 2, -3, 3, { maxIter: 0 }).success).toBe(false);
   });
 
   it('handles a flat (constant) function without infinite looping', () => {

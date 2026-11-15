@@ -127,23 +127,6 @@ describe('nelderMead — options and edge cases', () => {
     expect(res.iterations).toBe(0);
   });
 
-  it('allows zero simplex updates when maxIter is zero', () => {
-    const iterations: number[] = [];
-    const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([10, 10]), {
-      maxIter: 0,
-      callback: (nIter) => {
-        iterations.push(nIter);
-        return { stop: false, success: false };
-      }
-    });
-
-    expect(res.success).toBe(false);
-    expect(res.message).toMatch(/maximum number of iterations/i);
-    expect(res.evaluations).toBe(3);
-    expect(res.iterations).toBe(0);
-    expect(iterations).toEqual([1]);
-  });
-
   it('allows one simplex update when maxIter is one', () => {
     const iterations: number[] = [];
     const res = nelderMead((x) => x.get(0) ** 2 + x.get(1) ** 2, Vector.from([10, 10]), {
@@ -161,7 +144,7 @@ describe('nelderMead — options and edge cases', () => {
     expect(iterations).toEqual([1, 2]);
   });
 
-  it.each([-1, 1.5])('rejects invalid maxIter values (%s)', (maxIter) => {
+  it.each([NaN, -1, 0, 1.5, Infinity])('rejects invalid maxIter values (%s)', (maxIter) => {
     expect(() => nelderMead(() => 0, Vector.from([1]), { maxIter })).toThrow(RangeError);
   });
 
@@ -170,16 +153,12 @@ describe('nelderMead — options and edge cases', () => {
     expect(() => nelderMead(() => 0, [Infinity, 1])).toThrow(RangeError);
   });
 
-  it.each([[[0, 1]], [[1, NaN]], [[Infinity, 1]]])('rejects invalid sclx values (%j)', (sclx) => {
-    expect(() => nelderMead(() => 0, [1, 1], { sclx })).toThrow(/sclx must be finite and nonzero/);
-  });
-
-  it('accepts negative sclx entries by using their magnitude', () => {
-    const f = (x: Vector) => (x.get(0) - 1) ** 2 + (x.get(1) - 2) ** 2;
-    const res = nelderMead(f, [0, 0], { sclx: [-1, -1], tolx: 1e-8, tolf: 1e-12 });
-    expect(res.x.get(0)).toBeCloseTo(1, 4);
-    expect(res.x.get(1)).toBeCloseTo(2, 4);
-  });
+  it.each([[[0, 1]], [[1, -1]], [[1, NaN]], [[Infinity, 1]]])(
+    'rejects invalid sclx values (%j)',
+    (sclx) => {
+      expect(() => nelderMead(() => 0, [1, 1], { sclx })).toThrow(/finite, strictly positive/);
+    }
+  );
 
   it.each(['tolx', 'tolf', 'maxFunEvals'] as const)('rejects NaN or negative %s', (key) => {
     expect(() => nelderMead(() => 0, [1], { [key]: NaN })).toThrow(RangeError);
@@ -272,10 +251,10 @@ describe('nelderMead with VectorLike inputs', () => {
     });
   }
 
-  it('uses the absolute value of sclx, whatever its form', () => {
+  it('validates the values of sclx, whatever its form', () => {
     for (const [, make] of vectorLikeForms) {
-      const res = nelderMead(f, x0Raw, { sclx: make([-1, -1e-4]) });
-      expect(res.x.toArray()).toEqual(ref.x.toArray());
+      expect(() => nelderMead(f, x0Raw, { sclx: make([-1, 1e-4]) })).toThrow(RangeError);
+      expect(() => nelderMead(f, x0Raw, { sclx: make([1, 0]) })).toThrow(/strictly positive/);
     }
   });
 
