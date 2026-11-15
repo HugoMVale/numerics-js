@@ -1,0 +1,206 @@
+[
+    {
+        "id": "rosenbrock",
+        "method": "BFGS",
+        "derivatives": "analytic",
+        "x0": [
+            -1.2,
+            1.0
+        ],
+        "gtol": 1e-10,
+        "x": [
+            0.999999999999463,
+            0.9999999999988877
+        ],
+        "fx": 4.350946175749837e-25,
+        "evaluations": 41,
+        "evaluationsGradient": 41,
+        "evaluationsHessian": 0,
+        "iterations": 34
+    },
+    {
+        "id": "rosenbrock",
+        "method": "BFGS",
+        "derivatives": "finite-difference",
+        "x0": [
+            -1.2,
+            1.0
+        ],
+        "gtol": 1e-06,
+        "x": [
+            0.9999955222290033,
+            0.9999910369465761
+        ],
+        "fx": 2.005610541910973e-11,
+        "evaluations": 120,
+        "evaluationsGradient": 40,
+        "evaluationsHessian": 0,
+        "iterations": 33
+    },
+    {
+        "id": "rosenbrock",
+        "method": "dogleg",
+        "derivatives": "analytic",
+        "x0": [
+            -1.2,
+            1.0
+        ],
+        "gtol": 1e-10,
+        "x": [
+            1.0,
+            1.0
+        ],
+        "fx": 0.0,
+        "evaluations": 26,
+        "evaluationsGradient": 23,
+        "evaluationsHessian": 22,
+        "iterations": 25
+    },
+    {
+        "id": "wood",
+        "method": "BFGS",
+        "derivatives": "analytic",
+        "x0": [
+            -3.0,
+            -1.0,
+            -3.0,
+            -1.0
+        ],
+        "gtol": 1e-10,
+        "x": [
+            1.0000000000000029,
+            1.0000000000000062,
+            0.9999999999999969,
+            0.9999999999999937
+        ],
+        "fx": 5.468901484961107e-29,
+        "evaluations": 108,
+        "evaluationsGradient": 108,
+        "evaluationsHessian": 0,
+        "iterations": 93
+    },
+    {
+        "id": "wood",
+        "method": "BFGS",
+        "derivatives": "finite-difference",
+        "x0": [
+            -3.0,
+            -1.0,
+            -3.0,
+            -1.0
+        ],
+        "gtol": 1e-06,
+        "x": [
+            0.9999998175297222,
+            0.9999996488654501,
+            1.0000000589260367,
+            1.0000001329236612
+        ],
+        "fx": 5.758630605113089e-13,
+        "evaluations": 520,
+        "evaluationsGradient": 104,
+        "evaluationsHessian": 0,
+        "iterations": 91
+    },
+    {
+        "id": "beale",
+        "method": "BFGS",
+        "derivatives": "analytic",
+        "x0": [
+            1.0,
+            1.0
+        ],
+        "gtol": 1e-10,
+        "x": [
+            3.0000000000004965,
+            0.5000000000001346
+        ],
+        "fx": 4.2476708479691144e-26,
+        "evaluations": 19,
+        "evaluationsGradient": 19,
+        "evaluationsHessian": 0,
+        "iterations": 17
+    },
+    {
+        "id": "beale",
+        "method": "BFGS",
+        "derivatives": "finite-difference",
+        "x0": [
+            1.0,
+            1.0
+        ],
+        "gtol": 1e-06,
+        "x": [
+            2.9999996694909092,
+            0.49999990778690895
+        ],
+        "fx": 1.9911053360289014e-14,
+        "evaluations": 51,
+        "evaluationsGradient": 17,
+        "evaluationsHessian": 0,
+        "iterations": 15
+    },
+    {
+        "id": "quadratic",
+        "method": "BFGS",
+        "derivatives": "analytic",
+        "x0": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "gtol": 1e-10,
+        "x": [
+            0.16666666666668503,
+            -0.3333333333334383,
+            3.3333333333333943
+        ],
+        "fx": -4.75,
+        "evaluations": 9,
+        "evaluationsGradient": 9,
+        "evaluationsHessian": 0,
+        "iterations": 8
+    },
+    {
+        "id": "quadratic",
+        "method": "BFGS",
+        "derivatives": "finite-difference",
+        "x0": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "gtol": 1e-06,
+        "x": [
+            0.16666666208205855,
+            -0.33333334442695145,
+            3.3333333751178276
+        ],
+        "fx": -4.75,
+        "evaluations": 32,
+        "evaluationsGradient": 8,
+        "evaluationsHessian": 0,
+        "iterations": 7
+    },
+    {
+        "id": "quadratic",
+        "method": "dogleg",
+        "derivatives": "analytic",
+        "x0": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "gtol": 1e-10,
+        "x": [
+            0.16666666666666669,
+            -0.33333333333333337,
+            3.3333333333333335
+        ],
+        "fx": -4.75,
+        "evaluations": 4,
+        "evaluationsGradient": 4,
+        "evaluationsHessian": 3,
+        "iterations": 3
+    }
+]
