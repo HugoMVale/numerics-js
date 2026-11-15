@@ -192,6 +192,13 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
  * Step-size underflow and exceeding `maxSteps` do not throw: they return an unsuccessful result
  * (`success === false`) with the reason in `message`.
  *
+ * **References**
+ * - Bank, R. E., Coughran, W. M., Fichtner, W., Grosse, E. W., Rose, D. J., & Smith, R. K.
+ *   (1985). "Transient simulation of silicon devices and circuits." IEEE Transactions on
+ *   Computer-Aided Design of Integrated Circuits and Systems, 4(4), 436–451.
+ * - Hosea, M. E., & Shampine, L. F. (1996). "Analysis and implementation of TR-BDF2."
+ *   Applied Numerical Mathematics, 20(1–2), 21–37.
+ *
  * @param f Derivative function `dy/dt = f(t, y)`. Must write its result into
  * the supplied `dydt` buffer rather than allocating.
  * @param t0 Starting time. Must be finite.
