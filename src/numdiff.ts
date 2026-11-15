@@ -13,14 +13,16 @@ const EPS = Number.EPSILON;
 export interface ForwardDifferenceOptions {
   /**
    * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. Only the magnitudes
-   * are used, i.e. `abs(sclx)`, and only the first `x.size` components are read. By default,
+   * are used, i.e. `abs(sclx)`, and only the first `x.size` components are read, which must
+   * be finite and nonzero. By default,
    * the factors are set internally based on the magnitudes of `x`, see {@link scaleVector}.
    */
   sclx?: Vector;
   /**
    * Machine precision of the function values. If the number of reliable base-10 digits in the
-   * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`. Values
-   * below the machine precision of the 64-bit floating-point type are replaced by it.
+   * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`. Must be
+   * finite; values below the machine precision of the 64-bit floating-point type are replaced
+   * by it.
    * @default Number.EPSILON
    */
   epsf?: number;
@@ -56,14 +58,14 @@ export interface HessianForwardOptions extends ForwardDifferenceOptions {
 /** Options for {@link derivativeCentered}. */
 export interface DerivativeCenteredOptions {
   /**
-   * Machine precision of the function values. Values below the machine precision of the
-   * 64-bit floating-point type are replaced by it.
+   * Machine precision of the function values. Must be finite; values below the machine
+   * precision of the 64-bit floating-point type are replaced by it. Ignored if `h` is given.
    * @default Number.EPSILON
    */
   epsf?: number;
   /**
    * Relative finite-difference step. The actual step is `h * max(1, |x|)`, so `h` is a
-   * relative step for `|x| > 1` and an absolute one otherwise. Must be nonzero; its sign is
+   * relative step for `|x| > 1` and an absolute one otherwise. Must be finite and nonzero; its sign is
    * irrelevant. If omitted, the theoretical optimum `(3*epsf)^(1/3)` is used.
    */
   h?: number;
@@ -72,9 +74,48 @@ export interface DerivativeCenteredOptions {
 /**
  * Returns the effective machine precision of the function values, i.e. `epsf` bounded
  * below by the machine precision of the 64-bit floating-point type.
+ *
+ * @param who Name of the calling routine, used as prefix of error messages.
+ * @param epsf User-supplied machine precision of the function values, if any.
+ * @throws {RangeError} If `epsf` is not finite.
  */
-function effectiveEpsf(epsf: number | undefined): number {
-  return epsf !== undefined ? Math.max(epsf, EPS) : EPS;
+function effectiveEpsf(who: string, epsf: number | undefined): number {
+  if (epsf === undefined) {
+    return EPS;
+  }
+  if (!Number.isFinite(epsf)) {
+    throw new RangeError(`${who}: epsf must be finite, got ${epsf}`);
+  }
+  return Math.max(epsf, EPS);
+}
+
+/**
+ * Returns the magnitudes of the user-supplied scaling factors, or the default scaling
+ * factors of `x` if none are supplied.
+ *
+ * @param who Name of the calling routine, used as prefix of error messages.
+ * @param x Differentiation point.
+ * @param sclx User-supplied scaling factors, if any.
+ * @throws {RangeError} If `sclx` has fewer components than `x`, or if any of its first
+ * `x.size` components is zero or not finite.
+ */
+function resolveScaling(who: string, x: Vector, sclx: Vector | undefined): Vector {
+  if (sclx === undefined) {
+    return scaleVector(x);
+  }
+  if (sclx.size < x.size) {
+    throw new RangeError(`${who}: sclx must have ${x.size} components, got ${sclx.size}`);
+  }
+  const magnitudes = sclx.abs();
+  for (let i = 0; i < x.size; i++) {
+    const s = magnitudes.get(i);
+    if (!(s > 0 && s < Infinity)) {
+      throw new RangeError(
+        `${who}: sclx must be finite and nonzero, got ${sclx.get(i)} at index ${i}`
+      );
+    }
+  }
+  return magnitudes;
 }
 
 /**
@@ -91,8 +132,9 @@ function effectiveEpsf(epsf: number | undefined): number {
  * - A zero component gets the factor `10/min|x|`, where the minimum is taken over the nonzero
  *   components.
  *
- * @param x Vector `x` to be scaled.
+ * @param x Vector `x` to be scaled. All components must be finite.
  * @returns A new Vector containing the computed scaling factors.
+ * @throws {RangeError} If `x` contains a non-finite component.
  *
  * @example
  * ```ts
@@ -121,6 +163,10 @@ export function scaleVector(x: Vector): Vector {
   // Single pass to find both xmax (max absolute value) and xmin (min non-zero absolute value)
   for (let i = 0; i < x.size; i++) {
     const val = Math.abs(x.get(i));
+
+    if (!Number.isFinite(val)) {
+      throw new RangeError(`scaleVector: x must be finite, got ${x.get(i)} at index ${i}`);
+    }
 
     if (val > xmax) {
       xmax = val;
@@ -182,8 +228,8 @@ export function scaleVector(x: Vector): Vector {
  * @returns Jacobian matrix, with as many rows as `f` has components and as many columns as
  * `x` has components.
  * @throws {RangeError} If provided `fx` has a different size from perturbed
- * function values, if `f` returns vectors of inconsistent sizes, or if
- * `sclx` has fewer components than `x`.
+ * function values, if `f` returns vectors of inconsistent sizes, if `sclx` has fewer
+ * components than `x` or contains a zero or non-finite value, or if `epsf` is not finite.
  *
  * @example
  * ```ts
@@ -211,10 +257,9 @@ export function jacobianForward(
   x: Vector,
   options: JacobianForwardOptions = {}
 ): Matrix {
+  const sclx = resolveScaling('jacobianForward', x, options.sclx);
+  const h0 = Math.sqrt(effectiveEpsf('jacobianForward', options.epsf));
   const fx = options.fx ?? f(x);
-  const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
-
-  const h0 = Math.sqrt(effectiveEpsf(options.epsf));
 
   const jacobian = new Matrix(fx.size, x.size);
   const xh = x.copy();
@@ -229,6 +274,11 @@ export function jacobianForward(
     h = xh.get(i) - xi;
 
     const fxh = f(xh);
+    if (fxh.size !== fx.size) {
+      throw new RangeError(
+        `jacobianForward: f returned ${fxh.size} components at a perturbed point, expected ${fx.size}`
+      );
+    }
     for (let k = 0; k < fx.size; k++) {
       jacobian.set(k, i, (fxh.get(k) - fx.get(k)) / h);
     }
@@ -264,7 +314,8 @@ export function jacobianForward(
  * @param x Differentiation point `x`.
  * @param options Optional settings; see {@link GradientForwardOptions}.
  * @returns Gradient vector.
- * @throws {RangeError} If `sclx` has fewer components than `x`.
+ * @throws {RangeError} If `sclx` has fewer components than `x` or contains a zero or
+ * non-finite value, or if `epsf` is not finite.
  *
  * @example
  * ```ts
@@ -287,13 +338,9 @@ export function gradientForward(
   x: Vector,
   options: GradientForwardOptions = {}
 ): Vector {
-  const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
-  if (sclx.size < x.size) {
-    throw new RangeError(`gradientForward: sclx must have ${x.size} components, got ${sclx.size}`);
-  }
+  const sclx = resolveScaling('gradientForward', x, options.sclx);
+  const h0 = Math.sqrt(effectiveEpsf('gradientForward', options.epsf));
   const fx = options.fx ?? f(x);
-
-  const h0 = Math.sqrt(effectiveEpsf(options.epsf));
 
   const gradient = new Vector(x.size);
   const xh = x.copy();
@@ -341,7 +388,8 @@ export function gradientForward(
  * @param x Differentiation point `x`.
  * @param options Optional settings; see {@link HessianForwardOptions}.
  * @returns Hessian matrix.
- * @throws {RangeError} If `sclx` has fewer components than `x`.
+ * @throws {RangeError} If `sclx` has fewer components than `x` or contains a zero or
+ * non-finite value, or if `epsf` is not finite.
  *
  * @example
  * ```ts
@@ -364,13 +412,9 @@ export function hessianForward(
   x: Vector,
   options: HessianForwardOptions = {}
 ): Matrix {
-  const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
-  if (sclx.size < x.size) {
-    throw new RangeError(`hessianForward: sclx must have ${x.size} components, got ${sclx.size}`);
-  }
+  const sclx = resolveScaling('hessianForward', x, options.sclx);
+  const h0 = Math.cbrt(effectiveEpsf('hessianForward', options.epsf));
   const fx = options.fx ?? f(x);
-
-  const h0 = Math.cbrt(effectiveEpsf(options.epsf));
 
   const n = x.size;
   const hessian = new Matrix(n, n);
@@ -429,7 +473,7 @@ export function hessianForward(
  * @param x Differentiation point `x`.
  * @param options Optional settings; see {@link DerivativeCenteredOptions}.
  * @returns Tuple containing the derivative and the mean function value, `(f'(x), f(x))`.
- * @throws {RangeError} If `options.h` is `0`.
+ * @throws {RangeError} If `options.h` is zero or not finite, or if `options.epsf` is not finite.
  *
  * @example
  * ```ts
@@ -456,10 +500,10 @@ export function derivativeCentered(
   let h: number;
 
   if (options.h === undefined) {
-    h = Math.cbrt(3 * effectiveEpsf(options.epsf));
+    h = Math.cbrt(3 * effectiveEpsf('derivativeCentered', options.epsf));
   } else {
-    if (options.h === 0) {
-      throw new RangeError('derivativeCentered: h must be nonzero');
+    if (!Number.isFinite(options.h) || options.h === 0) {
+      throw new RangeError(`derivativeCentered: h must be finite and nonzero, got ${options.h}`);
     }
     h = options.h;
   }
