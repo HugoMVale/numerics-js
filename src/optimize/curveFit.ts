@@ -19,7 +19,7 @@ export interface CurveFitResult {
    * of calls to the model `f`, including the finite-difference evaluations
    * and, if `jacFinal` is `true`, the ones needed for the final Jacobian.
    */
-  evaluationsFunction: number;
+  evaluations: number;
   /**
    * Number of user-supplied Jacobian evaluations, including, if `jacFinal`
    * is `true`, the one at the solution (for the covariance).
@@ -159,7 +159,7 @@ export interface CurveFitOptions extends Omit<LevenbergMarquardtOptions, 'jac' |
  *   method: 'Curve fit by Levenberg-Marquardt (Trust region, Adaptive scaling)',
  *   success: true,
  *   message: 'Both the actual and predicted relative reductions in ||f||² are at most tolf.',
- *   evaluationsFunction: 23,
+ *   evaluations: 23,
  *   evaluationsJacobian: 0,
  *   iterations: 7,
  *   p: Vector {
@@ -304,7 +304,7 @@ export function curveFit(
     method: lm.method.replace('Levenberg-Marquardt', 'Curve fit by Levenberg-Marquardt'),
     success: lm.success,
     message: lm.message,
-    evaluationsFunction: lm.evaluationsFunction,
+    evaluations: lm.evaluations,
     evaluationsJacobian: lm.evaluationsJacobian,
     iterations: lm.iterations,
     p,

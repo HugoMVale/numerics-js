@@ -136,7 +136,7 @@ describe('curveFit — nonlinear models', () => {
     expect(an.cov.allClose(fd.cov, 1e-5, 1e-6 * an.cov.normInf())).toBe(true);
     expect(Math.abs(an.p.get(0) - 4)).toBeLessThan(0.1);
     expect(Math.abs(an.p.get(1) - 1)).toBeLessThan(0.05);
-    expect(an.evaluationsFunction).toBeLessThan(fd.evaluationsFunction);
+    expect(an.evaluations).toBeLessThan(fd.evaluations);
     expect(an.evaluationsJacobian).toBeGreaterThan(0);
     expect(fd.evaluationsJacobian).toBe(0);
   });
@@ -165,7 +165,7 @@ describe('curveFit — nonlinear models', () => {
     // Same with finite differences, where the saving is `n` evaluations of the residuals.
     const fdStale = curveFit(gauss, x, y, p0);
     const fdExact = curveFit(gauss, x, y, p0, { jacFinal: true });
-    expect(fdStale.evaluationsFunction).toBe(fdExact.evaluationsFunction - p0.size);
+    expect(fdStale.evaluations).toBe(fdExact.evaluations - p0.size);
     expect(fdStale.cov.allClose(fdExact.cov, 1e-3, 1e-3 * fdExact.cov.normInf())).toBe(true);
   });
 
@@ -196,7 +196,7 @@ describe('curveFit — nonlinear models', () => {
       return xv.map((xi) => p.get(0) * Math.exp(-p.get(1) * xi));
     };
     const res = curveFit(model, x, y, Vector.from([1, 0.5]));
-    expect(res.evaluationsFunction).toBe(calls);
+    expect(res.evaluations).toBe(calls);
 
     calls = 0;
     const resJac = curveFit(model, x, y, Vector.from([1, 0.5]), {
@@ -211,7 +211,7 @@ describe('curveFit — nonlinear models', () => {
       },
       jacCheck: false
     });
-    expect(resJac.evaluationsFunction).toBe(calls);
+    expect(resJac.evaluations).toBe(calls);
     expect(resJac.evaluationsJacobian).toBeGreaterThan(1);
   });
 });
@@ -491,7 +491,7 @@ describe('curveFit with a VectorLike initial guess and scaling', () => {
       expect(res.success, res.message).toBe(true);
       expect(res.method).toContain('Fixed');
       expect(res.p.toArray()).toEqual(refScaled.p.toArray());
-      expect(res.evaluationsFunction).toBe(refScaled.evaluationsFunction);
+      expect(res.evaluations).toBe(refScaled.evaluations);
     });
   }
 

@@ -80,9 +80,7 @@ describe('levenbergMarquardt vs scipy.optimize.leastsq (MINPACK) reference value
       }
 
       // Comparable cost.
-      expect(result.evaluationsFunction).toBeLessThanOrEqual(
-        fixture.scipyEvaluations * EVALUATION_FACTOR
-      );
+      expect(result.evaluations).toBeLessThanOrEqual(fixture.scipyEvaluations * EVALUATION_FACTOR);
       if (fixture.useJac) {
         expect(result.evaluationsJacobian).toBeLessThanOrEqual(
           Math.ceil(fixture.scipyJacobianEvaluations * EVALUATION_FACTOR)

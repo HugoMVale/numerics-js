@@ -37,7 +37,7 @@ export interface LevenbergMarquardtResult {
    * finite-difference Jacobian (also the final one, if `jacFinal` is
    * `true`) and by `jacCheck`.
    */
-  evaluationsFunction: number;
+  evaluations: number;
   /** Number of user-supplied Jacobian evaluations. */
   evaluationsJacobian: number;
   /** Number of accepted steps. */
@@ -217,7 +217,7 @@ export interface LevenbergMarquardtOptions {
  *   method: 'Levenberg-Marquardt (Trust region, Adaptive scaling)',
  *   success: true,
  *   message: 'Both the actual and predicted relative reductions in ||f||² are at most tolf.',
- *   evaluationsFunction: 23,
+ *   evaluations: 23,
  *   evaluationsJacobian: 0,
  *   iterations: 7,
  *   x: Vector {
@@ -346,7 +346,7 @@ export function levenbergMarquardt(
     method,
     success: false,
     message,
-    evaluationsFunction: nFev,
+    evaluations: nFev,
     evaluationsJacobian: nJev,
     iterations: 0,
     x,
@@ -626,7 +626,7 @@ export function levenbergMarquardt(
     method,
     success,
     message,
-    evaluationsFunction: nFev,
+    evaluations: nFev,
     evaluationsJacobian: nJev,
     iterations,
     x,

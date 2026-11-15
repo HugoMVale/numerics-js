@@ -46,7 +46,7 @@ describe.each(Object.entries(LEAST_SQUARES_PROBLEMS))(
           expect(res.x.allClose(problem.xs, 1e-5, 1e-5), res.x.toString()).toBe(true);
         }
         expect(res.evaluationsJacobian).toBeGreaterThan(0);
-        expect(res.evaluationsFunction).toBeLessThan(fd.evaluationsFunction);
+        expect(res.evaluations).toBeLessThan(fd.evaluations);
       }
     );
   }
@@ -71,7 +71,7 @@ describe('levenbergMarquardt — result consistency', () => {
       calls++;
       return rosenbrock.f(x);
     }, rosenbrock.x0);
-    expect(res.evaluationsFunction).toBe(calls);
+    expect(res.evaluations).toBe(calls);
 
     calls = 0;
     const resJac = levenbergMarquardt(
@@ -83,7 +83,7 @@ describe('levenbergMarquardt — result consistency', () => {
       { jac: rosenbrock.jac }
     );
     // jacCheck (default) adds n = 2 evaluations at x0.
-    expect(resJac.evaluationsFunction).toBe(calls);
+    expect(resJac.evaluations).toBe(calls);
     expect(resJac.evaluationsJacobian).toBeGreaterThan(0);
   });
 
@@ -99,7 +99,7 @@ describe('levenbergMarquardt — result consistency', () => {
     // The last iteration ended with an accepted step, so `jacFinal` costs one Jacobian evaluation.
     expect(stale.Jx!.allClose(beale.jac!(stale.x), 0, 0)).toBe(false);
     expect(exact.evaluationsJacobian).toBe(stale.evaluationsJacobian + 1);
-    expect(exact.evaluationsFunction).toBe(stale.evaluationsFunction);
+    expect(exact.evaluations).toBe(stale.evaluations);
   });
 
   it('with `jacFinal` and a finite-difference Jacobian, counts the extra evaluations of f', () => {
@@ -112,8 +112,8 @@ describe('levenbergMarquardt — result consistency', () => {
 
     calls = 0;
     const exact = levenbergMarquardt(f, beale.x0, { jacFinal: true });
-    expect(exact.evaluationsFunction).toBe(calls);
-    expect(exact.evaluationsFunction).toBe(stale.evaluationsFunction + beale.x0.size);
+    expect(exact.evaluations).toBe(calls);
+    expect(exact.evaluations).toBe(stale.evaluations + beale.x0.size);
     expect(exact.Jx!.allClose(beale.jac!(exact.x), 1e-5, 1e-5)).toBe(true);
   });
 
@@ -131,7 +131,7 @@ describe('levenbergMarquardt — result consistency', () => {
 
     const fd = levenbergMarquardt(rosenbrock.f, x0);
     const fdFinal = levenbergMarquardt(rosenbrock.f, x0, { jacFinal: true });
-    expect(fdFinal.evaluationsFunction).toBe(fd.evaluationsFunction);
+    expect(fdFinal.evaluations).toBe(fd.evaluations);
   });
 
   it('does not modify x0', () => {
@@ -185,7 +185,7 @@ describe('levenbergMarquardt — options', () => {
     const res = levenbergMarquardt(rosenbrock.f, rosenbrock.x0, { maxFunEvals: 6 });
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/Maximum number of function evaluations \(6\)/);
-    expect(res.evaluationsFunction).toBeLessThanOrEqual(6 + 2); // may exceed by one Jacobian
+    expect(res.evaluations).toBeLessThanOrEqual(6 + 2); // may exceed by one Jacobian
   });
 
   it('stops with failure when maxIter is exhausted', () => {
@@ -226,7 +226,7 @@ describe('levenbergMarquardt — options', () => {
       tolx: 1e-2
     });
     expect(loose.success).toBe(true);
-    expect(loose.evaluationsFunction).toBeLessThan(strict.evaluationsFunction);
+    expect(loose.evaluations).toBeLessThan(strict.evaluations);
   });
 
   it('tolg terminates at a point where the residual is orthogonal to the Jacobian', () => {
@@ -311,7 +311,7 @@ describe('levenbergMarquardt — non-finite function values', () => {
     const res = levenbergMarquardt(() => Vector.from([NaN, 1]), Vector.from([1, 1]));
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/f\(x0\)/);
-    expect(res.evaluationsFunction).toBe(1);
+    expect(res.evaluations).toBe(1);
   });
 
   it('rejects trial points where f is not finite and shrinks the trust region', () => {
@@ -382,7 +382,7 @@ describe('levenbergMarquardt with VectorLike inputs', () => {
       const res = levenbergMarquardt(rosenbrock.f, make(x0Raw));
       expect(res.success, res.message).toBe(true);
       expect(res.x.toArray()).toEqual(plain.x.toArray());
-      expect(res.evaluationsFunction).toBe(plain.evaluationsFunction);
+      expect(res.evaluations).toBe(plain.evaluations);
     });
 
     it(`accepts sclx as ${name}`, () => {
@@ -390,7 +390,7 @@ describe('levenbergMarquardt with VectorLike inputs', () => {
       expect(res.success, res.message).toBe(true);
       expect(res.method).toContain('Fixed');
       expect(res.x.toArray()).toEqual(ref.x.toArray());
-      expect(res.evaluationsFunction).toBe(ref.evaluationsFunction);
+      expect(res.evaluations).toBe(ref.evaluations);
     });
   }
 
