@@ -100,6 +100,31 @@ describe('nelderMead — options and edge cases', () => {
     });
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/maximum number of iterations/i);
+    expect(res.iterations).toBe(2);
+  });
+
+  it('reports the number of simplex updates in `iterations`', () => {
+    const f = (x: Vector) => (x.get(0) - 1) ** 2 + (x.get(1) - 2) ** 2;
+    const seen: number[] = [];
+    const res = nelderMead(f, [0, 0], {
+      callback: (nIter) => {
+        seen.push(nIter);
+        return { stop: false, success: false };
+      }
+    });
+    expect(res.success).toBe(true);
+    expect(res.iterations).toBeGreaterThan(0);
+    // The callback is called once for the initial simplex and once per update, and the last
+    // call is the one at which the convergence check succeeded.
+    expect(seen[seen.length - 1]).toBe(res.iterations + 1);
+    // Every iteration needs at least one evaluation, plus those of the initial simplex.
+    expect(res.evaluations).toBeGreaterThanOrEqual(res.iterations + 3);
+  });
+
+  it('reports zero iterations if the initial simplex already converges', () => {
+    const res = nelderMead(() => 1, [0, 0]);
+    expect(res.success).toBe(true);
+    expect(res.iterations).toBe(0);
   });
 
   it('allows zero simplex updates when maxIter is zero', () => {
@@ -115,6 +140,7 @@ describe('nelderMead — options and edge cases', () => {
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/maximum number of iterations/i);
     expect(res.evaluations).toBe(3);
+    expect(res.iterations).toBe(0);
     expect(iterations).toEqual([1]);
   });
 
@@ -131,6 +157,7 @@ describe('nelderMead — options and edge cases', () => {
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/maximum number of iterations/i);
     expect(res.evaluations).toBeGreaterThan(3);
+    expect(res.iterations).toBe(1);
     expect(iterations).toEqual([1, 2]);
   });
 

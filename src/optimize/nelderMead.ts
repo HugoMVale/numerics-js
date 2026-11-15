@@ -11,6 +11,11 @@ export interface NelderMeadResult {
   message: string;
   /** Number of function evaluations performed. */
   evaluations: number;
+  /**
+   * Number of simplex updates performed (the quantity limited by `maxIter`). It is `0` if the
+   * initial simplex already satisfied a stopping criterion.
+   */
+  iterations: number;
   /** Best point found. */
   x: Vector;
   /** Function value at `x`. */
@@ -180,6 +185,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  *   success: true,
  *   message: 'Function value spread is less than `tolf`.',
  *   evaluations: 225,
+ *   iterations: 121,
  *   x: Vector {
  *     data: Float64Array(2) [ 99.99998642148125, 9999999999.999956 ]
  *   },
@@ -411,6 +417,7 @@ export function nelderMead(
     success,
     message,
     evaluations: nFev,
+    iterations: nIter,
     x: xmin,
     fx: fmin
   };
