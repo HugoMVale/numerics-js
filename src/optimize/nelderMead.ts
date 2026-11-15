@@ -149,7 +149,7 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * Results are validated against `scipy.optimize.minimize` with `method="Nelder-Mead"`.
  * See the [comparison table](https://github.com/HugoMVale/numerics-js/blob/main/benchmarks/optimize/nelderMead.scipy.benchmark.md).
  *
- * References:
+ * **References**
  * - Nelder, J. A.; Mead, R. A Simplex Method for Function Minimization.
  *   Comput. J. 1965, 7, 308-313.
  * - Gao, F.; Han, L. Implementing the Nelder-Mead Simplex Algorithm with
