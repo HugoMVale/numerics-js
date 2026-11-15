@@ -9,7 +9,7 @@ import {
   derivativeCentered
 } from '../src/numdiff.js';
 
-describe('scaleX', () => {
+describe('scaleVector', () => {
   it('generates an array of ones for a zero vector', () => {
     const sclx = scaleVector(Vector.from([0.0, 0.0]));
     expect(sclx.allClose(Vector.from([1.0, 1.0]))).toBe(true);

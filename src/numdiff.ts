@@ -9,11 +9,87 @@ import { Matrix } from './linalg/Matrix.js';
 
 const EPS = Number.EPSILON;
 
+/** Options shared by the forward-difference routines. */
+export interface ForwardDifferenceOptions {
+  /**
+   * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. Only the magnitudes
+   * are used, i.e. `abs(sclx)`, and only the first `x.size` components are read. By default,
+   * the factors are set internally based on the magnitudes of `x`, see {@link scaleVector}.
+   */
+  sclx?: Vector;
+  /**
+   * Machine precision of the function values. If the number of reliable base-10 digits in the
+   * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`. Values
+   * below the machine precision of the 64-bit floating-point type are replaced by it.
+   * @default Number.EPSILON
+   */
+  epsf?: number;
+}
+
+/** Options for {@link jacobianForward}. */
+export interface JacobianForwardOptions extends ForwardDifferenceOptions {
+  /**
+   * Function values at `x`, if available. If given, `f(x)` is not evaluated, which saves a
+   * function evaluation. It must be consistent with `f`.
+   */
+  fx?: Vector;
+}
+
+/** Options for {@link gradientForward}. */
+export interface GradientForwardOptions extends ForwardDifferenceOptions {
+  /**
+   * Function value at `x`, if available. If given, `f(x)` is not evaluated, which saves a
+   * function evaluation. It must be consistent with `f`.
+   */
+  fx?: number;
+}
+
+/** Options for {@link hessianForward}. */
+export interface HessianForwardOptions extends ForwardDifferenceOptions {
+  /**
+   * Function value at `x`, if available. If given, `f(x)` is not evaluated, which saves a
+   * function evaluation. It must be consistent with `f`.
+   */
+  fx?: number;
+}
+
+/** Options for {@link derivativeCentered}. */
+export interface DerivativeCenteredOptions {
+  /**
+   * Machine precision of the function values. Values below the machine precision of the
+   * 64-bit floating-point type are replaced by it.
+   * @default Number.EPSILON
+   */
+  epsf?: number;
+  /**
+   * Relative finite-difference step. The actual step is `h * max(1, |x|)`, so `h` is a
+   * relative step for `|x| > 1` and an absolute one otherwise. Must be nonzero; its sign is
+   * irrelevant. If omitted, the theoretical optimum `(3*epsf)^(1/3)` is used.
+   */
+  h?: number;
+}
+
 /**
- * Calculates scaling factors for a given vector.
+ * Returns the effective machine precision of the function values, i.e. `epsf` bounded
+ * below by the machine precision of the 64-bit floating-point type.
+ */
+function effectiveEpsf(epsf: number | undefined): number {
+  return epsf !== undefined ? Math.max(epsf, EPS) : EPS;
+}
+
+/**
+ * Computes scaling factors for a vector.
  *
- * The scaling factors are computed according to the heuristic procedure
- * implemented in ODRPACK95.
+ * The scaling factors are computed according to the heuristic procedure implemented in
+ * ODRPACK95. The goal is to obtain factors `sclx` such that the magnitude of `sclx[i] * x[i]`
+ * is close to `1`:
+ *
+ * - If all components of `x` are zero, all factors are `1`.
+ * - If the largest and smallest nonzero magnitudes of `x` differ by at least one order of
+ *   magnitude, then `sclx[i] = 1/|x[i]|`.
+ * - Otherwise, all nonzero components share the factor `1/max|x|`.
+ * - A zero component gets the factor `10/min|x|`, where the minimum is taken over the nonzero
+ *   components.
  *
  * @param x Vector `x` to be scaled.
  * @returns A new Vector containing the computed scaling factors.
@@ -84,20 +160,27 @@ export function scaleVector(x: Vector): Vector {
 }
 
 /**
- * Calculate the numerical Jacobian of a vector function `f(x)` using the forward 
+ * Computes the Jacobian matrix of a vector function `f(x)` using the forward
  * finite-difference scheme.
-
- * The step size is optimally determined according to the machine precision of the
- * function values. Typically, the Jacobian is accurate to about half the number of
- * reliable digits returned by the function.
+ *
+ * For a function `f: ℝⁿ → ℝᵐ`, the result is the `m × n` matrix with entries
+ * `J[k][i] = ∂f_k/∂x_i`. The step size for the `i`-th component is
+ * `sqrt(epsf) * max(|x_i|, 1/|sclx_i|)`, which is optimal with respect to the machine
+ * precision of the function values. Typically, the Jacobian is accurate to about half the
+ * number of reliable digits returned by the function.
  *
  * If the function value at `x` is provided, `N` function evaluations are
  * required to compute the Jacobian, where `N` is the dimension of `x`.
  *
+ * The vector passed to `f` is either `x` itself or an internal work buffer that is reused
+ * between calls. Therefore, `f` must neither modify it nor keep a reference to it (copy it
+ * if needed). The argument `x` is never modified.
+ *
  * @param f Function `f` to be differentiated.
  * @param x Differentiation point `x`.
- * @param options Configuration options for the Jacobian calculation.
- * @returns Jacobian matrix.
+ * @param options Optional settings; see {@link JacobianForwardOptions}.
+ * @returns Jacobian matrix, with as many rows as `f` has components and as many columns as
+ * `x` has components.
  * @throws {RangeError} If provided `fx` has a different size from perturbed
  * function values, if `f` returns vectors of inconsistent sizes, or if
  * `sclx` has fewer components than `x`.
@@ -126,62 +209,51 @@ export function scaleVector(x: Vector): Vector {
 export function jacobianForward(
   f: (x: Vector) => Vector,
   x: Vector,
-  options: {
-    /** Function values at `x`, if available. */
-    fx?: Vector;
-    /**
-     * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
-     * default, the factors are set internally based on the magnitudes of `x`.
-     */
-    sclx?: Vector;
-    /**
-     * Machine precision of the function values. If undefined, machine precision of 64-bit
-     * floating-point type is assumed. If the number of reliable base-10 digits in the
-     * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
-     */
-    epsf?: number;
-  } = {}
+  options: JacobianForwardOptions = {}
 ): Matrix {
   const fx = options.fx ?? f(x);
   const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
 
-  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
-  const h0 = Math.sqrt(epsf);
+  const h0 = Math.sqrt(effectiveEpsf(options.epsf));
 
   const jacobian = new Matrix(fx.size, x.size);
   const xh = x.copy();
 
   for (let i = 0; i < x.size; i++) {
-    let h = h0 * Math.max(Math.abs(x.get(i)), 1.0 / sclx.get(i));
-    const xTemp = xh.get(i);
+    const xi = xh.get(i);
+    let h = h0 * Math.max(Math.abs(xi), 1.0 / sclx.get(i));
 
-    xh.set(i, xTemp + h);
+    xh.set(i, xi + h);
 
     // Recompute step size to minimize floating-point error
-    h = xh.get(i) - xTemp;
+    h = xh.get(i) - xi;
 
     const fxh = f(xh);
-    const col = fxh.sub(fx).div(h);
-
-    jacobian.setCol(i, col);
+    for (let k = 0; k < fx.size; k++) {
+      jacobian.set(k, i, (fxh.get(k) - fx.get(k)) / h);
+    }
 
     // Restore the modified component
-    xh.set(i, xTemp);
+    xh.set(i, xi);
   }
 
   return jacobian;
 }
 
 /**
- * Calculate the numerical gradient of a scalar function `f(x)` using the forward
+ * Computes the gradient of a scalar function `f(x)` using the forward
  * finite-difference scheme.
  *
- * The step size is optimally determined according to the machine precision of the
- * function values. Typically, the gradient is accurate to about half the number of
- * reliable digits returned by the function.
+ * The step size for the `i`-th component is `sqrt(epsf) * max(|x_i|, 1/|sclx_i|)`, which is
+ * optimal with respect to the machine precision of the function values. Typically, the
+ * gradient is accurate to about half the number of reliable digits returned by the function.
  *
  * If the function value at `x` is provided, `N` function evaluations are
  * required to compute the gradient, where `N` is the dimension of `x`.
+ *
+ * The vector passed to `f` is either `x` itself or an internal work buffer that is reused
+ * between calls. Therefore, `f` must neither modify it nor keep a reference to it (copy it
+ * if needed). The argument `x` is never modified.
  *
  * **References**
  *
@@ -190,7 +262,7 @@ export function jacobianForward(
  *
  * @param f Function `f` to be differentiated.
  * @param x Differentiation point `x`.
- * @param options Configuration options for the gradient calculation.
+ * @param options Optional settings; see {@link GradientForwardOptions}.
  * @returns Gradient vector.
  * @throws {RangeError} If `sclx` has fewer components than `x`.
  *
@@ -213,21 +285,7 @@ export function jacobianForward(
 export function gradientForward(
   f: (x: Vector) => number,
   x: Vector,
-  options: {
-    /** Function value at `x`, if available. */
-    fx?: number;
-    /**
-     * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
-     * default, the factors are set internally based on the magnitudes of `x`.
-     */
-    sclx?: Vector;
-    /**
-     * Machine precision of the function values. If undefined, machine precision of 64-bit
-     * floating-point type is assumed. If the number of reliable base-10 digits in the
-     * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
-     */
-    epsf?: number;
-  } = {}
+  options: GradientForwardOptions = {}
 ): Vector {
   const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
   if (sclx.size < x.size) {
@@ -235,40 +293,44 @@ export function gradientForward(
   }
   const fx = options.fx ?? f(x);
 
-  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
-  const h0 = Math.sqrt(epsf);
+  const h0 = Math.sqrt(effectiveEpsf(options.epsf));
 
   const gradient = new Vector(x.size);
   const xh = x.copy();
 
   for (let i = 0; i < x.size; i++) {
-    let h = h0 * Math.max(Math.abs(x.get(i)), 1.0 / sclx.get(i));
-    const xTemp = xh.get(i);
+    const xi = xh.get(i);
+    let h = h0 * Math.max(Math.abs(xi), 1.0 / sclx.get(i));
 
-    xh.set(i, xTemp + h);
+    xh.set(i, xi + h);
 
     // Recompute step size to minimize floating-point error
-    h = xh.get(i) - xTemp;
+    h = xh.get(i) - xi;
 
     gradient.set(i, (f(xh) - fx) / h);
 
     // Restore the modified component
-    xh.set(i, xTemp);
+    xh.set(i, xi);
   }
 
   return gradient;
 }
 
 /**
- * Calculate the numerical Hessian of a scalar function `f(x)` using the forward
+ * Computes the Hessian of a scalar function `f(x)` using the forward
  * finite-difference scheme.
  *
- * The step size is optimally determined according to the machine precision of the
- * function values. Typically, the Hessian is accurate to about a third of the number of
- * reliable digits returned by the function. The returned matrix is exactly symmetric.
+ * The step size for the `i`-th component is `cbrt(epsf) * max(|x_i|, 1/|sclx_i|)`, which is
+ * optimal with respect to the machine precision of the function values. Typically, the
+ * Hessian is accurate to about a third of the number of reliable digits returned by the
+ * function. The returned matrix is exactly symmetric.
  *
  * If the function value at `x` is provided, `N*(N+3)/2` function evaluations are
  * required to compute the Hessian, where `N` is the dimension of `x`.
+ *
+ * The vector passed to `f` is either `x` itself or an internal work buffer that is reused
+ * between calls. Therefore, `f` must neither modify it nor keep a reference to it (copy it
+ * if needed). The argument `x` is never modified.
  *
  * **References**
  *
@@ -277,7 +339,7 @@ export function gradientForward(
  *
  * @param f Function `f` to be differentiated.
  * @param x Differentiation point `x`.
- * @param options Configuration options for the Hessian calculation.
+ * @param options Optional settings; see {@link HessianForwardOptions}.
  * @returns Hessian matrix.
  * @throws {RangeError} If `sclx` has fewer components than `x`.
  *
@@ -300,21 +362,7 @@ export function gradientForward(
 export function hessianForward(
   f: (x: Vector) => number,
   x: Vector,
-  options: {
-    /** Function value at `x`, if available. */
-    fx?: number;
-    /**
-     * Scaling factors for `x`. Ideally, `x[i] * sclx[i]` is close to `1`. By
-     * default, the factors are set internally based on the magnitudes of `x`.
-     */
-    sclx?: Vector;
-    /**
-     * Machine precision of the function values. If undefined, machine precision of 64-bit
-     * floating-point type is assumed. If the number of reliable base-10 digits in the
-     * results returned by the function is `n`, then `epsf` is approximately `10^(-n)`.
-     */
-    epsf?: number;
-  } = {}
+  options: HessianForwardOptions = {}
 ): Matrix {
   const sclx = options.sclx ? options.sclx.abs() : scaleVector(x);
   if (sclx.size < x.size) {
@@ -322,61 +370,65 @@ export function hessianForward(
   }
   const fx = options.fx ?? f(x);
 
-  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
-  const h0 = Math.cbrt(epsf);
+  const h0 = Math.cbrt(effectiveEpsf(options.epsf));
 
   const n = x.size;
-  const H = new Matrix(n, n);
+  const hessian = new Matrix(n, n);
   const fh = new Float64Array(n);
   const h = new Float64Array(n);
   const xh = x.copy();
 
   // Function values at the single-perturbed points x + h_i*e_i
   for (let i = 0; i < n; i++) {
-    const xTemp = xh.get(i);
-    xh.set(i, xTemp + h0 * Math.max(Math.abs(xTemp), 1.0 / sclx.get(i)));
+    const xi = xh.get(i);
+    xh.set(i, xi + h0 * Math.max(Math.abs(xi), 1.0 / sclx.get(i)));
 
     // Recompute step size to minimize floating-point error
-    h[i] = xh.get(i) - xTemp;
+    h[i] = xh.get(i) - xi;
 
     fh[i] = f(xh);
-    xh.set(i, xTemp);
+    xh.set(i, xi);
   }
 
   for (let i = 0; i < n; i++) {
-    const xTemp1 = xh.get(i);
+    const xi = xh.get(i);
 
     // Diagonal: uses x + 2*h_i*e_i
-    xh.set(i, xTemp1 + 2 * h[i]);
-    H.set(i, i, (fx - fh[i] + (f(xh) - fh[i])) / (h[i] * h[i]));
+    xh.set(i, xi + 2 * h[i]);
+    hessian.set(i, i, (fx - fh[i] + (f(xh) - fh[i])) / (h[i] * h[i]));
 
     // Off-diagonal: x_i stays perturbed by h_i while x_j is perturbed by h_j
-    xh.set(i, xTemp1 + h[i]);
+    xh.set(i, xi + h[i]);
     for (let j = i + 1; j < n; j++) {
-      const xTemp2 = xh.get(j);
-      xh.set(j, xTemp2 + h[j]);
-      const Hij = (fx - fh[i] + (f(xh) - fh[j])) / (h[i] * h[j]);
-      H.set(i, j, Hij);
-      H.set(j, i, Hij);
-      xh.set(j, xTemp2);
+      const xj = xh.get(j);
+      xh.set(j, xj + h[j]);
+      const hij = (fx - fh[i] + (f(xh) - fh[j])) / (h[i] * h[j]);
+      hessian.set(i, j, hij);
+      hessian.set(j, i, hij);
+      xh.set(j, xj);
     }
-    xh.set(i, xTemp1);
+    xh.set(i, xi);
   }
 
-  return H;
+  return hessian;
 }
 
 /**
- * Calculate the numerical derivative of a scalar function `f(x)` using the centered
+ * Computes the derivative of a scalar function `f(x)` using the centered
  * finite-difference scheme.
  *
- * The step size is optimally determined according to the machine precision of
- * the function values.
+ * The derivative is `(f(x + h) - f(x - h)) / (2h)`, where the actual step is
+ * `h * max(1, |x|)` and `h` defaults to `(3*epsf)^(1/3)`, which is optimal with respect to the
+ * machine precision of the function values. The method requires two function evaluations.
+ *
+ * Since `f(x)` itself is not evaluated, the mean of the two perturbed values,
+ * `(f(x + h) + f(x - h)) / 2`, is returned as an estimate of it. It differs from `f(x)` by a
+ * term of order `h²`.
  *
  * @param f Function `f` to be differentiated.
  * @param x Differentiation point `x`.
- * @param options Configuration options for the derivative calculation.
- * @returns Tuple containing the derivative and mean function value, `(f'(x), f(x))`.
+ * @param options Optional settings; see {@link DerivativeCenteredOptions}.
+ * @returns Tuple containing the derivative and the mean function value, `(f'(x), f(x))`.
  * @throws {RangeError} If `options.h` is `0`.
  *
  * @example
@@ -399,19 +451,12 @@ export function hessianForward(
 export function derivativeCentered(
   f: (x: number) => number,
   x: number,
-  options: {
-    /** Machine precision of the function values. */
-    epsf?: number;
-    /** Finite-difference step. If omitted, the theoretical optimum is used. */
-    h?: number;
-  } = {}
+  options: DerivativeCenteredOptions = {}
 ): [number, number] {
-  const epsf = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
-  const h0 = Math.cbrt(3 * epsf);
   let h: number;
 
   if (options.h === undefined) {
-    h = h0;
+    h = Math.cbrt(3 * effectiveEpsf(options.epsf));
   } else {
     if (options.h === 0) {
       throw new RangeError('derivativeCentered: h must be nonzero');
