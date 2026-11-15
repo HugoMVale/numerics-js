@@ -10,6 +10,9 @@ import type { GlobalMethod, GlobalStepContext, GlobalStepResult } from '../roots
 const EPS = Number.EPSILON;
 const SQRT_EPS = Math.sqrt(EPS);
 
+/** Number of consecutive maximum-length global steps after which the iteration is abandoned. */
+const MAX_CONSECUTIVE_MAX_STEPS = 5;
+
 /** Form in which the BFGS update of the Hessian approximation is carried out. */
 export type BfgsMethod = 'factored' | 'unfactored' | 'inverse';
 
@@ -92,6 +95,7 @@ export interface QuasiNewtonOptions {
    * typically increases the number of iterations, but decreases the total number of function
    * evaluations when the Hessian would otherwise be approximated by finite differences.
    * By default, the BFGS update is used if no `hess` is provided, and is not used otherwise.
+   * @default hess === undefined
    */
   bfgsUpdate?: boolean;
   /**
@@ -102,8 +106,8 @@ export interface QuasiNewtonOptions {
    * Hessian and has the lowest overhead. The dogleg global method requires the Cholesky factor
    * of the Hessian, so with `globalMethod: 'dogleg'` the `'factored'` form is always used,
    * whatever the value of this option (the `method` reported in the result shows the form
-   * actually used). Ignored if `bfgsUpdate` is `false`. By default, `'factored'` with the
-   * dogleg global method and `'inverse'` otherwise.
+   * actually used). Ignored if `bfgsUpdate` is `false`.
+   * @default globalMethod === 'dogleg' ? 'factored' : 'inverse'
    */
   bfgsMethod?: BfgsMethod;
   /**
@@ -173,7 +177,10 @@ export interface QuasiNewtonResult {
   evaluationsGradient: number;
   /** Number of user-supplied Hessian evaluations (`0` if `hess` is not given). */
   evaluationsHessian: number;
-  /** Number of outer quasi-Newton iterations performed. */
+  /**
+   * Number of outer quasi-Newton iterations performed. An iteration during which the solver
+   * stops (convergence, callback, or failure) is counted, even if it did not move `x`.
+   */
   iterations: number;
   /** The solution vector (or best estimate, if not converged). */
   x: Vector;
@@ -221,16 +228,16 @@ export interface QuasiNewtonResult {
  * Reaching the `tolx` step-size criterion is *not* reported as success, because it can also
  * be met by slow progress far from a minimizer; inspect `message` and `gx` in that case.
  *
- * **References**
- *
- * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
- *   Optimization and Nonlinear Equations", SIAM, 1996.
- *
  * Non-finite values (`NaN` or `±Infinity`) are handled as follows: if `f(x0)`, the gradient or
  * the Hessian at `x0` is not finite, the solver returns a failure result (`success: false`);
  * the same happens if the gradient or Hessian is not finite at a later iterate. If `f` is not
  * finite at a trial point, the global strategies reject the step and backtrack, whereas with
  * `globalMethod: null` the solver returns a failure result.
+ *
+ * **References**
+ *
+ * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
+ *   Optimization and Nonlinear Equations", SIAM, 1996.
  *
  * @param f Function to minimize. It must map `n` unknowns to a scalar.
  * @param x0 Initial guess for the minimum: a `Vector`, a plain `number[]` or a `Float64Array`
@@ -250,12 +257,12 @@ export interface QuasiNewtonResult {
  *
  * @example
  * ```ts
- * import { optimize } from 'numerics-js';
  * import { Vector } from 'numerics-js/linalg';
+ * import { quasiNewton } from 'numerics-js/optimize';
  *
  * // Minimum of the Rosenbrock function `f(x, y) = (1 - x)^2 + 100*(y - x^2)^2`.
  * const f = (x: Vector) => (1 - x.get(0)) ** 2 + 100 * (x.get(1) - x.get(0) ** 2) ** 2;
- * const result = optimize.quasiNewton(f, [-1.0, -1.0]);
+ * const result = quasiNewton(f, [-1.0, -1.0]);
  * console.log(result.method);
  * console.log(result.success, result.iterations, result.evaluations);
  * console.log(result.x.toString());
@@ -654,11 +661,11 @@ export function quasiNewton(
         'local minimizer, but it is also possible that the algorithm is making slow progress ' +
         'and is not near a minimizer, or that `tolx` is too large.';
       stop = true;
-    } else if (globalMethod && consecutiveMaxSteps >= 5) {
+    } else if (globalMethod && consecutiveMaxSteps >= MAX_CONSECUTIVE_MAX_STEPS) {
       message =
-        'Maximum number (5) of consecutive steps of length `maxLen` reached. Perhaps f(x) is ' +
-        'unbounded below, or f(x) has a finite asymptote in some direction, or `maxLen` is too ' +
-        'small.';
+        `Maximum number (${MAX_CONSECUTIVE_MAX_STEPS}) of consecutive steps of length \`maxLen\` reached. ` +
+        'Perhaps f(x) is unbounded below, or f(x) has a finite asymptote in some direction, or ' +
+        '`maxLen` is too small.';
       stop = true;
     } else {
       stop = false;

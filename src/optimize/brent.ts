@@ -1,10 +1,26 @@
 import { copysign } from '../math.js';
 
 /**
+ * Options for {@link brent}.
+ */
+export interface BrentOptions {
+  /**
+   * Stop when the search interval shrinks to approximately this width.
+   * @default 1e-8
+   */
+  tolx?: number;
+  /**
+   * Maximum number of iterations.
+   * @default 50
+   */
+  maxIter?: number;
+}
+
+/**
  * Result of a {@link brent} optimization.
  */
 export interface BrentResult {
-  /** Whether the optimize terminated successfully. */
+  /** Whether the optimization terminated successfully. */
   success: boolean;
   /** Human-readable description of the termination reason. */
   message: string;
@@ -20,7 +36,7 @@ export interface BrentResult {
  * Finds a local minimum of a scalar function `f(x)` using Brent's method, given
  * a bracketing interval.
  *
- * Brent's method is a derivative-free optimize algorithm that combines
+ * Brent's method is a derivative-free optimization algorithm that combines
  * golden-section search with inverse parabolic interpolation. It maintains a
  * bracketing interval known to contain a local minimum and iteratively
  * narrows it: when the function behaves smoothly it attempts a fast
@@ -35,10 +51,8 @@ export interface BrentResult {
  * @param f Function to minimize.
  * @param xa One end of the bracketing interval.
  * @param xb Other end of the bracketing interval.
- * @param options Optional settings.
- * @param options.tolx Stop when the search interval shrinks to approximately this width. Defaults to `1e-8`.
- * @param options.maxIter Maximum number of iterations. Defaults to `50`.
- * @returns Optimization result containing the minimum, function value, and convergence information.
+ * @param options Optional settings; see {@link BrentOptions}.
+ * @returns A {@link BrentResult} with the minimizer, the function value and convergence information.
  *
  * @example
  * ```ts
@@ -55,8 +69,8 @@ export interface BrentResult {
  *   success: true,
  *   message: '|dx| <= tolx',
  *   evaluations: 19,
- *   x: 0.62996052,
- *   fx: 0.52752961
+ *   x: 0.6299605196128919,
+ *   fx: 0.5275296062894226
  * }
  * ```
  */
@@ -64,10 +78,7 @@ export function brent(
   f: (x: number) => number,
   xa: number,
   xb: number,
-  options: {
-    tolx?: number;
-    maxIter?: number;
-  } = {}
+  options: BrentOptions = {}
 ): BrentResult {
   const { tolx = 1e-8, maxIter = 50 } = options;
 
@@ -101,7 +112,7 @@ export function brent(
         message: '|dx| <= tolx',
         evaluations: nFev,
         x,
-        fx: fx
+        fx
       };
     }
 
@@ -182,6 +193,6 @@ export function brent(
     message: `Maximum number of iterations (${maxIter}) reached.`,
     evaluations: nFev,
     x,
-    fx: fx
+    fx
   };
 }

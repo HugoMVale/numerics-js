@@ -5,7 +5,7 @@ import { Matrix } from '../linalg/Matrix.js';
  * Result of a {@link nelderMead} optimization.
  */
 export interface NelderMeadResult {
-  /** Whether the optimize terminated successfully. */
+  /** Whether the optimization terminated successfully. */
   success: boolean;
   /** Human-readable description of the termination reason. */
   message: string;
@@ -35,22 +35,23 @@ export interface NelderMeadOptions {
    */
   tolf?: number;
   /**
-   * Positive scaling factors for the components of `x`. Ideally, these should be
-   * chosen so that `sclx[i]*x[i]` is of order 1 near the solution for all
-   * components, in any of the forms accepted by `VectorLike` (`Vector`, `number[]` or
-   * `Float64Array`). If omitted, scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
+   * Scaling factors for the components of `x`: a `Vector`, a plain `number[]` or a
+   * `Float64Array`, with one factor per component of `x0`. Ideally, they are chosen so that
+   * `sclx[i]*x[i]` is of order 1 near the solution for all components. Only the magnitudes
+   * are used, i.e. `abs(sclx)`, and all of them must be finite and nonzero. If omitted, the
+   * scaling is inferred from `x0` as `1 / max(|x0[i]|, 1)`.
    */
   sclx?: VectorLike;
   /**
    * Maximum number of simplex updates, as a non-negative integer. If zero,
    * the initial simplex is checked for convergence but not updated.
-   * @default 200*N
+   * @default 200*n
    */
   maxIter?: number;
   /**
    * Soft limit for function evaluations. Checked between iterations, so
    * simplex initialization or an iteration already in progress may exceed it.
-   * @default 200*N
+   * @default 200*n
    */
   maxFunEvals?: number;
   /**
@@ -61,11 +62,13 @@ export interface NelderMeadOptions {
   adaptive?: boolean;
   /**
    * Optional callback invoked at each iteration as
-   * `callback(nIter, x, fx) -> {stop, success}`, where `x` is the
-   * `(N+1) x N` matrix of simplex vertices (one per row) and `fx` the
-   * corresponding `N+1` function values. Neither should be mutated by the
-   * callback. If `stop` is `true`, the iteration is terminated; `success`
-   * then decides whether the result is reported as successful.
+   * `callback(nIter, x, fx) -> {stop, success}`, where `nIter` is `1` for the initial
+   * simplex and increases by one with each simplex update, `x` is the `(n+1) x n` matrix of
+   * simplex vertices (one per row) and `fx` the corresponding `n+1` function values. Neither
+   * `x` nor `fx` should be mutated by the callback. The callback is called before the
+   * built-in convergence checks, so it takes precedence over them. If `stop` is `true`, the
+   * iteration is terminated; `success` then decides whether the result is reported as
+   * successful.
    */
   callback?: (nIter: number, x: Matrix, fx: Vector) => { stop: boolean; success: boolean };
 }
@@ -123,16 +126,16 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * algorithm.
  *
  * The Nelder-Mead simplex algorithm is a derivative-free method for unconstrained
- * minimization of multivariate functions. It maintains a simplex of `N+1` vertices in
- * `N`-dimensional space and iteratively updates this simplex based on the function values
+ * minimization of multivariate functions. It maintains a simplex of `n+1` vertices in
+ * `n`-dimensional space and iteratively updates this simplex based on the function values
  * at the vertices.
  *
  * The initial simplex is aligned with the coordinate axes. For each coordinate, the
  * corresponding simplex vertex offset is:
  *
- * `dx[i] = 0.05 * max(|x0[i]|, 1/scale[i])`
+ * `dx[i] = 0.05 * max(|x0[i]|, 1/|sclx[i]|)`
  *
- * where `x0` is the initial guess and `scale[i]` is the scaling factor associated with
+ * where `x0` is the initial guess and `sclx[i]` is the scaling factor associated with
  * variable `x[i]`. Therefore, it is important that `x0` and/or `sclx` reflect the expected
  * scale of the variables. If `sclx` is not provided, the variable scaling is inferred
  * from `x0`.
@@ -146,13 +149,11 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  * - Gao, F.; Han, L. Implementing the Nelder-Mead Simplex Algorithm with
  *   Adaptive Parameters. Comput. Optim. Appl. 2012, 51, 259-277.
  *
- *
  * @param f Objective function to minimize.
- * @param x0 Initial guess for the optimum: a `Vector`, a plain `number[]` or a `Float64Array`.
- * If no user-defined `sclx` is provided, the scaling factors will be determined from this
- * value.
+ * @param x0 Initial guess for the minimum: a `Vector`, a plain `number[]` or a `Float64Array`.
+ * If no user-defined `sclx` is provided, the scaling factors are determined from this value.
  * @param options Optional settings; see {@link NelderMeadOptions}.
- * @returns The optimize result.
+ * @returns A {@link NelderMeadResult} with the best point found and convergence information.
  * @throws {TypeError} If `x0` or `options.sclx` is not a `VectorLike`.
  * @throws {RangeError} If `x0` has no components, if `options.sclx` does not have as many
  * components as `x0`, or if `maxIter` is not a non-negative integer.
@@ -176,7 +177,9 @@ function simplexExtremes(fx: Vector): { imin: number; imax: number; imax2: numbe
  *   success: true,
  *   message: 'Function value spread is less than `tolf`.',
  *   evaluations: 225,
- *   x: Vector [ 99.99998642148125, 9999999999.999956 ],
+ *   x: Vector {
+ *     data: Float64Array(2) [ 99.99998642148125, 9999999999.999956 ]
+ *   },
  *   fx: 2.1088669603067145e-9
  * }
  * ```
@@ -251,7 +254,7 @@ export function nelderMead(
   }
   let nFev = n + 1;
 
-  // Main optimize loop
+  // Main loop
   let nIter = 0;
   let success = false;
   let message = '';

@@ -69,6 +69,54 @@ describe('public API', () => {
     expect(typeof optimize.curveFit).toBe('function');
   });
 
+  it('exposes the option and result types of every optimize solver', () => {
+    const f = (x: linalg.Vector): number => x.get(0) ** 2 + x.get(1) ** 2;
+
+    const brentOptions: optimize.BrentOptions = { tolx: 1e-6, maxIter: 100 };
+    const brentResult: optimize.BrentResult = optimize.brent(
+      (x) => (x - 1) ** 2,
+      -3,
+      3,
+      brentOptions
+    );
+    expect(brentResult.success).toBe(true);
+
+    const nelderMeadOptions: optimize.NelderMeadOptions = { tolx: 1e-6 };
+    const nelderMeadResult: optimize.NelderMeadResult = optimize.nelderMead(
+      f,
+      [1, 1],
+      nelderMeadOptions
+    );
+    expect(nelderMeadResult.success).toBe(true);
+
+    const bfgsMethod: optimize.BfgsMethod = 'inverse';
+    const quasiNewtonOptions: optimize.QuasiNewtonOptions = { bfgsMethod };
+    const quasiNewtonResult: optimize.QuasiNewtonResult = optimize.quasiNewton(
+      f,
+      [1, 1],
+      quasiNewtonOptions
+    );
+    expect(quasiNewtonResult.success).toBe(true);
+
+    const lmOptions: optimize.LevenbergMarquardtOptions = { jacFinal: true };
+    const lmResult: optimize.LevenbergMarquardtResult = optimize.levenbergMarquardt(
+      (x) => x.add(linalg.Vector.from([-1])),
+      [3],
+      lmOptions
+    );
+    expect(lmResult.success).toBe(true);
+
+    const curveFitOptions: optimize.CurveFitOptions = { absoluteSigma: true };
+    const curveFitResult: optimize.CurveFitResult = optimize.curveFit(
+      (t, p) => t.mult(p.get(0)),
+      [1, 2, 3],
+      [2, 4, 6],
+      [1],
+      curveFitOptions
+    );
+    expect(curveFitResult.success).toBe(true);
+  });
+
   it('exposes the SVD family on Matrix and its result types from linalg', () => {
     const A = linalg.Matrix.from([
       [3, 0],

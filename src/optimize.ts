@@ -19,16 +19,21 @@
  *
  * @module optimize
  */
-export { brent } from './optimize/brent.js';
-export { nelderMead } from './optimize/nelderMead.js';
-export { quasiNewton } from './optimize/quasiNewton.js';
-export { levenbergMarquardt } from './optimize/levenbergMarquardt.js';
-export { curveFit } from './optimize/curveFit.js';
-export type { BrentResult } from './optimize/brent.js';
-export type { NelderMeadResult, NelderMeadOptions } from './optimize/nelderMead.js';
-export type { QuasiNewtonOptions, QuasiNewtonResult, BfgsMethod } from './optimize/quasiNewton.js';
-export type {
-  LevenbergMarquardtResult,
-  LevenbergMarquardtOptions
+export { brent, type BrentOptions, type BrentResult } from './optimize/brent.js';
+export {
+  nelderMead,
+  type NelderMeadOptions,
+  type NelderMeadResult
+} from './optimize/nelderMead.js';
+export {
+  quasiNewton,
+  type BfgsMethod,
+  type QuasiNewtonOptions,
+  type QuasiNewtonResult
+} from './optimize/quasiNewton.js';
+export {
+  levenbergMarquardt,
+  type LevenbergMarquardtOptions,
+  type LevenbergMarquardtResult
 } from './optimize/levenbergMarquardt.js';
-export type { CurveFitResult, CurveFitOptions } from './optimize/curveFit.js';
+export { curveFit, type CurveFitOptions, type CurveFitResult } from './optimize/curveFit.js';

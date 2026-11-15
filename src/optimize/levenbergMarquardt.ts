@@ -65,8 +65,8 @@ export interface LevenbergMarquardtOptions {
    * Tolerance for the relative reduction of the sum of squares. The
    * algorithm terminates when both the actual and the predicted relative
    * reductions of `||f||²` are at most `tolf`. Note that this is a
-   * different criterion from the residual-norm test called `tolf` in
-   * `quasiNewton`.
+   * different criterion from the residual-norm test called `tolf` in the
+   * `quasiNewton` root finder of the `roots` module.
    * @default sqrt(eps) ≈ 1.49e-8
    */
   tolf?: number;
@@ -119,10 +119,11 @@ export interface LevenbergMarquardtOptions {
    */
   trustLenFactor?: number;
   /**
-   * Machine precision of the function values. If `undefined`, machine
-   * precision of the 64-bit floating-point type is assumed. If the number
-   * of reliable base-10 digits in `f`'s results is `n`, then `epsf` is
-   * approximately `10^(-n)`.
+   * Machine precision of the function values, used to choose the steps of the
+   * finite-difference Jacobian. If the number of reliable base-10 digits in
+   * `f`'s results is `n`, then `epsf` is approximately `10^(-n)`. Values below
+   * the machine precision of the 64-bit floating-point type are replaced by it.
+   * @default Number.EPSILON
    */
   epsf?: number;
   /**
@@ -186,7 +187,7 @@ export interface LevenbergMarquardtOptions {
  * @param f Residual function, returning `m >= n` components.
  * @param x0 Initial guess for the minimizer: a `Vector`, a plain `number[]` or a `Float64Array`.
  * @param options Configuration options for the solver.
- * @returns A `LevenbergMarquardtResult` with the solution and diagnostics.
+ * @returns A {@link LevenbergMarquardtResult} with the solution and diagnostics.
  * @throws {TypeError} If `x0` or `options.sclx` is not a `VectorLike`.
  * @throws {RangeError} If `x0` has no components, if `f(x0)` has fewer
  * components than `x0` (or `f` later returns a different number of
@@ -404,9 +405,9 @@ export function levenbergMarquardt(
   const diag = new Float64Array(n);
   const step = new Float64Array(n);
   const sdiag = new Float64Array(n);
-  const w1 = new Float64Array(n);
-  const w2 = new Float64Array(n);
-  const w3 = new Float64Array(n);
+  const wa1 = new Float64Array(n);
+  const wa2 = new Float64Array(n);
+  const wa3 = new Float64Array(n);
 
   let fnorm = enorm(fvec.data);
   const fnorm0 = fnorm;
@@ -447,9 +448,9 @@ export function levenbergMarquardt(
     if (iterations === 0) {
       for (let j = 0; j < n; j++) {
         diag[j] = userSclx ? userSclx.get(j) : acnorm[j] === 0 ? 1 : acnorm[j];
-        w1[j] = diag[j] * x.get(j);
+        wa1[j] = diag[j] * x.get(j);
       }
-      xnorm = enorm(w1, n);
+      xnorm = enorm(wa1, n);
       delta = factor * xnorm;
       if (delta === 0) delta = factor;
     }
@@ -489,14 +490,14 @@ export function levenbergMarquardt(
     let ratio: number;
     do {
       // Levenberg-Marquardt parameter and step.
-      par = lmpar(n, rbuf, dec.perm, diag, qtf, delta, par, step, sdiag, w1, w2, w3);
+      par = lmpar(n, rbuf, dec.perm, diag, qtf, delta, par, step, sdiag, wa1, wa2, wa3);
       const xTrial = new Vector(n);
       for (let j = 0; j < n; j++) {
         step[j] = -step[j];
         xTrial.data[j] = x.data[j] + step[j];
-        w1[j] = diag[j] * step[j];
+        wa1[j] = diag[j] * step[j];
       }
-      const pnorm = enorm(w1, n);
+      const pnorm = enorm(wa1, n);
 
       // On the first iteration, adjust the initial step bound.
       if (iterations === 0) delta = Math.min(delta, pnorm);
@@ -514,12 +515,12 @@ export function levenbergMarquardt(
       }
 
       // Scaled predicted reduction and scaled directional derivative.
-      w1.fill(0);
+      wa1.fill(0);
       for (let j = 0; j < n; j++) {
         const temp = step[dec.perm[j]];
-        for (let i = 0; i <= j; i++) w1[i] += rbuf[i * n + j] * temp;
+        for (let i = 0; i <= j; i++) wa1[i] += rbuf[i * n + j] * temp;
       }
-      const temp1 = enorm(w1, n) / fnorm;
+      const temp1 = enorm(wa1, n) / fnorm;
       const temp2 = (Math.sqrt(par) * pnorm) / fnorm;
       const prered = temp1 * temp1 + (temp2 * temp2) / P5;
       const dirder = -(temp1 * temp1 + temp2 * temp2);
@@ -542,8 +543,8 @@ export function levenbergMarquardt(
       if (ratio >= P0001) {
         x = xTrial;
         fvec = fTrial;
-        for (let j = 0; j < n; j++) w1[j] = diag[j] * x.data[j];
-        xnorm = enorm(w1, n);
+        for (let j = 0; j < n; j++) wa1[j] = diag[j] * x.data[j];
+        xnorm = enorm(wa1, n);
         fnorm = fnorm1;
         iterations += 1;
         jacStale = true;
