@@ -39,7 +39,7 @@ describe('quad vs SciPy reference values', () => {
       // generate_quad_fixtures.py, so evaluation counts reflect the library's
       // representative use case.
       const result = quad(f, a, b, { breakpoints: fixture.breakpoints });
-      expect(result.converged).toBe(true);
+      expect(result.success).toBe(true);
 
       // Tolerance accounts for both SciPy's and our own reported error estimates.
       const tolerance = Math.max(fixture.scipyAbsError, result.error) * 10 + 1e-10;

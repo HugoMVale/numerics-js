@@ -1,15 +1,20 @@
 /** Result of a {@link gaussKronrod} quadrature. */
 export interface GaussKronrodResult {
+  /**
+   * Whether the requested error tolerance was reached, i.e. `error <= atol + rtol * |value|`;
+   * see `message`. If `false`, `value` and `error` are the best estimates found.
+   */
+  success: boolean;
+  /** Message describing the reason for termination. */
+  message: string;
+  /** Number of integrand evaluations performed. */
+  evaluations: number;
+  /** Number of final subintervals used by the adaptive algorithm. */
+  subintervals: number;
   /** Estimated value of the definite integral. */
   value: number;
   /** Estimated absolute integration error. */
   error: number;
-  /** Number of integrand evaluations performed. */
-  evaluations: number;
-  /** Whether the requested error tolerance was reached. */
-  converged: boolean;
-  /** Number of final subintervals used by the adaptive algorithm. */
-  subintervals: number;
 }
 
 /**
@@ -161,6 +166,22 @@ export function resolveGaussKronrodOptions(
 }
 
 /**
+ * Result of integrating over an empty interval (`a === b`), which needs no evaluations.
+ *
+ * @internal
+ */
+export function emptyIntervalResult(): GaussKronrodResult {
+  return {
+    success: true,
+    message: 'Empty integration interval (a === b).',
+    evaluations: 0,
+    subintervals: 0,
+    value: 0,
+    error: 0
+  };
+}
+
+/**
  * Checks that the integrand is a function.
  *
  * @internal
@@ -235,9 +256,18 @@ export function integrateAdaptive(
       if (subintervals[i].error > subintervals[worstIdx].error) worstIdx = i;
     }
 
-    const converged = error <= atol + rtol * Math.abs(value);
-    if (converged || subintervals.length >= maxSubintervals) {
-      return { value, error, evaluations, converged, subintervals: subintervals.length };
+    const success = error <= atol + rtol * Math.abs(value);
+    if (success || subintervals.length >= maxSubintervals) {
+      return {
+        success,
+        message: success
+          ? 'Estimated error is at most `atol + rtol*|value|`.'
+          : `Maximum number of subintervals (${maxSubintervals}) reached.`,
+        evaluations,
+        subintervals: subintervals.length,
+        value,
+        error
+      };
     }
 
     const worst = subintervals[worstIdx];
@@ -284,11 +314,12 @@ export function integrateAdaptive(
  * Output:
  * ```text
  * {
- *   value: 0.001376811277122893,
- *   error: 2.005802135987561e-9,
+ *   success: true,
+ *   message: 'Estimated error is at most `atol + rtol*|value|`.',
  *   evaluations: 465,
- *   converged: true,
- *   subintervals: 16
+ *   subintervals: 16,
+ *   value: 0.001376811277122893,
+ *   error: 2.005802135987561e-9
  * }
  * ```
  *
@@ -321,7 +352,7 @@ export function gaussKronrod(
   const resolved = resolveGaussKronrodOptions('gaussKronrod', options);
 
   if (a === b) {
-    return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
+    return emptyIntervalResult();
   }
 
   const sign = a > b ? -1 : 1;

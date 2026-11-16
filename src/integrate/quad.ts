@@ -1,5 +1,6 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
 import {
+  emptyIntervalResult,
   integrateAdaptive,
   resolveGaussKronrodOptions,
   validateIntegrand,
@@ -8,16 +9,22 @@ import {
 
 /** Result of a {@link quad} numerical integration. */
 export interface QuadResult {
+  /**
+   * Whether the requested error tolerance was reached for the whole integral, i.e.
+   * `error <= atol + rtol * |value|`; see `message`. If `false`, `value` and `error` are the
+   * best estimates found.
+   */
+  success: boolean;
+  /** Message describing the reason for termination. */
+  message: string;
+  /** Total number of integrand evaluations performed across all subintervals. */
+  evaluations: number;
+  /** Total number of final subintervals used by the adaptive algorithm. */
+  subintervals: number;
   /** Estimated value of the definite integral. */
   value: number;
   /** Estimated absolute integration error. */
   error: number;
-  /** Total number of integrand evaluations performed across all intervals. */
-  evaluations: number;
-  /** Whether the requested error tolerance was reached for the whole integral. */
-  converged: boolean;
-  /** Total number of final subintervals used by the adaptive algorithm. */
-  subintervals: number;
 }
 
 /**
@@ -164,11 +171,12 @@ function getFullyInfiniteTransform(): QuadTransform {
  * Output:
  * ```text
  * {
- *   value: 0.3333333333333333,
- *   error: 0,
+ *   success: true,
+ *   message: 'Estimated error is at most `atol + rtol*|value|`.',
  *   evaluations: 15,
- *   converged: true,
- *   subintervals: 1
+ *   subintervals: 1,
+ *   value: 0.3333333333333333,
+ *   error: 0
  * }
  * ```
  *
@@ -184,11 +192,12 @@ function getFullyInfiniteTransform(): QuadTransform {
  * Output:
  * ```text
  * {
- *   value: 3,
- *   error: 0,
+ *   success: true,
+ *   message: 'Estimated error is at most `atol + rtol*|value|`.',
  *   evaluations: 30,
- *   converged: true,
- *   subintervals: 2
+ *   subintervals: 2,
+ *   value: 3,
+ *   error: 0
  * }
  * ```
  *
@@ -202,11 +211,12 @@ function getFullyInfiniteTransform(): QuadTransform {
  * Output:
  * ```text
  * {
- *   value: 0.9999999999995187,
- *   error: 1.7473439701664456e-8,
+ *   success: true,
+ *   message: 'Estimated error is at most `atol + rtol*|value|`.',
  *   evaluations: 105,
- *   converged: true,
- *   subintervals: 4
+ *   subintervals: 4,
+ *   value: 0.9999999999995187,
+ *   error: 1.7473439701664456e-8
  * }
  * ```
  *
@@ -226,15 +236,16 @@ function getFullyInfiniteTransform(): QuadTransform {
  * Output:
  * ```text
  * {
- *   value: 2,
- *   error: 0,
+ *   success: true,
+ *   message: 'Estimated error is at most `atol + rtol*|value|`.',
  *   evaluations: 15,
- *   converged: true,
- *   subintervals: 1
+ *   subintervals: 1,
+ *   value: 2,
+ *   error: 0
  * }
  * ```
  * Without the transform the same call needs 1305 evaluations and 44
- * subintervals, and is only accurate to about 2e-8.
+ * subintervals, and its error is about 1.5e-8.
  *
  * @example
  * ```ts
@@ -252,11 +263,12 @@ function getFullyInfiniteTransform(): QuadTransform {
  * Output:
  * ```text
  * {
- *   value: 1,
- *   error: 0,
+ *   success: true,
+ *   message: 'Estimated error is at most `atol + rtol*|value|`.',
  *   evaluations: 15,
- *   converged: true,
- *   subintervals: 1
+ *   subintervals: 1,
+ *   value: 1,
+ *   error: 0
  * }
  * ```
  */
@@ -283,7 +295,7 @@ export function quad(
   const breakpointsv = Vector.asVector(breakpoints);
 
   if (a === b) {
-    return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
+    return emptyIntervalResult();
   }
 
   const sign = a > b ? -1 : 1;

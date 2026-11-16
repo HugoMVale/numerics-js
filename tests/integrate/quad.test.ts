@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { quad } from '../../src/integrate/quad.js';
 import { gaussKronrod } from '../../src/integrate/gaussKronrod.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { vectorLikeForms } from '../vectorLikeForms.js';
-import type { QuadTransform } from '../../src/integrate/quad.js';
+import type { QuadResult, QuadTransform } from '../../src/integrate/quad.js';
+import type { GaussKronrodResult } from '../../src/integrate/gaussKronrod.js';
 import {
   fSin,
   fIdentity,
@@ -19,14 +20,14 @@ describe('quad - finite domains', () => {
   it('integrates standard functions accurately without breakpoints', () => {
     const res = quad(fSin, 0, Math.PI, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(2, 10);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
   });
 
   it('integrates a piecewise function exactly using breakpoints', () => {
     const fPiecewise = (x: number) => (x < 1 ? 1 : 2);
     const res = quad(fPiecewise, 0, 2, { breakpoints: [1], atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(3, 10);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
   });
 
   it('filters out-of-bounds breakpoints and sorts the rest', () => {
@@ -51,26 +52,26 @@ describe('quad - infinite domains', () => {
     // Integral of exp(-x) from 0 to Infinity is 1
     const res = quad(fExpMinusX, 0, Infinity, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(1, 10);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
   });
 
   it('integrates over a negative semi-infinite domain [-Infinity, b]', () => {
     // Integral of exp(x) from -Infinity to 0 is 1
     const res = quad(fExpX, -Infinity, 0, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(1, 10);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
   });
 
   it('integrates over a fully infinite domain [-Infinity, Infinity]', () => {
     // Integral of exp(-x^2) from -Infinity to Infinity is sqrt(pi)
     const res = quad(fGaussian, -Infinity, Infinity, { atol: 1e-10, rtol: 1e-10 });
     expect(res.value).toBeCloseTo(Math.sqrt(Math.PI), 8);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
 
     // Integral of 4/(1+x^2) from -Infinity to Infinity is 4 * pi
     const res2 = quad(fArctanDeriv, -Infinity, Infinity, { atol: 1e-10, rtol: 1e-10 });
     expect(res2.value).toBeCloseTo(4 * Math.PI, 10);
-    expect(res2.converged).toBe(true);
+    expect(res2.success).toBe(true);
   });
 
   it('maps breakpoints correctly into infinite domains', () => {
@@ -84,7 +85,7 @@ describe('quad - infinite domains', () => {
     });
 
     expect(res.value).toBeCloseTo(2, 10);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     // Ensure that splitting the infinite domain generated multiple subintervals
     expect(res.subintervals).toBeGreaterThan(1);
   });
@@ -107,7 +108,7 @@ describe('quad - user-defined transform', () => {
     const plain = quad(fEndpointSingularity, 0, 1);
     const res = quad(fEndpointSingularity, 0, 1, { transform: sqrtTransform });
     expect(res.value).toBeCloseTo(2, 12);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(res.evaluations).toBe(15);
     expect(res.evaluations).toBeLessThan(plain.evaluations);
   });
@@ -127,7 +128,7 @@ describe('quad - user-defined transform', () => {
     const r1 = quad(f, 1, Infinity, { transform: negative, atol: 1e-10, rtol: 1e-10 });
     const r2 = quad(f, 1, Infinity, { transform: positive, atol: 1e-10, rtol: 1e-10 });
     expect(r1.value).toBeCloseTo(1, 10);
-    expect(r1.converged).toBe(true);
+    expect(r1.success).toBe(true);
     expect(r2.value).toBe(r1.value);
   });
 
@@ -148,7 +149,7 @@ describe('quad - user-defined transform', () => {
     });
     expect(mapCalls).toBeGreaterThan(0);
     expect(res.value).toBeCloseTo(1, 10);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     // exp(-x) * (1/t) with x = -log(t) is the constant 1 on (0, 1).
     expect(res.evaluations).toBe(15);
   });
@@ -181,7 +182,7 @@ describe('quad - user-defined transform', () => {
       rtol: 1e-10
     });
     expect(res.value).toBeCloseTo(3, 10);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(res.subintervals).toBeGreaterThanOrEqual(2);
   });
 
@@ -199,7 +200,7 @@ describe('quad - user-defined transform', () => {
       rtol: 1e-10
     });
     expect(res.value).toBeCloseTo(2 - Math.exp(-0.5), 9);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
   });
 
   it('ignores breakpoints that do not map strictly inside the t-interval', () => {
@@ -302,11 +303,12 @@ describe('quad - user-defined transform', () => {
   it('returns 0 for a === b without touching the transform', () => {
     const res = quad(fSin, 1, 1, { transform: sqrtTransform });
     expect(res).toEqual({
-      value: 0,
-      error: 0,
+      success: true,
+      message: 'Empty integration interval (a === b).',
       evaluations: 0,
-      converged: true,
-      subintervals: 0
+      subintervals: 0,
+      value: 0,
+      error: 0
     });
   });
 });
@@ -318,7 +320,7 @@ describe('quad breakpoints as VectorLike', () => {
     it(`accepts breakpoints as ${name}`, () => {
       const res = quad(fPiecewise, 0, 2, { breakpoints: make([1]), atol: 1e-10, rtol: 1e-10 });
       expect(res.value).toBeCloseTo(3, 10);
-      expect(res.converged).toBe(true);
+      expect(res.success).toBe(true);
     });
 
     it(`filters out-of-bounds and non-finite breakpoints given as ${name}`, () => {
@@ -355,7 +357,7 @@ describe('quad - tolerances', () => {
     const breakpoints = Array.from({ length: N - 1 }, (_, i) => (i + 1) / N);
 
     const res = quad(f, 0, 1, { breakpoints, atol, rtol: 0 });
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(res.error).toBeLessThanOrEqual(atol);
     // A shared budget forces refinement beyond the N initial subintervals.
     expect(res.subintervals).toBeGreaterThan(N);
@@ -366,7 +368,7 @@ describe('quad - tolerances', () => {
     // too strict (or, with the roles swapped, far too loose) for the net integral.
     const f = (x: number) => Math.sin(2 * Math.PI * x) + 1e-3;
     const res = quad(f, 0, 1, { breakpoints: [0.5], atol: 0, rtol: 1e-6 });
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(res.error).toBeLessThanOrEqual(1e-6 * Math.abs(res.value));
     expect(res.value).toBeCloseTo(1e-3, 12);
   });
@@ -378,8 +380,17 @@ describe('quad - tolerances', () => {
       atol: 1e-14,
       rtol: 0
     });
-    expect(res.converged).toBe(false);
+    expect(res.success).toBe(false);
+    expect(res.message).toBe('Maximum number of subintervals (10) reached.');
     expect(res.subintervals).toBe(10);
+  });
+
+  it('has the same result shape as gaussKronrod', () => {
+    expectTypeOf<QuadResult>().toEqualTypeOf<GaussKronrodResult>();
+    const q = quad(fSin, 0, 1);
+    const g = gaussKronrod(fSin, 0, 1);
+    expect(Object.keys(q)).toEqual(Object.keys(g));
+    expect(q.message).toBe(g.message);
   });
 
   it('ignores repeated breakpoints instead of wasting evaluations on empty subintervals', () => {
@@ -393,7 +404,7 @@ describe('quad - tolerances', () => {
     const reference = quad(fExpMinusX, 0, Infinity, { atol: 0, rtol: 1e-8 });
     for (const c of [1e-12, 1e12]) {
       const res = quad((x) => c * fExpMinusX(x), 0, Infinity, { atol: 0, rtol: 1e-8 });
-      expect(res.converged).toBe(true);
+      expect(res.success).toBe(true);
       expect(res.evaluations).toBe(reference.evaluations);
       expect(res.value / c).toBeCloseTo(1, 12);
     }
@@ -441,7 +452,7 @@ describe('quad - tolerances', () => {
     expect(evaluations).toBe(0);
 
     const res = quad(f, 0, 1, { breakpoints, maxSubintervals: 5 });
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(res.subintervals).toBe(5);
 
     // Breakpoints outside the limits and repeated ones do not count.

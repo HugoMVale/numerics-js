@@ -53,21 +53,22 @@ describe('gaussKronrod', () => {
   it('integrates standard functions accurately', () => {
     const r1 = gaussKronrod(fSin, 0, Math.PI, { atol: 1e-10, rtol: 1e-10 });
     expect(r1.value).toBeCloseTo(2, 10);
-    expect(r1.converged).toBe(true);
+    expect(r1.success).toBe(true);
 
     const r2 = gaussKronrod(fArctanDeriv, 0, 1, { atol: 1e-12, rtol: 1e-12 });
     expect(r2.value).toBeCloseTo(Math.PI, 12);
-    expect(r2.converged).toBe(true);
+    expect(r2.success).toBe(true);
   });
 
   it('handles identical integration bounds', () => {
     const res = gaussKronrod(fIdentity, 2, 2);
     expect(res).toEqual({
-      value: 0,
-      error: 0,
+      success: true,
+      message: 'Empty integration interval (a === b).',
       evaluations: 0,
-      converged: true,
-      subintervals: 0
+      subintervals: 0,
+      value: 0,
+      error: 0
     });
   });
 
@@ -89,7 +90,7 @@ describe('gaussKronrod', () => {
     );
     const expected = Math.sqrt(Math.PI) * 1e306;
 
-    expect(result.converged).toBe(true);
+    expect(result.success).toBe(true);
     expect(Math.abs(result.value - expected) / expected).toBeLessThan(1e-8);
   });
 
@@ -100,20 +101,27 @@ describe('gaussKronrod', () => {
       rtol: 1e-12
     });
 
-    expect(result.converged).toBe(true);
+    expect(result.success).toBe(true);
     expect(Number.isFinite(result.value)).toBe(true);
     expect(result.value).toBeGreaterThan(0);
   });
 
-  it('respects maxSubintervals and sets converged to false when exceeded', () => {
+  it('respects maxSubintervals and sets success to false when exceeded', () => {
     const res = gaussKronrod(fOscillatory, 0, Math.PI, {
       atol: 1e-15,
       rtol: 0,
       maxSubintervals: 3
     });
 
-    expect(res.converged).toBe(false);
+    expect(res.success).toBe(false);
+    expect(res.message).toBe('Maximum number of subintervals (3) reached.');
     expect(res.subintervals).toBe(3);
+  });
+
+  it('describes the reason for success in the message', () => {
+    const res = gaussKronrod(fSin, 0, Math.PI);
+    expect(res.success).toBe(true);
+    expect(res.message).toBe('Estimated error is at most `atol + rtol*|value|`.');
   });
 
   it('keeps the reported error non-negative and consistent with the stopping criterion', () => {
@@ -126,7 +134,7 @@ describe('gaussKronrod', () => {
     const res = gaussKronrod(f, 0, 1, { atol: 0, rtol });
 
     expect(res.error).toBeGreaterThanOrEqual(0);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(res.error).toBeLessThanOrEqual(rtol * Math.abs(res.value));
     // The reported error must bound the true error.
     expect(Math.abs(res.value - exact)).toBeLessThanOrEqual(res.error);
@@ -155,7 +163,7 @@ describe('gaussKronrod', () => {
     const res = gaussKronrod(fPolynomial, 0, 1, { atol: 0, rtol: 0 });
 
     expect(res.error).toBe(0);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
   });
 
   it('converges once error <= atol + rtol * |value|, with either term alone sufficient', () => {
@@ -163,7 +171,7 @@ describe('gaussKronrod', () => {
     const absOnly = gaussKronrod(f, 0, 1, { atol: 1e-3, rtol: 0 });
     const relOnly = gaussKronrod(f, 0, 1, { atol: 0, rtol: 1e-9 });
     for (const res of [absOnly, relOnly]) {
-      expect(res.converged).toBe(true);
+      expect(res.success).toBe(true);
     }
     expect(absOnly.error).toBeLessThanOrEqual(1e-3);
     expect(relOnly.error).toBeLessThanOrEqual(1e-9 * Math.abs(relOnly.value));
@@ -172,11 +180,11 @@ describe('gaussKronrod', () => {
   it('is invariant under rescaling of the integrand when atol = 0', () => {
     const g = (x: number) => Math.exp(Math.sin(30 * x));
     const reference = gaussKronrod(g, 0, 1, { atol: 0, rtol: 1e-8 });
-    expect(reference.converged).toBe(true);
+    expect(reference.success).toBe(true);
 
     for (const c of [1e-12, 1e-3, 1e3, 1e12]) {
       const res = gaussKronrod((x) => c * g(x), 0, 1, { atol: 0, rtol: 1e-8 });
-      expect(res.converged).toBe(true);
+      expect(res.success).toBe(true);
       expect(res.subintervals).toBe(reference.subintervals);
       expect(res.evaluations).toBe(reference.evaluations);
       expect(res.value / c).toBeCloseTo(reference.value, 12);
@@ -189,14 +197,14 @@ describe('gaussKronrod', () => {
     const exact = (1e-12 * (1 - Math.cos(100))) / 100;
     const res = gaussKronrod((x) => 1e-12 * Math.sin(100 * x), 0, 1, { atol: 0 });
 
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(Math.abs(res.value - exact) / Math.abs(exact)).toBeLessThan(1e-12);
   });
 
   it('does not chase unreachable accuracy for large integrals with the default tolerances', () => {
     // Integral ~1e10: the old absolute-only criterion needed 1e-18 relative accuracy.
     const res = gaussKronrod((x) => 1e10 * Math.exp(-x), 0, 50);
-    expect(res.converged).toBe(true);
+    expect(res.success).toBe(true);
     expect(res.subintervals).toBeLessThan(10);
     expect(Math.abs(res.value / (1e10 * (1 - Math.exp(-50))) - 1)).toBeLessThan(1e-12);
   });
