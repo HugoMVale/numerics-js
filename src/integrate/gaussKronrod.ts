@@ -33,34 +33,49 @@ export interface GaussKronrodOptions {
    */
   rtol?: number;
   /**
-   * Safety limit on the total number of subintervals (panels) of the whole
+   * Safety limit on the total number of subintervals of the whole
    * integral, including the initial ones.
    * @default 200
    */
   maxSubintervals?: number;
 }
 
+/** Estimates produced by one application of the G7-K15 rule to a single subinterval. */
 interface LocalGaussKronrodResult {
+  /** 15-point Kronrod estimate of the integral. */
   kronrod: number;
+  /** Embedded 7-point Gauss estimate of the integral. */
   gauss: number;
+  /** Estimated absolute error, `|kronrod - gauss|`. */
   error: number;
 }
 
+/**
+ * Non-negative abscissae of the 15-point Kronrod rule on `[-1, 1]`, in ascending order
+ * (the full rule is symmetric about 0). The nodes at even indices (0, 2, 4, 6) are those
+ * of the embedded 7-point Gauss-Legendre rule. Same values as QUADPACK's `qk15`.
+ */
 const KRONROD_NODES: readonly number[] = [
   0.0, 0.20778495500789848, 0.4058451513773972, 0.5860872354676911, 0.7415311855993945,
   0.8648644233597691, 0.9491079123427585, 0.9914553711208126
 ];
 
+/** Weights of the 15-point Kronrod rule, one per entry of {@link KRONROD_NODES}. */
 const KRONROD_WEIGHTS: readonly number[] = [
   0.20948214108472782, 0.20443294007529889, 0.19035057806478542, 0.1690047266392679,
   0.14065325971552592, 0.10479001032225019, 0.06309209262997856, 0.022935322010529224
 ];
 
+/**
+ * Weights of the embedded 7-point Gauss rule, aligned with {@link KRONROD_NODES}. They are
+ * zero at the odd indices, which are Kronrod-only nodes.
+ */
 const GAUSS_WEIGHTS: readonly number[] = [
   0.4179591836734694, 0, 0.3818300505051189, 0, 0.27970539148927664, 0, 0.1294849661688697, 0
 ];
 
-interface Panel {
+/** A subinterval `[a, b]` of the adaptive partition, with its local G7-K15 results. */
+interface Subinterval {
   a: number;
   b: number;
   kronrod: number;
@@ -77,8 +92,12 @@ function halfLength(a: number, b: number): number {
 }
 
 /**
- * Applies the 7-15 Gauss-Kronrod rule to one panel and returns the
+ * Applies the 7-15 Gauss-Kronrod rule to one subinterval and returns the
  * embedded Gauss and Kronrod estimates.
+ *
+ * The error estimate is the plain difference `|kronrod - gauss|`. It is a
+ * conservative (typically pessimistic) bound for smooth integrands, because the
+ * Kronrod estimate is far more accurate than the Gauss one.
  *
  * @internal
  *
@@ -92,31 +111,23 @@ export function gaussKronrod15(
   a: number,
   b: number
 ): LocalGaussKronrodResult {
-  const panelHalfLength = halfLength(a, b);
+  const half = halfLength(a, b);
   const center = midpoint(a, b);
 
-  let kronrodSum = 0;
-  let gaussSum = 0;
+  // The center node is shared by both rules and is not mirrored.
+  const fCenter = evalF(center);
+  let kronrodSum = KRONROD_WEIGHTS[0] * fCenter;
+  let gaussSum = GAUSS_WEIGHTS[0] * fCenter;
 
-  for (let i = 0; i < KRONROD_NODES.length; i++) {
-    const dx = panelHalfLength * KRONROD_NODES[i];
-    const kw = KRONROD_WEIGHTS[i];
-    const gw = GAUSS_WEIGHTS[i];
-
-    if (i === 0) {
-      const f0 = evalF(center);
-      kronrodSum += kw * f0;
-      gaussSum += gw * f0;
-    } else {
-      const fPlus = evalF(center + dx);
-      const fMinus = evalF(center - dx);
-      kronrodSum += kw * (fPlus + fMinus);
-      gaussSum += gw * (fPlus + fMinus);
-    }
+  for (let i = 1; i < KRONROD_NODES.length; i++) {
+    const dx = half * KRONROD_NODES[i];
+    const fPair = evalF(center + dx) + evalF(center - dx);
+    kronrodSum += KRONROD_WEIGHTS[i] * fPair;
+    gaussSum += GAUSS_WEIGHTS[i] * fPair;
   }
 
-  const kronrod = panelHalfLength * kronrodSum;
-  const gauss = panelHalfLength * gaussSum;
+  const kronrod = half * kronrodSum;
+  const gauss = half * gaussSum;
 
   return { kronrod, gauss, error: Math.abs(kronrod - gauss) };
 }
@@ -152,9 +163,15 @@ export function resolveGaussKronrodOptions(
 /**
  * Adaptive G7-K15 engine shared by {@link gaussKronrod} and {@link quad}.
  *
- * All initial panels (`points[i]`, `points[i + 1]`) share one global error budget
- * and one panel limit: at each step the panel with the largest error estimate is
- * bisected, until `totalError <= atol + rtol * |totalValue|` for the whole integral.
+ * All initial subintervals (`points[i]`, `points[i + 1]`) share one global error budget
+ * and one subinterval limit: at each step the subinterval with the largest error estimate
+ * is bisected, until `error <= atol + rtol * |value|` for the whole integral.
+ *
+ * The totals are re-summed from the subintervals at every step instead of being updated
+ * incrementally (`total += left + right - parent`). The incremental update accumulates
+ * rounding errors that are relatively large once the error estimate has shrunk by many
+ * orders of magnitude: the estimate can even become negative and stop the loop too early.
+ * The extra `O(n)` sum is free, since selecting the worst subinterval is already `O(n)`.
  *
  * @internal
  *
@@ -182,47 +199,40 @@ export function integrateAdaptive(
     return y;
   };
 
-  const panels: Panel[] = [];
-  let totalValue = 0;
-  let totalError = 0;
+  const subintervals: Subinterval[] = [];
   for (let i = 0; i < points.length - 1; i++) {
     const local = gaussKronrod15(evalF, points[i], points[i + 1]);
-    panels.push({ a: points[i], b: points[i + 1], kronrod: local.kronrod, error: local.error });
-    totalValue += local.kronrod;
-    totalError += local.error;
+    subintervals.push({
+      a: points[i],
+      b: points[i + 1],
+      kronrod: local.kronrod,
+      error: local.error
+    });
   }
 
-  let converged = true;
-  while (totalError > atol + rtol * Math.abs(totalValue)) {
-    if (panels.length >= maxSubintervals) {
-      converged = false;
-      break;
-    }
-
+  for (;;) {
+    let value = 0;
+    let error = 0;
     let worstIdx = 0;
-    for (let i = 1; i < panels.length; i++) {
-      if (panels[i].error > panels[worstIdx].error) worstIdx = i;
+    for (let i = 0; i < subintervals.length; i++) {
+      value += subintervals[i].kronrod;
+      error += subintervals[i].error;
+      if (subintervals[i].error > subintervals[worstIdx].error) worstIdx = i;
     }
-    const worst = panels[worstIdx];
 
+    const converged = error <= atol + rtol * Math.abs(value);
+    if (converged || subintervals.length >= maxSubintervals) {
+      return { value, error, evaluations, converged, subintervals: subintervals.length };
+    }
+
+    const worst = subintervals[worstIdx];
     const mid = midpoint(worst.a, worst.b);
     const left = gaussKronrod15(evalF, worst.a, mid);
     const right = gaussKronrod15(evalF, mid, worst.b);
 
-    totalValue += left.kronrod + right.kronrod - worst.kronrod;
-    totalError += left.error + right.error - worst.error;
-
-    panels[worstIdx] = { a: worst.a, b: mid, kronrod: left.kronrod, error: left.error };
-    panels.push({ a: mid, b: worst.b, kronrod: right.kronrod, error: right.error });
+    subintervals[worstIdx] = { a: worst.a, b: mid, kronrod: left.kronrod, error: left.error };
+    subintervals.push({ a: mid, b: worst.b, kronrod: right.kronrod, error: right.error });
   }
-
-  return {
-    value: totalValue,
-    error: totalError,
-    evaluations,
-    converged,
-    subintervals: panels.length
-  };
 }
 
 /**
@@ -257,8 +267,8 @@ export function integrateAdaptive(
  * Output:
  * ```text
  * {
- *   value: 0.0013768112771228931,
- *   error: 2.0058021368820277e-9,
+ *   value: 0.001376811277122893,
+ *   error: 2.005802135987561e-9,
  *   evaluations: 465,
  *   converged: true,
  *   subintervals: 16

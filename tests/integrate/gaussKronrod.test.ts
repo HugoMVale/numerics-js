@@ -21,6 +21,32 @@ describe('gaussKronrod15', () => {
     expect(result.kronrod).toBeCloseTo(1 / 3, 10);
     expect(evaluations).toBe(15);
   });
+
+  it('is exact up to degree 22 (Kronrod) and 13 (embedded Gauss) on [-1, 1]', () => {
+    const exact = (n: number) => (n % 2 === 0 ? 2 / (n + 1) : 0);
+
+    for (const n of [0, 1, 2, 7, 12, 13, 22]) {
+      expect(gaussKronrod15((x) => x ** n, -1, 1).kronrod).toBeCloseTo(exact(n), 14);
+    }
+    for (const n of [0, 1, 2, 7, 12, 13]) {
+      expect(gaussKronrod15((x) => x ** n, -1, 1).gauss).toBeCloseTo(exact(n), 14);
+    }
+
+    // One degree beyond each rule's exactness must show up in the estimates.
+    expect(Math.abs(gaussKronrod15((x) => x ** 14, -1, 1).gauss - exact(14))).toBeGreaterThan(1e-8);
+    expect(Math.abs(gaussKronrod15((x) => x ** 24, -1, 1).kronrod - exact(24))).toBeGreaterThan(
+      1e-12
+    );
+  });
+
+  it('estimates the error as |kronrod - gauss| and scales with the interval', () => {
+    const result = gaussKronrod15((x) => x ** 14, -1, 1);
+    expect(result.error).toBe(Math.abs(result.kronrod - result.gauss));
+    expect(result.error).toBeGreaterThan(0);
+
+    // Integration over a shifted, stretched interval: ∫_2^6 (x - 4)^2 dx = 2 * 2^3 / 3.
+    expect(gaussKronrod15((x) => (x - 4) ** 2, 2, 6).kronrod).toBeCloseTo(16 / 3, 13);
+  });
 });
 
 describe('gaussKronrod', () => {
@@ -88,6 +114,23 @@ describe('gaussKronrod', () => {
 
     expect(res.converged).toBe(false);
     expect(res.subintervals).toBe(3);
+  });
+
+  it('keeps the reported error non-negative and consistent with the stopping criterion', () => {
+    // A narrow Lorentzian needs many subdivisions. Updating the totals incrementally let
+    // them drift: after 54 subintervals the error estimate was -1.4e-11 (true sum: 6e-10),
+    // so the loop stopped early and reported convergence with a meaningless error.
+    const f = (x: number) => 1 / ((x - 0.5) ** 2 + 1e-8);
+    const exact = (2 * Math.atan(0.5 / 1e-4)) / 1e-4;
+    const rtol = 1e-14;
+    const res = gaussKronrod(f, 0, 1, { atol: 0, rtol });
+
+    expect(res.error).toBeGreaterThanOrEqual(0);
+    expect(res.converged).toBe(true);
+    expect(res.error).toBeLessThanOrEqual(rtol * Math.abs(res.value));
+    // The reported error must bound the true error.
+    expect(Math.abs(res.value - exact)).toBeLessThanOrEqual(res.error);
+    expect(res.subintervals).toBeGreaterThan(54);
   });
 
   it('rejects invalid tolerances and panel limits before evaluating the integrand', () => {
