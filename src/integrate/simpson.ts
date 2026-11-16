@@ -53,6 +53,13 @@ function trailingCorrection(
  * (which need not be uniform). Otherwise, samples are assumed to be
  * spaced `dx` apart.
  *
+ * Each pair of consecutive intervals is integrated with the parabola through its three
+ * samples, which is exact for quadratics (and for cubics if the two intervals are equally
+ * wide). If the number of intervals is odd, the last one is integrated with the correction
+ * of Cartwright (2017) for irregularly spaced data, using the parabola through the last three
+ * samples (exact for quadratics). Decreasing `x`, or a negative `dx`, reverses the sign of the
+ * integral.
+ *
  * @param y Sample values `y` to integrate: a `Vector`, a plain `number[]` or a `Float64Array`.
  * May be empty.
  * @param x Optional sample locations, same forms and same length as `y`. If omitted,

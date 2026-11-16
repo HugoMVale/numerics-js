@@ -5,7 +5,7 @@ import { Vector, type VectorLike } from '../linalg/Vector.js';
  *
  * If `x` is provided, the spacing between samples is taken from `x`
  * (which need not be uniform). Otherwise, samples are assumed to be
- * spaced `dx` apart.
+ * spaced `dx` apart. Decreasing `x`, or a negative `dx`, reverses the sign of the integral.
  *
  * @param y Sample values `y` to integrate: a `Vector`, a plain `number[]` or a `Float64Array`.
  * May be empty.
@@ -16,7 +16,8 @@ import { Vector, type VectorLike } from '../linalg/Vector.js';
  * @returns The approximate definite integral of `y`. Returns `0` if
  * `y.size` is `0` or `1` (a single point, or no points, has no area).
  * @throws {TypeError} If `y` or `x` is not a `VectorLike`.
- * @throws {RangeError} If `x` is provided and has a different length than `y`.
+ * @throws {RangeError} If `x` is provided and has a different length than `y` (also when `y`
+ * has fewer than 2 samples).
  *
  * @example
  * ```ts

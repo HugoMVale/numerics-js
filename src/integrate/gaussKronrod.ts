@@ -13,7 +13,10 @@ export interface GaussKronrodResult {
   subintervals: number;
   /** Estimated value of the definite integral. */
   value: number;
-  /** Estimated absolute integration error. */
+  /**
+   * Estimated absolute integration error. It is a conservative estimate: the actual error is
+   * usually much smaller.
+   */
   error: number;
 }
 

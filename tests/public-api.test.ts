@@ -25,6 +25,9 @@ describe('public API', () => {
     expect(typeof integrate.simpson).toBe('function');
     expect(typeof integrate.gaussKronrod).toBe('function');
     expect(typeof integrate.quad).toBe('function');
+    expectTypeOf<integrate.QuadResult>().toEqualTypeOf<integrate.GaussKronrodResult>();
+    expectTypeOf<integrate.QuadOptions>().toExtend<integrate.GaussKronrodOptions>();
+    expectTypeOf<integrate.QuadTransform['map']>().toBeFunction();
     expect(typeof interpolate.interp1D).toBe('function');
     expect(typeof interpolate.interpND).toBe('function');
     expect(interpolate.LinearInterpolator1D).toBeTypeOf('function');

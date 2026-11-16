@@ -164,6 +164,12 @@ describe('simpson', () => {
       expect(simpson([1, 2], undefined, 0)).toBe(0);
     });
 
+    it('reverses the sign of the integral for a negative dx', () => {
+      // y = x² sampled at 0, 1, 2 (and, for the odd case, 3): ∫ = 8/3 and 9.
+      expect(simpson([0, 1, 4], undefined, -1)).toBeCloseTo(-8 / 3, 12);
+      expect(simpson([0, 1, 4, 9], undefined, -1)).toBeCloseTo(-9, 12);
+    });
+
     it('still integrates decreasing x', () => {
       // ∫_4^0 x² dx = -64/3 with the exact parabola through (4,16), (2,4), (0,0).
       expect(simpson([16, 4, 0], [4, 2, 0])).toBeCloseTo(-64 / 3, 12);

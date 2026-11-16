@@ -97,6 +97,11 @@ describe('trapezoid', () => {
       expect(() => trapezoid([1, 2, 3], [])).toThrow(RangeError);
     });
 
+    it('reverses the sign of the integral for a negative dx or a decreasing x', () => {
+      expect(trapezoid([0, 1, 2], undefined, -1)).toBe(-2);
+      expect(trapezoid([0, 1, 2], [2, 1, 0])).toBe(-2);
+    });
+
     it('accepts repeated x values: a zero-width interval has no area', () => {
       expect(trapezoid([0, 1, 5], [0, 1, 1])).toBe(0.5);
     });

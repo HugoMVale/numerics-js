@@ -23,7 +23,10 @@ export interface QuadResult {
   subintervals: number;
   /** Estimated value of the definite integral. */
   value: number;
-  /** Estimated absolute integration error. */
+  /**
+   * Estimated absolute integration error. It is a conservative estimate: the actual error is
+   * usually much smaller.
+   */
   error: number;
 }
 
@@ -82,8 +85,13 @@ export interface QuadOptions extends GaussKronrodOptions {
   transform?: QuadTransform;
 }
 
-/** @internal */
-function getPositiveInfiniteTransform(a: number): QuadTransform {
+/**
+ * Change of variables for `[a, ∞)`: `x = a + (1 - t) / t`, `|dx/dt| = 1 / t²`, with
+ * `t ∈ (0, 1]` (`t = 1` is `x = a`; `t → 0` is `x → ∞`).
+ *
+ * @internal
+ */
+function upperUnboundedTransform(a: number): QuadTransform {
   return {
     map: (t: number) => ({
       x: a + (1 - t) / t,
@@ -93,8 +101,13 @@ function getPositiveInfiniteTransform(a: number): QuadTransform {
   };
 }
 
-/** @internal */
-function getNegativeInfiniteTransform(b: number): QuadTransform {
+/**
+ * Change of variables for `(-∞, b]`: `x = b - (1 - t) / t`, `|dx/dt| = 1 / t²`, with
+ * `t ∈ (0, 1]` (`t = 1` is `x = b`; `t → 0` is `x → -∞`).
+ *
+ * @internal
+ */
+function lowerUnboundedTransform(b: number): QuadTransform {
   return {
     map: (t: number) => ({
       x: b - (1 - t) / t,
@@ -104,8 +117,13 @@ function getNegativeInfiniteTransform(b: number): QuadTransform {
   };
 }
 
-/** @internal */
-function getFullyInfiniteTransform(): QuadTransform {
+/**
+ * Change of variables for `(-∞, ∞)`: `x = t / (1 - t²)`, `|dx/dt| = (1 + t²) / (1 - t²)²`, with
+ * `t ∈ (-1, 1)` (`t = 0` is `x = 0`; `t → ±1` is `x → ±∞`).
+ *
+ * @internal
+ */
+function unboundedTransform(): QuadTransform {
   return {
     map: (t: number) => {
       const t2 = t * t;
@@ -306,11 +324,11 @@ export function quad(
   let transform: QuadTransform | null = userTransform ?? null;
   if (!transform) {
     if (lo === -Infinity && hi === Infinity) {
-      transform = getFullyInfiniteTransform();
+      transform = unboundedTransform();
     } else if (lo === -Infinity) {
-      transform = getNegativeInfiniteTransform(hi);
+      transform = lowerUnboundedTransform(hi);
     } else if (hi === Infinity) {
-      transform = getPositiveInfiniteTransform(lo);
+      transform = upperUnboundedTransform(lo);
     }
   }
 
