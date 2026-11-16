@@ -25,10 +25,12 @@ export interface QuadResult {
   value: number;
   /**
    * Estimated absolute integration error: the sum of the local estimates `|kronrod - gauss|`.
-   * It is not a guaranteed bound, but it usually exceeds the actual error: by orders of
-   * magnitude for smooth integrands, and only slightly for integrands with singularities
-   * or kinks. A narrow feature that falls between all the nodes of a subinterval can go
-   * unnoticed and make the estimate far too small; use `breakpoints` to resolve it.
+   * It is not a guaranteed bound. For smooth integrands it usually exceeds the actual error
+   * by orders of magnitude; for integrands with mild singularities or kinks it is close to
+   * it; for strong singularities (e.g. `x^-0.9` at `x = 0`) it can be several times smaller,
+   * so the requested tolerance may be missed. A narrow feature that falls between all the
+   * nodes of a subinterval can go unnoticed and make the estimate far too small;
+   * use `breakpoints` to resolve it.
    */
   error: number;
 }

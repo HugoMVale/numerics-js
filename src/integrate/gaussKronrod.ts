@@ -15,10 +15,12 @@ export interface GaussKronrodResult {
   value: number;
   /**
    * Estimated absolute integration error: the sum of the local estimates `|kronrod - gauss|`.
-   * It is not a guaranteed bound, but it usually exceeds the actual error: by orders of
-   * magnitude for smooth integrands, and only slightly for integrands with singularities
-   * or kinks. A narrow feature that falls between all the nodes of a subinterval can go
-   * unnoticed and make the estimate far too small; split the interval to resolve it.
+   * It is not a guaranteed bound. For smooth integrands it usually exceeds the actual error
+   * by orders of magnitude; for integrands with mild singularities or kinks it is close to
+   * it; for strong singularities (e.g. `x^-0.9` at `x = 0`) it can be several times smaller,
+   * so the requested tolerance may be missed. A narrow feature that falls between all the
+   * nodes of a subinterval can go unnoticed and make the estimate far too small;
+   * split the interval to resolve it.
    */
   error: number;
 }
@@ -109,7 +111,8 @@ function halfLength(a: number, b: number): number {
  * The error estimate is the plain difference `|kronrod - gauss|`, which approximates the
  * error of the (less accurate) Gauss estimate. It therefore overestimates the error of the
  * Kronrod value by a wide margin for smooth integrands, where Kronrod converges much faster,
- * and is close to it for singular or kinked integrands, where both rules converge slowly.
+ * and is close to it, or even below it for strong singularities, where both rules converge
+ * slowly.
  * No further scaling is applied (as, e.g., in QUADPACK's `qk15`), because that inflates the
  * estimate for such hard integrands, and its roundoff floor can make tight tolerances
  * unreachable.
