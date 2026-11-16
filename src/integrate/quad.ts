@@ -2,6 +2,7 @@ import { Vector, type VectorLike } from '../linalg/Vector.js';
 import {
   integrateAdaptive,
   resolveGaussKronrodOptions,
+  validateIntegrand,
   type GaussKronrodOptions
 } from './gaussKronrod.js';
 
@@ -29,15 +30,17 @@ export interface QuadResult {
  * `∫ f(x) dx = ∫ f(map(t).x) · |map(t).dxDt| dt`, over `t` between
  * `inverse(a)` and `inverse(b)`.
  *
- * Requirements (documented, not verified at run time):
+ * Requirements:
  * - `map` is a strictly monotone bijection from the `t`-interval onto `[a, b]`
- *   (it may be increasing or decreasing).
- * - `inverse` is consistent with `map`, i.e. `inverse(map(t).x) === t`.
+ *   (it may be increasing or decreasing). Not verified at run time.
+ * - `inverse` is consistent with `map`, i.e. `inverse(map(t).x) === t`. Not verified at
+ *   run time.
  * - `inverse(a)` and `inverse(b)` are finite and distinct. If `a` or `b` is
  *   infinite, `inverse` must accept `±Infinity` and return the matching finite
- *   `t`-limit.
+ *   `t`-limit. Verified: {@link quad} throws a `RangeError` otherwise.
  * - `map(t).x` and `map(t).dxDt` are finite for `t` strictly inside the
- *   `t`-interval. The endpoints themselves are never evaluated.
+ *   `t`-interval. The endpoints themselves are never evaluated. Verified: {@link quad}
+ *   throws an `Error` otherwise.
  */
 export interface QuadTransform {
   /**
@@ -134,18 +137,20 @@ function getFullyInfiniteTransform(): QuadTransform {
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`. Can be `-Infinity`.
  * @param b Upper bound of integration `b`. Can be `Infinity`.
- * @param options Optional settings including error tolerances (`atol`, `rtol`),
- * `maxSubintervals`, breakpoints and a user-defined `transform`. A user-defined transform takes precedence over
- * the automatic handling of infinite limits.
+ * @param options Optional settings, see {@link QuadOptions}: error tolerances (`atol`, `rtol`),
+ * `maxSubintervals`, `breakpoints` and a user-defined `transform`. A user-defined transform
+ * takes precedence over the automatic handling of infinite limits.
  * @returns Quadrature output including aggregated value, error, and diagnostics.
- * @throws {RangeError} If `a` or `b` are `NaN`, if `transform.inverse`
- * returns non-finite or equal values for the integration limits, or, when
- * `a !== b`, if `atol` or `rtol` is not finite and non-negative or
- * `maxSubintervals` is not a finite positive integer.
- * @throws {TypeError} If `transform` is given but `map` or `inverse` is not a function, or if
- * `options.breakpoints` is not a `VectorLike`.
- * @throws {Error} If `f` evaluates to a non-finite value. When a transform is
- * active, the message reports the untransformed `x`, not the internal `t`.
+ * @throws {TypeError} If `f` is not a function, if `transform` is given but `map` or
+ * `inverse` is not a function, or if `options.breakpoints` is not a `VectorLike`.
+ * @throws {RangeError} If `a` or `b` are `NaN`, if `atol` or `rtol` is not finite and
+ * non-negative, if `maxSubintervals` is not a finite positive integer or is smaller than the
+ * number of initial subintervals defined by the limits and the breakpoints, or if
+ * `transform.inverse` returns non-finite or equal values for the integration limits.
+ * Except for the last two, these checks are made also when `a === b`.
+ * @throws {Error} If `f` evaluates to a non-finite value, or, when a transform is active, if
+ * `transform.map` returns a non-finite `x` or `dxDt` or the transformed integrand overflows.
+ * The message reports the untransformed `x`, not the internal `t`.
  *
  * @example
  * ```ts
@@ -261,23 +266,25 @@ export function quad(
   b: number,
   options: QuadOptions = {}
 ): QuadResult {
-  const { breakpoints = [], transform: userTransform, ...gkOptions } = options;
-  const breakpointsv = Vector.asVector(breakpoints);
-
+  // All arguments are validated up front, so that invalid input is reported even when
+  // the interval is empty.
+  validateIntegrand('quad', f);
   if (Number.isNaN(a) || Number.isNaN(b)) {
     throw new RangeError('quad: a and b must not be NaN');
   }
+  const { breakpoints = [], transform: userTransform, ...gkOptions } = options;
+  const resolved = resolveGaussKronrodOptions('quad', gkOptions);
   if (
     userTransform !== undefined &&
     (typeof userTransform?.map !== 'function' || typeof userTransform?.inverse !== 'function')
   ) {
     throw new TypeError('quad: transform.map and transform.inverse must be functions');
   }
+  const breakpointsv = Vector.asVector(breakpoints);
+
   if (a === b) {
     return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
   }
-
-  const resolved = resolveGaussKronrodOptions('quad', gkOptions);
 
   const sign = a > b ? -1 : 1;
   const lo = Math.min(a, b);
@@ -318,14 +325,26 @@ export function quad(
     tB = Math.max(t1, t2);
 
     // Only the magnitude of dx/dt matters: the t-range is always ascending.
+    // The checks are made here, in x-space, so that the errors name the real x and the
+    // actual culprit (the map or f) rather than the transformed integrand that the
+    // engine's own check would see.
     targetF = (t: number) => {
       const { x, dxDt } = map(t);
-      const y = f(x) * Math.abs(dxDt);
-      // Checked here, in x-space, so the error names the real x rather
-      // than the transformed t that gaussKronrod's own check would see.
+      if (!Number.isFinite(x) || !Number.isFinite(dxDt)) {
+        throw new Error(
+          `quad: transform.map(${t}) returned a non-finite x (${x}) or dxDt (${dxDt}); cannot integrate.`
+        );
+      }
+      const fx = f(x);
+      if (!Number.isFinite(fx)) {
+        throw new Error(
+          `quad: f(${x}) returned a non-finite value (${fx}) after applying the transform (t=${t}); cannot integrate.`
+        );
+      }
+      const y = fx * Math.abs(dxDt);
       if (!Number.isFinite(y)) {
         throw new Error(
-          `quad: f(${x}) returned a non-finite value (${y}) after applying the transform (t=${t}); cannot integrate.`
+          `quad: f(${x}) * |dxDt| overflows (f = ${fx}, dxDt = ${dxDt}) after applying the transform (t=${t}); cannot integrate.`
         );
       }
       return y;
@@ -338,10 +357,15 @@ export function quad(
 
   validBreakpoints.sort((x, y) => x - y);
   // Drop repeated points (e.g. breakpoints that collide after the mapping): they would
-  // define zero-width panels.
+  // define zero-width subintervals.
   const points = [tA];
   for (const p of [...validBreakpoints, tB]) {
     if (p > points[points.length - 1]) points.push(p);
+  }
+  if (points.length - 1 > resolved.maxSubintervals) {
+    throw new RangeError(
+      `quad: maxSubintervals (${resolved.maxSubintervals}) is smaller than the number of initial subintervals (${points.length - 1}) defined by the integration limits and the breakpoints.`
+    );
   }
 
   const result = integrateAdaptive('quad', targetF, points, resolved);

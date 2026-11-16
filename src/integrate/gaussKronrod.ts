@@ -161,6 +161,21 @@ export function resolveGaussKronrodOptions(
 }
 
 /**
+ * Checks that the integrand is a function.
+ *
+ * @internal
+ *
+ * @param name Public function name, used as prefix of error messages.
+ * @param f Value to check.
+ * @throws {TypeError} If `f` is not a function.
+ */
+export function validateIntegrand(name: string, f: unknown): void {
+  if (typeof f !== 'function') {
+    throw new TypeError(`${name}: f must be a function.`);
+  }
+}
+
+/**
  * Adaptive G7-K15 engine shared by {@link gaussKronrod} and {@link quad}.
  *
  * All initial subintervals (`points[i]`, `points[i + 1]`) share one global error budget
@@ -251,8 +266,10 @@ export function integrateAdaptive(
  * @param b Upper bound of integration `b`.
  * @param options Optional settings, see {@link GaussKronrodOptions}.
  * @returns Quadrature output including final value, estimated error, and diagnostics.
+ * @throws {TypeError} If `f` is not a function.
  * @throws {RangeError} If `a` or `b` are non-finite numbers, `atol` or `rtol` is not a
  * finite non-negative number, or `maxSubintervals` is not a finite positive integer.
+ * These checks are made also when `a === b`.
  * @throws {Error} If `f` evaluates to a non-finite value.
  *
  * @example
@@ -278,7 +295,7 @@ export function integrateAdaptive(
  * @example
  * ```ts
  * // A purely relative tolerance is invariant under rescaling of the integrand:
- * // the same panels are used whether the integral is of order 1e-12 or 1e12.
+ * // the same subintervals are used whether the integral is of order 1e-12 or 1e12.
  * const small = gaussKronrod(x => 1e-12 * Math.exp(Math.sin(30 * x)), 0, 1, { atol: 0, rtol: 1e-6 });
  * const large = gaussKronrod(x => 1e12 * Math.exp(Math.sin(30 * x)), 0, 1, { atol: 0, rtol: 1e-6 });
  * console.log(small.subintervals, large.subintervals);
@@ -295,10 +312,14 @@ export function gaussKronrod(
   b: number,
   options: GaussKronrodOptions = {}
 ): GaussKronrodResult {
+  // All arguments are validated up front, so that invalid input is reported even when
+  // the interval is empty.
+  validateIntegrand('gaussKronrod', f);
   if (!Number.isFinite(a) || !Number.isFinite(b)) {
     throw new RangeError('gaussKronrod: a and b must be finite numbers');
   }
   const resolved = resolveGaussKronrodOptions('gaussKronrod', options);
+
   if (a === b) {
     return { value: 0, error: 0, evaluations: 0, converged: true, subintervals: 0 };
   }

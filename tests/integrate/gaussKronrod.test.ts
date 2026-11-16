@@ -10,7 +10,7 @@ import {
 } from './testFunctions.js';
 
 describe('gaussKronrod15', () => {
-  it('computes a single-panel estimate for polynomials accurately', () => {
+  it('computes a single-subinterval estimate for polynomials accurately', () => {
     let evaluations = 0;
     const evalF = (x: number) => {
       evaluations++;
@@ -79,7 +79,7 @@ describe('gaussKronrod', () => {
     expect(reverse.evaluations).toBe(forward.evaluations);
   });
 
-  it('integrates over large finite bounds without overflowing panel centers', () => {
+  it('integrates over large finite bounds without overflowing subinterval centers', () => {
     const scale = 1e308;
     const result = gaussKronrod(
       (x) => Math.exp(-Math.pow((x / scale - 1.05) / 0.01, 2)),
@@ -133,7 +133,7 @@ describe('gaussKronrod', () => {
     expect(res.subintervals).toBeGreaterThan(54);
   });
 
-  it('rejects invalid tolerances and panel limits before evaluating the integrand', () => {
+  it('rejects invalid tolerances and subinterval limits before evaluating the integrand', () => {
     let evaluations = 0;
     const f = (x: number) => {
       evaluations++;
@@ -185,7 +185,7 @@ describe('gaussKronrod', () => {
 
   it('resolves integrals far below the default absolute tolerance via rtol', () => {
     // Integral of 1e-12 * sin(100 x) over [0, 1]; the default atol alone would accept
-    // the first panel (error ~1e-13 << 1e-8) with a completely wrong value.
+    // the first subinterval (error ~1e-13 << 1e-8) with a completely wrong value.
     const exact = (1e-12 * (1 - Math.cos(100))) / 100;
     const res = gaussKronrod((x) => 1e-12 * Math.sin(100 * x), 0, 1, { atol: 0 });
 
@@ -201,10 +201,17 @@ describe('gaussKronrod', () => {
     expect(Math.abs(res.value / (1e10 * (1 - Math.exp(-50))) - 1)).toBeLessThan(1e-12);
   });
 
-  it('throws TypeError for invalid integrand input', () => {
-    expect(() => gaussKronrod('not a function' as unknown as (x: number) => number, 0, 1)).toThrow(
-      TypeError
-    );
+  it('throws TypeError for invalid integrand input, also when a === b', () => {
+    const notAFunction = 'not a function' as unknown as (x: number) => number;
+    expect(() => gaussKronrod(notAFunction, 0, 1)).toThrow(TypeError);
+    expect(() => gaussKronrod(notAFunction, 0, 1)).toThrow('gaussKronrod: f must be a function.');
+    expect(() => gaussKronrod(notAFunction, 1, 1)).toThrow(TypeError);
+  });
+
+  it('validates the options also when a === b', () => {
+    expect(() => gaussKronrod(fSin, 1, 1, { atol: -1 })).toThrow(RangeError);
+    expect(() => gaussKronrod(fSin, 1, 1, { maxSubintervals: 0 })).toThrow(RangeError);
+    expect(() => gaussKronrod(fSin, 1, Infinity, { atol: -1 })).toThrow(/finite numbers/);
   });
 
   it('throws RangeError for infinite or NaN integration limits', () => {

@@ -90,6 +90,16 @@ describe('trapezoid', () => {
       expect(() => trapezoid(y, x)).toThrow(RangeError);
       expect(() => trapezoid(y, x)).toThrow(/same size/);
     });
+
+    it('throws a RangeError when x and y sizes differ, even if y has fewer than 2 samples', () => {
+      expect(() => trapezoid([5], [1, 2, 3])).toThrow(/same size: 3 vs 1/);
+      expect(() => trapezoid([], [1])).toThrow(/same size: 1 vs 0/);
+      expect(() => trapezoid([1, 2, 3], [])).toThrow(RangeError);
+    });
+
+    it('accepts repeated x values: a zero-width interval has no area', () => {
+      expect(trapezoid([0, 1, 5], [0, 1, 1])).toBe(0.5);
+    });
   });
 });
 

@@ -143,6 +143,31 @@ describe('simpson', () => {
       expect(() => simpson(y, x)).toThrow(RangeError);
       expect(() => simpson(y, x)).toThrow(/same size/);
     });
+
+    it('throws a RangeError when x and y sizes differ, even if y has fewer than 2 samples', () => {
+      expect(() => simpson([5], [1, 2, 3])).toThrow(/same size: 3 vs 1/);
+      expect(() => simpson([], [1])).toThrow(/same size: 1 vs 0/);
+    });
+
+    it('throws a RangeError for repeated x values, which make the quadratic fit undefined', () => {
+      // First or second interval of a pair, and the two intervals of the trailing correction.
+      expect(() => simpson([0, 1, 2], [0, 0, 1])).toThrow(/x\[0\] === x\[1\]/);
+      expect(() => simpson([0, 1, 2], [0, 1, 1])).toThrow(/x\[1\] === x\[2\]/);
+      expect(() => simpson([0, 1, 2, 3], [0, 1, 1, 2])).toThrow(/x\[1\] === x\[2\]/);
+      expect(() => simpson([0, 1, 2, 3], [0, 1, 2, 2])).toThrow(/x\[2\] === x\[3\]/);
+      expect(() => simpson([0, 1, 2, 3, 4], [0, 1, 2, 3, 3])).toThrow(RangeError);
+    });
+
+    it('throws a RangeError for dx = 0 with at least 3 samples', () => {
+      expect(() => simpson([1, 2, 3], undefined, 0)).toThrow('simpson: dx must be non-zero.');
+      // Two samples fall back to the trapezoidal rule, which has no such problem.
+      expect(simpson([1, 2], undefined, 0)).toBe(0);
+    });
+
+    it('still integrates decreasing x', () => {
+      // ∫_4^0 x² dx = -64/3 with the exact parabola through (4,16), (2,4), (0,0).
+      expect(simpson([16, 4, 0], [4, 2, 0])).toBeCloseTo(-64 / 3, 12);
+    });
   });
 });
 

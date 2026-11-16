@@ -274,6 +274,31 @@ describe('quad - user-defined transform', () => {
     expect(() => quad(() => Infinity, 0, 1, { transform: badTransform })).not.toThrow('f(0.25)');
   });
 
+  it('blames transform.map, not f, when it returns a non-finite x or dxDt', () => {
+    let evaluations = 0;
+    const f = () => {
+      evaluations++;
+      return 1;
+    };
+    const inverse = (x: number) => x / 2;
+
+    expect(() =>
+      quad(f, 0, 1, { transform: { map: (t) => ({ x: 2 * t, dxDt: Infinity }), inverse } })
+    ).toThrow(/transform\.map\(0\.25\) returned a non-finite x \(0\.5\) or dxDt \(Infinity\)/);
+    expect(() =>
+      quad(f, 0, 1, { transform: { map: () => ({ x: NaN, dxDt: 2 }), inverse } })
+    ).toThrow(/transform\.map\(0\.25\) returned a non-finite x \(NaN\)/);
+    expect(evaluations).toBe(0);
+  });
+
+  it('reports an overflow of f(x) * |dxDt| as such', () => {
+    const transform = {
+      map: (t: number) => ({ x: 2 * t, dxDt: 1e300 }),
+      inverse: (x: number) => x / 2
+    };
+    expect(() => quad(() => 1e300, 0, 1, { transform })).toThrow(/f\(0\.5\) \* \|dxDt\| overflows/);
+  });
+
   it('returns 0 for a === b without touching the transform', () => {
     const res = quad(fSin, 1, 1, { transform: sqrtTransform });
     expect(res).toEqual({
@@ -332,7 +357,7 @@ describe('quad - tolerances', () => {
     const res = quad(f, 0, 1, { breakpoints, atol, rtol: 0 });
     expect(res.converged).toBe(true);
     expect(res.error).toBeLessThanOrEqual(atol);
-    // A shared budget forces refinement beyond the N initial panels.
+    // A shared budget forces refinement beyond the N initial subintervals.
     expect(res.subintervals).toBeGreaterThan(N);
   });
 
@@ -357,7 +382,7 @@ describe('quad - tolerances', () => {
     expect(res.subintervals).toBe(10);
   });
 
-  it('ignores repeated breakpoints instead of wasting evaluations on empty panels', () => {
+  it('ignores repeated breakpoints instead of wasting evaluations on empty subintervals', () => {
     const once = quad(fIdentity, 0, 1, { breakpoints: [0.5] });
     const repeated = quad(fIdentity, 0, 1, { breakpoints: [0.5, 0.5, 0.5] });
     expect(repeated.evaluations).toBe(once.evaluations);
@@ -374,7 +399,7 @@ describe('quad - tolerances', () => {
     }
   });
 
-  it('rejects invalid tolerances and panel limits', () => {
+  it('rejects invalid tolerances and subinterval limits', () => {
     for (const bad of [NaN, Infinity, -1]) {
       expect(() => quad(fSin, 0, 1, { atol: bad })).toThrow(RangeError);
       expect(() => quad(fSin, 0, 1, { rtol: bad })).toThrow(RangeError);
@@ -382,7 +407,46 @@ describe('quad - tolerances', () => {
     for (const maxSubintervals of [NaN, Infinity, 0, -1, 1.5]) {
       expect(() => quad(fSin, 0, 1, { maxSubintervals })).toThrow(RangeError);
     }
-    // Validation only applies when there is something to integrate.
-    expect(quad(fSin, 1, 1, { atol: -1 }).value).toBe(0);
+  });
+
+  it('validates the options also when a === b', () => {
+    expect(() => quad(fSin, 1, 1, { atol: -1 })).toThrow(RangeError);
+    expect(() => quad(fSin, 1, 1, { rtol: NaN })).toThrow(RangeError);
+    expect(() => quad(fSin, 1, 1, { maxSubintervals: 0 })).toThrow(RangeError);
+    expect(() => quad(fSin, 1, 1, { breakpoints: 'abc' as never })).toThrow(TypeError);
+    expect(() => quad(fSin, 1, 1, { transform: {} as QuadTransform })).toThrow(TypeError);
+  });
+
+  it('throws a TypeError if f is not a function, also when a === b', () => {
+    const notAFunction = 'x' as unknown as (x: number) => number;
+    expect(() => quad(notAFunction, 0, 1)).toThrow(TypeError);
+    expect(() => quad(notAFunction, 0, 1)).toThrow('quad: f must be a function.');
+    expect(() => quad(notAFunction, 1, 1)).toThrow(TypeError);
+    expect(() => quad(notAFunction, 0, Infinity)).toThrow(TypeError);
+  });
+
+  it('throws a RangeError if maxSubintervals cannot hold the initial subintervals', () => {
+    const breakpoints = [0.1, 0.2, 0.3, 0.4];
+    let evaluations = 0;
+    const f = (x: number) => {
+      evaluations++;
+      return x;
+    };
+
+    // 4 breakpoints -> 5 initial subintervals.
+    expect(() => quad(f, 0, 1, { breakpoints, maxSubintervals: 4 })).toThrow(RangeError);
+    expect(() => quad(f, 0, 1, { breakpoints, maxSubintervals: 4 })).toThrow(
+      /maxSubintervals \(4\) is smaller than the number of initial subintervals \(5\)/
+    );
+    expect(evaluations).toBe(0);
+
+    const res = quad(f, 0, 1, { breakpoints, maxSubintervals: 5 });
+    expect(res.converged).toBe(true);
+    expect(res.subintervals).toBe(5);
+
+    // Breakpoints outside the limits and repeated ones do not count.
+    expect(quad(f, 0, 1, { breakpoints: [-1, 0.5, 0.5, 2], maxSubintervals: 2 }).subintervals).toBe(
+      2
+    );
   });
 });

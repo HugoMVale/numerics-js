@@ -36,12 +36,12 @@ export function trapezoid(y: VectorLike, x?: VectorLike, dx: number = 1): number
   const yv = Vector.asVector(y);
   const xv = x === undefined ? undefined : Vector.asVector(x);
   const n = yv.size;
+  if (xv !== undefined && xv.size !== n) {
+    throw new RangeError(`trapezoid: x and y must have the same size: ${xv.size} vs ${n}`);
+  }
   if (n < 2) return 0;
 
   if (xv !== undefined) {
-    if (xv.size !== n) {
-      throw new RangeError(`trapezoid: x and y must have the same size: ${xv.size} vs ${n}`);
-    }
     let sum = 0;
     for (let i = 0; i < n - 1; i++) {
       sum += (xv.data[i + 1] - xv.data[i]) * (yv.data[i] + yv.data[i + 1]);

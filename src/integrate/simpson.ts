@@ -63,7 +63,9 @@ function trailingCorrection(
  * `y.size` is `0` or `1`. Falls back to the trapezoidal rule if
  * `y.size` is `2`, since Simpson's rule needs at least 3 points.
  * @throws {TypeError} If `y` or `x` is not a `VectorLike`.
- * @throws {RangeError} If `x` is provided and has a different length than `y`.
+ * @throws {RangeError} If `x` is provided and has a different length than `y` (also when `y`
+ * has fewer than 2 samples), or if `y` has at least 3 samples and `x` contains repeated
+ * consecutive values (or `dx` is zero), since the quadratic fit is then undefined.
  *
  * @example
  * ```ts
@@ -85,13 +87,25 @@ export function simpson(y: VectorLike, x?: VectorLike, dx: number = 1): number {
   const yv = Vector.asVector(y);
   const xv = x === undefined ? undefined : Vector.asVector(x);
   const n = yv.size;
-  if (n < 2) return 0;
-
   if (xv !== undefined && xv.size !== n) {
     throw new RangeError(`simpson: x and y must have the same size: ${xv.size} vs ${n}`);
   }
-
+  if (n < 2) return 0;
   if (n === 2) return trapezoid(yv, xv, dx);
+
+  // Width of the i-th interval, `[x_i, x_{i+1}]`. A zero width (repeated sample location,
+  // or dx = 0) would divide by zero in the quadratic fit, so it is rejected.
+  const width = (i: number): number => {
+    const h = xv !== undefined ? xv.data[i + 1] - xv.data[i] : dx;
+    if (h === 0) {
+      throw new RangeError(
+        xv !== undefined
+          ? `simpson: x must not contain repeated values (x[${i}] === x[${i + 1}]).`
+          : 'simpson: dx must be non-zero.'
+      );
+    }
+    return h;
+  };
 
   const nIntervals = n - 1;
   const nPairs = Math.floor(nIntervals / 2);
@@ -99,17 +113,17 @@ export function simpson(y: VectorLike, x?: VectorLike, dx: number = 1): number {
   let sum = 0;
   for (let k = 0; k < nPairs; k++) {
     const i0 = 2 * k;
-    const i1 = i0 + 1;
-    const i2 = i0 + 2;
-    const h0 = xv !== undefined ? xv.data[i1] - xv.data[i0] : dx;
-    const h1 = xv !== undefined ? xv.data[i2] - xv.data[i1] : dx;
-    sum += simpsonPair(yv.data[i0], yv.data[i1], yv.data[i2], h0, h1);
+    sum += simpsonPair(yv.data[i0], yv.data[i0 + 1], yv.data[i0 + 2], width(i0), width(i0 + 1));
   }
 
   if (nIntervals % 2 === 1) {
-    const hPrev = xv !== undefined ? xv.data[n - 2] - xv.data[n - 3] : dx;
-    const hLast = xv !== undefined ? xv.data[n - 1] - xv.data[n - 2] : dx;
-    sum += trailingCorrection(yv.data[n - 3], yv.data[n - 2], yv.data[n - 1], hPrev, hLast);
+    sum += trailingCorrection(
+      yv.data[n - 3],
+      yv.data[n - 2],
+      yv.data[n - 1],
+      width(n - 3),
+      width(n - 2)
+    );
   }
 
   return sum;
