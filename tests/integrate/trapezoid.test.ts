@@ -3,7 +3,7 @@ import { Vector } from '../../src/linalg/Vector.js';
 import { trapezoid } from '../../src/integrate/trapezoid.js';
 import { vectorLikeForms } from '../vectorLikeForms.js';
 
-describe('trapz', () => {
+describe('trapezoid', () => {
   describe('degenerate sizes', () => {
     it('returns 0 for an empty vector', () => {
       expect(trapezoid(new Vector(0))).toBe(0);
@@ -20,12 +20,12 @@ describe('trapz', () => {
 
   describe('uniform spacing (dx)', () => {
     it('defaults to dx = 1 when no x or dx is given', () => {
-      // np.trapz([1, 2, 3]) == 4
+      // numpy.trapezoid([1, 2, 3]) == 4
       expect(trapezoid(Vector.from([1, 2, 3]))).toBeCloseTo(4);
     });
 
     it('scales the result by dx', () => {
-      // np.trapz([1, 2, 3], dx=2) == 8
+      // numpy.trapezoid([1, 2, 3], dx=2) == 8
       expect(trapezoid(Vector.from([1, 2, 3]), undefined, 2)).toBeCloseTo(8);
     });
 
@@ -42,7 +42,7 @@ describe('trapz', () => {
     });
 
     it('approximates a convex function with a known error direction', () => {
-      // y = x^2 over [0, 1] with dx = 0.5: trapz should overestimate
+      // y = x^2 over [0, 1] with dx = 0.5: trapezoid should overestimate
       // the true integral (1/3) since the rule is exact only for lines.
       const y = Vector.from([0, 0.25, 1]);
       const result = trapezoid(y, undefined, 0.5);

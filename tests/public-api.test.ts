@@ -24,6 +24,7 @@ describe('public API', () => {
     expect(typeof integrate.trapezoid).toBe('function');
     expect(typeof integrate.simpson).toBe('function');
     expect(typeof integrate.gaussKronrod).toBe('function');
+    expect(typeof integrate.quad).toBe('function');
     expect(typeof interpolate.interp1D).toBe('function');
     expect(typeof interpolate.interpND).toBe('function');
     expect(interpolate.LinearInterpolator1D).toBeTypeOf('function');

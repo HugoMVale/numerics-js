@@ -15,14 +15,14 @@ describe('simpson', () => {
 
     it('falls back to the trapezoidal rule for exactly 2 points', () => {
       const y = Vector.from([1, 3]);
-      // trapz([1, 3], dx=1) = (1+3)/2 = 2
+      // trapezoid([1, 3], dx=1) = (1+3)/2 = 2
       expect(simpson(y)).toBeCloseTo(2);
     });
 
-    it('falls back to trapz with x for exactly 2 points', () => {
+    it('falls back to the trapezoidal rule with x for exactly 2 points', () => {
       const y = Vector.from([1, 3]);
       const x = Vector.from([0, 2]);
-      // trapz: (2-0) * (1+3)/2 = 4
+      // trapezoid: (2-0) * (1+3)/2 = 4
       expect(simpson(y, x)).toBeCloseTo(4);
     });
   });
@@ -58,7 +58,7 @@ describe('simpson', () => {
 
     it('integrates a cubic exactly when the interval count is even', () => {
       // Simpson's rule is exact for cubics too (degree <= 3), but only
-      // in the "pure" case with no trailing-trapz correction, i.e. an
+      // in the "pure" case with no trailing correction, i.e. an
       // even number of intervals. y = x^3 over [0, 4], dx = 1
       // (4 intervals, even) -> true integral = 4^4 / 4 = 64.
       const y = Vector.from([0, 1, 8, 27, 64]);
