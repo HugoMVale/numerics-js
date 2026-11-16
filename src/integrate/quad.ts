@@ -24,8 +24,11 @@ export interface QuadResult {
   /** Estimated value of the definite integral. */
   value: number;
   /**
-   * Estimated absolute integration error. It is a conservative estimate: the actual error is
-   * usually much smaller.
+   * Estimated absolute integration error: the sum of the local estimates `|kronrod - gauss|`.
+   * It is not a guaranteed bound, but it usually exceeds the actual error: by orders of
+   * magnitude for smooth integrands, and only slightly for integrands with singularities
+   * or kinks. A narrow feature that falls between all the nodes of a subinterval can go
+   * unnoticed and make the estimate far too small; use `breakpoints` to resolve it.
    */
   error: number;
 }

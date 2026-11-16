@@ -14,8 +14,11 @@ export interface GaussKronrodResult {
   /** Estimated value of the definite integral. */
   value: number;
   /**
-   * Estimated absolute integration error. It is a conservative estimate: the actual error is
-   * usually much smaller.
+   * Estimated absolute integration error: the sum of the local estimates `|kronrod - gauss|`.
+   * It is not a guaranteed bound, but it usually exceeds the actual error: by orders of
+   * magnitude for smooth integrands, and only slightly for integrands with singularities
+   * or kinks. A narrow feature that falls between all the nodes of a subinterval can go
+   * unnoticed and make the estimate far too small; split the interval to resolve it.
    */
   error: number;
 }
@@ -103,9 +106,13 @@ function halfLength(a: number, b: number): number {
  * Applies the 7-15 Gauss-Kronrod rule to one subinterval and returns the
  * embedded Gauss and Kronrod estimates.
  *
- * The error estimate is the plain difference `|kronrod - gauss|`. It is a
- * conservative (typically pessimistic) bound for smooth integrands, because the
- * Kronrod estimate is far more accurate than the Gauss one.
+ * The error estimate is the plain difference `|kronrod - gauss|`, which approximates the
+ * error of the (less accurate) Gauss estimate. It therefore overestimates the error of the
+ * Kronrod value by a wide margin for smooth integrands, where Kronrod converges much faster,
+ * and is close to it for singular or kinked integrands, where both rules converge slowly.
+ * No further scaling is applied (as, e.g., in QUADPACK's `qk15`), because that inflates the
+ * estimate for such hard integrands, and its roundoff floor can make tight tolerances
+ * unreachable.
  *
  * @internal
  *
