@@ -20,8 +20,7 @@ const INTEGRANDS: Record<string, (x: number) => number> = {
   piecewise_breakpoint: (x) => (x < 1 ? 1 : 2)
 };
 
-// Allowed slack for evaluations vs SciPy's QUADPACK reference, applied only to smooth
-// integrands (see EVALUATION_FACTOR use below): observed ratios there are ~0.7x-1.1x.
+// Allowed slack for evaluations vs SciPy's QUADPACK reference: observed ratios are ~0.6x-1.1x.
 const EVALUATION_FACTOR = 1.2;
 const decodeBound = (bound: number | string): number =>
   bound === 'Infinity' ? Infinity : bound === '-Infinity' ? -Infinity : Number(bound);
@@ -45,11 +44,9 @@ describe('quad vs SciPy reference values', () => {
       const tolerance = Math.max(fixture.scipyAbsError, result.error) * 10 + 1e-10;
       expect(Math.abs(result.value - fixture.scipyValue)).toBeLessThan(tolerance);
 
-      // gaussKronrod has no singularity-aware subdivision (unlike QUADPACK's QAGS), so
-      // evaluation counts are only meaningfully comparable outside its domain of validity.
-      if (!fixture.singular) {
-        expect(result.evaluations).toBeLessThan(fixture.scipyEvaluations * EVALUATION_FACTOR);
-      }
+      // SciPy uses the 21-point rule (QAGS/QAGP with limit 50), quad the 15-point one: observed
+      // ratios are 0.58x-1.12x, also for the singular integrands, which the extrapolation handles.
+      expect(result.evaluations).toBeLessThan(fixture.scipyEvaluations * EVALUATION_FACTOR);
     });
   }
 });
