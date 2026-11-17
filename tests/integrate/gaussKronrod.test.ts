@@ -231,6 +231,34 @@ describe('gaussKronrod', () => {
     );
   });
 
+  it('stops with success = false when bisection reaches an endpoint where f is not finite', () => {
+    // (1 - x)^-0.9 is singular at x = 1. Bisecting toward it used to end with a node exactly at
+    // x = 1 and a "non-finite value" error.
+    const f = (x: number) => (1 - x) ** -0.9;
+    const res = gaussKronrod(f, 0, 1, { atol: 0, rtol: 1e-12, maxSubintervals: 1000 });
+    expect(res.success).toBe(false);
+    expect(res.message).toMatch(/^Bisection reached floating-point resolution at a point where/);
+    expect(Number.isFinite(res.value)).toBe(true);
+    expect(res.value).toBeGreaterThan(9);
+    expect(res.value).toBeLessThan(10);
+    expect(res.subintervals).toBeLessThan(100);
+  });
+
+  it('does not stop early when nodes round onto endpoints where f is still finite', () => {
+    // The singularity at 1/3 is interior, so bisection ends up with nodes that coincide with the
+    // endpoints of tiny subintervals next to it, but f is finite there and the run converges.
+    const f = (x: number) => Math.abs(x - 1 / 3) ** -0.5;
+    const res = gaussKronrod(f, 0, 1, { atol: 0, rtol: 1e-8 });
+    expect(res.success).toBe(true);
+    expect(res.value).toBeCloseTo(2 * (Math.sqrt(1 / 3) + Math.sqrt(2 / 3)), 7);
+  });
+
+  it('still throws for a non-finite value at an abscissa that is not an endpoint', () => {
+    // The blow-up is at the centre of the left half, which is an interior node, not an endpoint.
+    const f = (x: number) => (x === 0.25 ? Infinity : Math.sin(40 * x));
+    expect(() => gaussKronrod(f, 0, 1)).toThrow('gaussKronrod: f(0.25) returned a non-finite');
+  });
+
   it('throws an Error when the function produces non-finite values', () => {
     expect(() => gaussKronrod(fBlowupMidpoint, 0, 1)).toThrow(
       /gaussKronrod: f\(0\.5\) returned a non-finite value \(Infinity\); cannot integrate\./

@@ -97,6 +97,38 @@ describe('quad - infinite domains', () => {
   });
 });
 
+describe('quad - endpoint singularities at floating-point resolution', () => {
+  const RESOLUTION_MESSAGE = /^Bisection reached floating-point resolution at a point where/;
+
+  it('stops with success = false instead of throwing when a node rounds onto the singularity', () => {
+    // x^-0.9 exp(-x) on [0, Infinity) is singular at t = 1 of the internal map. Bisecting toward
+    // it used to end with a node exactly at t = 1 and a "non-finite value" error.
+    const f = (x: number) => x ** -0.9 * Math.exp(-x);
+    for (const rtol of [1e-6, 1e-8, 1e-12]) {
+      const res = quad(f, 0, Infinity, { atol: 0, rtol });
+      expect(res.success).toBe(false);
+      expect(res.message).toMatch(RESOLUTION_MESSAGE);
+      expect(Number.isFinite(res.value)).toBe(true);
+      expect(Number.isFinite(res.error)).toBe(true);
+      expect(res.subintervals).toBeLessThan(200);
+    }
+  });
+
+  it('does the same with the singularity at a finite upper limit and with reversed bounds', () => {
+    const f = (x: number) => (1 - x) ** -0.9;
+    const forward = quad(f, 0, 1);
+    expect(forward.success).toBe(false);
+    expect(forward.message).toMatch(RESOLUTION_MESSAGE);
+    expect(quad(f, 1, 0).value).toBe(-forward.value);
+  });
+
+  it('still throws for a non-finite value at an abscissa that is not an endpoint', () => {
+    // The blow-up is at the centre of the left half, which is an interior node, not an endpoint.
+    const f = (x: number) => (x === 0.25 ? Infinity : Math.sin(40 * x));
+    expect(() => quad(f, 0, 1)).toThrow('quad: f(0.25) returned a non-finite value');
+  });
+});
+
 describe('quad - user-defined transform', () => {
   // x = t^2 removes the 1/sqrt(x) endpoint singularity: integrand becomes 2.
   const sqrtTransform = {

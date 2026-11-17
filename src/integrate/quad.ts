@@ -2,6 +2,7 @@ import { Vector, type VectorLike } from '../linalg/Vector.js';
 import {
   emptyIntervalResult,
   integrateAdaptive,
+  NonFiniteIntegrandError,
   resolveGaussKronrodOptions,
   validateIntegrand,
   type GaussKronrodOptions
@@ -180,7 +181,10 @@ function unboundedTransform(): QuadTransform {
  * Except for the last two, these checks are made also when `a === b`.
  * @throws {Error} If `f` evaluates to a non-finite value, or, when a transform is active, if
  * `transform.map` returns a non-finite `x` or `dxDt` or the transformed integrand overflows.
- * The message reports the untransformed `x`, not the internal `t`.
+ * The message reports the untransformed `x`, not the internal `t`. The one exception is a
+ * non-finite value exactly at an endpoint of the subinterval being bisected, which happens when
+ * bisection toward an endpoint singularity reaches floating-point resolution: `success` is then
+ * `false`, see {@link QuadResult.success}.
  *
  * @example
  * ```ts
@@ -366,20 +370,23 @@ export function quad(
     targetF = (t: number) => {
       const { x, dxDt } = map(t);
       if (!Number.isFinite(x) || !Number.isFinite(dxDt)) {
-        throw new Error(
-          `quad: transform.map(${t}) returned a non-finite x (${x}) or dxDt (${dxDt}); cannot integrate.`
+        throw new NonFiniteIntegrandError(
+          `quad: transform.map(${t}) returned a non-finite x (${x}) or dxDt (${dxDt}); cannot integrate.`,
+          t
         );
       }
       const fx = f(x);
       if (!Number.isFinite(fx)) {
-        throw new Error(
-          `quad: f(${x}) returned a non-finite value (${fx}) after applying the transform (t=${t}); cannot integrate.`
+        throw new NonFiniteIntegrandError(
+          `quad: f(${x}) returned a non-finite value (${fx}) after applying the transform (t=${t}); cannot integrate.`,
+          t
         );
       }
       const y = fx * Math.abs(dxDt);
       if (!Number.isFinite(y)) {
-        throw new Error(
-          `quad: f(${x}) * |dxDt| overflows (f = ${fx}, dxDt = ${dxDt}) after applying the transform (t=${t}); cannot integrate.`
+        throw new NonFiniteIntegrandError(
+          `quad: f(${x}) * |dxDt| overflows (f = ${fx}, dxDt = ${dxDt}) after applying the transform (t=${t}); cannot integrate.`,
+          t
         );
       }
       return y;

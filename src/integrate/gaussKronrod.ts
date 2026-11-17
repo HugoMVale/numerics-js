@@ -2,7 +2,8 @@
 export interface GaussKronrodResult {
   /**
    * Whether the requested error tolerance was reached, i.e. `error <= atol + rtol * |value|`;
-   * see `message`. If `false`, `value` and `error` are the best estimates found.
+   * see `message`. If `false` (subinterval limit reached, or bisection reached floating-point
+   * resolution at an endpoint singularity), `value` and `error` are the best estimates found.
    */
   success: boolean;
   /** Message describing the reason for termination. */
@@ -86,6 +87,27 @@ const KRONROD_WEIGHTS: readonly number[] = [
 const GAUSS_WEIGHTS: readonly number[] = [
   0.4179591836734694, 0, 0.3818300505051189, 0, 0.27970539148927664, 0, 0.1294849661688697, 0
 ];
+
+/**
+ * Error thrown by the integrand wrappers of {@link gaussKronrod} and {@link quad} when the
+ * integrand (or a transform) is not finite at `point`, the abscissa that was being evaluated in
+ * the variable the engine works in.
+ *
+ * The engine uses `point` to tell the harmless-looking failure of an integrable endpoint
+ * singularity apart from a genuinely bad integrand: see {@link integrateAdaptive}. It is an
+ * ordinary `Error` for callers, so it is documented as such.
+ *
+ * @internal
+ */
+export class NonFiniteIntegrandError extends Error {
+  /** Abscissa, in the variable the engine integrates over, where the evaluation failed. */
+  readonly point: number;
+
+  constructor(message: string, point: number) {
+    super(message);
+    this.point = point;
+  }
+}
 
 /** A subinterval `[a, b]` of the adaptive partition, with its local G7-K15 results. */
 interface Subinterval {
@@ -216,6 +238,14 @@ export function validateIntegrand(name: string, f: unknown): void {
  * and one subinterval limit: at each step the subinterval with the largest error estimate
  * is bisected, until `error <= atol + rtol * |value|` for the whole integral.
  *
+ * Bisecting toward an integrable endpoint singularity (e.g. `x^-0.9` at `x = 0`) keeps splitting
+ * the subinterval that touches it. After about 45 levels the outermost nodes round onto the
+ * endpoint, where `f` is not finite. If that is where the integrand fails, i.e. the non-finite
+ * abscissa coincides with an endpoint of the subinterval being split, the engine stops with
+ * `success = false` and the estimates found so far instead of throwing. A non-finite value at any
+ * other abscissa is a genuinely bad integrand and still throws. Integrands that are finite at
+ * the rounded-onto endpoints are not affected: they simply continue.
+ *
  * The totals are re-summed from the subintervals at every step instead of being updated
  * incrementally (`total += left + right - parent`). The incremental update accumulates
  * rounding errors that are relatively large once the error estimate has shrunk by many
@@ -243,7 +273,10 @@ export function integrateAdaptive(
     evaluations++;
     const y = f(x);
     if (!Number.isFinite(y)) {
-      throw new Error(`${name}: f(${x}) returned a non-finite value (${y}); cannot integrate.`);
+      throw new NonFiniteIntegrandError(
+        `${name}: f(${x}) returned a non-finite value (${y}); cannot integrate.`,
+        x
+      );
     }
     return y;
   };
@@ -285,8 +318,26 @@ export function integrateAdaptive(
 
     const worst = subintervals[worstIdx];
     const mid = midpoint(worst.a, worst.b);
-    const left = gaussKronrod15(evalF, worst.a, mid);
-    const right = gaussKronrod15(evalF, mid, worst.b);
+    let left: LocalGaussKronrodResult;
+    let right: LocalGaussKronrodResult;
+    try {
+      left = gaussKronrod15(evalF, worst.a, mid);
+      right = gaussKronrod15(evalF, mid, worst.b);
+    } catch (e) {
+      const atEndpoint =
+        e instanceof NonFiniteIntegrandError &&
+        (e.point === worst.a || e.point === mid || e.point === worst.b);
+      if (!atEndpoint) throw e;
+      return {
+        success: false,
+        message:
+          'Bisection reached floating-point resolution at a point where the integrand is not finite (probable endpoint singularity).',
+        evaluations,
+        subintervals: subintervals.length,
+        value,
+        error
+      };
+    }
 
     subintervals[worstIdx] = { a: worst.a, b: mid, kronrod: left.kronrod, error: left.error };
     subintervals.push({ a: mid, b: worst.b, kronrod: right.kronrod, error: right.error });
@@ -313,7 +364,8 @@ export function integrateAdaptive(
  * @throws {RangeError} If `a` or `b` are non-finite numbers, `atol` or `rtol` is not a
  * finite non-negative number, or `maxSubintervals` is not a finite positive integer.
  * These checks are made also when `a === b`.
- * @throws {Error} If `f` evaluates to a non-finite value.
+ * @throws {Error} If `f` evaluates to a non-finite value, except when bisection reaches
+ * floating-point resolution at an endpoint where `f` is not finite: then `success` is `false`.
  *
  * @example
  * ```ts
