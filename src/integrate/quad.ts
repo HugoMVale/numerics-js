@@ -1,7 +1,7 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
+import { integrateExtrapolated } from './adaptiveExtrapolation.js';
 import {
   emptyIntervalResult,
-  integrateAdaptive,
   NonFiniteIntegrandError,
   resolveGaussKronrodOptions,
   validateIntegrand,
@@ -410,7 +410,7 @@ export function quad(
     );
   }
 
-  const result = integrateAdaptive('quad', targetF, points, resolved);
+  const result = integrateExtrapolated('quad', targetF, points, resolved);
   result.value *= sign;
   return result;
 }

@@ -100,26 +100,45 @@ describe('quad - infinite domains', () => {
 describe('quad - endpoint singularities at floating-point resolution', () => {
   const RESOLUTION_MESSAGE = /^Bisection reached floating-point resolution at a point where/;
 
-  it('stops with success = false instead of throwing when a node rounds onto the singularity', () => {
-    // x^-0.9 exp(-x) on [0, Infinity) is singular at t = 1 of the internal map. Bisecting toward
-    // it used to end with a node exactly at t = 1 and a "non-finite value" error.
-    const f = (x: number) => x ** -0.9 * Math.exp(-x);
-    for (const rtol of [1e-6, 1e-8, 1e-12]) {
-      const res = quad(f, 0, Infinity, { atol: 0, rtol });
-      expect(res.success).toBe(false);
-      expect(res.message).toMatch(RESOLUTION_MESSAGE);
+  it('does not throw on integrable endpoint singularities of infinite intervals', () => {
+    // x^-a exp(-x) on [0, Infinity) is singular at t = 1 of the internal map. Plain bisection
+    // used to end with a node exactly at t = 1 and a "non-finite value" error.
+    const gamma01 = 9.513507698668732;
+    for (const rtol of [1e-6, 1e-8, 1e-10, 1e-12]) {
+      const half = quad((x) => x ** -0.5 * Math.exp(-x), 0, Infinity, { atol: 0, rtol });
+      expect(half.success).toBe(true);
+      expect(half.value).toBeCloseTo(Math.sqrt(Math.PI), 9);
+      expect(half.subintervals).toBeLessThan(200);
+
+      const res = quad((x) => x ** -0.9 * Math.exp(-x), 0, Infinity, { atol: 0, rtol });
       expect(Number.isFinite(res.value)).toBe(true);
       expect(Number.isFinite(res.error)).toBe(true);
-      expect(res.subintervals).toBeLessThan(200);
+      // It may not reach the tightest tolerances, but then it says so.
+      if (res.success)
+        expect(Math.abs(res.value - gamma01)).toBeLessThanOrEqual(5 * rtol * gamma01);
     }
+    expect(
+      quad((x) => x ** -0.9 * Math.exp(-x), 0, Infinity, { atol: 0, rtol: 1e-6 }).success
+    ).toBe(true);
   });
 
-  it('does the same with the singularity at a finite upper limit and with reversed bounds', () => {
+  it('handles a singularity at a finite upper limit, also with reversed bounds', () => {
     const f = (x: number) => (1 - x) ** -0.9;
-    const forward = quad(f, 0, 1);
-    expect(forward.success).toBe(false);
-    expect(forward.message).toMatch(RESOLUTION_MESSAGE);
-    expect(quad(f, 1, 0).value).toBe(-forward.value);
+    const forward = quad(f, 0, 1, { atol: 0, rtol: 1e-10 });
+    expect(forward.success).toBe(true);
+    expect(forward.value).toBeCloseTo(10, 8);
+    expect(quad(f, 1, 0, { atol: 0, rtol: 1e-10 }).value).toBe(-forward.value);
+  });
+
+  it('stops with success = false instead of throwing when a node rounds onto the singularity', () => {
+    // 1/(1.5 - x) is not integrable. The outermost node of the subinterval next to 1.5 rounds onto
+    // 1.5 (it lies at about 0.4 ulp from it), where f is infinite, before the bisection can be
+    // stopped by the usual test on the width of the subinterval.
+    const res = quad((x) => 1 / (1.5 - x), 0, 1.5, { atol: 0, rtol: 1e-12 });
+    expect(res.success).toBe(false);
+    expect(res.message).toMatch(RESOLUTION_MESSAGE);
+    expect(Number.isFinite(res.value)).toBe(true);
+    expect(Number.isFinite(res.error)).toBe(true);
   });
 
   it('still throws for a non-finite value at an abscissa that is not an endpoint', () => {

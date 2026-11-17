@@ -68,14 +68,20 @@ interface LocalGaussKronrodResult {
  * Non-negative abscissae of the 15-point Kronrod rule on `[-1, 1]`, in ascending order
  * (the full rule is symmetric about 0). The nodes at even indices (0, 2, 4, 6) are those
  * of the embedded 7-point Gauss-Legendre rule. Same values as QUADPACK's `qk15`.
+ *
+ * @internal
  */
-const KRONROD_NODES: readonly number[] = [
+export const KRONROD_NODES: readonly number[] = [
   0.0, 0.20778495500789848, 0.4058451513773972, 0.5860872354676911, 0.7415311855993945,
   0.8648644233597691, 0.9491079123427585, 0.9914553711208126
 ];
 
-/** Weights of the 15-point Kronrod rule, one per entry of {@link KRONROD_NODES}. */
-const KRONROD_WEIGHTS: readonly number[] = [
+/**
+ * Weights of the 15-point Kronrod rule, one per entry of {@link KRONROD_NODES}.
+ *
+ * @internal
+ */
+export const KRONROD_WEIGHTS: readonly number[] = [
   0.20948214108472782, 0.20443294007529889, 0.19035057806478542, 0.1690047266392679,
   0.14065325971552592, 0.10479001032225019, 0.06309209262997856, 0.022935322010529224
 ];
@@ -83,8 +89,10 @@ const KRONROD_WEIGHTS: readonly number[] = [
 /**
  * Weights of the embedded 7-point Gauss rule, aligned with {@link KRONROD_NODES}. They are
  * zero at the odd indices, which are Kronrod-only nodes.
+ *
+ * @internal
  */
-const GAUSS_WEIGHTS: readonly number[] = [
+export const GAUSS_WEIGHTS: readonly number[] = [
   0.4179591836734694, 0, 0.3818300505051189, 0, 0.27970539148927664, 0, 0.1294849661688697, 0
 ];
 
