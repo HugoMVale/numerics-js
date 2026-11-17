@@ -361,7 +361,11 @@ export function integrateAdaptive(
  * use {@link quad} instead.
  *
  * The interval is bisected adaptively until the estimated error of the whole integral
- * satisfies `error <= atol + rtol * |value|`.
+ * satisfies `error <= atol + rtol * |value|`. The value is the sum of the Kronrod estimates
+ * over the subintervals, and the error the sum of their local estimates `|kronrod - gauss|`.
+ * There is no extrapolation: for integrands with singularities, kinks or jumps, the error
+ * estimate can be too small (it can claim success while missing the tolerance) and many
+ * subintervals are needed; use {@link quad}, which extrapolates, for those.
  *
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`.

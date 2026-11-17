@@ -12,8 +12,12 @@ import {
 export interface QuadResult {
   /**
    * Whether the requested error tolerance was reached for the whole integral, i.e.
-   * `error <= atol + rtol * |value|`; see `message`. If `false`, `value` and `error` are the
-   * best estimates found.
+   * `error <= atol + rtol * |value|`; see `message`. It is `false` if the subinterval limit
+   * was reached, if roundoff error makes the tolerance unattainable, if the integrand
+   * misbehaves at a point of the range (a singularity or discontinuity that cannot be
+   * resolved; try `breakpoints`) or if the integral is probably divergent. Then `value`
+   * and `error` are only the best estimates found, and for a divergent integral the value
+   * can be meaningless (e.g. `-1` with an error of `1e-15` for `1/x^2` on `(0, 1]`).
    */
   success: boolean;
   /** Message describing the reason for termination. */
@@ -22,16 +26,24 @@ export interface QuadResult {
   evaluations: number;
   /** Total number of final subintervals used by the adaptive algorithm. */
   subintervals: number;
-  /** Estimated value of the definite integral. */
+  /**
+   * Estimated value of the definite integral. If the extrapolation was used, it is the
+   * extrapolated value, not the sum of the integrals over the final subintervals.
+   */
   value: number;
   /**
-   * Estimated absolute integration error: the sum of the local estimates `|kronrod - gauss|`.
-   * It is not a guaranteed bound. For smooth integrands it usually exceeds the actual error
-   * by orders of magnitude; for integrands with mild singularities or kinks it is close to
-   * it; for strong singularities (e.g. `x^-0.9` at `x = 0`) it can be several times smaller,
-   * so the requested tolerance may be missed. A narrow feature that falls between all the
-   * nodes of a subinterval can go unnoticed and make the estimate far too small;
-   * use `breakpoints` to resolve it.
+   * Estimated absolute integration error of `value`. It is not a guaranteed bound.
+   *
+   * Without extrapolation it is the sum of the local estimates, each of them the difference
+   * `|kronrod - gauss|` of the two rules rescaled as in QUADPACK (it is larger for rougher
+   * integrands, and never below the roundoff level `50 eps ∫|f|`). With extrapolation it is
+   * the estimate of the epsilon algorithm: the spread of its last three extrapolated results,
+   * not smaller than `5 eps |value|`. For smooth integrands it usually exceeds the actual
+   * error by orders of magnitude; for integrands with singularities, kinks or jumps it is
+   * usually a realistic estimate, but it can be too small, by an order of magnitude when it is
+   * close to the roundoff level. A narrow feature that falls between all the nodes of a
+   * subinterval can go unnoticed and make the estimate far too small; use `breakpoints` to
+   * resolve it.
    */
   error: number;
 }
@@ -158,12 +170,29 @@ function unboundedTransform(): QuadTransform {
  * variables (`transform`) can be supplied, e.g. to remove an endpoint
  * singularity; see {@link QuadTransform}.
  *
- * The integration is performed using the Gauss-Kronrod (G7-K15) adaptive rule.
- * All pieces defined by the integration limits and the breakpoints share a single
- * error budget and a single subinterval limit: the algorithm stops when the estimated
- * error of the whole integral satisfies `error <= atol + rtol * |value|`, and the
- * subinterval with the largest error estimate is always the next one to be bisected,
- * wherever it is.
+ * The integration is performed with the adaptive Gauss-Kronrod (G7-K15) rule and
+ * extrapolation by Wynn's epsilon algorithm, as in QUADPACK's `dqagpe` (the routine
+ * behind `scipy.integrate.quad` with `points`, and, without breakpoints, `dqagse`). The
+ * integral is estimated on subintervals, which are bisected where the local error
+ * is largest; the sequence of the successive approximations is then extrapolated, which
+ * greatly accelerates the convergence for integrands with integrable endpoint or interior
+ * singularities (`x^-0.9`, `log(x)`), kinks and jumps, for which plain bisection needs many
+ * subintervals. For smooth integrands the extrapolation costs nothing.
+ *
+ * All pieces defined by the integration limits and the breakpoints share a single error budget
+ * and a single subinterval limit. The algorithm stops when the estimated error of the whole
+ * integral satisfies `error <= atol + rtol * |value|`. QUADPACK's tests also detect when
+ * this is not possible, and `success` is `false` with a `message` that says why: the limit
+ * `maxSubintervals` was reached; roundoff error prevents the tolerance (for example,
+ * `rtol` close to the machine precision); the integrand misbehaves at a point of the
+ * range (a singularity or discontinuity inside it: add it to `breakpoints`); or the integral
+ * is probably divergent (for example `1/x^2` on `(0, 1]`). In these cases `value` and `error`
+ * are the best estimates found, and for a divergent integral the value is meaningless. The
+ * detection of divergence is heuristic: a divergent integral can also end as one of the
+ * other failures (`1/x` ends on the subinterval limit).
+ *
+ * Because of the extrapolation, the `value` of the result is in general not the sum of the
+ * integrals over the final subintervals, and `error` is not the sum of their errors.
  *
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`. Can be `-Infinity`.
@@ -203,7 +232,7 @@ function unboundedTransform(): QuadTransform {
  *   evaluations: 15,
  *   subintervals: 1,
  *   value: 0.3333333333333333,
- *   error: 0
+ *   error: 3.700743415417188e-15
  * }
  * ```
  *
@@ -224,7 +253,7 @@ function unboundedTransform(): QuadTransform {
  *   evaluations: 30,
  *   subintervals: 2,
  *   value: 3,
- *   error: 0
+ *   error: 3.3306690738754696e-14
  * }
  * ```
  *
@@ -240,10 +269,10 @@ function unboundedTransform(): QuadTransform {
  * {
  *   success: true,
  *   message: 'Estimated error is at most `atol + rtol*|value|`.',
- *   evaluations: 105,
- *   subintervals: 4,
- *   value: 0.9999999999995187,
- *   error: 1.7473439701664456e-8
+ *   evaluations: 135,
+ *   subintervals: 5,
+ *   value: 1,
+ *   error: 5.8426077140981e-11
  * }
  * ```
  *
@@ -268,11 +297,11 @@ function unboundedTransform(): QuadTransform {
  *   evaluations: 15,
  *   subintervals: 1,
  *   value: 2,
- *   error: 0
+ *   error: 2.220446049250313e-14
  * }
  * ```
- * Without the transform the same call needs 1305 evaluations and 44
- * subintervals, and its error is about 1.5e-8.
+ * Without the transform the same call still succeeds, thanks to the extrapolation, but needs
+ * 165 evaluations and 6 subintervals (and the value is `2.0000000000000013`).
  *
  * @example
  * ```ts
@@ -295,7 +324,46 @@ function unboundedTransform(): QuadTransform {
  *   evaluations: 15,
  *   subintervals: 1,
  *   value: 1,
- *   error: 0
+ *   error: 1.1102230246251565e-14
+ * }
+ * ```
+ *
+ * @example
+ * ```ts
+ * // An integrable singularity at the endpoint of a semi-infinite interval:
+ * // Gamma(0.1) = 9.513507698668732.
+ * const result = quad(x => x ** -0.9 * Math.exp(-x), 0, Infinity, { rtol: 1e-6 });
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   success: true,
+ *   message: 'Estimated error is at most `atol + rtol*|value|`.',
+ *   evaluations: 285,
+ *   subintervals: 10,
+ *   value: 9.513507687893949,
+ *   error: 0.000003934779215342132
+ * }
+ * ```
+ *
+ * @example
+ * ```ts
+ * // A divergent integral is reported as a failure: the value is meaningless.
+ * const result = quad(x => 1 / (x * x), 0, 1);
+ * console.log(result);
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   success: false,
+ *   message: 'The integral is probably divergent, or converges too slowly.',
+ *   evaluations: 135,
+ *   subintervals: 5,
+ *   value: -1,
+ *   error: 1.1102230246251565e-15
  * }
  * ```
  */

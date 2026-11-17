@@ -4,7 +4,8 @@
  * Choose a method based on the form of the input:
  *
  * - Use {@link quad} for a general function, possibly with infinite bounds,
- *   known discontinuities, or sharp features supplied as breakpoints.
+ *   integrable singularities, kinks, jumps, or known discontinuities and sharp
+ *   features supplied as breakpoints.
  * - Use {@link gaussKronrod} for a smooth function on a finite interval
  *   (otherwise use {@link quad}).
  * - Use {@link simpson} for sampled data when a higher-order rule is useful.

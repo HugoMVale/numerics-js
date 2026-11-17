@@ -13,9 +13,9 @@ Infinite bounds are written as strings in the JSON fixture because JSON has no
 representation for Infinity. Finite breakpoints are passed to SciPy as
 ``points`` and recorded for the TypeScript test as ``breakpoints``.
 
-Cases with a non-smooth endpoint (marked "singular": True) are excluded from the
-evaluation-count comparison there: 'quad' has no singularity-aware subdivision
-like QUADPACK's QAGS, so panel counts aren't meaningfully comparable for those.
+Cases with a non-smooth endpoint are marked "singular": True. They are compared
+like the others: 'quad' extrapolates (Wynn's epsilon algorithm) like QUADPACK's
+QAGS/QAGP.
 """
 
 import json
