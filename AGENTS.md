@@ -65,6 +65,7 @@ Use the narrowest relevant test while iterating, then run `npm run typecheck` an
 - Keep changes small and scoped. Do not refactor unrelated modules or regenerate build/docs output unless needed for the requested change.
 - Do not revert or overwrite existing changes that are unrelated to the task.
 - Use `.js` extensions in relative ESM imports when that is the existing source convention.
+- Every error message created by the codebase must end with a trailing period.
 
 ## When to ask instead of guessing
 
