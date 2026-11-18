@@ -1,12 +1,12 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
-import { integrateExtrapolated } from './adaptiveExtrapolation.js';
+import { describeStatus, extrapolatedIntegral } from './adaptiveExtrapolation.js';
 import {
   emptyIntervalResult,
   NonFiniteIntegrandError,
   resolveGaussKronrodOptions,
-  validateIntegrand,
-  type GaussKronrodOptions
-} from './gaussKronrod.js';
+  validateIntegrand
+} from './common.js';
+import type { GaussKronrodOptions } from './types.js';
 
 /** Result of a {@link quad} numerical integration. */
 export interface QuadResult {
@@ -194,6 +194,9 @@ function unboundedTransform(): QuadTransform {
  * Because of the extrapolation, the `value` of the result is in general not the sum of the
  * integrals over the final subintervals, and `error` is not the sum of their errors.
  *
+ * If `a > b`, the integral over `[b, a]` is computed and its sign reversed; breakpoints are then
+ * still given in the original variable, in any order.
+ *
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`. Can be `-Infinity`.
  * @param b Upper bound of integration `b`. Can be `Infinity`.
@@ -279,7 +282,9 @@ function unboundedTransform(): QuadTransform {
  * @example
  * ```ts
  * // Remove the endpoint singularity of 1/sqrt(x) with the substitution x = t^2.
- * // The transformed integrand f(t^2) * 2t is the constant 2.
+ * // The transformed integrand f(t^2) * 2t is the constant 2. Without the transform the same
+ * // call also succeeds, thanks to the extrapolation, but needs 165 evaluations and 6
+ * // subintervals (and the value is 2.0000000000000013).
  * const result = quad(x => 1 / Math.sqrt(x), 0, 1, {
  *     transform: {
  *         map: t => ({ x: t * t, dxDt: 2 * t }),
@@ -300,8 +305,6 @@ function unboundedTransform(): QuadTransform {
  *   error: 2.220446049250313e-14
  * }
  * ```
- * Without the transform the same call still succeeds, thanks to the extrapolation, but needs
- * 165 evaluations and 6 subintervals (and the value is `2.0000000000000013`).
  *
  * @example
  * ```ts
@@ -377,10 +380,10 @@ export function quad(
   // the interval is empty.
   validateIntegrand('quad', f);
   if (Number.isNaN(a) || Number.isNaN(b)) {
-    throw new RangeError('quad: a and b must not be NaN');
+    throw new RangeError(`quad: a and b must not be NaN, got ${a} and ${b}`);
   }
-  const { breakpoints = [], transform: userTransform, ...gkOptions } = options;
-  const resolved = resolveGaussKronrodOptions('quad', gkOptions);
+  const { breakpoints = [], transform: userTransform, ...toleranceOptions } = options;
+  const resolved = resolveGaussKronrodOptions('quad', toleranceOptions);
   if (
     userTransform !== undefined &&
     (typeof userTransform?.map !== 'function' || typeof userTransform?.inverse !== 'function')
@@ -439,21 +442,21 @@ export function quad(
       const { x, dxDt } = map(t);
       if (!Number.isFinite(x) || !Number.isFinite(dxDt)) {
         throw new NonFiniteIntegrandError(
-          `quad: transform.map(${t}) returned a non-finite x (${x}) or dxDt (${dxDt}); cannot integrate.`,
+          `quad: transform.map(${t}) returned a non-finite x (${x}) or dxDt (${dxDt}); cannot integrate`,
           t
         );
       }
       const fx = f(x);
       if (!Number.isFinite(fx)) {
         throw new NonFiniteIntegrandError(
-          `quad: f(${x}) returned a non-finite value (${fx}) after applying the transform (t=${t}); cannot integrate.`,
+          `quad: f(${x}) returned a non-finite value (${fx}) after applying the transform (t=${t}); cannot integrate`,
           t
         );
       }
       const y = fx * Math.abs(dxDt);
       if (!Number.isFinite(y)) {
         throw new NonFiniteIntegrandError(
-          `quad: f(${x}) * |dxDt| overflows (f = ${fx}, dxDt = ${dxDt}) after applying the transform (t=${t}); cannot integrate.`,
+          `quad: f(${x}) * |dxDt| overflows (f = ${fx}, dxDt = ${dxDt}) after applying the transform (t=${t}); cannot integrate`,
           t
         );
       }
@@ -474,11 +477,17 @@ export function quad(
   }
   if (points.length - 1 > resolved.maxSubintervals) {
     throw new RangeError(
-      `quad: maxSubintervals (${resolved.maxSubintervals}) is smaller than the number of initial subintervals (${points.length - 1}) defined by the integration limits and the breakpoints.`
+      `quad: maxSubintervals (${resolved.maxSubintervals}) is smaller than the number of initial subintervals (${points.length - 1}) defined by the integration limits and the breakpoints`
     );
   }
 
-  const result = integrateExtrapolated('quad', targetF, points, resolved);
-  result.value *= sign;
-  return result;
+  const r = extrapolatedIntegral('quad', targetF, points, resolved);
+  return {
+    success: r.status === 0,
+    message: describeStatus(r.status, resolved.maxSubintervals, r.endpointSingularity),
+    evaluations: r.evaluations,
+    subintervals: r.subintervals,
+    value: sign * r.value,
+    error: r.error
+  };
 }

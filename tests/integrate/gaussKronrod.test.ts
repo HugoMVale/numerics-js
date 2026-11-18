@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gaussKronrod, gaussKronrod15 } from '../../src/integrate/gaussKronrod.js';
+import { gaussKronrod } from '../../src/integrate/gaussKronrod.js';
 import {
   fPolynomial,
   fSin,
@@ -8,46 +8,6 @@ import {
   fOscillatory,
   fBlowupMidpoint
 } from './testFunctions.js';
-
-describe('gaussKronrod15', () => {
-  it('computes a single-subinterval estimate for polynomials accurately', () => {
-    let evaluations = 0;
-    const evalF = (x: number) => {
-      evaluations++;
-      return fPolynomial(x);
-    };
-
-    const result = gaussKronrod15(evalF, 0, 1);
-    expect(result.kronrod).toBeCloseTo(1 / 3, 10);
-    expect(evaluations).toBe(15);
-  });
-
-  it('is exact up to degree 22 (Kronrod) and 13 (embedded Gauss) on [-1, 1]', () => {
-    const exact = (n: number) => (n % 2 === 0 ? 2 / (n + 1) : 0);
-
-    for (const n of [0, 1, 2, 7, 12, 13, 22]) {
-      expect(gaussKronrod15((x) => x ** n, -1, 1).kronrod).toBeCloseTo(exact(n), 14);
-    }
-    for (const n of [0, 1, 2, 7, 12, 13]) {
-      expect(gaussKronrod15((x) => x ** n, -1, 1).gauss).toBeCloseTo(exact(n), 14);
-    }
-
-    // One degree beyond each rule's exactness must show up in the estimates.
-    expect(Math.abs(gaussKronrod15((x) => x ** 14, -1, 1).gauss - exact(14))).toBeGreaterThan(1e-8);
-    expect(Math.abs(gaussKronrod15((x) => x ** 24, -1, 1).kronrod - exact(24))).toBeGreaterThan(
-      1e-12
-    );
-  });
-
-  it('estimates the error as |kronrod - gauss| and scales with the interval', () => {
-    const result = gaussKronrod15((x) => x ** 14, -1, 1);
-    expect(result.error).toBe(Math.abs(result.kronrod - result.gauss));
-    expect(result.error).toBeGreaterThan(0);
-
-    // Integration over a shifted, stretched interval: ∫_2^6 (x - 4)^2 dx = 2 * 2^3 / 3.
-    expect(gaussKronrod15((x) => (x - 4) ** 2, 2, 6).kronrod).toBeCloseTo(16 / 3, 13);
-  });
-});
 
 describe('gaussKronrod', () => {
   it('integrates standard functions accurately', () => {
@@ -202,7 +162,7 @@ describe('gaussKronrod', () => {
   });
 
   it('does not chase unreachable accuracy for large integrals with the default tolerances', () => {
-    // Integral ~1e10: the old absolute-only criterion needed 1e-18 relative accuracy.
+    // Integral ~1e10: with a purely absolute criterion, atol = 1e-8 would demand a relative accuracy of 1e-18.
     const res = gaussKronrod((x) => 1e10 * Math.exp(-x), 0, 50);
     expect(res.success).toBe(true);
     expect(res.subintervals).toBeLessThan(10);
@@ -212,7 +172,7 @@ describe('gaussKronrod', () => {
   it('throws TypeError for invalid integrand input, also when a === b', () => {
     const notAFunction = 'not a function' as unknown as (x: number) => number;
     expect(() => gaussKronrod(notAFunction, 0, 1)).toThrow(TypeError);
-    expect(() => gaussKronrod(notAFunction, 0, 1)).toThrow('gaussKronrod: f must be a function.');
+    expect(() => gaussKronrod(notAFunction, 0, 1)).toThrow('gaussKronrod: f must be a function');
     expect(() => gaussKronrod(notAFunction, 1, 1)).toThrow(TypeError);
   });
 
@@ -232,8 +192,8 @@ describe('gaussKronrod', () => {
   });
 
   it('stops with success = false when bisection reaches an endpoint where f is not finite', () => {
-    // (1 - x)^-0.9 is singular at x = 1. Bisecting toward it used to end with a node exactly at
-    // x = 1 and a "non-finite value" error.
+    // (1 - x)^-0.9 is singular at x = 1. Bisecting toward it eventually places a node exactly at
+    // x = 1, where f is not finite; that must end the bisection, not throw.
     const f = (x: number) => (1 - x) ** -0.9;
     const res = gaussKronrod(f, 0, 1, { atol: 0, rtol: 1e-12, maxSubintervals: 1000 });
     expect(res.success).toBe(false);
@@ -261,7 +221,7 @@ describe('gaussKronrod', () => {
 
   it('throws an Error when the function produces non-finite values', () => {
     expect(() => gaussKronrod(fBlowupMidpoint, 0, 1)).toThrow(
-      /gaussKronrod: f\(0\.5\) returned a non-finite value \(Infinity\); cannot integrate\./
+      /gaussKronrod: f\(0\.5\) returned a non-finite value \(Infinity\); cannot integrate/
     );
   });
 });

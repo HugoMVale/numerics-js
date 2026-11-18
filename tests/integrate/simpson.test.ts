@@ -159,7 +159,7 @@ describe('simpson', () => {
     });
 
     it('throws a RangeError for dx = 0 with at least 3 samples', () => {
-      expect(() => simpson([1, 2, 3], undefined, 0)).toThrow('simpson: dx must be non-zero.');
+      expect(() => simpson([1, 2, 3], undefined, 0)).toThrow('simpson: dx must be non-zero');
       // Two samples fall back to the trapezoidal rule, which has no such problem.
       expect(simpson([1, 2], undefined, 0)).toBe(0);
     });

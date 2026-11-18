@@ -14,7 +14,7 @@ import { Vector, type VectorLike } from '../linalg/Vector.js';
  * @param dx Spacing between samples, used only when `x` is omitted.
  * Defaults to `1`.
  * @returns The approximate definite integral of `y`. Returns `0` if
- * `y.size` is `0` or `1` (a single point, or no points, has no area).
+ * `y` has fewer than 2 samples (a single point, or no points, has no area).
  * @throws {TypeError} If `y` or `x` is not a `VectorLike`.
  * @throws {RangeError} If `x` is provided and has a different length than `y` (also when `y`
  * has fewer than 2 samples).

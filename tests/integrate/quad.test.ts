@@ -4,7 +4,7 @@ import { gaussKronrod } from '../../src/integrate/gaussKronrod.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import { vectorLikeForms } from '../vectorLikeForms.js';
 import type { QuadResult, QuadTransform } from '../../src/integrate/quad.js';
-import type { GaussKronrodResult } from '../../src/integrate/gaussKronrod.js';
+import type { GaussKronrodResult } from '../../src/integrate/types.js';
 import {
   fSin,
   fIdentity,
@@ -101,8 +101,8 @@ describe('quad - endpoint singularities at floating-point resolution', () => {
   const RESOLUTION_MESSAGE = /^Bisection reached floating-point resolution at a point where/;
 
   it('does not throw on integrable endpoint singularities of infinite intervals', () => {
-    // x^-a exp(-x) on [0, Infinity) is singular at t = 1 of the internal map. Plain bisection
-    // used to end with a node exactly at t = 1 and a "non-finite value" error.
+    // x^-a exp(-x) on [0, Infinity) is singular at t = 1 of the internal map. Bisecting toward it
+    // eventually places a node exactly at t = 1, where f is not finite; that must not throw.
     const gamma01 = 9.513507698668732;
     for (const rtol of [1e-6, 1e-8, 1e-10, 1e-12]) {
       const half = quad((x) => x ** -0.5 * Math.exp(-x), 0, Infinity, { atol: 0, rtol });
@@ -399,8 +399,9 @@ describe('quad breakpoints as VectorLike', () => {
 
 describe('quad - tolerances', () => {
   it('shares one error budget across all breakpoint segments', () => {
-    // N identical segments, each with the same local error estimate e. The old per-segment
-    // criterion accepted every segment at tol = 1.01 e, i.e. a total error of ~N e.
+    // N identical segments, each with the same local error estimate e. A per-segment criterion
+    // would accept every segment at tol = 1.01 e, i.e. a total error of ~N e; the shared budget
+    // must not.
     const N = 10;
     const f = (x: number) => Math.exp(Math.sin(2 * Math.PI * 8 * N * x));
     const single = gaussKronrod(f, 0, 1 / N, { atol: 1, rtol: 0 });
@@ -482,7 +483,7 @@ describe('quad - tolerances', () => {
   it('throws a TypeError if f is not a function, also when a === b', () => {
     const notAFunction = 'x' as unknown as (x: number) => number;
     expect(() => quad(notAFunction, 0, 1)).toThrow(TypeError);
-    expect(() => quad(notAFunction, 0, 1)).toThrow('quad: f must be a function.');
+    expect(() => quad(notAFunction, 0, 1)).toThrow('quad: f must be a function');
     expect(() => quad(notAFunction, 1, 1)).toThrow(TypeError);
     expect(() => quad(notAFunction, 0, Infinity)).toThrow(TypeError);
   });
@@ -510,5 +511,40 @@ describe('quad - tolerances', () => {
     expect(quad(f, 0, 1, { breakpoints: [-1, 0.5, 0.5, 2], maxSubintervals: 2 }).subintervals).toBe(
       2
     );
+  });
+});
+
+describe('quad - nested integration', () => {
+  it('keeps evaluation counts and results independent when the integrand integrates', () => {
+    // ∫0^1 ∫0^1 x*y dy dx = 1/4
+    let innerEvaluations = 0;
+    const inner = (x: number) =>
+      quad(
+        (y) => {
+          innerEvaluations++;
+          return x * y;
+        },
+        0,
+        1
+      );
+    let outerCalls = 0;
+    const outer = quad(
+      (x) => {
+        outerCalls++;
+        return inner(x).value;
+      },
+      0,
+      1
+    );
+
+    expect(outer.value).toBeCloseTo(0.25, 12);
+    expect(outer.evaluations).toBe(outerCalls);
+    expect(innerEvaluations).toBe(outerCalls * 15);
+  });
+
+  it('reports the same counts as a flat call to gaussKronrod', () => {
+    const viaGK = gaussKronrod((x) => quad((y) => x * y, 0, 1).value, 0, 1);
+    expect(viaGK.value).toBeCloseTo(0.25, 12);
+    expect(viaGK.evaluations).toBe(15);
   });
 });

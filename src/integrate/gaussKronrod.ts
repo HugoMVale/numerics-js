@@ -1,121 +1,16 @@
-/** Result of a {@link gaussKronrod} quadrature. */
-export interface GaussKronrodResult {
-  /**
-   * Whether the requested error tolerance was reached, i.e. `error <= atol + rtol * |value|`;
-   * see `message`. If `false` (subinterval limit reached, or bisection reached floating-point
-   * resolution at an endpoint singularity), `value` and `error` are the best estimates found.
-   */
-  success: boolean;
-  /** Message describing the reason for termination. */
-  message: string;
-  /** Number of integrand evaluations performed. */
-  evaluations: number;
-  /** Number of final subintervals used by the adaptive algorithm. */
-  subintervals: number;
-  /** Estimated value of the definite integral. */
-  value: number;
-  /**
-   * Estimated absolute integration error: the sum of the local estimates `|kronrod - gauss|`.
-   * It is not a guaranteed bound. For smooth integrands it usually exceeds the actual error
-   * by orders of magnitude; for integrands with mild singularities or kinks it is close to
-   * it; for strong singularities (e.g. `x^-0.9` at `x = 0`) it can be several times smaller,
-   * so the requested tolerance may be missed. A narrow feature that falls between all the
-   * nodes of a subinterval can go unnoticed and make the estimate far too small;
-   * split the interval to resolve it.
-   */
-  error: number;
-}
-
-/**
- * Options for {@link gaussKronrod} and, through {@link QuadOptions}, for {@link quad}.
- *
- * The adaptive algorithm stops as soon as the estimated error of the whole
- * integral satisfies `error <= atol + rtol * |value|`, the same convention used
- * by the ODE solvers.
- */
-export interface GaussKronrodOptions {
-  /**
-   * Absolute error tolerance. It dominates when the integral is close to zero.
-   * @default 1e-8
-   */
-  atol?: number;
-  /**
-   * Relative error tolerance, with respect to the magnitude of the estimated
-   * integral. With `atol = 0` the stopping criterion is purely relative, hence
-   * invariant under a rescaling of the integrand.
-   * @default 1e-8
-   */
-  rtol?: number;
-  /**
-   * Safety limit on the total number of subintervals of the whole
-   * integral, including the initial ones.
-   * @default 200
-   */
-  maxSubintervals?: number;
-}
-
-/** Estimates produced by one application of the G7-K15 rule to a single subinterval. */
-interface LocalGaussKronrodResult {
-  /** 15-point Kronrod estimate of the integral. */
-  kronrod: number;
-  /** Embedded 7-point Gauss estimate of the integral. */
-  gauss: number;
-  /** Estimated absolute error, `|kronrod - gauss|`. */
-  error: number;
-}
-
-/**
- * Non-negative abscissae of the 15-point Kronrod rule on `[-1, 1]`, in ascending order
- * (the full rule is symmetric about 0). The nodes at even indices (0, 2, 4, 6) are those
- * of the embedded 7-point Gauss-Legendre rule. Same values as QUADPACK's `qk15`.
- *
- * @internal
- */
-export const KRONROD_NODES: readonly number[] = [
-  0.0, 0.20778495500789848, 0.4058451513773972, 0.5860872354676911, 0.7415311855993945,
-  0.8648644233597691, 0.9491079123427585, 0.9914553711208126
-];
-
-/**
- * Weights of the 15-point Kronrod rule, one per entry of {@link KRONROD_NODES}.
- *
- * @internal
- */
-export const KRONROD_WEIGHTS: readonly number[] = [
-  0.20948214108472782, 0.20443294007529889, 0.19035057806478542, 0.1690047266392679,
-  0.14065325971552592, 0.10479001032225019, 0.06309209262997856, 0.022935322010529224
-];
-
-/**
- * Weights of the embedded 7-point Gauss rule, aligned with {@link KRONROD_NODES}. They are
- * zero at the odd indices, which are Kronrod-only nodes.
- *
- * @internal
- */
-export const GAUSS_WEIGHTS: readonly number[] = [
-  0.4179591836734694, 0, 0.3818300505051189, 0, 0.27970539148927664, 0, 0.1294849661688697, 0
-];
-
-/**
- * Error thrown by the integrand wrappers of {@link gaussKronrod} and {@link quad} when the
- * integrand (or a transform) is not finite at `point`, the abscissa that was being evaluated in
- * the variable the engine works in.
- *
- * The engine uses `point` to tell the harmless-looking failure of an integrable endpoint
- * singularity apart from a genuinely bad integrand: see {@link integrateAdaptive}. It is an
- * ordinary `Error` for callers, so it is documented as such.
- *
- * @internal
- */
-export class NonFiniteIntegrandError extends Error {
-  /** Abscissa, in the variable the engine integrates over, where the evaluation failed. */
-  readonly point: number;
-
-  constructor(message: string, point: number) {
-    super(message);
-    this.point = point;
-  }
-}
+import {
+  CONVERGED_MESSAGE,
+  countedIntegrand,
+  emptyIntervalResult,
+  ENDPOINT_SINGULARITY_MESSAGE,
+  midpoint,
+  NonFiniteIntegrandError,
+  resolveGaussKronrodOptions,
+  subintervalLimitMessage,
+  validateIntegrand
+} from './common.js';
+import { gaussKronrod15, type LocalGaussKronrodResult } from './kronrod.js';
+import type { GaussKronrodOptions, GaussKronrodResult } from './types.js';
 
 /** A subinterval `[a, b]` of the adaptive partition, with its local G7-K15 results. */
 interface Subinterval {
@@ -125,126 +20,12 @@ interface Subinterval {
   error: number;
 }
 
-function midpoint(a: number, b: number): number {
-  return (a < 0 && b > 0) || (a > 0 && b < 0) ? (a + b) / 2 : a + (b - a) / 2;
-}
-
-function halfLength(a: number, b: number): number {
-  const length = b - a;
-  return Number.isFinite(length) ? length / 2 : b / 2 - a / 2;
-}
-
 /**
- * Applies the 7-15 Gauss-Kronrod rule to one subinterval and returns the
- * embedded Gauss and Kronrod estimates.
+ * Plain adaptive G7-K15 engine of {@link gaussKronrod}, without extrapolation ({@link quad} has
+ * its own engine, see `extrapolatedIntegral`).
  *
- * The error estimate is the plain difference `|kronrod - gauss|`, which approximates the
- * error of the (less accurate) Gauss estimate. It therefore overestimates the error of the
- * Kronrod value by a wide margin for smooth integrands, where Kronrod converges much faster,
- * and is close to it, or even below it for strong singularities, where both rules converge
- * slowly.
- * No further scaling is applied (as, e.g., in QUADPACK's `qk15`), because that inflates the
- * estimate for such hard integrands, and its roundoff floor can make tight tolerances
- * unreachable.
- *
- * @internal
- *
- * @param evalF Instrumented function evaluator.
- * @param a Lower limit of integration `a`.
- * @param b Upper limit of integration `b`.
- * @returns Local quadrature estimates and estimated local error.
- */
-export function gaussKronrod15(
-  evalF: (x: number) => number,
-  a: number,
-  b: number
-): LocalGaussKronrodResult {
-  const half = halfLength(a, b);
-  const center = midpoint(a, b);
-
-  // The center node is shared by both rules and is not mirrored.
-  const fCenter = evalF(center);
-  let kronrodSum = KRONROD_WEIGHTS[0] * fCenter;
-  let gaussSum = GAUSS_WEIGHTS[0] * fCenter;
-
-  for (let i = 1; i < KRONROD_NODES.length; i++) {
-    const dx = half * KRONROD_NODES[i];
-    const fPair = evalF(center + dx) + evalF(center - dx);
-    kronrodSum += KRONROD_WEIGHTS[i] * fPair;
-    gaussSum += GAUSS_WEIGHTS[i] * fPair;
-  }
-
-  const kronrod = half * kronrodSum;
-  const gauss = half * gaussSum;
-
-  return { kronrod, gauss, error: Math.abs(kronrod - gauss) };
-}
-
-/**
- * Validates `options` and fills in the defaults.
- *
- * @internal
- *
- * @param name Public function name, used as prefix of error messages.
- * @param options User options.
- * @returns Validated options with defaults applied.
- * @throws {RangeError} If `atol` or `rtol` is not finite and non-negative, or if
- * `maxSubintervals` is not a finite positive integer.
- */
-export function resolveGaussKronrodOptions(
-  name: string,
-  options: GaussKronrodOptions
-): Required<GaussKronrodOptions> {
-  const { atol = 1e-8, rtol = 1e-8, maxSubintervals = 200 } = options;
-
-  if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
-    throw new RangeError(
-      `${name}: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
-    );
-  }
-  if (!Number.isInteger(maxSubintervals) || maxSubintervals < 1) {
-    throw new RangeError(`${name}: maxSubintervals must be a finite positive integer`);
-  }
-  return { atol, rtol, maxSubintervals };
-}
-
-/**
- * Result of integrating over an empty interval (`a === b`), which needs no evaluations.
- *
- * @internal
- */
-export function emptyIntervalResult(): GaussKronrodResult {
-  return {
-    success: true,
-    message: 'Empty integration interval (a === b).',
-    evaluations: 0,
-    subintervals: 0,
-    value: 0,
-    error: 0
-  };
-}
-
-/**
- * Checks that the integrand is a function.
- *
- * @internal
- *
- * @param name Public function name, used as prefix of error messages.
- * @param f Value to check.
- * @throws {TypeError} If `f` is not a function.
- */
-export function validateIntegrand(name: string, f: unknown): void {
-  if (typeof f !== 'function') {
-    throw new TypeError(`${name}: f must be a function.`);
-  }
-}
-
-/**
- * Adaptive G7-K15 engine shared by {@link gaussKronrod} and {@link quad}.
- *
- * All initial subintervals (`points[i]`, `points[i + 1]`) share one global error budget
- * and one subinterval limit: at each step the subinterval with the largest error estimate
- * is bisected, until `error <= atol + rtol * |value|` for the whole integral.
+ * At each step the subinterval with the largest error estimate is bisected, until
+ * `error <= atol + rtol * |value|` for the whole integral or the subinterval limit is reached.
  *
  * Bisecting toward an integrable endpoint singularity (e.g. `x^-0.9` at `x = 0`) keeps splitting
  * the subinterval that touches it. After about 45 levels the outermost nodes round onto the
@@ -260,45 +41,25 @@ export function validateIntegrand(name: string, f: unknown): void {
  * orders of magnitude: the estimate can even become negative and stop the loop too early.
  * The extra `O(n)` sum is free, since selecting the worst subinterval is already `O(n)`.
  *
- * @internal
- *
- * @param name Public function name, used as prefix of error messages.
  * @param f Integrand.
- * @param points Strictly increasing finite integration points, at least two.
- * @param options Validated options, see {@link resolveGaussKronrodOptions}.
- * @returns Integral over `[points[0], points[points.length - 1]]` (ascending orientation).
+ * @param a Lower limit of integration, finite and smaller than `b`.
+ * @param b Upper limit of integration, finite.
+ * @param options Validated options, see `resolveGaussKronrodOptions`.
+ * @returns Integral over `[a, b]` (ascending orientation).
  */
-export function integrateAdaptive(
-  name: string,
+function integrateAdaptive(
   f: (x: number) => number,
-  points: readonly number[],
+  a: number,
+  b: number,
   options: Required<GaussKronrodOptions>
 ): GaussKronrodResult {
   const { atol, rtol, maxSubintervals } = options;
 
-  let evaluations = 0;
-  const evalF = (x: number): number => {
-    evaluations++;
-    const y = f(x);
-    if (!Number.isFinite(y)) {
-      throw new NonFiniteIntegrandError(
-        `${name}: f(${x}) returned a non-finite value (${y}); cannot integrate.`,
-        x
-      );
-    }
-    return y;
-  };
+  const integrand = countedIntegrand('gaussKronrod', f);
+  const evalF = integrand.evaluate;
 
-  const subintervals: Subinterval[] = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    const local = gaussKronrod15(evalF, points[i], points[i + 1]);
-    subintervals.push({
-      a: points[i],
-      b: points[i + 1],
-      kronrod: local.kronrod,
-      error: local.error
-    });
-  }
+  const first = gaussKronrod15(evalF, a, b);
+  const subintervals: Subinterval[] = [{ a, b, kronrod: first.kronrod, error: first.error }];
 
   for (;;) {
     let value = 0;
@@ -314,10 +75,8 @@ export function integrateAdaptive(
     if (success || subintervals.length >= maxSubintervals) {
       return {
         success,
-        message: success
-          ? 'Estimated error is at most `atol + rtol*|value|`.'
-          : `Maximum number of subintervals (${maxSubintervals}) reached.`,
-        evaluations,
+        message: success ? CONVERGED_MESSAGE : subintervalLimitMessage(maxSubintervals),
+        evaluations: integrand.evaluations,
         subintervals: subintervals.length,
         value,
         error
@@ -338,9 +97,8 @@ export function integrateAdaptive(
       if (!atEndpoint) throw e;
       return {
         success: false,
-        message:
-          'Bisection reached floating-point resolution at a point where the integrand is not finite (probable endpoint singularity).',
-        evaluations,
+        message: ENDPOINT_SINGULARITY_MESSAGE,
+        evaluations: integrand.evaluations,
         subintervals: subintervals.length,
         value,
         error
@@ -366,6 +124,8 @@ export function integrateAdaptive(
  * There is no extrapolation: for integrands with singularities, kinks or jumps, the error
  * estimate can be too small (it can claim success while missing the tolerance) and many
  * subintervals are needed; use {@link quad}, which extrapolates, for those.
+ *
+ * If `a > b`, the integral over `[b, a]` is computed and its sign reversed.
  *
  * @param f Scalar function `f` to integrate.
  * @param a Lower bound of integration `a`.
@@ -424,7 +184,7 @@ export function gaussKronrod(
   // the interval is empty.
   validateIntegrand('gaussKronrod', f);
   if (!Number.isFinite(a) || !Number.isFinite(b)) {
-    throw new RangeError('gaussKronrod: a and b must be finite numbers');
+    throw new RangeError(`gaussKronrod: a and b must be finite numbers, got ${a} and ${b}`);
   }
   const resolved = resolveGaussKronrodOptions('gaussKronrod', options);
 
@@ -433,7 +193,7 @@ export function gaussKronrod(
   }
 
   const sign = a > b ? -1 : 1;
-  const result = integrateAdaptive('gaussKronrod', f, [Math.min(a, b), Math.max(a, b)], resolved);
+  const result = integrateAdaptive(f, Math.min(a, b), Math.max(a, b), resolved);
   result.value *= sign;
   return result;
 }

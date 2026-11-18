@@ -67,8 +67,8 @@ function trailingCorrection(
  * @param dx Spacing between samples, used only when `x` is omitted.
  * Defaults to `1`.
  * @returns The approximate definite integral of `y`. Returns `0` if
- * `y.size` is `0` or `1`. Falls back to the trapezoidal rule if
- * `y.size` is `2`, since Simpson's rule needs at least 3 points.
+ * `y` has fewer than 2 samples. Falls back to the trapezoidal rule if
+ * `y` has exactly 2 samples, since Simpson's rule needs at least 3 points.
  * @throws {TypeError} If `y` or `x` is not a `VectorLike`.
  * @throws {RangeError} If `x` is provided and has a different length than `y` (also when `y`
  * has fewer than 2 samples), or if `y` has at least 3 samples and `x` contains repeated
@@ -107,8 +107,8 @@ export function simpson(y: VectorLike, x?: VectorLike, dx: number = 1): number {
     if (h === 0) {
       throw new RangeError(
         xv !== undefined
-          ? `simpson: x must not contain repeated values (x[${i}] === x[${i + 1}]).`
-          : 'simpson: dx must be non-zero.'
+          ? `simpson: x must not contain repeated values (x[${i}] === x[${i + 1}])`
+          : 'simpson: dx must be non-zero'
       );
     }
     return h;

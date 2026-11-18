@@ -1,8 +1,4 @@
-/** Largest relative spacing of double precision numbers (QUADPACK's `epmach`). */
-const EPSILON = Number.EPSILON;
-
-/** Largest finite double (QUADPACK's `oflow`), used as "no error estimate available yet". */
-const OVERFLOW = Number.MAX_VALUE;
+import { EPSILON, OVERFLOW } from './common.js';
 
 /**
  * Maximum number of elements the epsilon table keeps (QUADPACK's `limexp`). When the table

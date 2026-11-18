@@ -1,11 +1,16 @@
 import {
-  GAUSS_WEIGHTS,
-  KRONROD_NODES,
-  KRONROD_WEIGHTS,
+  CONVERGED_MESSAGE,
+  countedIntegrand,
+  ENDPOINT_SINGULARITY_MESSAGE,
+  EPSILON,
   NonFiniteIntegrandError,
-  type GaussKronrodOptions,
-  type GaussKronrodResult
-} from './gaussKronrod.js';
+  OVERFLOW,
+  quadpackMidpoint,
+  subintervalLimitMessage,
+  UNDERFLOW
+} from './common.js';
+import { gaussKronrod15Scaled, type ScaledGaussKronrodResult } from './kronrod.js';
+import type { GaussKronrodOptions } from './types.js';
 import { EpsilonTable } from './wynnEpsilon.js';
 
 // This module is a port of QUADPACK's `dqagpe` (R. Piessens, E. de Doncker-Kapenga,
@@ -15,118 +20,6 @@ import { EpsilonTable } from './wynnEpsilon.js';
 // algorithm of `dqagse`, which SciPy's `quad` uses. The control flow is the original one;
 // only the indexing is zero-based, and the arrays grow as needed instead of being allocated
 // with the limit.
-
-/** Largest relative spacing of doubles (QUADPACK's `epmach`). */
-const EPSILON = Number.EPSILON;
-
-/** Smallest positive normalized double (QUADPACK's `uflow`). */
-const UNDERFLOW = 2.2250738585072014e-308;
-
-/** Largest finite double (QUADPACK's `oflow`): "no error estimate yet". */
-const OVERFLOW = Number.MAX_VALUE;
-
-/**
- * Midpoint of `[a, b]`, computed as in QUADPACK (`0.5 * (a + b)`), which is exact for all
- * finite inputs except when the sum overflows; in that case the halves are added instead.
- */
-function center(a: number, b: number): number {
-  const c = 0.5 * (a + b);
-  return Number.isFinite(c) ? c : a / 2 + b / 2;
-}
-
-/** Half-length of `[a, b]`, computed as in QUADPACK (`0.5 * (b - a)`), safe against overflow. */
-function halfLength(a: number, b: number): number {
-  const h = 0.5 * (b - a);
-  return Number.isFinite(h) ? h : b / 2 - a / 2;
-}
-
-/** Result of one application of the G7-K15 rule with QUADPACK's error scaling. */
-interface ScaledRuleResult {
-  /** 15-point Kronrod estimate of the integral. */
-  value: number;
-  /** Estimated absolute error, scaled and bounded below by roundoff, as in QUADPACK's `qk15`. */
-  error: number;
-  /** Estimate of `∫|f|` over the subinterval (`resabs`). */
-  resabs: number;
-  /** Estimate of `∫|f - mean(f)|` over the subinterval (`resasc`). */
-  resasc: number;
-}
-
-/** Indices into {@link KRONROD_NODES} of the Gauss nodes, outermost first (QUADPACK's order). */
-const GAUSS_NODES = [6, 4, 2] as const;
-
-/** Indices into {@link KRONROD_NODES} of the Kronrod-only nodes, outermost first. */
-const KRONROD_ONLY_NODES = [7, 5, 3, 1] as const;
-
-/**
- * G7-K15 rule on `[a, b]` with QUADPACK's (`qk15`) error estimate, which the roundoff and
- * divergence logic of the extrapolation relies on.
- *
- * The raw difference `d = |K15 - G7|` is a pessimistic estimate for smooth integrands (the
- * Kronrod rule is far more accurate than the Gauss rule), but too optimistic for hard ones. It is
- * rescaled with `resasc = ∫|f - mean(f)|`, which measures how rough the integrand is:
- * `error = resasc * min(1, (200 d / resasc)^1.5)`. For a smooth integrand `d` is much smaller than
- * `resasc` and the error drops faster than `d` (the 1.5 power); for a rough integrand it saturates
- * at `resasc`, the largest error that can be made. The error is finally never allowed below
- * `50 eps ∫|f|`, the roundoff level, so that asking for more accuracy than is representable can be
- * detected instead of chased.
- *
- * Sums are accumulated in QUADPACK's order (Gauss pairs from the outermost node inwards, then the
- * Kronrod-only pairs), so that results agree with QUADPACK's to the last bit.
- */
-function kronrod15Scaled(evalF: (x: number) => number, a: number, b: number): ScaledRuleResult {
-  const mid = center(a, b);
-  const half = halfLength(a, b);
-  const absHalf = Math.abs(half);
-  const fv1 = new Float64Array(KRONROD_NODES.length);
-  const fv2 = new Float64Array(KRONROD_NODES.length);
-
-  const fCenter = evalF(mid);
-  let resg = fCenter * GAUSS_WEIGHTS[0];
-  let resk = fCenter * KRONROD_WEIGHTS[0];
-  let resabs = Math.abs(resk);
-
-  for (const i of GAUSS_NODES) {
-    const dx = half * KRONROD_NODES[i];
-    const f1 = evalF(mid - dx);
-    const f2 = evalF(mid + dx);
-    fv1[i] = f1;
-    fv2[i] = f2;
-    const fsum = f1 + f2;
-    resg += GAUSS_WEIGHTS[i] * fsum;
-    resk += KRONROD_WEIGHTS[i] * fsum;
-    resabs += KRONROD_WEIGHTS[i] * (Math.abs(f1) + Math.abs(f2));
-  }
-  for (const i of KRONROD_ONLY_NODES) {
-    const dx = half * KRONROD_NODES[i];
-    const f1 = evalF(mid - dx);
-    const f2 = evalF(mid + dx);
-    fv1[i] = f1;
-    fv2[i] = f2;
-    const fsum = f1 + f2;
-    resk += KRONROD_WEIGHTS[i] * fsum;
-    resabs += KRONROD_WEIGHTS[i] * (Math.abs(f1) + Math.abs(f2));
-  }
-
-  // resk / 2 is the mean value of f (the integral divided by the length).
-  const reskh = resk * 0.5;
-  let resasc = KRONROD_WEIGHTS[0] * Math.abs(fCenter - reskh);
-  for (let i = KRONROD_NODES.length - 1; i >= 1; i--) {
-    resasc += KRONROD_WEIGHTS[i] * (Math.abs(fv1[i] - reskh) + Math.abs(fv2[i] - reskh));
-  }
-
-  const value = resk * half;
-  resabs *= absHalf;
-  resasc *= absHalf;
-  let error = Math.abs((resk - resg) * half);
-  if (resasc !== 0 && error !== 0) {
-    error = resasc * Math.min(1, ((200 * error) / resasc) ** 1.5);
-  }
-  if (resabs > UNDERFLOW / (50 * EPSILON)) {
-    error = Math.max(EPSILON * 50 * resabs, error);
-  }
-  return { value, error, resabs, resasc };
-}
 
 /**
  * Keeps `iord` (QUADPACK's `dqpsrt`), the pointers to the subintervals, ordered by decreasing
@@ -232,10 +125,16 @@ function updateOrdering(
  * - 5: the integral is probably divergent, or converges too slowly.
  *
  * For a status other than 0 the integral estimate is the best one found; for 5 it is meaningless.
+ *
+ * @internal
  */
 export type ExtrapolationStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
-/** Result of {@link extrapolatedIntegral}. */
+/**
+ * Result of {@link extrapolatedIntegral}.
+ *
+ * @internal
+ */
 export interface ExtrapolatedIntegral {
   /** Estimate of the integral. */
   value: number;
@@ -311,11 +210,17 @@ export interface ExtrapolatedIntegral {
  *   noise) are given, after the first integration over the initial subintervals, the sum of
  *   the errors of all initial subintervals, so that they are subdivided first.
  *
- * Deviations from QUADPACK (both concern a `limit` equal to the number of initial subintervals,
- * i.e. no room left to bisect; `dqagpe` requires a larger one):
- * - `dqagpe` reports "limit reached" even if the first integration already met the accuracy, and,
- *   with a single initial subinterval, goes on to read an uninitialized subinterval. Here the
- *   first integration is returned with status 0 if it met the accuracy and status 1 otherwise.
+ * Deviations from QUADPACK:
+ * - A `limit` equal to the number of initial subintervals leaves no room to bisect (`dqagpe`
+ *   requires a larger one). `dqagpe` then reports "limit reached" even if the first integration
+ *   already met the accuracy and, with a single initial subinterval, goes on to read an
+ *   uninitialized subinterval. Here the first integration is returned with status 0 if it met the
+ *   accuracy and status 1 otherwise.
+ * - A non-finite integrand value at a node that coincides with an endpoint of the subinterval
+ *   being bisected ends the bisection with status 3 (see `endpointSingularity`), instead of being
+ *   an error. A non-finite value anywhere else still throws.
+ *
+ * @internal
  *
  * @param name Public function name, used as prefix of error messages.
  * @param f Integrand.
@@ -335,18 +240,8 @@ export function extrapolatedIntegral(
   // `dqagpe`'s `npts2`: the number of limits and break points.
   const npts2 = nint + 1;
 
-  let evaluations = 0;
-  const evalF = (x: number): number => {
-    evaluations++;
-    const y = f(x);
-    if (!Number.isFinite(y)) {
-      throw new NonFiniteIntegrandError(
-        `${name}: f(${x}) returned a non-finite value (${y}); cannot integrate.`,
-        x
-      );
-    }
-    return y;
-  };
+  const integrand = countedIntegrand(name, f);
+  const evalF = integrand.evaluate;
 
   // Left endpoints, right endpoints, integrals, errors and levels of the subintervals, and the
   // pointers to the subintervals in order of decreasing error.
@@ -363,7 +258,7 @@ export function extrapolatedIntegral(
   let resabs = 0;
   const ndin: boolean[] = [];
   for (let i = 0; i < nint; i++) {
-    const q = kronrod15Scaled(evalF, points[i], points[i + 1]);
+    const q = gaussKronrod15Scaled(evalF, points[i], points[i + 1]);
     abserr += q.error;
     result += q.value;
     ndin.push(q.error === q.resasc && q.error !== 0);
@@ -391,7 +286,7 @@ export function extrapolatedIntegral(
     value,
     error,
     status: status as ExtrapolationStatus,
-    evaluations,
+    evaluations: integrand.evaluations,
     subintervals,
     endpointSingularity
   });
@@ -450,16 +345,16 @@ export function extrapolatedIntegral(
   for (last = npts2; last <= limit; last++) {
     const levcur = level[maxerr] + 1;
     const a1 = alist[maxerr];
-    const b1 = center(alist[maxerr], blist[maxerr]);
+    const b1 = quadpackMidpoint(alist[maxerr], blist[maxerr]);
     const a2 = b1;
     const b2 = blist[maxerr];
     const erlast = errmax;
 
-    let q1: ScaledRuleResult;
-    let q2: ScaledRuleResult;
+    let q1: ScaledGaussKronrodResult;
+    let q2: ScaledGaussKronrodResult;
     try {
-      q1 = kronrod15Scaled(evalF, a1, b1);
-      q2 = kronrod15Scaled(evalF, a2, b2);
+      q1 = gaussKronrod15Scaled(evalF, a1, b1);
+      q2 = gaussKronrod15Scaled(evalF, a2, b2);
     } catch (e) {
       // Bisection toward a singular endpoint reached floating-point resolution: a node rounded
       // onto the endpoint, where the integrand is not finite. The bisection has not been
@@ -635,66 +530,35 @@ export function extrapolatedIntegral(
 }
 
 /**
- * Message describing the termination status of {@link extrapolatedIntegral}.
+ * Message describing the termination status of {@link extrapolatedIntegral}, as reported in the
+ * `message` of the result of {@link quad}.
+ *
+ * @internal
  *
  * @param status Termination status.
  * @param limit Maximum number of subintervals.
  * @param endpointSingularity Whether status 3 was due to an endpoint singularity.
+ * @returns The message.
  */
-function describeStatus(
+export function describeStatus(
   status: ExtrapolationStatus,
   limit: number,
   endpointSingularity: boolean
 ): string {
   switch (status) {
     case 0:
-      return 'Estimated error is at most `atol + rtol*|value|`.';
+      return CONVERGED_MESSAGE;
     case 1:
-      return `Maximum number of subintervals (${limit}) reached.`;
+      return subintervalLimitMessage(limit);
     case 2:
       return 'Roundoff error detected: `atol + rtol*|value|` is probably not achievable.';
     case 3:
       return endpointSingularity
-        ? 'Bisection reached floating-point resolution at a point where the integrand is not finite (probable endpoint singularity).'
+        ? ENDPOINT_SINGULARITY_MESSAGE
         : 'Bad integrand behaviour (probable singularity or discontinuity) at a point of the integration range; try `breakpoints`.';
     case 4:
-      return 'Roundoff error detected in the extrapolation: `atol + rtol*|value|` is not achievable.';
+      return 'Roundoff error detected in the extrapolation: `atol + rtol*|value|` is probably not achievable.';
     case 5:
       return 'The integral is probably divergent, or converges too slowly.';
   }
-}
-
-/**
- * Adaptive G7-K15 engine with extrapolation, for {@link quad}: the same contract as
- * `integrateAdaptive` (all initial subintervals share one error budget and one subinterval
- * limit), but with QUADPACK's extrapolation by the epsilon algorithm and its error estimate
- * and termination logic; see {@link extrapolatedIntegral}.
- *
- * The `value` and `error` of the result are those of the extrapolation, not the sum over the
- * subintervals, unless the extrapolation was not used. If `success` is `false` they are only the
- * best estimates found, and for a probably divergent integral the value is meaningless.
- *
- * @internal
- *
- * @param name Public function name, used as prefix of error messages.
- * @param f Integrand.
- * @param points Strictly increasing finite integration points, at least two.
- * @param options Validated options, see `resolveGaussKronrodOptions`.
- * @returns Integral over `[points[0], points[points.length - 1]]` (ascending orientation).
- */
-export function integrateExtrapolated(
-  name: string,
-  f: (x: number) => number,
-  points: readonly number[],
-  options: Required<GaussKronrodOptions>
-): GaussKronrodResult {
-  const r = extrapolatedIntegral(name, f, points, options);
-  return {
-    success: r.status === 0,
-    message: describeStatus(r.status, options.maxSubintervals, r.endpointSingularity),
-    evaluations: r.evaluations,
-    subintervals: r.subintervals,
-    value: r.value,
-    error: r.error
-  };
 }
