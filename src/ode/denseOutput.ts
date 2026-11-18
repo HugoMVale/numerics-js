@@ -198,7 +198,7 @@ export class OdeDenseOutput {
     const tv = Vector.asVector(t);
     if (tv.size === 0) {
       throw new RangeError(
-        'OdeDenseOutput.eval: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows'
+        'OdeDenseOutput.eval: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows.'
       );
     }
     const result = new Matrix(tv.size, dim);

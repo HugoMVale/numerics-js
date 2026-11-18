@@ -40,7 +40,7 @@ function stagesPerStep(method: RungeKuttaFixedMethod): number {
     case 'rk4':
       return 4;
     default:
-      throw new RangeError(`rungeKuttaFixed: unknown method "${method satisfies never}"`);
+      throw new RangeError(`rungeKuttaFixed: unknown method "${method satisfies never}".`);
   }
 }
 
@@ -123,7 +123,7 @@ export function rungeKuttaStep(
         .addScaled(k4, h / 6);
       break;
     default:
-      throw new RangeError(`rungeKuttaStep: unknown method "${method satisfies never}"`);
+      throw new RangeError(`rungeKuttaStep: unknown method "${method satisfies never}".`);
   }
 
   return out;

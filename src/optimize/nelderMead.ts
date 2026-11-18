@@ -211,15 +211,17 @@ export function nelderMead(
   const x0v = Vector.asVector(x0);
   const n = x0v.size;
   if (n === 0) {
-    throw new RangeError('nelderMead: x0 must have at least one component');
+    throw new RangeError('nelderMead: x0 must have at least one component.');
   }
   for (let i = 0; i < n; i++) {
     if (!Number.isFinite(x0v.get(i))) {
-      throw new RangeError(`nelderMead: x0 must be finite, got ${x0v.get(i)} at index ${i}`);
+      throw new RangeError(`nelderMead: x0 must be finite, got ${x0v.get(i)} at index ${i}.`);
     }
   }
   if (!(tolx >= 0) || !(tolf >= 0)) {
-    throw new RangeError(`nelderMead: tolx and tolf must be non-negative, got ${tolx} and ${tolf}`);
+    throw new RangeError(
+      `nelderMead: tolx and tolf must be non-negative, got ${tolx} and ${tolf}.`
+    );
   }
 
   let xScale: Vector;
@@ -228,13 +230,13 @@ export function nelderMead(
   } else {
     xScale = Vector.asVector(sclx, true);
     if (xScale.size !== n) {
-      throw new RangeError(`nelderMead: sclx must have ${n} components, got ${xScale.size}`);
+      throw new RangeError(`nelderMead: sclx must have ${n} components, got ${xScale.size}.`);
     }
     for (let i = 0; i < n; i++) {
       const value = xScale.get(i);
       if (!(value > 0 && Number.isFinite(value))) {
         throw new RangeError(
-          `nelderMead: sclx must contain finite, strictly positive values, got ${value} at index ${i}`
+          `nelderMead: sclx must contain finite, strictly positive values, got ${value} at index ${i}.`
         );
       }
     }
@@ -244,11 +246,11 @@ export function nelderMead(
   const fevalLimit = maxFunEvals ?? 200 * n;
   if (!Number.isInteger(iterLimit) || iterLimit < 1) {
     throw new RangeError(
-      `nelderMead: maxIter must be a strictly positive integer, got ${iterLimit}`
+      `nelderMead: maxIter must be a strictly positive integer, got ${iterLimit}.`
     );
   }
   if (!(fevalLimit >= 0)) {
-    throw new RangeError(`nelderMead: maxFunEvals must be non-negative, got ${fevalLimit}`);
+    throw new RangeError(`nelderMead: maxFunEvals must be non-negative, got ${fevalLimit}.`);
   }
 
   // Algorithm parameters

@@ -16,7 +16,7 @@
 export function validateMaxIter(who: string, maxIter: number): void {
   if (!(Number.isInteger(maxIter) && maxIter >= 1)) {
     throw new RangeError(
-      `${who}: maxIter must be a finite strictly positive integer, got ${maxIter}`
+      `${who}: maxIter must be a finite strictly positive integer, got ${maxIter}.`
     );
   }
 }
@@ -42,7 +42,7 @@ export function validateTolerance(
   if (value === undefined) return;
   if (!(Number.isFinite(value) && (strict ? value > 0 : value >= 0))) {
     throw new RangeError(
-      `${who}: ${name} must be a finite ${strict ? 'strictly positive' : 'non-negative'} number, got ${value}`
+      `${who}: ${name} must be a finite ${strict ? 'strictly positive' : 'non-negative'} number, got ${value}.`
     );
   }
 }
@@ -67,9 +67,9 @@ export function validateDistinctFinite(
   b: number
 ): void {
   if (!Number.isFinite(a) || !Number.isFinite(b)) {
-    throw new RangeError(`${who}: ${nameA} and ${nameB} must be finite, got ${a} and ${b}`);
+    throw new RangeError(`${who}: ${nameA} and ${nameB} must be finite, got ${a} and ${b}.`);
   }
   if (a === b) {
-    throw new RangeError(`${who}: ${nameA} and ${nameB} must be different`);
+    throw new RangeError(`${who}: ${nameA} and ${nameB} must be different.`);
   }
 }

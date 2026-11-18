@@ -90,7 +90,7 @@ interface PreparedInterpND {
 function checkFiniteKnots(xpv: Vector, caller: string): void {
   for (let i = 0; i < xpv.size; i++) {
     if (!Number.isFinite(xpv.data[i])) {
-      throw new RangeError(`${caller}: xp must contain only finite values`);
+      throw new RangeError(`${caller}: xp must contain only finite values.`);
     }
   }
 }
@@ -103,7 +103,7 @@ function checkFiniteKnots(xpv: Vector, caller: string): void {
 function checkNondecreasing(xpv: Vector, caller: string): void {
   for (let i = 1; i < xpv.size; i++) {
     if (xpv.data[i] < xpv.data[i - 1]) {
-      throw new RangeError(`${caller}: xp must be monotonically increasing`);
+      throw new RangeError(`${caller}: xp must be monotonically increasing.`);
     }
   }
 }
@@ -132,7 +132,7 @@ export function addConstantIntegral(total: Vector, values: Vector, width: number
 export function checkStrictlyIncreasing(xpv: Vector, caller: string): void {
   for (let i = 1; i < xpv.size; i++) {
     if (xpv.data[i] === xpv.data[i - 1]) {
-      throw new RangeError(`${caller}: xp must be strictly increasing`);
+      throw new RangeError(`${caller}: xp must be strictly increasing.`);
     }
   }
 }
@@ -149,7 +149,7 @@ export function asEvalPointsND(x: VectorLike, caller: string): Vector {
   const xv = Vector.asVector(x);
   if (xv.size === 0) {
     throw new RangeError(
-      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows`
+      `${caller}: cannot evaluate at zero points; Matrix cannot represent a result with 0 rows.`
     );
   }
   return xv;
@@ -217,11 +217,11 @@ export function prepareInterp1D(
   const fpv = Vector.asVector(fp, copy);
 
   if (xpv.size === 0) {
-    throw new RangeError(`${caller}: xp must have at least one element`);
+    throw new RangeError(`${caller}: xp must have at least one element.`);
   }
   if (xpv.size !== fpv.size) {
     throw new RangeError(
-      `${caller}: xp and fp must have the same length: ${xpv.size} vs ${fpv.size}`
+      `${caller}: xp and fp must have the same length: ${xpv.size} vs ${fpv.size}.`
     );
   }
   checkFiniteKnots(xpv, caller);
@@ -257,7 +257,7 @@ function resolveClampVector(
   const v = Vector.asVector(val, copy);
   if (v.size !== dim) {
     throw new RangeError(
-      `${caller}: ${paramName} must have length ${dim} (fp.cols), got ${v.size}`
+      `${caller}: ${paramName} must have length ${dim} (fp.cols), got ${v.size}.`
     );
   }
   return v;
@@ -300,11 +300,11 @@ export function prepareInterpND(
   const xpv = Vector.asVector(xp, copy);
 
   if (xpv.size === 0) {
-    throw new RangeError(`${caller}: xp must have at least one element`);
+    throw new RangeError(`${caller}: xp must have at least one element.`);
   }
   if (xpv.size !== fp.rows) {
     throw new RangeError(
-      `${caller}: xp and fp must have the same length: ${xpv.size} vs ${fp.rows} (fp.rows)`
+      `${caller}: xp and fp must have the same length: ${xpv.size} vs ${fp.rows} (fp.rows).`
     );
   }
   checkFiniteKnots(xpv, caller);

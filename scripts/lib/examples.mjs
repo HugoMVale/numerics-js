@@ -52,7 +52,7 @@ function loadExports() {
   for (const module of MODULES) {
     const file = program.getSourceFile(join(src, `${module}.ts`));
     const symbol = file && checker.getSymbolAtLocation(file);
-    if (!symbol) throw new Error(`Cannot read exports of src/${module}.ts`);
+    if (!symbol) throw new Error(`Cannot read exports of src/${module}.ts.`);
     for (let exported of checker.getExportsOfModule(symbol)) {
       const name = exported.getName();
       if (exported.flags & ts.SymbolFlags.Alias) exported = checker.getAliasedSymbol(exported);

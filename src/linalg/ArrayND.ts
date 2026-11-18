@@ -385,7 +385,7 @@ export abstract class ArrayND {
    */
   clip(min: number, max: number): this {
     if (min > max) {
-      throw new RangeError(`${this._className()}.clip: min (${min}) must be <= max (${max})`);
+      throw new RangeError(`${this._className()}.clip: min (${min}) must be <= max (${max}).`);
     }
     const res = this._create(new Float64Array(this.data.length));
     for (let i = 0; i < this.data.length; i++)
@@ -723,7 +723,7 @@ export abstract class ArrayND {
    */
   clipSelf(min: number, max: number): this {
     if (min > max) {
-      throw new RangeError(`${this._className()}.clipSelf: min (${min}) must be <= max (${max})`);
+      throw new RangeError(`${this._className()}.clipSelf: min (${min}) must be <= max (${max}).`);
     }
     for (let i = 0; i < this.data.length; i++)
       this.data[i] = Math.min(Math.max(this.data[i], min), max);
@@ -1200,7 +1200,7 @@ export abstract class ArrayND {
    */
   protected _minAll(): number {
     if (this.data.length === 0) {
-      throw new RangeError(`${this._className()}.min: cannot compute the min of an empty array`);
+      throw new RangeError(`${this._className()}.min: cannot compute the min of an empty array.`);
     }
     return ArrayND._minArr(this.data);
   }
@@ -1213,7 +1213,7 @@ export abstract class ArrayND {
    */
   protected _maxAll(): number {
     if (this.data.length === 0) {
-      throw new RangeError(`${this._className()}.max: cannot compute the max of an empty array`);
+      throw new RangeError(`${this._className()}.max: cannot compute the max of an empty array.`);
     }
     return ArrayND._maxArr(this.data);
   }
@@ -1255,7 +1255,7 @@ export abstract class ArrayND {
    */
   protected static _checkCount(count: number, caller: string, name: string = 'repeats'): void {
     if (!Number.isInteger(count) || count < 0) {
-      throw new RangeError(`${caller}: ${name} must be a non-negative integer, got ${count}`);
+      throw new RangeError(`${caller}: ${name} must be a non-negative integer, got ${count}.`);
     }
   }
 

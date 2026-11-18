@@ -95,7 +95,7 @@ export function simpson(y: VectorLike, x?: VectorLike, dx: number = 1): number {
   const xv = x === undefined ? undefined : Vector.asVector(x);
   const n = yv.size;
   if (xv !== undefined && xv.size !== n) {
-    throw new RangeError(`simpson: x and y must have the same size: ${xv.size} vs ${n}`);
+    throw new RangeError(`simpson: x and y must have the same size: ${xv.size} vs ${n}.`);
   }
   if (n < 2) return 0;
   if (n === 2) return trapezoid(yv, xv, dx);
@@ -107,8 +107,8 @@ export function simpson(y: VectorLike, x?: VectorLike, dx: number = 1): number {
     if (h === 0) {
       throw new RangeError(
         xv !== undefined
-          ? `simpson: x must not contain repeated values (x[${i}] === x[${i + 1}])`
-          : 'simpson: dx must be non-zero'
+          ? `simpson: x must not contain repeated values (x[${i}] === x[${i + 1}]).`
+          : 'simpson: dx must be non-zero.'
       );
     }
     return h;

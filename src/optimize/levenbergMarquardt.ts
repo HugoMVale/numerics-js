@@ -264,7 +264,7 @@ export function levenbergMarquardt(
   let x = Vector.asVector(x0, true);
   const n = x.size;
   if (n === 0) {
-    throw new RangeError('levenbergMarquardt: x0 must have at least one component');
+    throw new RangeError('levenbergMarquardt: x0 must have at least one component.');
   }
 
   const tolf = options.tolf ?? SQRT_EPS;
@@ -277,26 +277,26 @@ export function levenbergMarquardt(
   ] as const) {
     if (!(value >= 0)) {
       throw new RangeError(
-        `levenbergMarquardt: ${name} must be a nonnegative number, got ${value}`
+        `levenbergMarquardt: ${name} must be a nonnegative number, got ${value}.`
       );
     }
   }
   const maxFunEvals = options.maxFunEvals ?? 100 * (n + 1);
   if (!(Number.isInteger(maxFunEvals) && maxFunEvals >= 1)) {
     throw new RangeError(
-      `levenbergMarquardt: maxFunEvals must be a finite strictly positive integer, got ${maxFunEvals}`
+      `levenbergMarquardt: maxFunEvals must be a finite strictly positive integer, got ${maxFunEvals}.`
     );
   }
   const maxIter = options.maxIter ?? Infinity;
   if (!(maxIter === Infinity || (Number.isInteger(maxIter) && maxIter >= 1))) {
     throw new RangeError(
-      `levenbergMarquardt: maxIter must be a strictly positive integer or Infinity, got ${maxIter}`
+      `levenbergMarquardt: maxIter must be a strictly positive integer or Infinity, got ${maxIter}.`
     );
   }
   const factor = options.trustLenFactor ?? 100;
   if (!(factor > 0 && Number.isFinite(factor))) {
     throw new RangeError(
-      `levenbergMarquardt: trustLenFactor must be a finite strictly positive number, got ${factor}`
+      `levenbergMarquardt: trustLenFactor must be a finite strictly positive number, got ${factor}.`
     );
   }
 
@@ -305,12 +305,12 @@ export function levenbergMarquardt(
     userSclx = Vector.asVector(options.sclx, true);
     if (userSclx.size !== n) {
       throw new RangeError(
-        `levenbergMarquardt: sclx must have ${n} components, got ${userSclx.size}`
+        `levenbergMarquardt: sclx must have ${n} components, got ${userSclx.size}.`
       );
     }
     for (let i = 0; i < n; i++) {
       if (!(userSclx.get(i) > 0))
-        throw new RangeError('levenbergMarquardt: sclx must contain strictly positive values');
+        throw new RangeError('levenbergMarquardt: sclx must contain strictly positive values.');
     }
   }
   const sclx = userSclx ?? scaleVector(x);
@@ -327,7 +327,7 @@ export function levenbergMarquardt(
     nFev += 1;
     const r = f(xv);
     if (m >= 0 && r.size !== m) {
-      throw new RangeError(`levenbergMarquardt: f must return ${m} components, got ${r.size}`);
+      throw new RangeError(`levenbergMarquardt: f must return ${m} components, got ${r.size}.`);
     }
     return r;
   };
@@ -336,7 +336,7 @@ export function levenbergMarquardt(
   m = fvec.size;
   if (m < n) {
     throw new RangeError(
-      `levenbergMarquardt: f(x0) must have at least ${n} components (as many as x0), got ${m}`
+      `levenbergMarquardt: f(x0) must have at least ${n} components (as many as x0), got ${m}.`
     );
   }
 
@@ -367,7 +367,7 @@ export function levenbergMarquardt(
       nJev += 1;
       if (Jv.rows !== m || Jv.cols !== n) {
         throw new RangeError(
-          `levenbergMarquardt: jac must return a ${m}x${n} matrix, got ${Jv.rows}x${Jv.cols}`
+          `levenbergMarquardt: jac must return a ${m}x${n} matrix, got ${Jv.rows}x${Jv.cols}.`
         );
       }
       return Jv;

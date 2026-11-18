@@ -223,7 +223,7 @@ export class PchipInterpolator1D {
    */
   integrate(a: number, b: number): number {
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      throw new RangeError('PchipInterpolator1D.integrate: bounds must not be NaN');
+      throw new RangeError('PchipInterpolator1D.integrate: bounds must not be NaN.');
     }
     return hermiteIntegrate1D(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }
@@ -377,7 +377,7 @@ export class PchipInterpolatorND {
    */
   integrate(a: number, b: number): Vector {
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      throw new RangeError('PchipInterpolatorND.integrate: bounds must not be NaN');
+      throw new RangeError('PchipInterpolatorND.integrate: bounds must not be NaN.');
     }
     return hermiteIntegrateND(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }

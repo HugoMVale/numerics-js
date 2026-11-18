@@ -133,7 +133,7 @@ export function bisection(
 
   if (Math.sign(fa) === Math.sign(fb)) {
     throw new RangeError(
-      `${METHOD}: f(xa) and f(xb) must have opposite signs (got f(xa)=${fa}, f(xb)=${fb})`
+      `${METHOD}: f(xa) and f(xb) must have opposite signs (got f(xa)=${fa}, f(xb)=${fb}).`
     );
   }
 

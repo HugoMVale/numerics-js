@@ -104,7 +104,7 @@ export function countedIntegrand(name: string, f: (x: number) => number): Counte
       const y = f(x);
       if (!Number.isFinite(y)) {
         throw new NonFiniteIntegrandError(
-          `${name}: f(${x}) returned a non-finite value (${y}); cannot integrate`,
+          `${name}: f(${x}) returned a non-finite value (${y}); cannot integrate.`,
           x
         );
       }
@@ -169,12 +169,12 @@ export function resolveGaussKronrodOptions(
 
   if (!Number.isFinite(atol) || !Number.isFinite(rtol) || atol < 0 || rtol < 0) {
     throw new RangeError(
-      `${name}: atol (${atol}) and rtol (${rtol}) must be finite and non-negative`
+      `${name}: atol (${atol}) and rtol (${rtol}) must be finite and non-negative.`
     );
   }
   if (!Number.isInteger(maxSubintervals) || maxSubintervals < 1) {
     throw new RangeError(
-      `${name}: maxSubintervals must be a finite positive integer, got ${maxSubintervals}`
+      `${name}: maxSubintervals must be a finite positive integer, got ${maxSubintervals}.`
     );
   }
   return { atol, rtol, maxSubintervals };
@@ -207,6 +207,6 @@ export function emptyIntervalResult(): GaussKronrodResult {
  */
 export function validateIntegrand(name: string, f: unknown): void {
   if (typeof f !== 'function') {
-    throw new TypeError(`${name}: f must be a function`);
+    throw new TypeError(`${name}: f must be a function.`);
   }
 }

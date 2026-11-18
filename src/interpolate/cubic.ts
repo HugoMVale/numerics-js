@@ -96,11 +96,11 @@ function checkBoundary(
   caller: string
 ): void {
   if (!BOUNDARIES.includes(bc)) {
-    throw new RangeError(`${caller}: bc must be one of ${BOUNDARIES.join(', ')}; got '${bc}'`);
+    throw new RangeError(`${caller}: bc must be one of ${BOUNDARIES.join(', ')}; got '${bc}'.`);
   }
   if (bc !== 'clamped' && (leftDerivative !== undefined || rightDerivative !== undefined)) {
     throw new RangeError(
-      `${caller}: leftDerivative and rightDerivative require bc to be 'clamped'`
+      `${caller}: leftDerivative and rightDerivative require bc to be 'clamped'.`
     );
   }
 }
@@ -108,7 +108,7 @@ function checkBoundary(
 /** Rejects a non-finite end derivative. */
 function checkDerivative(value: number, name: string, caller: string): void {
   if (!Number.isFinite(value)) {
-    throw new RangeError(`${caller}: ${name} must be finite`);
+    throw new RangeError(`${caller}: ${name} must be finite.`);
   }
 }
 
@@ -132,7 +132,7 @@ function resolveDerivativeND(
   }
   const v = Vector.asVector(val);
   if (v.size !== dim) {
-    throw new RangeError(`${caller}: ${name} must have length ${dim} (fp.cols), got ${v.size}`);
+    throw new RangeError(`${caller}: ${name} must have length ${dim} (fp.cols), got ${v.size}.`);
   }
   for (let j = 0; j < dim; j++) {
     checkDerivative(v.data[j], name, caller);
@@ -452,7 +452,7 @@ export class CubicSplineInterpolator1D {
    */
   integrate(a: number, b: number): number {
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      throw new RangeError('CubicSplineInterpolator1D.integrate: bounds must not be NaN');
+      throw new RangeError('CubicSplineInterpolator1D.integrate: bounds must not be NaN.');
     }
     return hermiteIntegrate1D(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }
@@ -628,7 +628,7 @@ export class CubicSplineInterpolatorND {
    */
   integrate(a: number, b: number): Vector {
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      throw new RangeError('CubicSplineInterpolatorND.integrate: bounds must not be NaN');
+      throw new RangeError('CubicSplineInterpolatorND.integrate: bounds must not be NaN.');
     }
     return hermiteIntegrateND(this.xp, this.fp, this.slopes, this.leftVal, this.rightVal, a, b);
   }

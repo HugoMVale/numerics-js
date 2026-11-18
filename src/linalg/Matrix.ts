@@ -71,14 +71,14 @@ export class Matrix extends ArrayND {
   constructor(rows: number, cols: number, input?: ArrayLike<number>) {
     super();
     if (!Number.isInteger(rows) || rows < 1) {
-      throw new RangeError(`Matrix: rows must be a positive integer, got ${rows}`);
+      throw new RangeError(`Matrix: rows must be a positive integer, got ${rows}.`);
     }
     if (!Number.isInteger(cols) || cols < 1) {
-      throw new RangeError(`Matrix: cols must be a positive integer, got ${cols}`);
+      throw new RangeError(`Matrix: cols must be a positive integer, got ${cols}.`);
     }
     if (input !== undefined && input.length !== rows * cols) {
       throw new RangeError(
-        `Matrix: expected ${rows * cols} values for a ${rows}x${cols} matrix, got ${input.length}`
+        `Matrix: expected ${rows * cols} values for a ${rows}x${cols} matrix, got ${input.length}.`
       );
     }
     this._rows = rows;
@@ -253,7 +253,7 @@ export class Matrix extends ArrayND {
   protected _checkSameShape(other: this, caller: string): void {
     if (other.rows !== this.rows || other.cols !== this.cols) {
       throw new RangeError(
-        `Matrix.${caller}: shape mismatch: ${this.rows}x${this.cols} vs ${other.rows}x${other.cols}`
+        `Matrix.${caller}: shape mismatch: ${this.rows}x${this.cols} vs ${other.rows}x${other.cols}.`
       );
     }
   }
@@ -321,7 +321,7 @@ export class Matrix extends ArrayND {
   private _checkBounds(i: number, j: number): void {
     if (i < 0 || i >= this.rows || j < 0 || j >= this.cols) {
       throw new RangeError(
-        `Matrix index (${i}, ${j}) out of bounds for ${this.rows}x${this.cols} matrix`
+        `Matrix index (${i}, ${j}) out of bounds for ${this.rows}x${this.cols} matrix.`
       );
     }
   }
@@ -498,7 +498,7 @@ export class Matrix extends ArrayND {
    */
   row(i: number): Vector {
     if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
+      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
     return Vector.wrapUnchecked(
       this.data.slice(this.flatIndex(i, 0), this.flatIndex(i, 0) + this.cols)
     );
@@ -524,7 +524,7 @@ export class Matrix extends ArrayND {
    */
   col(j: number): Vector {
     if (j < 0 || j >= this.cols)
-      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
+      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns.`);
     const res = new Vector(this.rows);
     for (let i = 0; i < this.rows; i++) res.data[i] = this.getUnchecked(i, j);
     return res;
@@ -584,11 +584,11 @@ export class Matrix extends ArrayND {
    */
   setRow(i: number, values: Vector | ArrayLike<number>): this {
     if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
+      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
     const src = values instanceof Vector ? values.data : values;
     if (src.length !== this.cols) {
       throw new RangeError(
-        `Matrix setRow: expected ${this.cols} values for row ${i}, got ${src.length}`
+        `Matrix setRow: expected ${this.cols} values for row ${i}, got ${src.length}.`
       );
     }
     this.data.set(src, this.flatIndex(i, 0));
@@ -618,11 +618,11 @@ export class Matrix extends ArrayND {
    */
   setCol(j: number, values: Vector | ArrayLike<number>): this {
     if (j < 0 || j >= this.cols)
-      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
+      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns.`);
     const src = values instanceof Vector ? values.data : values;
     if (src.length !== this.rows) {
       throw new RangeError(
-        `Matrix setCol: expected ${this.rows} values for column ${j}, got ${src.length}`
+        `Matrix setCol: expected ${this.rows} values for column ${j}, got ${src.length}.`
       );
     }
     for (let i = 0; i < this.rows; i++) this.setUnchecked(i, j, src[i]);
@@ -1282,11 +1282,11 @@ export class Matrix extends ArrayND {
       if (n === 1) {
         throw new RangeError(
           `Matrix.${caller}: broadcasting a vector of size ${k} against a ${m}x1 matrix would ` +
-            `change the result shape to ${m}x${k}, which is not supported`
+            `change the result shape to ${m}x${k}, which is not supported.`
         );
       }
       throw new RangeError(
-        `Matrix.${caller}: operands could not be broadcast together with shapes (${m},${n}) (${k})`
+        `Matrix.${caller}: operands could not be broadcast together with shapes (${m},${n}) (${k}).`
       );
     }
 
@@ -1385,7 +1385,7 @@ export class Matrix extends ArrayND {
   matmul(m: Matrix): Matrix {
     if (this.cols !== m.rows) {
       throw new RangeError(
-        `Matrix matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}`
+        `Matrix matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}.`
       );
     }
     const res = new Matrix(this.rows, m.cols);
@@ -1424,7 +1424,7 @@ export class Matrix extends ArrayND {
   mulVec(v: Vector): Vector {
     if (v.size !== this.cols) {
       throw new RangeError(
-        `Matrix mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.size})`
+        `Matrix mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.size}).`
       );
     }
     const res = new Vector(this.rows);
@@ -1483,7 +1483,7 @@ export class Matrix extends ArrayND {
    */
   trace(): number {
     if (this.rows !== this.cols)
-      throw new RangeError(`Matrix trace requires a square matrix, got ${this.rows}x${this.cols}`);
+      throw new RangeError(`Matrix trace requires a square matrix, got ${this.rows}x${this.cols}.`);
     let sum = 0;
     for (let i = 0; i < this.rows; i++) sum += this.getUnchecked(i, i);
     return sum;
@@ -3028,7 +3028,7 @@ export class Matrix extends ArrayND {
     const newCols = ce - cs;
     if (newRows === 0 || newCols === 0) {
       throw new RangeError(
-        `Matrix.slice: resolved range is ${newRows}x${newCols}, but Matrix cannot represent a matrix with 0 rows or 0 columns`
+        `Matrix.slice: resolved range is ${newRows}x${newCols}, but Matrix cannot represent a matrix with 0 rows or 0 columns.`
       );
     }
     const res = new Matrix(newRows, newCols);
@@ -3099,12 +3099,12 @@ export class Matrix extends ArrayND {
       return res;
     }
     if (axis !== 0 && axis !== 1) {
-      throw new RangeError(`Matrix.repeat: axis must be 0, 1 or undefined, got ${axis}`);
+      throw new RangeError(`Matrix.repeat: axis must be 0, 1 or undefined, got ${axis}.`);
     }
     if (repeats === 0) {
       throw new RangeError(
         `Matrix.repeat: repeats=0 along axis ${axis} would produce an empty matrix, ` +
-          `but Matrix cannot represent a matrix with 0 rows or 0 columns`
+          `but Matrix cannot represent a matrix with 0 rows or 0 columns.`
       );
     }
     if (axis === 0) {
@@ -3161,7 +3161,7 @@ export class Matrix extends ArrayND {
     if (rowReps === 0 || colReps === 0) {
       throw new RangeError(
         `Matrix.tile: reps (${rowReps}, ${colReps}) would produce an empty matrix, ` +
-          `but Matrix cannot represent a matrix with 0 rows or 0 columns`
+          `but Matrix cannot represent a matrix with 0 rows or 0 columns.`
       );
     }
     const newCols = this.cols * colReps;
@@ -3261,7 +3261,7 @@ export class Matrix extends ArrayND {
   transposeSelf(): this {
     if (this.rows !== this.cols)
       throw new RangeError(
-        `Matrix transposeSelf requires a square matrix, got ${this.rows}x${this.cols}`
+        `Matrix transposeSelf requires a square matrix, got ${this.rows}x${this.cols}.`
       );
     for (let i = 0; i < this.rows; i++) {
       for (let j = i + 1; j < this.cols; j++) {
@@ -3297,9 +3297,9 @@ export class Matrix extends ArrayND {
    */
   swapRows(i: number, j: number): this {
     if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
+      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
     if (j < 0 || j >= this.rows)
-      throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows`);
+      throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows.`);
     if (i === j) return this;
     const oi = this.flatIndex(i, 0);
     const oj = this.flatIndex(j, 0);
@@ -3334,7 +3334,7 @@ export class Matrix extends ArrayND {
    */
   scaleRow(i: number, s: number): this {
     if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
+      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
     const offset = this.flatIndex(i, 0);
     for (let k = 0; k < this.cols; k++) this.data[offset + k] *= s;
     return this;
@@ -3363,7 +3363,7 @@ export class Matrix extends ArrayND {
    */
   scaleCol(j: number, s: number): this {
     if (j < 0 || j >= this.cols)
-      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns`);
+      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns.`);
     for (let i = 0; i < this.rows; i++) this.data[this.flatIndex(i, j)] *= s;
     return this;
   }
@@ -3393,9 +3393,9 @@ export class Matrix extends ArrayND {
    */
   addScaledRow(i: number, j: number, s: number): this {
     if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows`);
+      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
     if (j < 0 || j >= this.rows)
-      throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows`);
+      throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows.`);
     const offsetI = this.flatIndex(i, 0);
     const offsetJ = this.flatIndex(j, 0);
     for (let k = 0; k < this.cols; k++) this.data[offsetI + k] += this.data[offsetJ + k] * s;
@@ -3472,7 +3472,7 @@ export class Matrix extends ArrayND {
   static diag(v: Vector): Matrix {
     if (v.size === 0) {
       throw new RangeError(
-        'Matrix.diag: cannot construct a matrix from an empty vector (need at least one element)'
+        'Matrix.diag: cannot construct a matrix from an empty vector (need at least one element).'
       );
     }
     const res = new Matrix(v.size, v.size);
@@ -3500,14 +3500,14 @@ export class Matrix extends ArrayND {
   static from(rows: number[][]): Matrix {
     if (rows.length === 0) {
       throw new RangeError(
-        'Matrix.from: cannot construct a matrix from an empty array (need at least one row)'
+        'Matrix.from: cannot construct a matrix from an empty array (need at least one row).'
       );
     }
     const nRows = rows.length;
     const nCols = rows[0].length;
     if (nCols === 0) {
       throw new RangeError(
-        'Matrix.from: cannot construct a matrix with empty rows (need at least one column)'
+        'Matrix.from: cannot construct a matrix with empty rows (need at least one column).'
       );
     }
     const res = new Matrix(nRows, nCols);
@@ -3543,13 +3543,13 @@ export class Matrix extends ArrayND {
    */
   static hstack(matrices: Matrix[]): Matrix {
     if (matrices.length === 0) {
-      throw new RangeError('Matrix.hstack: need at least one matrix to concatenate');
+      throw new RangeError('Matrix.hstack: need at least one matrix to concatenate.');
     }
     const rows = matrices[0].rows;
     let totalCols = 0;
     for (const m of matrices) {
       if (m.rows !== rows) {
-        throw new RangeError(`Matrix.hstack: row count mismatch: ${rows} vs ${m.rows}`);
+        throw new RangeError(`Matrix.hstack: row count mismatch: ${rows} vs ${m.rows}.`);
       }
       totalCols += m.cols;
     }
@@ -3593,13 +3593,13 @@ export class Matrix extends ArrayND {
    */
   static vstack(matrices: Matrix[]): Matrix {
     if (matrices.length === 0) {
-      throw new RangeError('Matrix.vstack: need at least one matrix to concatenate');
+      throw new RangeError('Matrix.vstack: need at least one matrix to concatenate.');
     }
     const cols = matrices[0].cols;
     let totalRows = 0;
     for (const m of matrices) {
       if (m.cols !== cols) {
-        throw new RangeError(`Matrix.vstack: column count mismatch: ${cols} vs ${m.cols}`);
+        throw new RangeError(`Matrix.vstack: column count mismatch: ${cols} vs ${m.cols}.`);
       }
       totalRows += m.rows;
     }

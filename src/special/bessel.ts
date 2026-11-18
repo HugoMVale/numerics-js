@@ -141,7 +141,7 @@ function scanBesselZero(
       const result = brent(f, a, b, { tolx: 1e-15, tolf: 0, maxIter: 100 });
       if (!result.success) {
         throw new Error(
-          `${name}: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}`
+          `${name}: root refinement failed for n=${n} in [${a}, ${b}]: ${result.message}.`
         );
       }
       let r: number = result.x;

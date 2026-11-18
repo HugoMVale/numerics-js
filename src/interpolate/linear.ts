@@ -299,7 +299,7 @@ export class LinearInterpolator1D {
    */
   integrate(a: number, b: number): number {
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      throw new RangeError('LinearInterpolator1D.integrate: bounds must not be NaN');
+      throw new RangeError('LinearInterpolator1D.integrate: bounds must not be NaN.');
     }
     if (a === b) return 0;
     if (b < a) return -this.integrate(b, a);
@@ -468,7 +468,7 @@ export class LinearInterpolatorND {
    */
   integrate(a: number, b: number): Vector {
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      throw new RangeError('LinearInterpolatorND.integrate: bounds must not be NaN');
+      throw new RangeError('LinearInterpolatorND.integrate: bounds must not be NaN.');
     }
     const m = this.dim;
     if (a === b) return new Vector(m);

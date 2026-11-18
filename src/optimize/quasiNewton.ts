@@ -284,10 +284,10 @@ export function quasiNewton(
   const x0v = Vector.asVector(x0, true);
   const n = x0v.size;
   if (n === 0) {
-    throw new RangeError('quasiNewton: x0 must have at least one component');
+    throw new RangeError('quasiNewton: x0 must have at least one component.');
   }
   if (!x0v.allFinite()) {
-    throw new RangeError('quasiNewton: x0 must contain only finite values');
+    throw new RangeError('quasiNewton: x0 must contain only finite values.');
   }
 
   // Option ranges. Non-finite or non-positive values would otherwise make the solver loop
@@ -299,28 +299,28 @@ export function quasiNewton(
   validateTolerance('quasiNewton', 'epsf', options.epsf);
   if (options.maxLenFactor !== undefined && !(options.maxLenFactor > 0)) {
     throw new RangeError(
-      `quasiNewton: maxLenFactor must be strictly positive, got ${options.maxLenFactor}`
+      `quasiNewton: maxLenFactor must be strictly positive, got ${options.maxLenFactor}.`
     );
   }
   if (options.trustLen !== undefined && Number.isNaN(options.trustLen)) {
-    throw new RangeError('quasiNewton: trustLen must not be NaN');
+    throw new RangeError('quasiNewton: trustLen must not be NaN.');
   }
 
   // Scaling factors are only read, so they are not copied.
   const sclxUser = options.sclx === undefined ? undefined : Vector.asVector(options.sclx);
   if (sclxUser !== undefined) {
     if (sclxUser.size !== n) {
-      throw new RangeError(`quasiNewton: sclx must have ${n} components, got ${sclxUser.size}`);
+      throw new RangeError(`quasiNewton: sclx must have ${n} components, got ${sclxUser.size}.`);
     }
     if (!sclxUser.data.every((value) => value > 0)) {
-      throw new RangeError('quasiNewton: sclx must contain strictly positive values');
+      throw new RangeError('quasiNewton: sclx must contain strictly positive values.');
     }
   }
 
   const globalMethod: GlobalMethod =
     options.globalMethod === undefined ? 'dogleg' : options.globalMethod;
   if (globalMethod !== null && globalMethod !== 'line-search' && globalMethod !== 'dogleg') {
-    throw new RangeError(`quasiNewton: unknown globalMethod '${String(globalMethod)}'`);
+    throw new RangeError(`quasiNewton: unknown globalMethod '${String(globalMethod)}'.`);
   }
   const bfgsMethodUser = options.bfgsMethod;
   if (
@@ -329,13 +329,13 @@ export function quasiNewton(
     bfgsMethodUser !== 'unfactored' &&
     bfgsMethodUser !== 'inverse'
   ) {
-    throw new RangeError(`quasiNewton: unknown bfgsMethod '${String(bfgsMethodUser)}'`);
+    throw new RangeError(`quasiNewton: unknown bfgsMethod '${String(bfgsMethodUser)}'.`);
   }
 
   const H0 = options.H0?.copy();
   if (H0 && (H0.rows !== n || H0.cols !== n)) {
     throw new RangeError(
-      `quasiNewton: H0 must have dimensions ${n}x${n}, got ${H0.rows}x${H0.cols}`
+      `quasiNewton: H0 must have dimensions ${n}x${n}, got ${H0.rows}x${H0.cols}.`
     );
   }
 
@@ -400,7 +400,7 @@ export function quasiNewton(
     const g = Vector.asVector(grad!(x), true);
     nGev += 1;
     if (g.size !== n) {
-      throw new RangeError(`quasiNewton: grad(${at}) must have ${n} components, got ${g.size}`);
+      throw new RangeError(`quasiNewton: grad(${at}) must have ${n} components, got ${g.size}.`);
     }
     return g;
   };
@@ -414,7 +414,7 @@ export function quasiNewton(
       nHev += 1;
       if (H.rows !== n || H.cols !== n) {
         throw new RangeError(
-          `quasiNewton: hess(${at}) must have dimensions ${n}x${n}, got ${H.rows}x${H.cols}`
+          `quasiNewton: hess(${at}) must have dimensions ${n}x${n}, got ${H.rows}x${H.cols}.`
         );
       }
       return H;
@@ -1046,7 +1046,7 @@ export function makeHessianSpd(
   }
 
   throw new Error(
-    `Perturbed Cholesky failed after total perturbation=${(mu + perturb).toExponential(3)}`
+    `Perturbed Cholesky failed after total perturbation=${(mu + perturb).toExponential(3)}.`
   );
 }
 

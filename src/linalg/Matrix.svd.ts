@@ -335,7 +335,7 @@ function prepare(A: Matrix, who: string): Prepared {
   for (let p = 0; p < a.length; p++) {
     const v = a[p];
     if (!Number.isFinite(v)) {
-      throw new RangeError(`Matrix ${who}: matrix contains non-finite entries`);
+      throw new RangeError(`Matrix ${who}: matrix contains non-finite entries.`);
     }
     const av = Math.abs(v);
     if (av > amax) amax = av;
@@ -653,7 +653,7 @@ function bdsqr(
     let iter = 0;
 
     main: while (hi > 0) {
-      if (iter > maxit) throw new Error('Matrix svd: QR iteration failed to converge');
+      if (iter > maxit) throw new Error('Matrix svd: QR iteration failed to converge.');
 
       // Find the bottom unreduced block d[lo..hi], deflating negligible e's.
       let smax = Math.abs(d[hi]);
@@ -1003,8 +1003,8 @@ function cutoffOf(
 ): number {
   const atol = options?.atol ?? 0;
   const rtol = options?.rtol ?? Math.max(A.rows, A.cols) * Number.EPSILON;
-  if (!(atol >= 0)) throw new RangeError(`Matrix ${who}: atol must be >= 0, got ${atol}`);
-  if (!(rtol >= 0)) throw new RangeError(`Matrix ${who}: rtol must be >= 0, got ${rtol}`);
+  if (!(atol >= 0)) throw new RangeError(`Matrix ${who}: atol must be >= 0, got ${atol}.`);
+  if (!(rtol >= 0)) throw new RangeError(`Matrix ${who}: rtol must be >= 0, got ${rtol}.`);
   return Math.max(atol, rtol * s0);
 }
 
@@ -1044,7 +1044,7 @@ export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): Lst
   const m = A.rows;
   const n = A.cols;
   if (bv.size !== m) {
-    throw new RangeError(`Matrix lstsq shape mismatch: ${m}x${n} vs vec(${bv.size})`);
+    throw new RangeError(`Matrix lstsq shape mismatch: ${m}x${n} vs vec(${bv.size}).`);
   }
   const { a, mw, nw, transposed, scale } = prepare(A, 'lstsq');
   const bd = bidiagonalize(a, mw, nw);

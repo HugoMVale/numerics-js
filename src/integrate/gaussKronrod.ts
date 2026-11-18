@@ -184,7 +184,7 @@ export function gaussKronrod(
   // the interval is empty.
   validateIntegrand('gaussKronrod', f);
   if (!Number.isFinite(a) || !Number.isFinite(b)) {
-    throw new RangeError(`gaussKronrod: a and b must be finite numbers, got ${a} and ${b}`);
+    throw new RangeError(`gaussKronrod: a and b must be finite numbers, got ${a} and ${b}.`);
   }
   const resolved = resolveGaussKronrodOptions('gaussKronrod', options);
 

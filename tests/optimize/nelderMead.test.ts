@@ -312,7 +312,7 @@ describe('nelderMead sclx length', () => {
           return f(x);
         };
         expect(() => nelderMead(g, [0, 0], { sclx: make([...values]) })).toThrowError(
-          new RangeError(`nelderMead: sclx must have 2 components, got ${values.length}`)
+          new RangeError(`nelderMead: sclx must have 2 components, got ${values.length}.`)
         );
         expect(evaluated).toBe(false);
       });

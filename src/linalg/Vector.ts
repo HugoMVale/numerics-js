@@ -22,10 +22,10 @@ export class Vector extends ArrayND {
     super();
     if (typeof input === 'number') {
       if (!Number.isInteger(input)) {
-        throw new RangeError(`Vector.constructor: dimension must be an integer, got ${input}`);
+        throw new RangeError(`Vector.constructor: dimension must be an integer, got ${input}.`);
       }
       if (input < 0) {
-        throw new RangeError(`Vector.constructor: dimension must be >= 0, got ${input}`);
+        throw new RangeError(`Vector.constructor: dimension must be >= 0, got ${input}.`);
       }
       this.data = new Float64Array(input);
     } else {
@@ -45,7 +45,7 @@ export class Vector extends ArrayND {
    */
   protected _checkSameShape(other: this, caller: string): void {
     if (other.size !== this.size) {
-      throw new RangeError(`Vector.${caller}: dimension mismatch: ${this.size} vs ${other.size}`);
+      throw new RangeError(`Vector.${caller}: dimension mismatch: ${this.size} vs ${other.size}.`);
     }
   }
 
@@ -109,7 +109,9 @@ export class Vector extends ArrayND {
    */
   private _checkIndex(i: number, caller: string): void {
     if (!Number.isInteger(i) || i < 0 || i >= this.size) {
-      throw new RangeError(`Vector.${caller}: index ${i} out of bounds for dimension ${this.size}`);
+      throw new RangeError(
+        `Vector.${caller}: index ${i} out of bounds for dimension ${this.size}.`
+      );
     }
   }
 
@@ -519,7 +521,7 @@ export class Vector extends ArrayND {
    */
   argmin(): number {
     if (this.size === 0)
-      throw new RangeError('Vector.argmin: cannot compute the argmin of an empty vector');
+      throw new RangeError('Vector.argmin: cannot compute the argmin of an empty vector.');
     return ArrayND._argMinArr(this.data);
   }
 
@@ -567,7 +569,7 @@ export class Vector extends ArrayND {
    */
   argmax(): number {
     if (this.size === 0)
-      throw new RangeError('Vector.argmax: cannot compute the argmax of an empty vector');
+      throw new RangeError('Vector.argmax: cannot compute the argmax of an empty vector.');
     return ArrayND._argMaxArr(this.data);
   }
 
@@ -694,7 +696,7 @@ export class Vector extends ArrayND {
     } else {
       if (valuesOrIndex.length !== this.size) {
         throw new RangeError(
-          `Vector.set: expected ${this.size} values, got ${valuesOrIndex.length}`
+          `Vector.set: expected ${this.size} values, got ${valuesOrIndex.length}.`
         );
       }
       this.data.set(valuesOrIndex);
@@ -888,7 +890,7 @@ export class Vector extends ArrayND {
     }
     const got = x === null ? 'null' : typeof x === 'object' ? x.constructor?.name : typeof x;
     throw new TypeError(
-      `Vector.asVector: expected a Vector, number[] or Float64Array, got ${got ?? 'object'}`
+      `Vector.asVector: expected a Vector, number[] or Float64Array, got ${got ?? 'object'}.`
     );
   }
 
@@ -943,7 +945,7 @@ export class Vector extends ArrayND {
   static arange(startOrStop: number, stop?: number, step: number = 1): Vector {
     const start = stop === undefined ? 0 : startOrStop;
     const actualStop = stop === undefined ? startOrStop : stop;
-    if (step === 0) throw new RangeError('Vector.arange: step must not be 0');
+    if (step === 0) throw new RangeError('Vector.arange: step must not be 0.');
     const n = Math.max(0, Math.ceil((actualStop - start) / step));
     const res = new Vector(n);
     for (let i = 0; i < n; i++) res.data[i] = start + i * step;
@@ -975,7 +977,7 @@ export class Vector extends ArrayND {
    */
   static linspace(start: number, stop: number, num: number = 50, endpoint: boolean = true): Vector {
     if (!Number.isInteger(num) || num < 0) {
-      throw new RangeError(`Vector.linspace: num must be a non-negative integer, got ${num}`);
+      throw new RangeError(`Vector.linspace: num must be a non-negative integer, got ${num}.`);
     }
     const res = new Vector(num);
     if (num === 0) return res;

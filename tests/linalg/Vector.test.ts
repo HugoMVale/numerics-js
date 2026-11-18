@@ -724,8 +724,8 @@ describe('Vector', () => {
           /Vector\.asVector: expected a Vector, number\[\] or Float64Array, got /
         );
       }
-      expect(() => Vector.asVector(null as never)).toThrowError(/got null$/);
-      expect(() => Vector.asVector(5 as never)).toThrowError(/got number$/);
+      expect(() => Vector.asVector(null as never)).toThrowError(/got null\.$/);
+      expect(() => Vector.asVector(5 as never)).toThrowError(/got number\.$/);
     });
 
     it('returns an independent copy of a Vector when copy is true', () => {

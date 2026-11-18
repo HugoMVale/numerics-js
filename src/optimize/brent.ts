@@ -86,13 +86,13 @@ export function brent(
   const { tolx = 1e-8, maxIter = 50 } = options;
 
   if (!Number.isFinite(xa) || !Number.isFinite(xb)) {
-    throw new RangeError(`brent: xa and xb must be finite, got ${xa} and ${xb}`);
+    throw new RangeError(`brent: xa and xb must be finite, got ${xa} and ${xb}.`);
   }
   if (!(Number.isFinite(tolx) && tolx >= 0)) {
-    throw new RangeError(`brent: tolx must be finite and non-negative, got ${tolx}`);
+    throw new RangeError(`brent: tolx must be finite and non-negative, got ${tolx}.`);
   }
   if (!Number.isInteger(maxIter) || maxIter < 1) {
-    throw new RangeError(`brent: maxIter must be a strictly positive integer, got ${maxIter}`);
+    throw new RangeError(`brent: maxIter must be a strictly positive integer, got ${maxIter}.`);
   }
 
   // Golden ratio constant: (3 - sqrt(5)) / 2

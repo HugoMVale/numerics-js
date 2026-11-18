@@ -163,7 +163,7 @@ export function brent(
 
   if (Math.sign(fa) === Math.sign(fb)) {
     throw new RangeError(
-      `${METHOD}: root is not bracketed (f(xa) and f(xb) must have opposite signs)`
+      `${METHOD}: root is not bracketed (f(xa) and f(xb) must have opposite signs).`
     );
   }
 

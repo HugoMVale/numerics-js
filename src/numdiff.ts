@@ -84,7 +84,7 @@ function effectiveEpsf(who: string, epsf: number | undefined): number {
     return EPS;
   }
   if (!Number.isFinite(epsf)) {
-    throw new RangeError(`${who}: epsf must be finite, got ${epsf}`);
+    throw new RangeError(`${who}: epsf must be finite, got ${epsf}.`);
   }
   return Math.max(epsf, EPS);
 }
@@ -104,14 +104,14 @@ function resolveScaling(who: string, x: Vector, sclx: Vector | undefined): Vecto
     return scaleVector(x);
   }
   if (sclx.size < x.size) {
-    throw new RangeError(`${who}: sclx must have ${x.size} components, got ${sclx.size}`);
+    throw new RangeError(`${who}: sclx must have ${x.size} components, got ${sclx.size}.`);
   }
   const magnitudes = sclx.abs();
   for (let i = 0; i < x.size; i++) {
     const s = magnitudes.get(i);
     if (!(s > 0 && s < Infinity)) {
       throw new RangeError(
-        `${who}: sclx must be finite and nonzero, got ${sclx.get(i)} at index ${i}`
+        `${who}: sclx must be finite and nonzero, got ${sclx.get(i)} at index ${i}.`
       );
     }
   }
@@ -165,7 +165,7 @@ export function scaleVector(x: Vector): Vector {
     const val = Math.abs(x.get(i));
 
     if (!Number.isFinite(val)) {
-      throw new RangeError(`scaleVector: x must be finite, got ${x.get(i)} at index ${i}`);
+      throw new RangeError(`scaleVector: x must be finite, got ${x.get(i)} at index ${i}.`);
     }
 
     if (val > xmax) {
@@ -281,7 +281,7 @@ export function jacobianForward(
     const fxh = f(xh);
     if (fxh.size !== fx.size) {
       throw new RangeError(
-        `jacobianForward: f returned ${fxh.size} components at a perturbed point, expected ${fx.size}`
+        `jacobianForward: f returned ${fxh.size} components at a perturbed point, expected ${fx.size}.`
       );
     }
     for (let k = 0; k < fx.size; k++) {
@@ -508,7 +508,7 @@ export function derivativeCentered(
     h = Math.cbrt(3 * effectiveEpsf('derivativeCentered', options.epsf));
   } else {
     if (!Number.isFinite(options.h) || options.h === 0) {
-      throw new RangeError(`derivativeCentered: h must be finite and nonzero, got ${options.h}`);
+      throw new RangeError(`derivativeCentered: h must be finite and nonzero, got ${options.h}.`);
     }
     h = options.h;
   }

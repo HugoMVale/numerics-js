@@ -675,7 +675,7 @@ describe('quasiNewton user-supplied derivative shapes', () => {
         grad: (x) => (x.get(0) === t.x0[0] ? t.grad(x) : Vector.from([1])),
         gradCheck: false
       })
-    ).toThrow('quasiNewton: grad(x) must have 2 components, got 1');
+    ).toThrow('quasiNewton: grad(x) must have 2 components, got 1.');
   });
 
   it('throws if hess returns a matrix of the wrong size', () => {

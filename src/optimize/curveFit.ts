@@ -207,16 +207,16 @@ export function curveFit(
   const n = p0v.size;
 
   if (n === 0) {
-    throw new RangeError('curveFit: p0 must have at least one component');
+    throw new RangeError('curveFit: p0 must have at least one component.');
   }
   if (y.size !== m) {
     throw new RangeError(
-      `curveFit: xdata and ydata must have the same length, got ${m} and ${y.size}`
+      `curveFit: xdata and ydata must have the same length, got ${m} and ${y.size}.`
     );
   }
   if (m < n) {
     throw new RangeError(
-      `curveFit: at least as many data points as parameters are required, got ${m} points and ${n} parameters`
+      `curveFit: at least as many data points as parameters are required, got ${m} points and ${n} parameters.`
     );
   }
 
@@ -235,12 +235,12 @@ export function curveFit(
     sigma = Vector.asVector(sigmaOption);
     if (sigma.size !== m) {
       throw new RangeError(
-        `curveFit: sigma must have the same length as ydata (${m}), got ${sigma.size}`
+        `curveFit: sigma must have the same length as ydata (${m}), got ${sigma.size}.`
       );
     }
     for (let i = 0; i < m; i++) {
       if (!(sigma.get(i) > 0))
-        throw new RangeError('curveFit: sigma must contain strictly positive values');
+        throw new RangeError('curveFit: sigma must contain strictly positive values.');
     }
   }
   const unweighted = sigmaOption === undefined;
@@ -250,7 +250,7 @@ export function curveFit(
     const fx = f(x, p);
     if (fx.size !== m) {
       throw new RangeError(
-        `curveFit: f must return one value per data point (${m}), got ${fx.size}`
+        `curveFit: f must return one value per data point (${m}), got ${fx.size}.`
       );
     }
     const r = new Vector(m);
@@ -268,7 +268,7 @@ export function curveFit(
         const Jf = jac(x, p);
         if (Jf.rows !== m || Jf.cols !== n) {
           throw new RangeError(
-            `curveFit: jac must return a ${m}x${n} matrix, got ${Jf.rows}x${Jf.cols}`
+            `curveFit: jac must return a ${m}x${n} matrix, got ${Jf.rows}x${Jf.cols}.`
           );
         }
         const J = new Matrix(m, n);

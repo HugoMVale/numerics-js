@@ -38,7 +38,7 @@ export function trapezoid(y: VectorLike, x?: VectorLike, dx: number = 1): number
   const xv = x === undefined ? undefined : Vector.asVector(x);
   const n = yv.size;
   if (xv !== undefined && xv.size !== n) {
-    throw new RangeError(`trapezoid: x and y must have the same size: ${xv.size} vs ${n}`);
+    throw new RangeError(`trapezoid: x and y must have the same size: ${xv.size} vs ${n}.`);
   }
   if (n < 2) return 0;
 

@@ -64,7 +64,7 @@ export function factorTridiagonal(
 
   for (let i = 0; i < n; i++) {
     if (d[i] === 0) {
-      throw new RangeError('factorTridiagonal: singular matrix');
+      throw new RangeError('factorTridiagonal: singular matrix.');
     }
   }
 

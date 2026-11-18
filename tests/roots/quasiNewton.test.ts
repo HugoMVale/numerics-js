@@ -1164,7 +1164,7 @@ describe('quasiNewton sclx and sclf length', () => {
             return Vector.from([x.get(0) - 1, x.get(1) - 2]);
           };
           expect(() => quasiNewton(f, [0, 0], { [name]: make([...values]) })).toThrowError(
-            new RangeError(`quasiNewton: ${name} must have 2 components, got ${values.length}`)
+            new RangeError(`quasiNewton: ${name} must have 2 components, got ${values.length}.`)
           );
           expect(evaluated).toBe(false);
         });

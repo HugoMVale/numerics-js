@@ -262,7 +262,7 @@ export function quasiNewton(
   const x0v = Vector.asVector(x0, true);
   const n = x0v.size;
   if (n === 0) {
-    throw new RangeError('quasiNewton: x0 must have at least one component');
+    throw new RangeError('quasiNewton: x0 must have at least one component.');
   }
 
   // Option ranges. Non-finite or non-positive values would otherwise make the solver loop
@@ -273,11 +273,11 @@ export function quasiNewton(
   validateTolerance('quasiNewton', 'epsf', options.epsf);
   if (options.maxLenFactor !== undefined && !(options.maxLenFactor > 0)) {
     throw new RangeError(
-      `quasiNewton: maxLenFactor must be strictly positive, got ${options.maxLenFactor}`
+      `quasiNewton: maxLenFactor must be strictly positive, got ${options.maxLenFactor}.`
     );
   }
   if (options.trustLen !== undefined && Number.isNaN(options.trustLen)) {
-    throw new RangeError('quasiNewton: trustLen must not be NaN');
+    throw new RangeError('quasiNewton: trustLen must not be NaN.');
   }
 
   // Scaling factors are only read, so they are not copied.
@@ -289,10 +289,10 @@ export function quasiNewton(
   ] as const) {
     if (v === undefined) continue;
     if (v.size !== n) {
-      throw new RangeError(`quasiNewton: ${name} must have ${n} components, got ${v.size}`);
+      throw new RangeError(`quasiNewton: ${name} must have ${n} components, got ${v.size}.`);
     }
     if (!v.data.every((value) => value > 0)) {
-      throw new Error(`quasiNewton: ${name} must contain strictly positive values`);
+      throw new Error(`quasiNewton: ${name} must contain strictly positive values.`);
     }
   }
 
@@ -306,7 +306,7 @@ export function quasiNewton(
   const globalMethod: GlobalMethod =
     options.globalMethod === undefined ? 'dogleg' : options.globalMethod;
   if (globalMethod !== null && globalMethod !== 'line-search' && globalMethod !== 'dogleg') {
-    throw new Error(`quasiNewton: unknown globalMethod '${String(globalMethod)}'`);
+    throw new Error(`quasiNewton: unknown globalMethod '${String(globalMethod)}'.`);
   }
 
   let method = 'Quasi-Newton';
@@ -352,7 +352,7 @@ export function quasiNewton(
       nJev += 1;
       if (J.rows !== n || J.cols !== n) {
         throw new RangeError(
-          `quasiNewton: jac(${at}) must have dimensions ${n}x${n}, got ${J.rows}x${J.cols}`
+          `quasiNewton: jac(${at}) must have dimensions ${n}x${n}, got ${J.rows}x${J.cols}.`
         );
       }
     } else {
@@ -365,7 +365,7 @@ export function quasiNewton(
   let fc = countedF(xc);
 
   if (fc.size !== n) {
-    throw new RangeError(`quasiNewton: f(x0) must have dimension ${n}, got ${fc.size}`);
+    throw new RangeError(`quasiNewton: f(x0) must have dimension ${n}, got ${fc.size}.`);
   }
 
   if (!fc.allFinite()) {
@@ -381,7 +381,7 @@ export function quasiNewton(
   if (J0) {
     if (J0.rows !== n || J0.cols !== n) {
       throw new RangeError(
-        `quasiNewton: J0 must have dimensions ${n}x${n}, got ${J0.rows}x${J0.cols}`
+        `quasiNewton: J0 must have dimensions ${n}x${n}, got ${J0.rows}x${J0.cols}.`
       );
     }
     if (!J0.allFinite()) {

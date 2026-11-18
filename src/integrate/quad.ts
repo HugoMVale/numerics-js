@@ -380,7 +380,7 @@ export function quad(
   // the interval is empty.
   validateIntegrand('quad', f);
   if (Number.isNaN(a) || Number.isNaN(b)) {
-    throw new RangeError(`quad: a and b must not be NaN, got ${a} and ${b}`);
+    throw new RangeError(`quad: a and b must not be NaN, got ${a} and ${b}.`);
   }
   const { breakpoints = [], transform: userTransform, ...toleranceOptions } = options;
   const resolved = resolveGaussKronrodOptions('quad', toleranceOptions);
@@ -388,7 +388,7 @@ export function quad(
     userTransform !== undefined &&
     (typeof userTransform?.map !== 'function' || typeof userTransform?.inverse !== 'function')
   ) {
-    throw new TypeError('quad: transform.map and transform.inverse must be functions');
+    throw new TypeError('quad: transform.map and transform.inverse must be functions.');
   }
   const breakpointsv = Vector.asVector(breakpoints);
 
@@ -428,7 +428,7 @@ export function quad(
     const t2 = inverse(hi);
     if (!Number.isFinite(t1) || !Number.isFinite(t2) || t1 === t2) {
       throw new RangeError(
-        `quad: transform.inverse must return finite, distinct values for the integration limits (got ${t1} and ${t2})`
+        `quad: transform.inverse must return finite, distinct values for the integration limits (got ${t1} and ${t2}).`
       );
     }
     tA = Math.min(t1, t2);
@@ -442,21 +442,21 @@ export function quad(
       const { x, dxDt } = map(t);
       if (!Number.isFinite(x) || !Number.isFinite(dxDt)) {
         throw new NonFiniteIntegrandError(
-          `quad: transform.map(${t}) returned a non-finite x (${x}) or dxDt (${dxDt}); cannot integrate`,
+          `quad: transform.map(${t}) returned a non-finite x (${x}) or dxDt (${dxDt}); cannot integrate.`,
           t
         );
       }
       const fx = f(x);
       if (!Number.isFinite(fx)) {
         throw new NonFiniteIntegrandError(
-          `quad: f(${x}) returned a non-finite value (${fx}) after applying the transform (t=${t}); cannot integrate`,
+          `quad: f(${x}) returned a non-finite value (${fx}) after applying the transform (t=${t}); cannot integrate.`,
           t
         );
       }
       const y = fx * Math.abs(dxDt);
       if (!Number.isFinite(y)) {
         throw new NonFiniteIntegrandError(
-          `quad: f(${x}) * |dxDt| overflows (f = ${fx}, dxDt = ${dxDt}) after applying the transform (t=${t}); cannot integrate`,
+          `quad: f(${x}) * |dxDt| overflows (f = ${fx}, dxDt = ${dxDt}) after applying the transform (t=${t}); cannot integrate.`,
           t
         );
       }
@@ -477,7 +477,7 @@ export function quad(
   }
   if (points.length - 1 > resolved.maxSubintervals) {
     throw new RangeError(
-      `quad: maxSubintervals (${resolved.maxSubintervals}) is smaller than the number of initial subintervals (${points.length - 1}) defined by the integration limits and the breakpoints`
+      `quad: maxSubintervals (${resolved.maxSubintervals}) is smaller than the number of initial subintervals (${points.length - 1}) defined by the integration limits and the breakpoints.`
     );
   }
 

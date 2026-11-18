@@ -171,7 +171,7 @@ export function rungeKuttaAdaptiveStep(
     }
 
     default:
-      throw new RangeError(`rungeKuttaAdaptiveStep: unknown method "${method satisfies never}"`);
+      throw new RangeError(`rungeKuttaAdaptiveStep: unknown method "${method satisfies never}".`);
   }
   return out;
 }
@@ -299,7 +299,7 @@ function adaptiveErrorNorm(
     }
 
     default:
-      throw new RangeError(`adaptiveErrorNorm: unknown method "${method satisfies never}"`);
+      throw new RangeError(`adaptiveErrorNorm: unknown method "${method satisfies never}".`);
   }
   return Math.sqrt(sumSq / dim);
 }
@@ -574,7 +574,7 @@ export function rungeKuttaAdaptive(
       break;
 
     default:
-      throw new RangeError(`rungeKuttaAdaptive: unknown method "${method satisfies never}"`);
+      throw new RangeError(`rungeKuttaAdaptive: unknown method "${method satisfies never}".`);
   }
 
   if (tEnd === t0) return emptyIntervalResult(method, t0, y0v, events, denseOutput);

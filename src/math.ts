@@ -114,7 +114,7 @@ export type RandMethod = 'mulberry32';
  */
 export function rand(seed: number, method: RandMethod = 'mulberry32'): () => number {
   if (!Number.isFinite(seed)) {
-    throw new RangeError(`rand: seed must be finite, got ${seed}`);
+    throw new RangeError(`rand: seed must be finite, got ${seed}.`);
   }
   if (method === 'mulberry32') {
     let a = seed | 0;
@@ -125,5 +125,5 @@ export function rand(seed: number, method: RandMethod = 'mulberry32'): () => num
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  throw new RangeError(`rand: unknown method '${String(method)}'`);
+  throw new RangeError(`rand: unknown method '${String(method)}'.`);
 }
