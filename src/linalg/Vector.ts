@@ -9,14 +9,62 @@ import { Matrix } from './Matrix.js';
 export type VectorLike = Vector | readonly number[] | Float64Array;
 
 /**
- * An N-component vector utilizing Float64Array for performance.
+ * An N-component vector of `number`s, backed by a `Float64Array`.
  *
+ * Components are addressed with zero-based indices, and the backing buffer is
+ * exposed as `data` for allocation-free loops in hot paths. Elementwise
+ * arithmetic, comparisons and the Euclidean norm are inherited from the common
+ * base of {@link Vector} and {@link Matrix}. Operations return a new
+ * `Vector` unless their name ends in `Self`, in which case they modify `this`
+ * and return it; the setters `set`, `setSub` and `fill` also modify `this`.
+ *
+ * Functions that take a numeric sequence accept any {@link VectorLike}; see
+ * {@link Vector.asVector}. Use {@link Vec3} when exactly three components are
+ * needed.
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ *
+ * const zeros = new Vector(3);
+ * const v = new Vector([1, 2, 3]);
+ * console.log(zeros.toString());
+ * console.log(v.toString());
+ * ```
+ *
+ * Output:
+ * ```text
+ * Vector(0, 0, 0)
+ * Vector(1, 2, 3)
+ * ```
  */
 export class Vector extends ArrayND {
+  /** The components, as a flat zero-based buffer. Changes to it change the vector. */
   public data: Float64Array;
 
   /**
-   * @param input The dimension length (initialized to 0s) or initial data.
+   * Creates a vector of zeros of a given dimension, or from existing values.
+   * @param input The dimension (a non-negative integer, giving a vector of
+   * zeros) or the components as a `number[]`, read-only array, `Float64Array`
+   * or other array-like. The values are copied, so later changes to `input`
+   * do not affect the vector.
+   * @throws {RangeError} If `input` is a number that is not a non-negative integer.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * const zeros = new Vector(3);
+   * const v = new Vector([1, 2, 3]);
+   * console.log(zeros.toString());
+   * console.log(v.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(0, 0, 0)
+   * Vector(1, 2, 3)
+   * ```
    */
   constructor(input: number | ArrayLike<number>) {
     super();
@@ -680,6 +728,7 @@ export class Vector extends ArrayND {
 
   /**
    * Makes Vector iterable, e.g. `const [a, b, c] = someVector;` or `for (const x of v)`.
+   * @returns An iterator over the components, in order.
    *
    * @example
    * ```ts
@@ -709,7 +758,9 @@ export class Vector extends ArrayND {
 
   /**
    * Sets this vector's components directly, mutating it in place.
-   * @param values Values to copy in; must have length `size`.
+   * @param values Values to copy in, as a `number[]`, read-only array, `Float64Array` or
+   * other array-like. Must have length `size`.
+   * @throws {RangeError} If `values.length !== size`.
    * @returns `this`, for chaining.
    *
    * @example
@@ -733,6 +784,7 @@ export class Vector extends ArrayND {
    * @param i Component index (0-based).
    * @param value Value to store.
    * @returns `this`, for chaining.
+   * @throws {RangeError} If `i` is not an integer in `0..size-1`.
    *
    * @example
    * ```ts
@@ -796,8 +848,8 @@ export class Vector extends ArrayND {
   /**
    * Sets this vector to `a - b` in place, without allocating. Useful as a
    * reusable scratch vector inside a loop.
-   * @param a
-   * @param b Must have the same `size` as `a` and as this vector.
+   * @param a The vector to subtract from. Must have the same `size` as this vector.
+   * @param b The vector to subtract. Must have the same `size` as `a` and as this vector.
    * @returns `this`, set to `a - b`.
    *
    * @example
@@ -889,7 +941,8 @@ export class Vector extends ArrayND {
 
   /**
    * Creates a Vector from an array or typed array.
-   * @param arr Source values.
+   * @param arr Source values, as a `number[]`, read-only array, `Float64Array` or
+   * other array-like. They are copied.
    * @returns A new vector with dimension equal to `arr.length`.
    *
    * @example

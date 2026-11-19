@@ -1021,6 +1021,7 @@ export abstract class ArrayND {
 
   /**
    * Sums every element of `a`.
+   * @param a The array to reduce.
    * @returns The sum, or `0` if `a` is empty.
    */
   protected static _sumArr(a: Float64Array): number {
@@ -1031,6 +1032,7 @@ export abstract class ArrayND {
 
   /**
    * Computes the arithmetic mean of every element of `a`.
+   * @param a The array to reduce.
    * @returns The mean, or `NaN` if `a` is empty.
    */
   protected static _meanArr(a: Float64Array): number {
@@ -1042,6 +1044,8 @@ export abstract class ArrayND {
    * propagates, matching `Math.min`'s semantics. Assumes `a` is
    * non-empty; callers are responsible for that check (so they can
    * produce a class-specific error message).
+   * @param a The array to reduce.
+   * @returns The smallest element, or `NaN` if any element is NaN.
    */
   protected static _minArr(a: Float64Array): number {
     let m = a[0];
@@ -1057,6 +1061,8 @@ export abstract class ArrayND {
    * propagates, matching `Math.max`'s semantics. Assumes `a` is
    * non-empty; callers are responsible for that check (so they can
    * produce a class-specific error message).
+   * @param a The array to reduce.
+   * @returns The largest element, or `NaN` if any element is NaN.
    */
   protected static _maxArr(a: Float64Array): number {
     let m = a[0];
@@ -1070,6 +1076,7 @@ export abstract class ArrayND {
   /**
    * Computes the variance of `a`'s elements: the mean of the squared
    * deviations from the mean.
+   * @param a The array to reduce.
    * @param ddof Delta degrees of freedom. The divisor used is `a.length - ddof`.
    * @returns The variance. `NaN` if `a.length - ddof <= 0`.
    */
@@ -1086,6 +1093,7 @@ export abstract class ArrayND {
 
   /**
    * Computes the standard deviation of `a`'s elements.
+   * @param a The array to reduce.
    * @param ddof Delta degrees of freedom, forwarded to `_varianceArr()`.
    * @returns The standard deviation. `NaN` if `a.length - ddof <= 0`.
    */
@@ -1100,6 +1108,8 @@ export abstract class ArrayND {
    * `_minArr`'s NaN-propagation semantics. Assumes `a` is non-empty;
    * callers are responsible for that check (so they can produce a
    * class-specific error message).
+   * @param a The array to search.
+   * @returns The index of the smallest element, or of the first NaN if there is one.
    */
   protected static _argMinArr(a: Float64Array): number {
     if (Number.isNaN(a[0])) return 0;
@@ -1123,6 +1133,8 @@ export abstract class ArrayND {
    * `_maxArr`'s NaN-propagation semantics. Assumes `a` is non-empty;
    * callers are responsible for that check (so they can produce a
    * class-specific error message).
+   * @param a The array to search.
+   * @returns The index of the largest element, or of the first NaN if there is one.
    */
   protected static _argMaxArr(a: Float64Array): number {
     if (Number.isNaN(a[0])) return 0;
@@ -1240,6 +1252,10 @@ export abstract class ArrayND {
    * (`[a, b]` with `count = 2` becomes `a, a, b, b`) into `dst`,
    * starting at `dstOff`. Writes `src.length * count` elements.
    * Counts are assumed already validated.
+   * @param src The values to copy from.
+   * @param count How many times to repeat each element; must already be a valid non-negative integer.
+   * @param dst The buffer to write into.
+   * @param dstOff The index in `dst` at which writing starts.
    */
   protected static _repeatElements(
     src: Float64Array,
@@ -1261,6 +1277,10 @@ export abstract class ArrayND {
    * (`[a, b]` with `count = 2` becomes `a, b, a, b`) into `dst`,
    * starting at `dstOff`. Writes `src.length * count` elements.
    * Counts are assumed already validated.
+   * @param src The values to copy from.
+   * @param count How many times to repeat `src`; must already be a valid non-negative integer.
+   * @param dst The buffer to write into.
+   * @param dstOff The index in `dst` at which writing starts.
    */
   protected static _tileArray(
     src: Float64Array,
