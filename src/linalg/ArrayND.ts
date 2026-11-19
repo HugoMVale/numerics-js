@@ -367,7 +367,7 @@ export abstract class ArrayND {
    * @param min The lower bound.
    * @param max The upper bound.
    * @returns A new instance with every element clamped to `[min, max]`.
-   * @throws {RangeError} If `min > max`.
+   * @throws {RangeError} If `min > max` or either bound is NaN.
    *
    * @example
    * ```ts
@@ -384,7 +384,7 @@ export abstract class ArrayND {
    * ```
    */
   clip(min: number, max: number): this {
-    if (min > max) {
+    if (!(min <= max)) {
       throw new RangeError(`${this._className()}.clip: min (${min}) must be <= max (${max}).`);
     }
     const res = this._create(new Float64Array(this.data.length));
@@ -701,7 +701,7 @@ export abstract class ArrayND {
    * @param min The lower bound.
    * @param max The upper bound.
    * @returns `this`, for chaining.
-   * @throws {RangeError} If `min > max`.
+   * @throws {RangeError} If `min > max` or either bound is NaN.
    *
    * @example
    * ```ts
@@ -722,7 +722,7 @@ export abstract class ArrayND {
    * ```
    */
   clipSelf(min: number, max: number): this {
-    if (min > max) {
+    if (!(min <= max)) {
       throw new RangeError(`${this._className()}.clipSelf: min (${min}) must be <= max (${max}).`);
     }
     for (let i = 0; i < this.data.length; i++)
@@ -813,21 +813,27 @@ export abstract class ArrayND {
 
   /**
    * Tests whether a single pair of elements is "close": `a` (from
-   * `this`) is close to `b` (from the argument) if
-   * `|a - b| <= atol + rtol * |b|`. Shared by `isClose` (which needs
-   * every element's result) and `allClose` (which only needs the first
-   * failure, if any, and stops there).
+   * `this`) is close to `b` (from the argument) if `a === b` or, for
+   * finite `b`, `|a - b| <= atol + rtol * |b|`. As in `numpy.isclose`,
+   * this makes equal infinities close (`|Infinity - Infinity|` is `NaN`)
+   * and an infinite `b` close to nothing but itself (its tolerance
+   * would otherwise be infinite); NaN is never close to anything.
+   * Shared by `isClose` (which needs every element's result) and
+   * `allClose` (which only needs the first failure, if any, and stops
+   * there).
    */
   private static _closeAt(a: number, b: number, rtol: number, atol: number): boolean {
-    return Math.abs(a - b) <= atol + rtol * Math.abs(b);
+    return a === b || (Number.isFinite(b) && Math.abs(a - b) <= atol + rtol * Math.abs(b));
   }
 
   /**
    * Elementwise tolerance comparison. An element `a` (from `this`) is
    * close to `b` (from `x`) if `|a - b| <= atol + rtol * |b|`. Note this
    * is **not symmetric**: `rtol` scales `x`'s elements only, so in
-   * general `a.isClose(b) !== b.isClose(a)`. NaN elements are never
-   * close to anything, including other NaNs.
+   * general `a.isClose(b) !== b.isClose(a)`. Exactly equal elements are
+   * always close, including equal infinities, while an infinite element
+   * of `x` is close to nothing but itself. NaN elements are never close
+   * to anything, including other NaNs.
    * @param x The other instance. Must be shape-compatible with this one.
    * @param rtol Relative tolerance, applied to `x`'s elements.
    * @param atol Absolute tolerance.
@@ -862,7 +868,7 @@ export abstract class ArrayND {
   /**
    * Checks whether this instance is close to another across *every*
    * element, using the same `|a - b| <= atol + rtol * |b|` test as
-   * `isClose` (same asymmetry, same NaN handling). Unlike
+   * `isClose` (same asymmetry, same handling of infinities and NaN). Unlike
    * `isClose(x, rtol, atol).every(Boolean)`, this stops at the first
    * non-close pair instead of computing and allocating a full result
    * array first.
@@ -1105,6 +1111,7 @@ export abstract class ArrayND {
    * @returns The variance. `NaN` if `a.length - ddof <= 0`.
    */
   protected static _varianceArr(a: Float64Array, ddof: number): number {
+    if (!(a.length - ddof > 0)) return NaN;
     const m = ArrayND._meanArr(a);
     let sq = 0;
     for (let i = 0; i < a.length; i++) {
@@ -1200,7 +1207,10 @@ export abstract class ArrayND {
    */
   protected _minAll(): number {
     if (this.data.length === 0) {
-      throw new RangeError(`${this._className()}.min: cannot compute the min of an empty array.`);
+      const name = this._className();
+      throw new RangeError(
+        `${name}.min: cannot compute the min of an empty ${name.toLowerCase()}.`
+      );
     }
     return ArrayND._minArr(this.data);
   }
@@ -1213,7 +1223,10 @@ export abstract class ArrayND {
    */
   protected _maxAll(): number {
     if (this.data.length === 0) {
-      throw new RangeError(`${this._className()}.max: cannot compute the max of an empty array.`);
+      const name = this._className();
+      throw new RangeError(
+        `${name}.max: cannot compute the max of an empty ${name.toLowerCase()}.`
+      );
     }
     return ArrayND._maxArr(this.data);
   }

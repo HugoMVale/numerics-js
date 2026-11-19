@@ -203,7 +203,7 @@ export class Vector extends ArrayND {
    * ```
    */
   slice(start?: number, end?: number): Vector {
-    return new Vector(this.data.slice(start, end));
+    return Vector.wrapUnchecked(this.data.slice(start, end));
   }
 
   /**
@@ -344,10 +344,14 @@ export class Vector extends ArrayND {
    */
   outer(v: Vector): Matrix {
     const n = v.size;
+    if (this.size === 0 || n === 0) {
+      throw new RangeError(
+        `Vector.outer: vectors must not be empty, got sizes ${this.size} and ${n}.`
+      );
+    }
     const data = new Float64Array(this.size * n);
     for (let i = 0; i < this.size; i++) {
       const ui = this.data[i];
-      if (ui === 0) continue;
       const offset = i * n;
       for (let j = 0; j < n; j++) data[offset + j] = ui * v.data[j];
     }
@@ -924,7 +928,7 @@ export class Vector extends ArrayND {
    * @param step The spacing between values. May be negative to count down
    * (in which case `start` should be greater than `stop`). Defaults to `1`.
    * @returns A new vector of values `start, start + step, start + 2*step, ...` up to (excluding) `stop`.
-   * @throws {RangeError} If `step === 0`.
+   * @throws {RangeError} If `step === 0`, or if `start`, `stop` or `step` is not finite.
    *
    * @example
    * ```ts
@@ -945,6 +949,11 @@ export class Vector extends ArrayND {
   static arange(startOrStop: number, stop?: number, step: number = 1): Vector {
     const start = stop === undefined ? 0 : startOrStop;
     const actualStop = stop === undefined ? startOrStop : stop;
+    if (!Number.isFinite(start) || !Number.isFinite(actualStop) || !Number.isFinite(step)) {
+      throw new RangeError(
+        `Vector.arange: start, stop and step must be finite, got ${start}, ${actualStop} and ${step}.`
+      );
+    }
     if (step === 0) throw new RangeError('Vector.arange: step must not be 0.');
     const n = Math.max(0, Math.ceil((actualStop - start) / step));
     const res = new Vector(n);

@@ -526,14 +526,29 @@ describe('Vector', () => {
     expect(m.allClose(m.transpose())).toBe(true);
   });
 
-  it('produces an all-zero row for a zero component, exercising the skip-on-zero fast path', () => {
+  it('produces an all-zero row for a zero component', () => {
     const u: Vector = new Vector([1, 0, 2]);
     const v: Vector = new Vector([5, -1]);
-    expect(u.outer(v).toArray()).toEqual([
-      [5, -1],
-      [0, 0],
-      [10, -2]
-    ]);
+    const m = u.outer(v);
+    expect(m.row(0).toArray()).toEqual([5, -1]);
+    expect(m.row(2).toArray()).toEqual([10, -2]);
+    // Compared with `===` so that the sign of the zeros (0 * -1 is -0) is irrelevant.
+    expect(
+      m
+        .row(1)
+        .toArray()
+        .every((x) => x === 0)
+    ).toBe(true);
+  });
+
+  it('follows IEEE arithmetic: a zero component times Infinity or NaN gives NaN', () => {
+    const u: Vector = new Vector([0, 2]);
+    const v: Vector = new Vector([Infinity, NaN]);
+    const m = u.outer(v);
+    expect(m.get(0, 0)).toBeNaN();
+    expect(m.get(0, 1)).toBeNaN();
+    expect(m.get(1, 0)).toBe(Infinity);
+    expect(m.get(1, 1)).toBeNaN();
   });
 
   it('returns an all-zero matrix when either vector is entirely zero', () => {
@@ -565,8 +580,24 @@ describe('Vector', () => {
   it("throws when either vector is empty, matching Matrix's own dimension constraints", () => {
     const empty: Vector = new Vector(0);
     const v: Vector = new Vector([1, 2]);
-    expect(() => empty.outer(v)).toThrowError(RangeError);
-    expect(() => v.outer(empty)).toThrowError(RangeError);
+    expect(() => empty.outer(v)).toThrowError(/^Vector\.outer: /);
+    expect(() => v.outer(empty)).toThrowError(/^Vector\.outer: /);
+  });
+
+  it('slice returns an independent vector', () => {
+    const v: Vector = new Vector([1, 2, 3, 4]);
+    const s = v.slice(1, 3);
+    expect(s.toArray()).toEqual([2, 3]);
+    s.set(0, 99);
+    expect(v.toArray()).toEqual([1, 2, 3, 4]);
+    expect(v.slice().data).not.toBe(v.data);
+  });
+
+  it('arange rejects non-finite arguments with an arange-specific message', () => {
+    expect(() => Vector.arange(NaN)).toThrowError(/^Vector\.arange: .* finite/);
+    expect(() => Vector.arange(Infinity)).toThrowError(/^Vector\.arange: .* finite/);
+    expect(() => Vector.arange(0, 1, NaN)).toThrowError(/^Vector\.arange: .* finite/);
+    expect(() => Vector.arange(-Infinity, 0)).toThrowError(/^Vector\.arange: .* finite/);
   });
 
   describe('repeat()', () => {

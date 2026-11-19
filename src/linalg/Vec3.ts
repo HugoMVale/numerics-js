@@ -106,10 +106,14 @@ export class Vec3 {
    * Returns a copy of this vector clamped to a maximum magnitude, preserving
    * direction. If the vector's magnitude is already at or below `max`,
    * returns an unchanged copy.
-   * @param max The maximum allowed magnitude (must be >= 0).
+   * @param max The maximum allowed magnitude. Must be >= 0.
    * @returns A new vector with magnitude at most `max`.
+   * @throws {RangeError} If `max` is negative or NaN.
    */
   limit(max: number): Vec3 {
+    if (!(max >= 0)) {
+      throw new RangeError(`Vec3.limit: max must be >= 0, got ${max}.`);
+    }
     const m = this.norm();
     return m > max ? this.mult(max / m) : this.copy();
   }

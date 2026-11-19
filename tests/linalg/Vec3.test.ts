@@ -84,6 +84,14 @@ describe('Vec3', () => {
     expect(v.toArray()).toEqual([3, 4, 0]);
   });
 
+  it('limit accepts a zero maximum and rejects negative or NaN maxima', () => {
+    expect(new Vec3(3, 4, 0).limit(0).toArray()).toEqual([0, 0, 0]);
+    expect(new Vec3().limit(0).toArray()).toEqual([0, 0, 0]);
+    expect(() => new Vec3(3, 4, 0).limit(-1)).toThrowError(RangeError);
+    expect(() => new Vec3().limit(-1)).toThrowError(/^Vec3\.limit: /);
+    expect(() => new Vec3(3, 4, 0).limit(NaN)).toThrowError(RangeError);
+  });
+
   it('checks componentwise closeness and supports string and iteration output', () => {
     const v: Vec3 = new Vec3(1, 2, 3);
     expect(v.isClose(new Vec3(1.00001, 2, 3))).toBe(true);
