@@ -42,7 +42,7 @@ Use the narrowest relevant test while iterating, then run `npm run typecheck` an
 
 - Prefer clear, allocation-conscious loops and reusable working buffers in hot solver paths.
 - APIs that take vector-shaped numeric inputs use `VectorLike` and normalize inputs once with `Vector.asVector`; follow each API's documented return shape (`Vector`, `Matrix`, or scalar).
-- Preserve documented mutability contracts. In particular, methods ending in `Self` mutate their instance; other `Vector` and `Vec3` operations return new values.
+- Preserve documented mutability contracts. In particular, methods ending in `Self` mutate their instance and return it; other `Vector` and `Vec3` operations return new values. The only other mutators are the setters `set`, `setSub`, `reset` and `fill`, which also return `this`.
 - `Vector` and `Matrix` public accessors and exposed `data` storage use zero-based indexing.
 - Numerical changes need targeted tests covering expected values, boundary conditions, invalid inputs, and convergence or iteration-limit behavior where applicable.
 - Do not silently alter tolerance defaults, convergence criteria, error handling, callback signatures, output shapes, or indexing conventions.

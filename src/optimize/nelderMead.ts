@@ -351,7 +351,7 @@ export function nelderMead(
     const xr = xc
       .copy()
       .multSelf(1 + a)
-      .addScaled(xWorst, -a);
+      .addScaledSelf(xWorst, -a);
     const fr = f(xr);
     nFev++;
 
@@ -363,7 +363,7 @@ export function nelderMead(
       const xe = xc
         .copy()
         .multSelf(1 + a * b)
-        .addScaled(xWorst, -a * b);
+        .addScaledSelf(xWorst, -a * b);
       const fe = f(xe);
       nFev++;
       if (fe < fr) {
@@ -377,7 +377,7 @@ export function nelderMead(
       const xoc = xc
         .copy()
         .multSelf(1 + a * c)
-        .addScaled(xWorst, -a * c);
+        .addScaledSelf(xWorst, -a * c);
       const foc = f(xoc);
       nFev++;
       if (foc <= fr) {
@@ -390,7 +390,7 @@ export function nelderMead(
       const xic = xc
         .copy()
         .multSelf(1 - a * c)
-        .addScaled(xWorst, a * c);
+        .addScaledSelf(xWorst, a * c);
       const fic = f(xic);
       nFev++;
       if (fic < fmax) {
@@ -407,7 +407,7 @@ export function nelderMead(
         const xs = x
           .row(k)
           .multSelf(d)
-          .addScaled(xmin, 1 - d);
+          .addScaledSelf(xmin, 1 - d);
         x.setRow(k, xs);
         fx.data[k] = f(xs);
         nFev++;

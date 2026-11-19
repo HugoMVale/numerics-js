@@ -1,8 +1,12 @@
+import { isCloseScalar } from './scalar.js';
+
 /**
  * A 3-component vector, used for positions, directions, velocities, etc.
  *
- * All operations that produce a new vector are non-mutating (they return
- * a new Vec3 instance rather than modifying `this`).
+ * Most operations are non-mutating (they return a new Vec3 instance rather
+ * than modifying `this`). The exceptions are the methods ending in `Self`
+ * and the setters `set`, `setSub` and `reset`, which modify `this` in place
+ * and return it for chaining.
  */
 export class Vec3 {
   x: number;
@@ -127,19 +131,23 @@ export class Vec3 {
   }
 
   /**
-   * Checks whether this vector is elementwise close to another, modeled on
-   * `numpy.isclose`: a component `a` is close to `b` if
-   * `|a - b| <= atol + rtol * |b|`.
+   * Checks whether every component of this vector is close to the
+   * corresponding component of another, with the same test as
+   * `Vector.allClose`: a component `a` is close to `b` if `a === b` or
+   * `|a - b| <= atol + rtol * |b|`. The test is not symmetric (`rtol` scales
+   * `v`'s components only), equal infinities are close, an infinite
+   * component of `v` is close to nothing but itself, and NaN is never close
+   * to anything.
    * @param v The other vector.
-   * @param rtol Relative tolerance.
+   * @param rtol Relative tolerance, applied to `v`'s components.
    * @param atol Absolute tolerance.
    * @returns `true` if all components of `this` are close to `v`'s.
    */
-  isClose(v: Vec3, rtol: number = 1e-5, atol: number = 1e-8): boolean {
+  allClose(v: Vec3, rtol: number = 1e-5, atol: number = 1e-8): boolean {
     return (
-      Math.abs(this.x - v.x) <= atol + rtol * Math.abs(v.x) &&
-      Math.abs(this.y - v.y) <= atol + rtol * Math.abs(v.y) &&
-      Math.abs(this.z - v.z) <= atol + rtol * Math.abs(v.z)
+      isCloseScalar(this.x, v.x, rtol, atol) &&
+      isCloseScalar(this.y, v.y, rtol, atol) &&
+      isCloseScalar(this.z, v.z, rtol, atol)
     );
   }
 
@@ -232,7 +240,7 @@ export class Vec3 {
    * @param s The scale factor applied to `v`.
    * @returns `this`, for chaining.
    */
-  addScaled(v: Vec3, s: number): Vec3 {
+  addScaledSelf(v: Vec3, s: number): Vec3 {
     this.x += v.x * s;
     this.y += v.y * s;
     this.z += v.z * s;
@@ -244,7 +252,7 @@ export class Vec3 {
    * reusable scratch vector inside a loop.
    * @returns `this`, set to `a - b`.
    */
-  subVectors(a: Vec3, b: Vec3): Vec3 {
+  setSub(a: Vec3, b: Vec3): Vec3 {
     this.x = a.x - b.x;
     this.y = a.y - b.y;
     this.z = a.z - b.z;

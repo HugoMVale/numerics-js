@@ -1,3 +1,5 @@
+import { isCloseScalar } from './scalar.js';
+
 /**
  * Abstract base class for N-dimensional arrays backed by a flat
  * `Float64Array`. Holds every operation that needs no knowledge of the
@@ -7,7 +9,7 @@
  * `argmin`/`argmax`, axis-aware reductions, etc.) belongs on the
  * concrete subclasses (`Vector`, `Matrix`), not here.
  *
- * Subclasses provide two hooks so the arithmetic family can be written
+ * Subclasses provide three hooks so the arithmetic family can be written
  * once, using TypeScript's polymorphic `this` type, and still return the
  * correct concrete type with no casting:
  * - `_checkSameShape`: validates that another instance has a compatible
@@ -16,6 +18,12 @@
  * - `_create`: constructs a new instance of the concrete subclass wrapping
  *   a given `Float64Array`, without re-running the public constructor's
  *   argument-parsing logic.
+ * - `_className`: names the concrete subclass in error messages.
+ *
+ * Norms are deliberately not declared here: the infinity and 1-norms mean
+ * different things for a vector and for a matrix (entrywise vs. induced), so
+ * `Vector` and `Matrix` each define them. `norm()` is the Euclidean norm of
+ * the flat buffer (the Frobenius norm for a matrix).
  */
 export abstract class ArrayND {
   /** The flat, row-major (for multi-dimensional subclasses) backing buffer. */
@@ -61,7 +69,7 @@ export abstract class ArrayND {
   /**
    * Constructs a new instance of the concrete subclass, wrapping the
    * given buffer directly (no copying, no validation) and preserving
-   * this instance's shape (e.g. an `Matrix`'s `rows`/`cols`).
+   * this instance's shape (e.g. a `Matrix`'s `rows`/`cols`).
    * @param data The buffer for the new instance to wrap. Must already be
    * the correct length for this instance's shape.
    * @returns A new instance of the same concrete type as `this`.
@@ -812,21 +820,6 @@ export abstract class ArrayND {
   }
 
   /**
-   * Tests whether a single pair of elements is "close": `a` (from
-   * `this`) is close to `b` (from the argument) if `a === b` or, for
-   * finite `b`, `|a - b| <= atol + rtol * |b|`. As in `numpy.isclose`,
-   * this makes equal infinities close (`|Infinity - Infinity|` is `NaN`)
-   * and an infinite `b` close to nothing but itself (its tolerance
-   * would otherwise be infinite); NaN is never close to anything.
-   * Shared by `isClose` (which needs every element's result) and
-   * `allClose` (which only needs the first failure, if any, and stops
-   * there).
-   */
-  private static _closeAt(a: number, b: number, rtol: number, atol: number): boolean {
-    return a === b || (Number.isFinite(b) && Math.abs(a - b) <= atol + rtol * Math.abs(b));
-  }
-
-  /**
    * Elementwise tolerance comparison. An element `a` (from `this`) is
    * close to `b` (from `x`) if `|a - b| <= atol + rtol * |b|`. Note this
    * is **not symmetric**: `rtol` scales `x`'s elements only, so in
@@ -860,7 +853,7 @@ export abstract class ArrayND {
     this._checkSameShape(x, 'isClose');
     const result: boolean[] = new Array(this.data.length);
     for (let i = 0; i < this.data.length; i++) {
-      result[i] = ArrayND._closeAt(this.data[i], x.data[i], rtol, atol);
+      result[i] = isCloseScalar(this.data[i], x.data[i], rtol, atol);
     }
     return result;
   }
@@ -897,7 +890,7 @@ export abstract class ArrayND {
   allClose(x: this, rtol: number = 1e-5, atol: number = 1e-8): boolean {
     this._checkSameShape(x, 'allClose');
     for (let i = 0; i < this.data.length; i++) {
-      if (!ArrayND._closeAt(this.data[i], x.data[i], rtol, atol)) return false;
+      if (!isCloseScalar(this.data[i], x.data[i], rtol, atol)) return false;
     }
     return true;
   }
@@ -953,36 +946,6 @@ export abstract class ArrayND {
    */
   norm(): number {
     return Math.sqrt(this.normSq());
-  }
-
-  /**
-   * Computes the entrywise infinity norm: the largest absolute value
-   * among the flat buffer's entries, `max_i |data[i]|`. For a `Vector`,
-   * this is the standard vector infinity norm. `Matrix` overrides this
-   * with the induced/operator infinity norm (the largest absolute row
-   * sum) instead, which is the conventional meaning for matrices — see
-   * `Matrix.normInf()`.
-   * @returns The largest absolute entry, or `0` for an all-zero array.
-   *
-   * @example
-   * ```ts
-   * import { Vector } from 'numerics-js/linalg';
-   *
-   * console.log(Vector.from([1, -5, 3]).normInf());
-   * ```
-   *
-   * Output:
-   * ```text
-   * 5
-   * ```
-   */
-  normInf(): number {
-    let m = 0;
-    for (let i = 0; i < this.data.length; i++) {
-      const v = Math.abs(this.data[i]);
-      if (v > m) m = v;
-    }
-    return m;
   }
 
   /**
@@ -1369,10 +1332,11 @@ export abstract class ArrayND {
   }
 
   /**
-   * The concrete subclass's name, used to produce precise, class-specific
-   * error messages from methods implemented here.
+   * The concrete subclass's name (e.g. `"Vector"`), used to produce precise,
+   * class-specific error messages from methods implemented here. Declared
+   * explicitly, rather than read from `this.constructor.name`, because
+   * bundlers and minifiers rename classes.
+   * @returns The name of the concrete class, as it should appear in error messages.
    */
-  private _className(): string {
-    return this.constructor.name;
-  }
+  protected abstract _className(): string;
 }

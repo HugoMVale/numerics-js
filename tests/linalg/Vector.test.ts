@@ -65,6 +65,81 @@ describe('Vector', () => {
       const v = Vector.from([0, 0, -6, 0]);
       expect(v.normInf()).toBe(v.norm());
     });
+
+    it('propagates NaN, wherever it sits, instead of ignoring it', () => {
+      expect(Vector.from([NaN, 1]).normInf()).toBeNaN();
+      expect(Vector.from([1, NaN]).normInf()).toBeNaN();
+      expect(Vector.from([1, 7, NaN, 3]).normInf()).toBeNaN();
+      expect(Vector.from([NaN]).normInf()).toBeNaN();
+    });
+
+    it('returns Infinity when a component is infinite', () => {
+      expect(Vector.from([1, -Infinity, 3]).normInf()).toBe(Infinity);
+    });
+  });
+
+  describe('Vector.norm1()', () => {
+    it('returns the sum of the absolute components', () => {
+      expect(Vector.from([1, -5, 3]).norm1()).toBe(9);
+      expect(Vector.from([-2]).norm1()).toBe(2);
+    });
+
+    it('returns 0 for an empty or all-zero vector', () => {
+      expect(new Vector(0).norm1()).toBe(0);
+      expect(Vector.zero(3).norm1()).toBe(0);
+    });
+
+    it('propagates NaN', () => {
+      expect(Vector.from([1, NaN, 3]).norm1()).toBeNaN();
+    });
+
+    it('is bounded by normInf() and by sqrt(n) * norm()', () => {
+      const v = Vector.from([3, -4, 12, 0.5]);
+      expect(v.norm1()).toBeGreaterThanOrEqual(v.normInf());
+      expect(v.norm1()).toBeLessThanOrEqual(Math.sqrt(v.size) * v.norm());
+    });
+  });
+
+  describe('array-like inputs', () => {
+    it('accepts read-only arrays, as VectorLike does', () => {
+      const ro: readonly number[] = Object.freeze([1, 2, 3]);
+      expect(new Vector(ro).toArray()).toEqual([1, 2, 3]);
+      expect(Vector.from(ro).toArray()).toEqual([1, 2, 3]);
+      const v = Vector.zero(3);
+      v.set(ro);
+      expect(v.toArray()).toEqual([1, 2, 3]);
+      expectTypeOf(Vector.from).parameter(0).toEqualTypeOf<ArrayLike<number>>();
+    });
+
+    it('copies its input, so later changes to the source do not leak in', () => {
+      const src = [1, 2, 3];
+      const v = Vector.from(src);
+      src[0] = 99;
+      expect(v.toArray()).toEqual([1, 2, 3]);
+    });
+
+    it('accepts typed arrays other than Float64Array', () => {
+      expect(Vector.from(new Int8Array([1, -2, 3])).toArray()).toEqual([1, -2, 3]);
+    });
+
+    it('still rejects a wrong-length array in set()', () => {
+      expect(() => Vector.zero(3).set([1, 2] as readonly number[])).toThrowError(
+        /^Vector\.set: expected 3 values, got 2\./
+      );
+    });
+  });
+
+  describe('error messages', () => {
+    it('name the class even when the constructor name is mangled by a minifier', () => {
+      const original = Object.getOwnPropertyDescriptor(Vector, 'name')!;
+      Object.defineProperty(Vector, 'name', { value: 'a', configurable: true });
+      try {
+        expect(() => Vector.from([1, 2]).clip(2, 1)).toThrowError(/^Vector\.clip: /);
+        expect(() => new Vector(0).min()).toThrowError(/^Vector\.min: /);
+      } finally {
+        Object.defineProperty(Vector, 'name', original);
+      }
+    });
   });
 
   it('isClose: rtol scales the argument, not `this` (asymmetric)', () => {
@@ -151,7 +226,7 @@ describe('Vector', () => {
     expect(() => a.dist(new Vector(3))).toThrowError(RangeError);
   });
 
-  it('performs addSelf/subSelf/multSelf/addScaled/fill in place', () => {
+  it('performs addSelf/subSelf/multSelf/addScaledSelf/fill in place', () => {
     const v: Vector = new Vector([1, 2, 3]);
     v.subSelf(new Vector([1, 1, 1]));
     expect(v.toArray()).toEqual([0, 1, 2]);
@@ -159,7 +234,7 @@ describe('Vector', () => {
     v.multSelf(3);
     expect(v.toArray()).toEqual([0, 3, 6]);
 
-    v.addScaled(new Vector([1, 1, 1]), 2);
+    v.addScaledSelf(new Vector([1, 1, 1]), 2);
     expect(v.toArray()).toEqual([2, 5, 8]);
 
     v.fill(0);
@@ -173,11 +248,11 @@ describe('Vector', () => {
     expect(v.toArray()).toEqual([7, 7, 7]);
   });
 
-  it('sets this to a - b via subVectors without allocating a new vector', () => {
+  it('sets this to a - b via setSub without allocating a new vector', () => {
     const scratch: Vector = new Vector(2);
     const a: Vector = new Vector([5, 5]);
     const b: Vector = new Vector([2, 1]);
-    const result = scratch.subVectors(a, b);
+    const result = scratch.setSub(a, b);
     expect(result).toBe(scratch); // returns this, for chaining
     expect(scratch.toArray()).toEqual([3, 4]);
   });

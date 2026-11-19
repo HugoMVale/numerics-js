@@ -107,17 +107,17 @@ export function rungeKuttaAdaptiveStep(
   switch (method) {
     case 'rk23': {
       // Bogacki-Shampine 3(2)
-      yTemp.set(y.data).addScaled(k1, h * 0.5);
+      yTemp.set(y.data).addScaledSelf(k1, h * 0.5);
       f(t + 0.5 * h, yTemp, k2);
 
-      yTemp.set(y.data).addScaled(k2, h * 0.75);
+      yTemp.set(y.data).addScaledSelf(k2, h * 0.75);
       f(t + 0.75 * h, yTemp, k3);
 
       out
         .set(y.data)
-        .addScaled(k1, h * (2 / 9))
-        .addScaled(k2, h * (1 / 3))
-        .addScaled(k3, h * (4 / 9));
+        .addScaledSelf(k1, h * (2 / 9))
+        .addScaledSelf(k2, h * (1 / 3))
+        .addScaledSelf(k3, h * (4 / 9));
 
       f(t + h, out, k4); // FSAL stage
       break;
@@ -125,46 +125,46 @@ export function rungeKuttaAdaptiveStep(
 
     case 'rk45': {
       // Dormand-Prince 5(4)
-      yTemp.set(y.data).addScaled(k1, h * (1 / 5));
+      yTemp.set(y.data).addScaledSelf(k1, h * (1 / 5));
       f(t + (1 / 5) * h, yTemp, k2);
 
       yTemp
         .set(y.data)
-        .addScaled(k1, h * (3 / 40))
-        .addScaled(k2, h * (9 / 40));
+        .addScaledSelf(k1, h * (3 / 40))
+        .addScaledSelf(k2, h * (9 / 40));
       f(t + (3 / 10) * h, yTemp, k3);
 
       yTemp
         .set(y.data)
-        .addScaled(k1, h * (44 / 45))
-        .addScaled(k2, h * (-56 / 15))
-        .addScaled(k3, h * (32 / 9));
+        .addScaledSelf(k1, h * (44 / 45))
+        .addScaledSelf(k2, h * (-56 / 15))
+        .addScaledSelf(k3, h * (32 / 9));
       f(t + (4 / 5) * h, yTemp, k4);
 
       yTemp
         .set(y.data)
-        .addScaled(k1, h * (19372 / 6561))
-        .addScaled(k2, h * (-25360 / 2187))
-        .addScaled(k3, h * (64448 / 6561))
-        .addScaled(k4, h * (-212 / 729));
+        .addScaledSelf(k1, h * (19372 / 6561))
+        .addScaledSelf(k2, h * (-25360 / 2187))
+        .addScaledSelf(k3, h * (64448 / 6561))
+        .addScaledSelf(k4, h * (-212 / 729));
       f(t + (8 / 9) * h, yTemp, k5);
 
       yTemp
         .set(y.data)
-        .addScaled(k1, h * (9017 / 3168))
-        .addScaled(k2, h * (-355 / 33))
-        .addScaled(k3, h * (46732 / 5247))
-        .addScaled(k4, h * (49 / 176))
-        .addScaled(k5, h * (-5103 / 18656));
+        .addScaledSelf(k1, h * (9017 / 3168))
+        .addScaledSelf(k2, h * (-355 / 33))
+        .addScaledSelf(k3, h * (46732 / 5247))
+        .addScaledSelf(k4, h * (49 / 176))
+        .addScaledSelf(k5, h * (-5103 / 18656));
       f(t + h, yTemp, k6); // c6 = 1
 
       out
         .set(y.data)
-        .addScaled(k1, h * (35 / 384))
-        .addScaled(k3, h * (500 / 1113))
-        .addScaled(k4, h * (125 / 192))
-        .addScaled(k5, h * (-2187 / 6784))
-        .addScaled(k6, h * (11 / 84));
+        .addScaledSelf(k1, h * (35 / 384))
+        .addScaledSelf(k3, h * (500 / 1113))
+        .addScaledSelf(k4, h * (125 / 192))
+        .addScaledSelf(k5, h * (-2187 / 6784))
+        .addScaledSelf(k6, h * (11 / 84));
 
       f(t + h, out, k7); // FSAL stage
       break;

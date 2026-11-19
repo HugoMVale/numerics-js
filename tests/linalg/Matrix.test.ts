@@ -2328,6 +2328,22 @@ describe('Matrix', () => {
       expect(m.norm1()).toBe(10);
     });
 
+    it('normInf() and norm1() propagate NaN instead of ignoring it', () => {
+      const withNaN = Matrix.from([
+        [NaN, 1],
+        [1, 1]
+      ]);
+      expect(withNaN.normInf()).toBeNaN();
+      expect(withNaN.norm1()).toBeNaN();
+      // NaN in the last row / column, after larger finite sums.
+      const late = Matrix.from([
+        [5, 5],
+        [1, NaN]
+      ]);
+      expect(late.normInf()).toBeNaN();
+      expect(late.norm1()).toBeNaN();
+    });
+
     it('norm1() of a matrix equals normInf() of its transpose, and vice versa', () => {
       const m = Matrix.from([
         [1, 2, 3],

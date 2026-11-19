@@ -312,6 +312,10 @@ export class Matrix extends ArrayND {
     return Matrix.wrapUnchecked(this.rows, this.cols, data) as this;
   }
 
+  protected _className(): string {
+    return 'Matrix';
+  }
+
   /**
    * Throws if `(i, j)` is not a valid 0-based index into this matrix.
    * @param i Row index (0-based).
@@ -1491,18 +1495,15 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the matrix infinity norm: the largest absolute row sum,
-   * `max_i sum_j |this[i][j]|`. Besides being used internally to
-   * auto-scale `rank()`'s default tolerance to this matrix's magnitude,
-   * this is a general-purpose norm in its own right (unlike `ArrayND`'s
-   * `norm()`, which is the Frobenius norm over the whole flat buffer
-   * regardless of shape). See `norm1()` for its column-sum counterpart;
+   * `max_i sum_j |this[i][j]|`. This is the norm induced by the vector
+   * infinity norm (`Vector.normInf()`), not the entrywise maximum. Besides
+   * being used internally to auto-scale `rank()`'s default tolerance to this
+   * matrix's magnitude, it is a general-purpose norm in its own right
+   * (unlike `norm()`, which is the Frobenius norm over the whole flat
+   * buffer). See `norm1()` for its column-sum counterpart;
    * `this.norm1() === this.transpose().normInf()` always holds.
-   *
-   * This overrides `ArrayND.normInf()`'s entrywise "largest absolute
-   * value" meaning (the correct one for `Vector`) with the induced/
-   * operator norm above, which is the conventional meaning of "infinity
-   * norm" for a matrix.
    * @returns The largest absolute row sum, or `0` for a matrix of all zeros.
+   * `NaN` if any element is NaN.
    *
    * @example
    * ```ts
@@ -1524,6 +1525,7 @@ export class Matrix extends ArrayND {
       let rowSum = 0;
       for (let j = 0; j < this.cols; j++) rowSum += Math.abs(this.data[offset + j]);
       if (rowSum > maxRowSum) maxRowSum = rowSum;
+      else if (Number.isNaN(rowSum)) return NaN;
     }
     return maxRowSum;
   }
@@ -1535,6 +1537,7 @@ export class Matrix extends ArrayND {
    * always holds. Accumulates all column sums in a single pass over the
    * buffer, rather than summing each column separately.
    * @returns The largest absolute column sum, or `0` for a matrix of all zeros.
+   * `NaN` if any element is NaN.
    *
    * @example
    * ```ts
@@ -1558,6 +1561,7 @@ export class Matrix extends ArrayND {
     let maxColSum = 0;
     for (let j = 0; j < this.cols; j++) {
       if (colSums[j] > maxColSum) maxColSum = colSums[j];
+      else if (Number.isNaN(colSums[j])) return NaN;
     }
     return maxColSum;
   }

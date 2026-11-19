@@ -18,7 +18,7 @@ export class Vector extends ArrayND {
   /**
    * @param input The dimension length (initialized to 0s) or initial data.
    */
-  constructor(input: number | number[] | Float64Array) {
+  constructor(input: number | ArrayLike<number>) {
     super();
     if (typeof input === 'number') {
       if (!Number.isInteger(input)) {
@@ -98,6 +98,10 @@ export class Vector extends ArrayND {
    */
   protected _create(data: Float64Array): this {
     return Vector.wrapUnchecked(data) as this;
+  }
+
+  protected _className(): string {
+    return 'Vector';
   }
 
   /**
@@ -314,6 +318,59 @@ export class Vector extends ArrayND {
   normalize(): Vector {
     const m = this.norm();
     return m === 0 ? new Vector(this.size) : this.mult(1 / m);
+  }
+
+  /**
+   * Computes the 1-norm: the sum of the absolute values of the components,
+   * `sum_i |v[i]|`. It is the vector counterpart of `Matrix.norm1()`.
+   * @returns The 1-norm, or `0` for an empty or all-zero vector. `NaN` if any
+   * component is NaN.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, -5, 3]).norm1());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 9
+   * ```
+   */
+  norm1(): number {
+    let sum = 0;
+    for (let i = 0; i < this.data.length; i++) sum += Math.abs(this.data[i]);
+    return sum;
+  }
+
+  /**
+   * Computes the infinity norm: the largest absolute value among the
+   * components, `max_i |v[i]|`. It is the vector counterpart of
+   * `Matrix.normInf()`, which is the norm that this one induces on matrices.
+   * @returns The largest absolute component, or `0` for an empty or all-zero
+   * vector. `NaN` if any component is NaN.
+   *
+   * @example
+   * ```ts
+   * import { Vector } from 'numerics-js/linalg';
+   *
+   * console.log(Vector.from([1, -5, 3]).normInf());
+   * ```
+   *
+   * Output:
+   * ```text
+   * 5
+   * ```
+   */
+  normInf(): number {
+    let m = 0;
+    for (let i = 0; i < this.data.length; i++) {
+      const v = Math.abs(this.data[i]);
+      if (v > m) m = v;
+      else if (Number.isNaN(v)) return NaN;
+    }
+    return m;
   }
 
   /**
@@ -669,7 +726,7 @@ export class Vector extends ArrayND {
    * Vector(1, 2, 3)
    * ```
    */
-  set(values: number[] | Float64Array): this;
+  set(values: ArrayLike<number>): this;
 
   /**
    * Sets one component by its 0-based index, mutating this vector in place.
@@ -693,7 +750,7 @@ export class Vector extends ArrayND {
    */
   set(i: number, value: number): this;
 
-  set(valuesOrIndex: number[] | Float64Array | number, value?: number): this {
+  set(valuesOrIndex: ArrayLike<number> | number, value?: number): this {
     if (typeof valuesOrIndex === 'number') {
       this._checkIndex(valuesOrIndex, 'set');
       this.data[valuesOrIndex] = value as number;
@@ -721,7 +778,7 @@ export class Vector extends ArrayND {
    *
    * const x = Vector.from([1, 2, 3]);
    * const d = Vector.from([1, 0, -1]);
-   * x.addScaled(d, 0.5);
+   * x.addScaledSelf(d, 0.5);
    * console.log(x.toString());
    * ```
    *
@@ -730,8 +787,8 @@ export class Vector extends ArrayND {
    * Vector(1.5, 2, 2.5)
    * ```
    */
-  addScaled(v: Vector, s: number): this {
-    this._checkSameShape(v as this, 'addScaled');
+  addScaledSelf(v: Vector, s: number): this {
+    this._checkSameShape(v as this, 'addScaledSelf');
     for (let i = 0; i < this.size; i++) this.data[i] += v.data[i] * s;
     return this;
   }
@@ -750,7 +807,7 @@ export class Vector extends ArrayND {
    * const a = Vector.from([5, 7, 9]);
    * const b = Vector.from([1, 2, 3]);
    * const out = Vector.zero(3);
-   * out.subVectors(a, b);
+   * out.setSub(a, b);
    * console.log(out.toString());
    * ```
    *
@@ -759,9 +816,9 @@ export class Vector extends ArrayND {
    * Vector(4, 5, 6)
    * ```
    */
-  subVectors(a: Vector, b: Vector): this {
-    this._checkSameShape(a as this, 'subVectors');
-    this._checkSameShape(b as this, 'subVectors');
+  setSub(a: Vector, b: Vector): this {
+    this._checkSameShape(a as this, 'setSub');
+    this._checkSameShape(b as this, 'setSub');
     for (let i = 0; i < this.size; i++) this.data[i] = a.data[i] - b.data[i];
     return this;
   }
@@ -848,7 +905,7 @@ export class Vector extends ArrayND {
    * Vector(1, 2, 3)
    * ```
    */
-  static from(arr: number[] | Float64Array): Vector {
+  static from(arr: ArrayLike<number>): Vector {
     return new Vector(arr);
   }
 

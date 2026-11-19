@@ -84,43 +84,43 @@ export function rungeKuttaStep(
   switch (method) {
     case 'euler':
       f(t, y, k1);
-      out.set(y.data).addScaled(k1, h);
+      out.set(y.data).addScaledSelf(k1, h);
       break;
 
     case 'midpoint':
       f(t, y, k1);
-      yTemp.set(y.data).addScaled(k1, half);
+      yTemp.set(y.data).addScaledSelf(k1, half);
       f(t + half, yTemp, k2);
 
-      out.set(y.data).addScaled(k2, h);
+      out.set(y.data).addScaledSelf(k2, h);
       break;
 
     case 'trapezoid':
       f(t, y, k1);
-      yTemp.set(y.data).addScaled(k1, h);
+      yTemp.set(y.data).addScaledSelf(k1, h);
       f(t + h, yTemp, k2);
 
-      out.set(y.data).addScaled(k1, half).addScaled(k2, half);
+      out.set(y.data).addScaledSelf(k1, half).addScaledSelf(k2, half);
       break;
 
     case 'rk4':
       f(t, y, k1);
 
-      yTemp.set(y.data).addScaled(k1, half);
+      yTemp.set(y.data).addScaledSelf(k1, half);
       f(t + half, yTemp, k2);
 
-      yTemp.set(y.data).addScaled(k2, half);
+      yTemp.set(y.data).addScaledSelf(k2, half);
       f(t + half, yTemp, k3);
 
-      yTemp.set(y.data).addScaled(k3, h);
+      yTemp.set(y.data).addScaledSelf(k3, h);
       f(t + h, yTemp, k4);
 
       out
         .set(y.data)
-        .addScaled(k1, h / 6)
-        .addScaled(k2, h / 3)
-        .addScaled(k3, h / 3)
-        .addScaled(k4, h / 6);
+        .addScaledSelf(k1, h / 6)
+        .addScaledSelf(k2, h / 3)
+        .addScaledSelf(k3, h / 3)
+        .addScaledSelf(k4, h / 6);
       break;
     default:
       throw new RangeError(`rungeKuttaStep: unknown method "${method satisfies never}".`);

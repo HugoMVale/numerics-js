@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Vec3 } from '../../src/linalg/Vec3.js';
+import { Vector } from '../../src/linalg/Vector.js';
 
 describe('Vec3', () => {
   it('initializes with default values or provided components', () => {
@@ -41,7 +42,7 @@ describe('Vec3', () => {
     expect(v.toArray()).toEqual([2, 1, 0]);
     expect(v.multSelf(2)).toBe(v);
     expect(v.toArray()).toEqual([4, 2, 0]);
-    expect(v.addScaled(new Vec3(1, 2, 3), 3)).toBe(v);
+    expect(v.addScaledSelf(new Vec3(1, 2, 3), 3)).toBe(v);
     expect(v.toArray()).toEqual([7, 8, 9]);
 
     expect(v.set(4, 5)).toBe(v);
@@ -50,7 +51,7 @@ describe('Vec3', () => {
     expect(v.toArray()).toEqual([0, 0, 0]);
 
     const scratch: Vec3 = new Vec3();
-    expect(scratch.subVectors(new Vec3(5, 6, 7), new Vec3(2, 4, 8))).toBe(scratch);
+    expect(scratch.setSub(new Vec3(5, 6, 7), new Vec3(2, 4, 8))).toBe(scratch);
     expect(scratch.toArray()).toEqual([3, 2, -1]);
   });
 
@@ -94,11 +95,44 @@ describe('Vec3', () => {
 
   it('checks componentwise closeness and supports string and iteration output', () => {
     const v: Vec3 = new Vec3(1, 2, 3);
-    expect(v.isClose(new Vec3(1.00001, 2, 3))).toBe(true);
-    expect(v.isClose(new Vec3(1.1, 2, 3))).toBe(false);
-    expect(v.isClose(new Vec3(1.1, 2, 3), 0.1, 0)).toBe(true);
+    expect(v.allClose(new Vec3(1.00001, 2, 3))).toBe(true);
+    expect(v.allClose(new Vec3(1.1, 2, 3))).toBe(false);
+    expect(v.allClose(new Vec3(1.1, 2, 3), 0.1, 0)).toBe(true);
     expect(v.toString()).toBe('Vec3(1, 2, 3)');
     expect([...v]).toEqual([1, 2, 3]);
+  });
+
+  it('allClose treats infinities and NaN like Vector.allClose', () => {
+    const inf: Vec3 = new Vec3(Infinity, -Infinity, 1);
+    expect(inf.allClose(new Vec3(Infinity, -Infinity, 1))).toBe(true);
+    expect(inf.allClose(new Vec3(Infinity, Infinity, 1))).toBe(false);
+    // A finite value is not close to an infinite reference value.
+    expect(new Vec3(1e308, 0, 0).allClose(new Vec3(Infinity, 0, 0))).toBe(false);
+    expect(new Vec3(NaN, 0, 0).allClose(new Vec3(NaN, 0, 0))).toBe(false);
+  });
+
+  it('allClose agrees with Vector.allClose on the same data', () => {
+    const cases: [number[], number[]][] = [
+      [
+        [1, 2, 3],
+        [1.00001, 2, 3]
+      ],
+      [
+        [1, 2, 3],
+        [1.1, 2, 3]
+      ],
+      [
+        [Infinity, 0, 0],
+        [Infinity, 0, 0]
+      ],
+      [
+        [0, 0, 0],
+        [0, 0, 1e-9]
+      ]
+    ];
+    for (const [a, b] of cases) {
+      expect(Vec3.from(a).allClose(Vec3.from(b))).toBe(Vector.from(a).allClose(Vector.from(b)));
+    }
   });
 
   it('creates vectors through static constructors', () => {
