@@ -30,6 +30,13 @@ import type {
 export type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
 import type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
 
+/** Short description of a value's type for error messages (`null`, `undefined`, `Array`, `number`, ...). */
+function typeName(x: unknown): string {
+  if (x === null) return 'null';
+  if (typeof x === 'object') return (x as object).constructor?.name ?? 'object';
+  return typeof x;
+}
+
 /**
  * A rows x cols matrix backed by a flat, row-major Float64Array.
  *
@@ -162,10 +169,14 @@ export class Matrix extends ArrayND {
    * ```
    */
   isSymmetric(tol: number = 0): boolean {
+    Matrix._checkTol(tol, 'isSymmetric');
     if (!this.isSquare()) return false;
     for (let i = 0; i < this.rows; i++) {
       for (let j = i + 1; j < this.cols; j++) {
-        if (Math.abs(this.getUnchecked(i, j) - this.getUnchecked(j, i)) > tol) return false;
+        const a = this.getUnchecked(i, j);
+        const b = this.getUnchecked(j, i);
+        // `a !== b` first so that equal infinities count as equal; NaN never does.
+        if (a !== b && !(Math.abs(a - b) <= tol)) return false;
       }
     }
     return true;
@@ -197,9 +208,10 @@ export class Matrix extends ArrayND {
    * ```
    */
   isLowerTriangular(tol: number = 0): boolean {
+    Matrix._checkTol(tol, 'isLowerTriangular');
     for (let i = 0; i < this.rows; i++) {
       for (let j = i + 1; j < this.cols; j++) {
-        if (Math.abs(this.getUnchecked(i, j)) > tol) return false;
+        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
       }
     }
     return true;
@@ -230,9 +242,10 @@ export class Matrix extends ArrayND {
    * ```
    */
   isUpperTriangular(tol: number = 0): boolean {
+    Matrix._checkTol(tol, 'isUpperTriangular');
     for (let i = 1; i < this.rows; i++) {
       for (let j = 0; j < Math.min(i, this.cols); j++) {
-        if (Math.abs(this.getUnchecked(i, j)) > tol) return false;
+        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
       }
     }
     return true;
@@ -251,6 +264,9 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `other.rows !== this.rows || other.cols !== this.cols`.
    */
   protected _checkSameShape(other: this, caller: string): void {
+    if (!(other instanceof Matrix)) {
+      throw new TypeError(`Matrix.${caller}: expected a Matrix, got ${typeName(other)}.`);
+    }
     if (other.rows !== this.rows || other.cols !== this.cols) {
       throw new RangeError(
         `Matrix.${caller}: shape mismatch: ${this.rows}x${this.cols} vs ${other.rows}x${other.cols}.`
@@ -322,11 +338,129 @@ export class Matrix extends ArrayND {
    * @param j Column index (0-based).
    * @throws {RangeError} If `i` or `j` is out of range.
    */
-  private _checkBounds(i: number, j: number): void {
-    if (i < 0 || i >= this.rows || j < 0 || j >= this.cols) {
+  private _checkBounds(i: number, j: number, caller: string): void {
+    if (
+      !Number.isInteger(i) ||
+      !Number.isInteger(j) ||
+      i < 0 ||
+      i >= this.rows ||
+      j < 0 ||
+      j >= this.cols
+    ) {
       throw new RangeError(
-        `Matrix index (${i}, ${j}) out of bounds for ${this.rows}x${this.cols} matrix.`
+        `Matrix.${caller}: index (${i}, ${j}) out of bounds for a ${this.rows}x${this.cols} matrix.`
       );
+    }
+  }
+
+  /**
+   * Throws if `i` is not a valid 0-based row index. Rejects NaN and
+   * non-integers, which would otherwise address a wrong element of the
+   * flat buffer (or none) without any error.
+   * @param i Row index (0-based).
+   * @param caller Name of the public method invoking this check.
+   * @throws {RangeError} If `i` is not an integer in `0..rows-1`.
+   */
+  private _checkRow(i: number, caller: string): void {
+    if (!Number.isInteger(i) || i < 0 || i >= this.rows) {
+      throw new RangeError(`Matrix.${caller}: row index ${i} out of bounds for ${this.rows} rows.`);
+    }
+  }
+
+  /**
+   * Throws if `j` is not a valid 0-based column index.
+   * @param j Column index (0-based).
+   * @param caller Name of the public method invoking this check.
+   * @throws {RangeError} If `j` is not an integer in `0..cols-1`.
+   */
+  private _checkCol(j: number, caller: string): void {
+    if (!Number.isInteger(j) || j < 0 || j >= this.cols) {
+      throw new RangeError(
+        `Matrix.${caller}: column index ${j} out of bounds for ${this.cols} columns.`
+      );
+    }
+  }
+
+  /**
+   * Throws if `tol` is not a usable absolute tolerance (negative or NaN).
+   * @param tol The tolerance.
+   * @param caller Name of the public method invoking this check.
+   * @throws {RangeError} If `tol` is not `>= 0`.
+   */
+  private static _checkTol(tol: number, caller: string): void {
+    if (typeof tol !== 'number') {
+      throw new TypeError(`Matrix.${caller}: tol must be a number, got ${typeName(tol)}.`);
+    }
+    if (!(tol >= 0)) throw new RangeError(`Matrix.${caller}: tol must be >= 0, got ${tol}.`);
+  }
+
+  /**
+   * Returns the numbers held by a `Vector` or an array-like object (an
+   * array, a typed array, ...). Strings, numbers, `null` and other values
+   * are rejected, since `Float64Array.set` would silently coerce or
+   * mis-handle them.
+   * @param x The argument as received.
+   * @param caller Name of the public method invoking this check.
+   * @param what Name of the argument, for the message.
+   * @returns The underlying values (not copied).
+   * @throws {TypeError} If `x` is not a `Vector` or an object with a numeric `length`.
+   */
+  private static _asArrayLike(x: unknown, caller: string, what: string): ArrayLike<number> {
+    if (x instanceof Vector) return x.data;
+    if (
+      x === null ||
+      typeof x !== 'object' ||
+      typeof (x as ArrayLike<number>).length !== 'number'
+    ) {
+      throw new TypeError(
+        `Matrix.${caller}: ${what} must be an array-like of numbers or a Vector, got ${typeName(x)}.`
+      );
+    }
+    return x as ArrayLike<number>;
+  }
+
+  /**
+   * Throws if `axis` is not `0` or `1`. Called only after the "no axis" case
+   * has been handled, so that e.g. `sum(2)` or `sum(null)` can never silently
+   * fall through to the row-wise code path.
+   * @param axis The axis argument as received.
+   * @param caller Name of the public method invoking this check.
+   * @param optional Whether `undefined` is also a valid value (it selects the
+   * whole-matrix variant), which only changes the wording of the message.
+   * @throws {RangeError} If `axis` is neither `0` nor `1`.
+   */
+  private static _checkAxis(axis: unknown, caller: string, optional: boolean): void {
+    if (axis !== 0 && axis !== 1) {
+      const got = typeof axis === 'string' ? JSON.stringify(axis) : String(axis);
+      throw new RangeError(
+        `Matrix.${caller}: axis must be ${optional ? '0, 1 or undefined' : '0 or 1'}, got ${got}.`
+      );
+    }
+  }
+
+  /**
+   * Validates the argument of `hstack`/`vstack`: a non-empty array whose
+   * elements are all matrices.
+   * @param matrices The argument as received.
+   * @param caller Name of the public method invoking this check.
+   * @throws {TypeError} If `matrices` is not an array, or an element is not a `Matrix`.
+   * @throws {RangeError} If `matrices` is empty.
+   */
+  private static _checkMatrixList(matrices: unknown, caller: string): asserts matrices is Matrix[] {
+    if (!Array.isArray(matrices)) {
+      throw new TypeError(
+        `Matrix.${caller}: expected an array of matrices, got ${typeName(matrices)}.`
+      );
+    }
+    if (matrices.length === 0) {
+      throw new RangeError(`Matrix.${caller}: need at least one matrix to concatenate.`);
+    }
+    for (let k = 0; k < matrices.length; k++) {
+      if (!(matrices[k] instanceof Matrix)) {
+        throw new TypeError(
+          `Matrix.${caller}: element ${k} is not a Matrix, got ${typeName(matrices[k])}.`
+        );
+      }
     }
   }
 
@@ -451,7 +585,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   get(i: number, j: number): number {
-    this._checkBounds(i, j);
+    this._checkBounds(i, j, 'get');
     return this.data[this.flatIndex(i, j)];
   }
 
@@ -477,7 +611,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   set(i: number, j: number, value: number): this {
-    this._checkBounds(i, j);
+    this._checkBounds(i, j, 'set');
     this.data[this.flatIndex(i, j)] = value;
     return this;
   }
@@ -501,11 +635,9 @@ export class Matrix extends ArrayND {
    * ```
    */
   row(i: number): Vector {
-    if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
-    return Vector.wrapUnchecked(
-      this.data.slice(this.flatIndex(i, 0), this.flatIndex(i, 0) + this.cols)
-    );
+    this._checkRow(i, 'row');
+    const start = this.flatIndex(i, 0);
+    return Vector.wrapUnchecked(this.data.slice(start, start + this.cols));
   }
 
   /**
@@ -527,8 +659,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   col(j: number): Vector {
-    if (j < 0 || j >= this.cols)
-      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns.`);
+    this._checkCol(j, 'col');
     const res = new Vector(this.rows);
     for (let i = 0; i < this.rows; i++) res.data[i] = this.getUnchecked(i, j);
     return res;
@@ -587,12 +718,11 @@ export class Matrix extends ArrayND {
    * ```
    */
   setRow(i: number, values: Vector | ArrayLike<number>): this {
-    if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
-    const src = values instanceof Vector ? values.data : values;
+    this._checkRow(i, 'setRow');
+    const src = Matrix._asArrayLike(values, 'setRow', 'values');
     if (src.length !== this.cols) {
       throw new RangeError(
-        `Matrix setRow: expected ${this.cols} values for row ${i}, got ${src.length}.`
+        `Matrix.setRow: expected ${this.cols} values for row ${i}, got ${src.length}.`
       );
     }
     this.data.set(src, this.flatIndex(i, 0));
@@ -621,14 +751,17 @@ export class Matrix extends ArrayND {
    * ```
    */
   setCol(j: number, values: Vector | ArrayLike<number>): this {
-    if (j < 0 || j >= this.cols)
-      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns.`);
-    const src = values instanceof Vector ? values.data : values;
-    if (src.length !== this.rows) {
+    this._checkCol(j, 'setCol');
+    const given = Matrix._asArrayLike(values, 'setCol', 'values');
+    if (given.length !== this.rows) {
       throw new RangeError(
-        `Matrix setCol: expected ${this.rows} values for column ${j}, got ${src.length}.`
+        `Matrix.setCol: expected ${this.rows} values for column ${j}, got ${given.length}.`
       );
     }
+    // The column is written one element at a time, so a source that is a view of
+    // this very buffer (e.g. `A.data.subarray(...)`) must be snapshotted first.
+    const src =
+      given instanceof Float64Array && given.buffer === this.data.buffer ? given.slice() : given;
     for (let i = 0; i < this.rows; i++) this.setUnchecked(i, j, src[i]);
     return this;
   }
@@ -1295,7 +1428,9 @@ export class Matrix extends ArrayND {
     }
 
     const a = this.data;
-    const b = v.data;
+    // In place, an operand that is a view of this very buffer would be read after
+    // being overwritten (row 0 of `A` as `v`, say), so it is snapshotted first.
+    const b = inPlace && v.data.buffer === a.buffer ? v.data.slice() : v.data;
     const out = inPlace ? a : new Float64Array(a.length);
     switch (op) {
       case 'add':
@@ -1387,22 +1522,22 @@ export class Matrix extends ArrayND {
    * ```
    */
   matmul(m: Matrix): Matrix {
+    if (!(m instanceof Matrix)) {
+      throw new TypeError(`Matrix.matmul: expected a Matrix, got ${typeName(m)}.`);
+    }
     if (this.cols !== m.rows) {
       throw new RangeError(
         `Matrix matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}.`
       );
     }
     const res = new Matrix(this.rows, m.cols);
-    const rowBuf = new Float64Array(m.cols);
     for (let i = 0; i < this.rows; i++) {
-      rowBuf.fill(0);
+      const resOffset = res.flatIndex(i, 0);
       for (let k = 0; k < this.cols; k++) {
         const a = this.getUnchecked(i, k);
-        if (a === 0) continue;
         const mOffset = m.flatIndex(k, 0);
-        for (let j = 0; j < m.cols; j++) rowBuf[j] += a * m.data[mOffset + j];
+        for (let j = 0; j < m.cols; j++) res.data[resOffset + j] += a * m.data[mOffset + j];
       }
-      res.data.set(rowBuf, res.flatIndex(i, 0));
     }
     return res;
   }
@@ -2454,7 +2589,12 @@ export class Matrix extends ArrayND {
    * @param reduceFn Reduces one row's or column's values to a single number.
    * @returns An `Vector` of length `cols` (for `axis: 0`) or `rows` (for `axis: 1`).
    */
-  private _reduceAxis(axis: 0 | 1, reduceFn: (values: Float64Array) => number): Vector {
+  private _reduceAxis(
+    axis: 0 | 1,
+    reduceFn: (values: Float64Array) => number,
+    caller: string
+  ): Vector {
+    Matrix._checkAxis(axis, caller, true);
     if (axis === 0) {
       const res = new Vector(this.cols);
       const col = new Float64Array(this.rows);
@@ -2514,7 +2654,7 @@ export class Matrix extends ArrayND {
   sum(axis: 0 | 1): Vector;
   sum(axis?: 0 | 1): number | Vector {
     if (axis === undefined) return this._sumAll();
-    return this._reduceAxis(axis, ArrayND._sumArr);
+    return this._reduceAxis(axis, ArrayND._sumArr, 'sum');
   }
 
   /**
@@ -2556,7 +2696,7 @@ export class Matrix extends ArrayND {
   mean(axis: 0 | 1): Vector;
   mean(axis?: 0 | 1): number | Vector {
     if (axis === undefined) return this._meanAll();
-    return this._reduceAxis(axis, ArrayND._meanArr);
+    return this._reduceAxis(axis, ArrayND._meanArr, 'mean');
   }
 
   /**
@@ -2600,7 +2740,7 @@ export class Matrix extends ArrayND {
   min(axis: 0 | 1): Vector;
   min(axis?: 0 | 1): number | Vector {
     if (axis === undefined) return this._minAll();
-    return this._reduceAxis(axis, ArrayND._minArr);
+    return this._reduceAxis(axis, ArrayND._minArr, 'min');
   }
 
   /**
@@ -2644,7 +2784,7 @@ export class Matrix extends ArrayND {
   max(axis: 0 | 1): Vector;
   max(axis?: 0 | 1): number | Vector {
     if (axis === undefined) return this._maxAll();
-    return this._reduceAxis(axis, ArrayND._maxArr);
+    return this._reduceAxis(axis, ArrayND._maxArr, 'max');
   }
 
   /**
@@ -2694,7 +2834,7 @@ export class Matrix extends ArrayND {
   variance(axis: 0 | 1, ddof?: number): Vector;
   variance(axis?: 0 | 1, ddof: number = 0): number | Vector {
     if (axis === undefined) return this._varianceAll(ddof);
-    return this._reduceAxis(axis, (a) => ArrayND._varianceArr(a, ddof));
+    return this._reduceAxis(axis, (a) => ArrayND._varianceArr(a, ddof), 'variance');
   }
 
   /**
@@ -2740,7 +2880,7 @@ export class Matrix extends ArrayND {
   std(axis: 0 | 1, ddof?: number): Vector;
   std(axis?: 0 | 1, ddof: number = 0): number | Vector {
     if (axis === undefined) return this._stdAll(ddof);
-    return this._reduceAxis(axis, (a) => ArrayND._stdArr(a, ddof));
+    return this._reduceAxis(axis, (a) => ArrayND._stdArr(a, ddof), 'std');
   }
 
   /**
@@ -2794,6 +2934,7 @@ export class Matrix extends ArrayND {
       }
       return res;
     }
+    Matrix._checkAxis(axis, 'cumsum', true);
     const res = this._create(new Float64Array(this.data.length));
     if (axis === 0) {
       for (let j = 0; j < this.cols; j++) {
@@ -2862,7 +3003,7 @@ export class Matrix extends ArrayND {
   argmin(axis: 0 | 1): Vector;
   argmin(axis?: 0 | 1): number | Vector {
     if (axis === undefined) return ArrayND._argMinArr(this.data);
-    return this._reduceAxis(axis, ArrayND._argMinArr);
+    return this._reduceAxis(axis, ArrayND._argMinArr, 'argmin');
   }
 
   /**
@@ -2911,7 +3052,7 @@ export class Matrix extends ArrayND {
   argmax(axis: 0 | 1): Vector;
   argmax(axis?: 0 | 1): number | Vector {
     if (axis === undefined) return ArrayND._argMaxArr(this.data);
-    return this._reduceAxis(axis, ArrayND._argMaxArr);
+    return this._reduceAxis(axis, ArrayND._argMaxArr, 'argmax');
   }
 
   // -----------------------------------------------------------------
@@ -2951,6 +3092,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   sort(axis: 0 | 1 = 1, compareFn?: (a: number, b: number) => number): Matrix {
+    Matrix._checkAxis(axis, 'sort', false);
     const res = this.copy();
     if (axis === 1) {
       for (let i = 0; i < res.rows; i++) {
@@ -2987,7 +3129,8 @@ export class Matrix extends ArrayND {
   ): { start: number; end: number } {
     const resolve = (idx: number | undefined, def: number): number => {
       if (idx === undefined) return def;
-      return idx < 0 ? Math.max(length + idx, 0) : Math.min(idx, length);
+      const k = Math.trunc(idx) || 0; // truncate toward zero; NaN (and -0) become 0
+      return k < 0 ? Math.max(length + k, 0) : Math.min(k, length);
     };
     const s = resolve(start, 0);
     const e = Math.max(resolve(end, length), s);
@@ -3159,6 +3302,12 @@ export class Matrix extends ArrayND {
    * ```
    */
   tile(reps: number | [number, number]): Matrix {
+    if (typeof reps !== 'number' && !(Array.isArray(reps) && reps.length === 2)) {
+      const got = Array.isArray(reps) ? `an array of length ${reps.length}` : typeName(reps);
+      throw new TypeError(
+        `Matrix.tile: reps must be a number or a [rowReps, colReps] pair, got ${got}.`
+      );
+    }
     const [rowReps, colReps] = typeof reps === 'number' ? [1, reps] : reps;
     ArrayND._checkCount(rowReps, 'Matrix.tile', 'row reps');
     ArrayND._checkCount(colReps, 'Matrix.tile', 'column reps');
@@ -3300,10 +3449,8 @@ export class Matrix extends ArrayND {
    * ```
    */
   swapRows(i: number, j: number): this {
-    if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
-    if (j < 0 || j >= this.rows)
-      throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows.`);
+    this._checkRow(i, 'swapRows');
+    this._checkRow(j, 'swapRows');
     if (i === j) return this;
     const oi = this.flatIndex(i, 0);
     const oj = this.flatIndex(j, 0);
@@ -3337,8 +3484,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   scaleRow(i: number, s: number): this {
-    if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
+    this._checkRow(i, 'scaleRow');
     const offset = this.flatIndex(i, 0);
     for (let k = 0; k < this.cols; k++) this.data[offset + k] *= s;
     return this;
@@ -3366,8 +3512,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   scaleCol(j: number, s: number): this {
-    if (j < 0 || j >= this.cols)
-      throw new RangeError(`Matrix column ${j} out of bounds for ${this.cols} columns.`);
+    this._checkCol(j, 'scaleCol');
     for (let i = 0; i < this.rows; i++) this.data[this.flatIndex(i, j)] *= s;
     return this;
   }
@@ -3396,10 +3541,8 @@ export class Matrix extends ArrayND {
    * ```
    */
   addScaledRow(i: number, j: number, s: number): this {
-    if (i < 0 || i >= this.rows)
-      throw new RangeError(`Matrix row ${i} out of bounds for ${this.rows} rows.`);
-    if (j < 0 || j >= this.rows)
-      throw new RangeError(`Matrix row ${j} out of bounds for ${this.rows} rows.`);
+    this._checkRow(i, 'addScaledRow');
+    this._checkRow(j, 'addScaledRow');
     const offsetI = this.flatIndex(i, 0);
     const offsetJ = this.flatIndex(j, 0);
     for (let k = 0; k < this.cols; k++) this.data[offsetI + k] += this.data[offsetJ + k] * s;
@@ -3502,10 +3645,25 @@ export class Matrix extends ArrayND {
    * ```
    */
   static from(rows: number[][]): Matrix {
+    if (!Array.isArray(rows)) {
+      throw new TypeError(`Matrix.from: expected an array of rows, got ${typeName(rows)}.`);
+    }
     if (rows.length === 0) {
       throw new RangeError(
         'Matrix.from: cannot construct a matrix from an empty array (need at least one row).'
       );
+    }
+    for (let i = 0; i < rows.length; i++) {
+      const r: unknown = rows[i];
+      if (
+        r === null ||
+        typeof r !== 'object' ||
+        typeof (r as ArrayLike<number>).length !== 'number'
+      ) {
+        throw new TypeError(
+          `Matrix.from: row ${i} is not an array of numbers, got ${typeName(r)}.`
+        );
+      }
     }
     const nRows = rows.length;
     const nCols = rows[0].length;
@@ -3513,6 +3671,13 @@ export class Matrix extends ArrayND {
       throw new RangeError(
         'Matrix.from: cannot construct a matrix with empty rows (need at least one column).'
       );
+    }
+    for (let i = 1; i < nRows; i++) {
+      if (rows[i].length !== nCols) {
+        throw new RangeError(
+          `Matrix.from: row ${i} has ${rows[i].length} elements, expected ${nCols} (as in row 0).`
+        );
+      }
     }
     const res = new Matrix(nRows, nCols);
     for (let i = 0; i < nRows; i++) res.setRow(i, rows[i]);
@@ -3546,9 +3711,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   static hstack(matrices: Matrix[]): Matrix {
-    if (matrices.length === 0) {
-      throw new RangeError('Matrix.hstack: need at least one matrix to concatenate.');
-    }
+    Matrix._checkMatrixList(matrices, 'hstack');
     const rows = matrices[0].rows;
     let totalCols = 0;
     for (const m of matrices) {
@@ -3596,9 +3759,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   static vstack(matrices: Matrix[]): Matrix {
-    if (matrices.length === 0) {
-      throw new RangeError('Matrix.vstack: need at least one matrix to concatenate.');
-    }
+    Matrix._checkMatrixList(matrices, 'vstack');
     const cols = matrices[0].cols;
     let totalRows = 0;
     for (const m of matrices) {

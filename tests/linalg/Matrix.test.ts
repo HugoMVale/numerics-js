@@ -2890,3 +2890,482 @@ describe('Matrix', () => {
     });
   });
 });
+
+describe('Matrix: validation and edge cases', () => {
+  const A22 = () => new Matrix(2, 2, [1, 2, 3, 4]);
+  const A33 = () => new Matrix(3, 3, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+  describe('indices must be integers in range', () => {
+    // NaN and fractional indices used to address a wrong element (or none) silently, and
+    // `swapRows(NaN, 0)` overwrote row 0 with NaN.
+    const bad = [NaN, 0.5, 1.5, Infinity, -Infinity, -1, 2];
+
+    it('get, set, row, col throw RangeError and leave the matrix untouched', () => {
+      for (const b of bad) {
+        const m = A22();
+        expect(() => m.get(b, 0)).toThrowError(RangeError);
+        expect(() => m.get(0, b)).toThrowError(RangeError);
+        expect(() => m.set(b, 0, 9)).toThrowError(RangeError);
+        expect(() => m.set(0, b, 9)).toThrowError(RangeError);
+        expect(() => m.row(b)).toThrowError(RangeError);
+        expect(() => m.col(b)).toThrowError(RangeError);
+        expect(m.toArray()).toEqual(A22().toArray());
+      }
+    });
+
+    it('setRow, setCol, swapRows, scaleRow, scaleCol, addScaledRow throw and do not mutate', () => {
+      for (const b of bad) {
+        const m = A22();
+        expect(() => m.setRow(b, [7, 8])).toThrowError(RangeError);
+        expect(() => m.setCol(b, [7, 8])).toThrowError(RangeError);
+        expect(() => m.swapRows(b, 0)).toThrowError(RangeError);
+        expect(() => m.swapRows(0, b)).toThrowError(RangeError);
+        expect(() => m.scaleRow(b, 2)).toThrowError(RangeError);
+        expect(() => m.scaleCol(b, 2)).toThrowError(RangeError);
+        expect(() => m.addScaledRow(b, 0, 2)).toThrowError(RangeError);
+        expect(() => m.addScaledRow(0, b, 2)).toThrowError(RangeError);
+        expect(m.toArray()).toEqual(A22().toArray());
+      }
+    });
+
+    it('accepts -0 as index 0', () => {
+      expect(A22().get(-0, -0)).toBe(1);
+    });
+
+    it('uses the "Matrix.method: ... ." message format', () => {
+      expect(() => A22().get(NaN, 0)).toThrowError(
+        'Matrix.get: index (NaN, 0) out of bounds for a 2x2 matrix.'
+      );
+      expect(() => A22().row(2)).toThrowError('Matrix.row: row index 2 out of bounds for 2 rows.');
+      expect(() => A22().col(0.5)).toThrowError(
+        'Matrix.col: column index 0.5 out of bounds for 2 columns.'
+      );
+    });
+  });
+
+  describe('matmul propagates non-finite values like IEEE multiplication', () => {
+    // Zero entries used to be skipped, so 0 * NaN and 0 * Infinity were lost.
+    it('0 * NaN is NaN', () => {
+      expect(new Matrix(1, 2, [0, 1]).matmul(new Matrix(2, 1, [NaN, 1])).get(0, 0)).toBeNaN();
+    });
+
+    it('0 * Infinity is NaN', () => {
+      expect(new Matrix(1, 2, [0, 1]).matmul(new Matrix(2, 1, [Infinity, 1])).get(0, 0)).toBeNaN();
+    });
+
+    it('agrees with mulVec on non-finite input', () => {
+      const m = new Matrix(1, 2, [0, 1]);
+      const v = new Vector([Infinity, 1]);
+      expect(m.matmul(new Matrix(2, 1, [Infinity, 1])).get(0, 0)).toBe(m.mulVec(v).get(0));
+    });
+
+    it('is unchanged for finite input, including zero entries, and A.matmul(A) works', () => {
+      const m = new Matrix(2, 2, [0, 2, 3, 0]);
+      expect(m.matmul(m).toArray()).toEqual([
+        [6, 0],
+        [0, 6]
+      ]);
+      expect(new Matrix(2, 2, [0, 0, 0, 0]).matmul(A22()).toArray()).toEqual([
+        [0, 0],
+        [0, 0]
+      ]);
+    });
+  });
+
+  describe('predicates treat NaN as neither equal nor zero and validate tol', () => {
+    it('isSymmetric is false when a mirrored pair contains NaN', () => {
+      expect(new Matrix(2, 2, [1, NaN, NaN, 1]).isSymmetric()).toBe(false);
+      expect(new Matrix(2, 2, [1, NaN, 2, 1]).isSymmetric()).toBe(false);
+      expect(new Matrix(2, 2, [1, NaN, 2, 1]).isSymmetric(10)).toBe(false);
+    });
+
+    it('isSymmetric accepts equal infinities and rejects opposite ones', () => {
+      expect(new Matrix(2, 2, [1, Infinity, Infinity, 1]).isSymmetric()).toBe(true);
+      expect(new Matrix(2, 2, [1, Infinity, -Infinity, 1]).isSymmetric()).toBe(false);
+    });
+
+    it('a NaN diagonal entry does not affect symmetry (only off-diagonal pairs are compared)', () => {
+      expect(new Matrix(2, 2, [NaN, 1, 1, NaN]).isSymmetric()).toBe(true);
+    });
+
+    it('isLowerTriangular / isUpperTriangular are false for a NaN in the zero part', () => {
+      expect(new Matrix(2, 2, [1, NaN, 0, 1]).isLowerTriangular()).toBe(false);
+      expect(new Matrix(2, 2, [1, 0, NaN, 1]).isUpperTriangular()).toBe(false);
+      expect(new Matrix(2, 2, [1, Infinity, 0, 1]).isLowerTriangular()).toBe(false);
+      // NaN on the kept side is irrelevant.
+      expect(new Matrix(2, 2, [NaN, 0, NaN, 1]).isLowerTriangular()).toBe(true);
+    });
+
+    it('reject a NaN or negative tol with RangeError, even for non-square matrices', () => {
+      for (const tol of [NaN, -1]) {
+        expect(() => A22().isSymmetric(tol)).toThrowError(RangeError);
+        expect(() => A22().isLowerTriangular(tol)).toThrowError(RangeError);
+        expect(() => A22().isUpperTriangular(tol)).toThrowError(RangeError);
+        expect(() => new Matrix(2, 3).isSymmetric(tol)).toThrowError(RangeError);
+      }
+      expect(() => A22().isSymmetric(NaN)).toThrowError(/^Matrix\.isSymmetric: tol must be >= 0/);
+    });
+
+    it('still honour a positive tol', () => {
+      expect(new Matrix(2, 2, [1, 2, 2.05, 1]).isSymmetric(0.1)).toBe(true);
+      expect(new Matrix(2, 2, [1, 0.05, 0, 1]).isUpperTriangular(0.1)).toBe(true);
+      expect(new Matrix(2, 2, [1, 0.05, 0, 1]).isLowerTriangular(0.1)).toBe(true);
+      expect(new Matrix(2, 2, [1, 0.5, 0, 1]).isLowerTriangular(0.1)).toBe(false);
+    });
+  });
+
+  describe('axis must be 0 or 1', () => {
+    // Any other value (2, -1, null, '0') used to fall through to the row-wise path.
+    const A = () => new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+    const badAxes = [2, -1, null, '0', NaN] as unknown as (0 | 1)[];
+
+    it('every axis-aware method throws RangeError on an invalid axis', () => {
+      for (const axis of badAxes) {
+        expect(() => A().sum(axis)).toThrowError(RangeError);
+        expect(() => A().mean(axis)).toThrowError(RangeError);
+        expect(() => A().min(axis)).toThrowError(RangeError);
+        expect(() => A().max(axis)).toThrowError(RangeError);
+        expect(() => A().variance(axis)).toThrowError(RangeError);
+        expect(() => A().std(axis)).toThrowError(RangeError);
+        expect(() => A().argmin(axis)).toThrowError(RangeError);
+        expect(() => A().argmax(axis)).toThrowError(RangeError);
+        expect(() => A().cumsum(axis)).toThrowError(RangeError);
+        expect(() => A().sort(axis)).toThrowError(RangeError);
+        expect(() => A().repeat(1, axis)).toThrowError(RangeError);
+      }
+    });
+
+    it('names the method and quotes string axes', () => {
+      expect(() => A().sum(2 as 0)).toThrowError(
+        'Matrix.sum: axis must be 0, 1 or undefined, got 2.'
+      );
+      expect(() => A().sort('0' as unknown as 0)).toThrowError(
+        'Matrix.sort: axis must be 0 or 1, got "0".'
+      );
+    });
+
+    it('undefined still selects the whole-matrix variant and valid axes still work', () => {
+      expect(A().sum()).toBe(21);
+      expect(A().sum(0).toArray()).toEqual([5, 7, 9]);
+      expect(A().sum(1).toArray()).toEqual([6, 15]);
+      expect(A().sort(undefined).toArray()).toEqual(A().toArray());
+    });
+  });
+
+  describe('slice() truncates bounds like Array.prototype.slice and Vector.slice', () => {
+    // Fractional bounds used to produce a misaligned matrix (e.g. rows 2,3,4 / 5,6,7).
+    it('truncates fractional bounds toward zero', () => {
+      expect(A33().slice(0.5, 2.5).toArray()).toEqual([
+        [1, 2, 3],
+        [4, 5, 6]
+      ]);
+      expect(A33().slice(1.5).toArray()).toEqual([
+        [4, 5, 6],
+        [7, 8, 9]
+      ]);
+      expect(A33().slice(0, 2, 0, 1.5).toArray()).toEqual([[1], [4]]);
+      expect(A33().slice(-1.5).toArray()).toEqual([[7, 8, 9]]); // -1.5 -> -1
+    });
+
+    it('treats NaN as 0 and infinite bounds as clamped', () => {
+      expect(A33().slice(NaN).toArray()).toEqual(A33().toArray());
+      expect(A33().slice(-Infinity, Infinity).toArray()).toEqual(A33().toArray());
+      expect(() => A33().slice(0, NaN)).toThrowError(RangeError); // resolves to an empty range
+    });
+
+    it('agrees with Vector.slice for the same bounds', () => {
+      const v = new Vector([1, 2, 3]);
+      const row = new Matrix(1, 3, [1, 2, 3]);
+      for (const [s, e] of [
+        [0.5, 2.5],
+        [NaN, 2],
+        [-1.5, undefined],
+        [1, 99]
+      ] as [number, number | undefined][]) {
+        expect(row.slice(0, 1, s, e).toArray()[0]).toEqual(v.slice(s, e).toArray());
+      }
+    });
+
+    it('returns an independent copy', () => {
+      const a = A33();
+      const s = a.slice();
+      s.set(0, 0, 99);
+      expect(a.get(0, 0)).toBe(1);
+    });
+  });
+
+  describe('tile() argument validation', () => {
+    const A = () => new Matrix(1, 2, [1, 2]);
+
+    it('rejects arrays that are not a [rowReps, colReps] pair with TypeError', () => {
+      for (const bad of [[], [1], [1, 2, 3]]) {
+        expect(() => A().tile(bad as [number, number])).toThrowError(TypeError);
+      }
+      expect(() => A().tile([1, 2, 3] as unknown as [number, number])).toThrowError(
+        'Matrix.tile: reps must be a number or a [rowReps, colReps] pair, got an array of length 3.'
+      );
+    });
+
+    it('rejects non-number, non-array arguments with TypeError', () => {
+      for (const bad of [undefined, null, '2', {}]) {
+        expect(() => A().tile(bad as unknown as number)).toThrowError(TypeError);
+      }
+    });
+
+    it('still accepts a number and a pair', () => {
+      expect(A().tile(2).toArray()).toEqual([[1, 2, 1, 2]]);
+      expect(A().tile([2, 1]).toArray()).toEqual([
+        [1, 2],
+        [1, 2]
+      ]);
+    });
+  });
+
+  describe('Matrix.from() validation', () => {
+    it('reports a ragged row as such, not as a setRow error', () => {
+      expect(() => Matrix.from([[1, 2], [3]])).toThrowError(
+        'Matrix.from: row 1 has 1 elements, expected 2 (as in row 0).'
+      );
+      expect(() => Matrix.from([[1], [2, 3]])).toThrowError(RangeError);
+    });
+
+    it('rejects a non-array argument and non-array rows with TypeError', () => {
+      expect(() => Matrix.from(null as unknown as number[][])).toThrowError(TypeError);
+      expect(() => Matrix.from(A22() as unknown as number[][])).toThrowError(TypeError);
+      expect(() => Matrix.from([1, 2, 3] as unknown as number[][])).toThrowError(
+        'Matrix.from: row 0 is not an array of numbers, got number.'
+      );
+      expect(() => Matrix.from([[1], null] as unknown as number[][])).toThrowError(TypeError);
+    });
+
+    it('copies the row data', () => {
+      const r = [1, 2];
+      const m = Matrix.from([r, [3, 4]]);
+      r[0] = 99;
+      expect(m.toArray()).toEqual([
+        [1, 2],
+        [3, 4]
+      ]);
+    });
+  });
+
+  describe('Matrix.hstack() / Matrix.vstack() argument validation', () => {
+    it('rejects a non-array and non-Matrix elements with TypeError', () => {
+      for (const stack of [Matrix.hstack, Matrix.vstack]) {
+        expect(() => stack(null as unknown as Matrix[])).toThrowError(TypeError);
+        expect(() => stack([A22(), undefined] as unknown as Matrix[])).toThrowError(TypeError);
+        expect(() => stack([A22(), new Vector([1, 2])] as unknown as Matrix[])).toThrowError(
+          /element 1 is not a Matrix, got Vector/
+        );
+        expect(() => stack([])).toThrowError(RangeError);
+      }
+    });
+
+    it('results never share storage with the inputs', () => {
+      const a = A22();
+      for (const stacked of [Matrix.hstack([a]), Matrix.vstack([a]), Matrix.hstack([a, a])]) {
+        stacked.set(0, 0, 99);
+        expect(a.get(0, 0)).toBe(1);
+      }
+    });
+  });
+
+  describe('operands that are not matrices', () => {
+    it('elementwise operations and comparisons throw TypeError instead of a garbled shape error', () => {
+      const m = A22();
+      const bad = [[1, 2], null, 'x', {}] as unknown as Matrix[];
+      for (const x of bad) {
+        expect(() => m.add(x)).toThrowError(TypeError);
+        expect(() => m.subSelf(x)).toThrowError(TypeError);
+        expect(() => m.isClose(x)).toThrowError(TypeError);
+        expect(() => m.dot(x)).toThrowError(TypeError);
+      }
+      expect(() => m.add([1, 2] as unknown as Matrix)).toThrowError(
+        'Matrix.add: expected a Matrix, got Array.'
+      );
+    });
+  });
+
+  describe('aliasing', () => {
+    it('addSelf/multSelf with a Vector viewing the matrix own first row use the original values', () => {
+      // The row-0 view used to be read after row 0 had already been overwritten.
+      const mk = () => new Matrix(3, 2, [1, 2, 3, 4, 5, 6]);
+      const a = mk();
+      a.addSelf(Vector.wrapUnchecked(a.data.subarray(0, 2)));
+      expect(a.toArray()).toEqual(
+        mk()
+          .add(new Vector([1, 2]))
+          .toArray()
+      );
+
+      const b = mk();
+      b.multSelf(Vector.wrapUnchecked(b.data.subarray(0, 2)));
+      expect(b.toArray()).toEqual(
+        mk()
+          .mult(new Vector([1, 2]))
+          .toArray()
+      );
+    });
+
+    it('setCol with a source that overlaps the matrix buffer reads the original values', () => {
+      const a = A33();
+      a.setCol(1, a.data.subarray(0, 3)); // column 1 <- (1, 2, 3)
+      expect(a.toArray()).toEqual([
+        [1, 1, 3],
+        [4, 2, 6],
+        [7, 3, 9]
+      ]);
+      const b = A33();
+      b.setCol(0, b.data.subarray(1, 4)); // column 0 <- (2, 3, 4)
+      expect(b.toArray()).toEqual([
+        [2, 2, 3],
+        [3, 5, 6],
+        [4, 8, 9]
+      ]);
+    });
+
+    it('setRow with an overlapping source reads the original values', () => {
+      const a = A22();
+      a.setRow(1, a.data.subarray(1, 3));
+      expect(a.toArray()).toEqual([
+        [1, 2],
+        [2, 3]
+      ]);
+    });
+
+    it('A.addSelf(A), A.subSelf(A), A.multSelf(A), A.divSelf(A) are elementwise', () => {
+      const a = A22();
+      expect(a.addSelf(a).toArray()).toEqual([
+        [2, 4],
+        [6, 8]
+      ]);
+      const b = A22();
+      expect(b.subSelf(b).toArray()).toEqual([
+        [0, 0],
+        [0, 0]
+      ]);
+      const c = A22();
+      expect(c.multSelf(c).toArray()).toEqual([
+        [1, 4],
+        [9, 16]
+      ]);
+      const d = A22();
+      expect(d.divSelf(d).toArray()).toEqual([
+        [1, 1],
+        [1, 1]
+      ]);
+    });
+
+    it('A.matmul(A) returns a fresh matrix and leaves A unchanged', () => {
+      const a = A22();
+      const p = a.matmul(a);
+      expect(p).not.toBe(a);
+      expect(p.toArray()).toEqual([
+        [7, 10],
+        [15, 22]
+      ]);
+      expect(a.toArray()).toEqual(A22().toArray());
+    });
+  });
+});
+
+describe('Matrix: operand and argument types', () => {
+  const I2 = () => Matrix.identity(2);
+
+  it('matmul throws TypeError for a non-Matrix operand', () => {
+    expect(() => I2().matmul(null as unknown as Matrix)).toThrowError(
+      'Matrix.matmul: expected a Matrix, got null.'
+    );
+    expect(() =>
+      I2().matmul([
+        [1, 0],
+        [0, 1]
+      ] as unknown as Matrix)
+    ).toThrowError('Matrix.matmul: expected a Matrix, got Array.');
+    expect(() => I2().matmul(new Vector([1, 2]) as unknown as Matrix)).toThrowError(TypeError);
+  });
+
+  it('setRow and setCol throw TypeError (and leave the matrix unchanged) for non-array-like values', () => {
+    for (const bad of [null, undefined, 5, '12', {}, () => 0] as unknown as number[][]) {
+      const m = I2();
+      expect(() => m.setRow(0, bad)).toThrowError(TypeError);
+      expect(() => m.setCol(0, bad)).toThrowError(TypeError);
+      expect(m.toArray()).toEqual(I2().toArray());
+    }
+    expect(() => I2().setRow(0, null as unknown as number[])).toThrowError(
+      'Matrix.setRow: values must be an array-like of numbers or a Vector, got null.'
+    );
+  });
+
+  it('setRow and setCol still accept arrays, typed arrays and vectors', () => {
+    const m = new Matrix(2, 2);
+    m.setRow(0, [1, 2]).setRow(1, new Float64Array([3, 4]));
+    expect(m.toArray()).toEqual([
+      [1, 2],
+      [3, 4]
+    ]);
+    m.setCol(0, new Vector([9, 8]));
+    expect(m.toArray()).toEqual([
+      [9, 2],
+      [8, 4]
+    ]);
+  });
+
+  it('tolerances must be numbers: null and strings are a TypeError, not 0 or a coerced value', () => {
+    for (const tol of [null, '1', {}] as unknown as number[]) {
+      expect(() => I2().isSymmetric(tol)).toThrowError(TypeError);
+      expect(() => I2().isLowerTriangular(tol)).toThrowError(TypeError);
+      expect(() => I2().isUpperTriangular(tol)).toThrowError(TypeError);
+    }
+    expect(() => I2().isSymmetric(null as unknown as number)).toThrowError(
+      'Matrix.isSymmetric: tol must be a number, got null.'
+    );
+    // undefined still selects the default tolerance of 0.
+    expect(I2().isSymmetric(undefined)).toBe(true);
+  });
+});
+
+describe('Matrix: non-finite values in axis-wise reductions, cumsum and sort', () => {
+  const N = () => new Matrix(2, 3, [1, NaN, 3, Infinity, -Infinity, 2]);
+
+  it('sum and mean propagate NaN and cancel opposite infinities to NaN', () => {
+    expect(N().sum(0).toArray()).toEqual([Infinity, NaN, 5]);
+    expect(N().sum(1).toArray()).toEqual([NaN, NaN]);
+    expect(N().mean(0).toArray()).toEqual([Infinity, NaN, 2.5]);
+  });
+
+  it('min and max return NaN for a slice containing NaN, else the extreme (infinities included)', () => {
+    expect(N().min(0).toArray()).toEqual([1, NaN, 2]);
+    expect(N().min(1).toArray()).toEqual([NaN, -Infinity]);
+    expect(N().max(0).toArray()).toEqual([Infinity, NaN, 3]);
+    expect(N().max(1).toArray()).toEqual([NaN, Infinity]);
+  });
+
+  it('argmin and argmax give NaN priority (the index of the first NaN)', () => {
+    expect(N().argmin(1).toArray()).toEqual([1, 1]);
+    expect(N().argmax(1).toArray()).toEqual([1, 0]);
+    expect(N().argmax(0).toArray()).toEqual([1, 0, 0]);
+  });
+
+  it('cumsum propagates NaN along the accumulation direction only', () => {
+    expect(N().cumsum(0).toArray()).toEqual([
+      [1, NaN, 3],
+      [Infinity, NaN, 5]
+    ]);
+    expect(N().cumsum(1).toArray()).toEqual([
+      [1, NaN, NaN],
+      [Infinity, NaN, NaN]
+    ]);
+  });
+
+  it('sort orders -Infinity < finite < Infinity < NaN in both directions of axis', () => {
+    expect(new Matrix(1, 5, [3, NaN, -Infinity, Infinity, 0]).sort().toArray()).toEqual([
+      [-Infinity, 0, 3, Infinity, NaN]
+    ]);
+    expect(new Matrix(3, 2, [3, 1, NaN, 0, -Infinity, 2]).sort(0).toArray()).toEqual([
+      [-Infinity, 0],
+      [3, 1],
+      [NaN, 2]
+    ]);
+  });
+});
