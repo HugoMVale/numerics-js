@@ -38,10 +38,28 @@ function typeName(x: unknown): string {
 }
 
 /**
- * A rows x cols matrix backed by a flat, row-major Float64Array.
+ * A rows x cols matrix of doubles, stored in a single flat, row-major
+ * `Float64Array` exposed as `data`: element `(i, j)` lives at
+ * `data[i * cols + j]`, so row `i` is the contiguous slice
+ * `data.subarray(i * cols, (i + 1) * cols)`. `rows` and `cols` are read-only.
+ * Writing to the elements of `data` is allowed (it is what the algorithms do
+ * in hot loops); replacing `data` by a buffer of another length is not.
+ *
+ * **Mutation convention.** Methods whose name ends in `Self` (`addSelf`,
+ * `transposeSelf`, `swapRowsSelf`, ...) mutate the receiver and return
+ * `this`; the setters `set`, `setRow`, `setCol` and `fill` also mutate (and
+ * return `this`). Every other method returns a new object that does not share
+ * storage with the receiver (the one exception is the internal
+ * `wrapUnchecked`, which wraps the buffer it is given).
+ *
+ * **Errors.** Invalid arguments throw `RangeError` (a bad value: an index
+ * outside the matrix or not an integer, a shape mismatch, an invalid `axis`
+ * or tolerance) or `TypeError` (a bad type: a non-`Matrix` operand, a
+ * non-array row). Messages read `Matrix.method: ... .`. Singular or
+ * non-convergent numerical problems throw `Error`.
  *
  * All element access (`get`, `set`, `row`, `col`, `setRow`, `setCol`,
- * `swapRowsSelf`, `scaleRowSelf`, `addScaledRowSelf`) is **0-based**: valid row indices
+ * `swapRowsSelf`, `scaleRowSelf`, `scaleColSelf`, `addScaledRowSelf`) is **0-based**: valid row indices
  * are `0..rows-1` and valid column indices are `0..cols-1`, matching JS's
  * usual 0-based indexing convention.
  *
@@ -64,16 +82,56 @@ function typeName(x: unknown): string {
 export class Matrix extends ArrayND {
   private _rows: number;
   private _cols: number;
+  /**
+   * The elements, as a flat row-major buffer of length `rows * cols`:
+   * element `(i, j)` is `data[i * cols + j]`. Changes to it change the
+   * matrix.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * A.data[4] = 50;
+   * console.log(A.toString());
+   * console.log(A.data.length);
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2, 3], [4, 50, 6]]
+   * 6
+   * ```
+   */
   public data: Float64Array;
 
   /**
+   * Creates a `rows x cols` matrix, zero-filled or initialised from
+   * row-major `input` (copied).
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const Z = new Matrix(2, 3);
+   * const A = new Matrix(2, 2, [1, 2, 3, 4]);
+   * console.log(Z.toString());
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[0, 0, 0], [0, 0, 0]]
+   * Matrix[[1, 2], [3, 4]]
+   * ```
    * @param rows Number of rows (must be a positive integer).
    * @param cols Number of columns (must be a positive integer).
-   * @param input Optional initial data in
-   *   row-major order (i.e. row 0 followed by row 1, etc.), length `rows * cols`.
+   * @param input Optional initial data (a `Vector` or any array-like of
+   *   numbers) in row-major order (i.e. row 0 followed by row 1, etc.), of length `rows * cols`.
    *   If omitted, the matrix is initialized to all zeros.
    * @throws {RangeError} If `rows` or `cols` is not a positive integer, or
    *   if `input` is provided and its length is not exactly `rows * cols`.
+   * @throws {TypeError} If `input` is neither a `Vector` nor an array-like of numbers.
    */
   constructor(rows: number, cols: number, input?: Vector | ArrayLike<number>) {
     super();
@@ -101,6 +159,19 @@ export class Matrix extends ArrayND {
   /**
    * The number of rows in this matrix. Read-only (like `Vector.size`) so
    * it can never desync from `data`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = new Matrix(2, 3);
+   * console.log(A.rows);
+   * ```
+   *
+   * Output:
+   * ```text
+   * 2
+   * ```
    */
   get rows(): number {
     return this._rows;
@@ -109,6 +180,19 @@ export class Matrix extends ArrayND {
   /**
    * The number of columns in this matrix. Read-only (like `Vector.size`)
    * so it can never desync from `data`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = new Matrix(2, 3);
+   * console.log(A.cols);
+   * ```
+   *
+   * Output:
+   * ```text
+   * 3
+   * ```
    */
   get cols(): number {
     return this._cols;
@@ -431,6 +515,7 @@ export class Matrix extends ArrayND {
    * @param i Row index (0-based).
    * @param j Column index (0-based).
    * @returns The value at `(i, j)`.
+   * @throws {RangeError} If `i` or `j` is not an integer inside the matrix.
    *
    * @example
    * ```ts
@@ -458,6 +543,7 @@ export class Matrix extends ArrayND {
    * @param j Column index (0-based).
    * @param value The value to store.
    * @returns `this`, for chaining.
+   * @throws {RangeError} If `i` or `j` is not an integer inside the matrix.
    *
    * @example
    * ```ts
@@ -483,6 +569,7 @@ export class Matrix extends ArrayND {
    * Extracts row `i` as a vector.
    * @param i Row index (0-based).
    * @returns A new vector with `this.cols` components.
+   * @throws {RangeError} If `i` is not an integer in `0..rows-1`.
    *
    * @example
    * ```ts
@@ -507,6 +594,7 @@ export class Matrix extends ArrayND {
    * Extracts column `j` as a vector.
    * @param j Column index (0-based).
    * @returns A new vector with `this.rows` components.
+   * @throws {RangeError} If `j` is not an integer in `0..cols-1`.
    *
    * @example
    * ```ts
@@ -566,6 +654,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining.
    * @throws {RangeError} If `i` is out of bounds, or `values.length !== cols`.
    *
+   * @throws {TypeError} If `values` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -599,6 +688,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining.
    * @throws {RangeError} If `j` is out of bounds, or `values.length !== rows`.
    *
+   * @throws {TypeError} If `values` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -643,6 +733,7 @@ export class Matrix extends ArrayND {
    * @returns A new matrix equal to `this + x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -663,6 +754,7 @@ export class Matrix extends ArrayND {
    * Adds a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this + s`.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -691,6 +783,7 @@ export class Matrix extends ArrayND {
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -717,6 +810,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -739,6 +833,7 @@ export class Matrix extends ArrayND {
    * Adds a scalar in place, applied to every element: `this += s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -766,6 +861,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `add(v)`.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -794,6 +890,7 @@ export class Matrix extends ArrayND {
    * @returns A new matrix equal to `this - x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -814,6 +911,7 @@ export class Matrix extends ArrayND {
    * Subtracts a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this - s`.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -842,6 +940,7 @@ export class Matrix extends ArrayND {
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -868,6 +967,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -890,6 +990,7 @@ export class Matrix extends ArrayND {
    * Subtracts a scalar in place, applied to every element: `this -= s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -917,6 +1018,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `sub(v)`.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -945,6 +1047,7 @@ export class Matrix extends ArrayND {
    * @returns A new matrix equal to `this * x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -965,6 +1068,7 @@ export class Matrix extends ArrayND {
    * Multiplies this matrix with a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this * s`.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -993,6 +1097,7 @@ export class Matrix extends ArrayND {
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -1019,6 +1124,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1041,6 +1147,7 @@ export class Matrix extends ArrayND {
    * Multiplies this matrix with a scalar in place, applied to every element: `this *= s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -1068,6 +1175,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `mult(v)`.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -1096,6 +1204,7 @@ export class Matrix extends ArrayND {
    * @returns A new matrix equal to `this / x`.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1116,6 +1225,7 @@ export class Matrix extends ArrayND {
    * Divides this matrix by a scalar, applied to every element.
    * @param s The scalar.
    * @returns A new matrix equal to `this / s`.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -1144,6 +1254,7 @@ export class Matrix extends ArrayND {
    * if `this.cols === 1` and `v.size > 1` (numpy would return a
    * `rows x v.size` matrix; that shape change is not supported here).
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -1170,6 +1281,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining.
    * @throws {RangeError} If `x`'s shape differs from this matrix's.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1192,6 +1304,7 @@ export class Matrix extends ArrayND {
    * Divides this matrix by a scalar in place, applied to every element: `this /= s`.
    * @param s The scalar.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    *
    * @example
    * ```ts
@@ -1219,6 +1332,7 @@ export class Matrix extends ArrayND {
    * @returns `this`, for chaining. Left unmodified if an error is thrown.
    * @throws {RangeError} Under the same conditions as `div(v)`.
    *
+   * @throws {TypeError} If the operand is not a `Matrix`, a `Vector` or a number.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -1366,10 +1480,13 @@ export class Matrix extends ArrayND {
   /**
    * Multiplies this matrix by another: `this * m` (matrix product). Not
    * to be confused with `mult()`, the inherited elementwise/scalar
-   * product.
+   * product. Every product is formed, zeros included, so `NaN` and
+   * `Infinity` propagate as in IEEE arithmetic (`0 * NaN` is `NaN`).
    * @param m The right-hand matrix. Must have `m.rows === this.cols`.
    * @returns A new `this.rows x m.cols` matrix.
+   * @throws {RangeError} If `m.rows !== this.cols`.
    *
+   * @throws {TypeError} If `m` is not a `Matrix`.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1407,15 +1524,31 @@ export class Matrix extends ArrayND {
 
   /**
    * Multiplies this matrix by a column vector: `this * v`.
-   * @param v The vector. Must have `v.size === this.cols`.
+   * @param v The vector (a `Vector` or array-like of numbers). Must have `v.size === this.cols`.
    * @returns A new vector with `this.rows` components.
+   * @throws {RangeError} If `v.size !== this.cols`.
    *
+   * @throws {TypeError} If `v` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
    *
    * const A = Matrix.from([[1, 2], [3, 4]]);
    * console.log(A.mulVec(Vector.from([1, 1])).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(3, 7)
+   * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * // A plain array works too.
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.mulVec([1, 1]).toString());
    * ```
    *
    * Output:
@@ -1503,11 +1636,14 @@ export class Matrix extends ArrayND {
    * Checks whether this matrix equals its own transpose, i.e.
    * `this[i][j] === this[j][i]` for every `i`, `j`. Always `false` for a
    * non-square matrix (transposing would change its shape, so it can
-   * never equal itself).
+   * never equal itself). A pair containing `NaN` is never equal; equal
+   * infinities are.
    * @param tol Absolute tolerance: a pair `(i, j)`/`(j, i)` counts as
    * equal if `|this[i][j] - this[j][i]| <= tol`. Defaults to `0` (exact).
    * @returns `true` if this matrix is symmetric within `tol`.
+   * @throws {RangeError} If `tol` is negative or `NaN`.
    *
+   * @throws {TypeError} If `tol` is not a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1547,7 +1683,9 @@ export class Matrix extends ArrayND {
    * @param tol Absolute tolerance: an entry above the diagonal counts as
    * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
    * @returns `true` if every entry above the main diagonal is zero within `tol`.
+   * @throws {RangeError} If `tol` is negative or `NaN`.
    *
+   * @throws {TypeError} If `tol` is not a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1581,7 +1719,9 @@ export class Matrix extends ArrayND {
    * @param tol Absolute tolerance: an entry below the diagonal counts as
    * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
    * @returns `true` if every entry below the main diagonal is zero within `tol`.
+   * @throws {RangeError} If `tol` is negative or `NaN`.
    *
+   * @throws {TypeError} If `tol` is not a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1727,6 +1867,7 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`, if
    * `method` is unknown, or (SVD method) if this matrix contains a
    * non-finite entry.
+   * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
    * ```ts
@@ -1860,7 +2001,7 @@ export class Matrix extends ArrayND {
    * once and reuse this instead of refactoring each time.
    * @param decomposition The `{ L, U, perm }` factorization of the
    * coefficient matrix, as returned by `lu()`.
-   * @param b The right-hand side vector. Must have `b.size === L.rows`.
+   * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === L.rows`.
    * @param out Optional vector of size `L.rows` that receives the
    * solution, avoiding an allocation. It must not be `b`.
    * @returns The solution vector `x`: `out` if given, otherwise a new vector.
@@ -1890,7 +2031,7 @@ export class Matrix extends ArrayND {
    * Solves `this * x = b` for `x`, treating this matrix as lower
    * triangular: only entries on and below the diagonal are read, so
    * this can be called directly on the `L` factor from `lu()`.
-   * @param b The right-hand side vector. Must have `b.size === this.rows`.
+   * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s
    *   (as `lu()`'s `L` always is) and is never read, avoiding a division.
    * @param out Optional vector of size `this.rows` that receives the
@@ -1901,6 +2042,7 @@ export class Matrix extends ArrayND {
    *   or `out.size !== this.rows`.
    * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
    *
+   * @throws {TypeError} If `b` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -1922,7 +2064,7 @@ export class Matrix extends ArrayND {
    * Solves `this * x = b` for `x`, treating this matrix as upper
    * triangular: only entries on and above the diagonal are read, so this
    * can be called directly on the `U` factor from `lu()`.
-   * @param b The right-hand side vector. Must have `b.size === this.rows`.
+   * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @param out Optional vector of size `this.rows` that receives the
    *   solution, avoiding an allocation. It may be `b` itself, which is
    *   then overwritten with the solution.
@@ -1931,6 +2073,7 @@ export class Matrix extends ArrayND {
    *   or `out.size !== this.rows`.
    * @throws {Error} If a zero diagonal entry is encountered.
    *
+   * @throws {TypeError} If `b` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -1955,12 +2098,13 @@ export class Matrix extends ArrayND {
    * against the same matrix with several right-hand sides, call `lu()`
    * once yourself and reuse `Matrix.luSolve` instead of calling this
    * repeatedly.
-   * @param b The right-hand side vector. Must have `b.size === this.rows`.
+   * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
    *   floating-point error) equal to `b`.
    * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
    * @throws {Error} If this matrix is singular (no unique solution).
    *
+   * @throws {TypeError} If `b` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -2109,13 +2253,14 @@ export class Matrix extends ArrayND {
    * `cholesky()`): see `linalg.choleskySolve()`. If you need to solve
    * against the same matrix with several right-hand sides, call
    * `cholesky()` once and reuse this instead of refactoring each time.
-   * @param b The right-hand side vector. Must have `b.size === this.rows`.
+   * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @returns The solution vector `x` such that
    * `this.matmul(this.transpose()).mulVec(x)` is (up to floating-point
    * error) equal to `b`.
    * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
    * @throws {Error} If this matrix has a zero diagonal entry.
    *
+   * @throws {TypeError} If `b` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -2207,7 +2352,7 @@ export class Matrix extends ArrayND {
    * Computes `Q^T * b` for the orthogonal factor `Q` of a pivoted QR
    * factorization, without forming `Q`: see `linalg.qrPivotMulQt()`.
    * @param decomposition A factorization, as returned by `qrPivot()`.
-   * @param b The vector to transform. Must have `b.size === decomposition.QR.rows`.
+   * @param b The vector to transform (a `Vector` or array-like of numbers). Must have `b.size === decomposition.QR.rows`.
    * @param out Optional vector of size `decomposition.QR.rows` that receives
    * the result, avoiding an allocation. It may be `b` itself.
    * @returns `Q^T * b` (length `rows`): `out` if given, otherwise a new
@@ -2290,8 +2435,8 @@ export class Matrix extends ArrayND {
    * square (`m x m`) and `R` must be `m x n`. **Both `Q` and `R` are
    * mutated in place**; pass `qr()`'s freshly-created result (or your
    * own copies) if you need to keep the pre-update factorization around.
-   * @param u The rank-1 update's left vector. Must have `u.size === qr.Q.rows`.
-   * @param v The rank-1 update's right vector. Must have `v.size === qr.R.cols`.
+   * @param u The rank-1 update's left vector (a `Vector` or array-like of numbers). Must have `u.size === qr.Q.rows`.
+   * @param v The rank-1 update's right vector (a `Vector` or array-like of numbers). Must have `v.size === qr.R.cols`.
    * @returns `qr` itself, mutated in place, for chaining.
    * @throws {RangeError} If `Q` isn't square, or `Q`/`R`/`u`/`v`'s shapes
    * are inconsistent with each other.
@@ -2319,8 +2464,8 @@ export class Matrix extends ArrayND {
    * Non-mutating counterpart to `qrUpdateSelf`: copies `Q` and `R`
    * first, so the factorization passed in is left untouched.
    * @param qr An existing `{ Q, R }` factorization, as returned by `qr()`.
-   * @param u The rank-1 update's left vector. Must have `u.size === qr.Q.rows`.
-   * @param v The rank-1 update's right vector. Must have `v.size === qr.R.cols`.
+   * @param u The rank-1 update's left vector (a `Vector` or array-like of numbers). Must have `u.size === qr.Q.rows`.
+   * @param v The rank-1 update's right vector (a `Vector` or array-like of numbers). Must have `v.size === qr.R.cols`.
    * @returns A new `{ Q, R }` factorization such that `Q * R` equals
    * (up to floating-point error) `qr.Q.matmul(qr.R)`'s value plus the
    * outer product of `u` and `v`.
@@ -2354,6 +2499,7 @@ export class Matrix extends ArrayND {
    * eigenvectors, use `eig()` instead: it computes both together from
    * the same Schur form, which is cheaper than computing eigenvalues
    * and then eigenvectors separately.
+   * @param options Optional settings.
    * @param options.tol Relative tolerance for the deflation test.
    * Defaults to `Number.EPSILON`.
    * @param options.maxIterations Total shifted-QR iteration budget
@@ -2437,6 +2583,7 @@ export class Matrix extends ArrayND {
    * the thin `rows x k` and `cols x k` factors, `k = min(rows, cols)`.
    * @returns The `{ U, s, V }` decomposition, `V` not transposed.
    * @throws {RangeError} If this matrix contains a non-finite entry.
+   * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
    * ```ts
@@ -2465,6 +2612,7 @@ export class Matrix extends ArrayND {
    * at roughly a third to two thirds of its cost.
    * @returns The `min(rows, cols)` singular values.
    * @throws {RangeError} If this matrix contains a non-finite entry.
+   * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
    * ```ts
@@ -2497,6 +2645,7 @@ export class Matrix extends ArrayND {
    * rank, the residual norm `||this*x - b||_2`, and the singular values.
    * @throws {RangeError} If `b.size !== rows`, if this matrix contains a
    * non-finite entry, or if `atol` or `rtol` is negative.
+   * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
    * ```ts
@@ -2531,6 +2680,7 @@ export class Matrix extends ArrayND {
    * @returns A new `cols x rows` matrix.
    * @throws {RangeError} If this matrix contains a non-finite entry, or if
    * `atol` or `rtol` is negative.
+   * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
    * ```ts
@@ -2556,6 +2706,7 @@ export class Matrix extends ArrayND {
    * inverse and also applies to rectangular matrices.
    * @returns The condition number, at least `1`, or `Infinity`.
    * @throws {RangeError} If this matrix contains a non-finite entry.
+   * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
    * ```ts
@@ -2578,7 +2729,7 @@ export class Matrix extends ArrayND {
   // Axis-aware reductions, following numpy's convention: `axis`
   // omitted (or `undefined`) reduces over every element to a scalar
   // (delegating to ArrayND's whole-buffer helpers); `axis: 0` reduces
-  // down each column (one result per column, an `Vector` of length
+  // down each column (one result per column, a `Vector` of length
   // `cols`); `axis: 1` reduces across each row (one result per row, an
   // `Vector` of length `rows`). The underlying per-slice math (sum,
   // mean, min/max with NaN propagation, variance/std, argmin/argmax)
@@ -2594,7 +2745,7 @@ export class Matrix extends ArrayND {
    * row, over that row's `cols` values.
    * @param axis `0` to reduce down columns, `1` to reduce across rows.
    * @param reduceFn Reduces one row's or column's values to a single number.
-   * @returns An `Vector` of length `cols` (for `axis: 0`) or `rows` (for `axis: 1`).
+   * @returns A `Vector` of length `cols` (for `axis: 0`) or `rows` (for `axis: 1`).
    */
   private _reduceAxis(
     axis: 0 | 1,
@@ -2623,6 +2774,7 @@ export class Matrix extends ArrayND {
   /**
    * Sums this matrix's elements to a scalar.
    * @returns The sum, or `0` if the buffer is empty.
+   * @param axis Omit to reduce over all elements.
    *
    * @example
    * ```ts
@@ -2640,8 +2792,11 @@ export class Matrix extends ArrayND {
   sum(axis?: undefined): number;
   /**
    * Sums this matrix's elements along one axis. `0` sums down each
-   * column, returning an `Vector` of length `cols`; `1` sums across
-   * each row, returning an `Vector` of length `rows`.
+   * column, returning a `Vector` of length `cols`; `1` sums across
+   * each row, returning a `Vector` of length `rows`.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with the sums.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -2666,6 +2821,8 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the arithmetic mean of this matrix's elements to a scalar.
+   * @param axis Omit to reduce over all elements.
+   * @returns The arithmetic mean of all elements.
    *
    * @example
    * ```ts
@@ -2684,6 +2841,9 @@ export class Matrix extends ArrayND {
   /**
    * Computes the arithmetic mean along one axis. `0` averages down each
    * column; `1` averages across each row.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with the means.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -2709,6 +2869,8 @@ export class Matrix extends ArrayND {
   /**
    * Finds the smallest element of this matrix. NaN wins the comparison
    * so it propagates, matching `Math.min`.
+   * @param axis Omit to reduce over all elements.
+   * @returns The smallest element.
    *
    * @example
    * ```ts
@@ -2728,6 +2890,9 @@ export class Matrix extends ArrayND {
    * Finds the smallest element along one axis. `0` finds the minimum of
    * each column; `1` finds the minimum of each row. NaN propagates, as
    * in the no-axis form.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with the minima.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -2753,6 +2918,8 @@ export class Matrix extends ArrayND {
   /**
    * Finds the largest element of this matrix. NaN wins the comparison
    * so it propagates, matching `Math.max`.
+   * @param axis Omit to reduce over all elements.
+   * @returns The largest element.
    *
    * @example
    * ```ts
@@ -2772,6 +2939,9 @@ export class Matrix extends ArrayND {
    * Finds the largest element along one axis. `0` finds the maximum of
    * each column; `1` finds the maximum of each row. NaN propagates, as
    * in the no-axis form.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with the maxima.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -2800,6 +2970,8 @@ export class Matrix extends ArrayND {
    * @param ddof Delta degrees of freedom. The divisor used is
    * `n - ddof`. Defaults to `0` (population variance); pass `1` for the
    * unbiased sample variance.
+   * @param axis Omit to reduce over all elements.
+   * @returns The variance over all elements.
    *
    * @example
    * ```ts
@@ -2822,6 +2994,9 @@ export class Matrix extends ArrayND {
    * each column; `1` computes the variance of each row.
    * @param ddof Delta degrees of freedom, as in the no-axis form, applied
    * per row/column.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with the variances.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -2847,6 +3022,8 @@ export class Matrix extends ArrayND {
   /**
    * Computes the standard deviation of this matrix's elements to a scalar.
    * @param ddof Delta degrees of freedom, forwarded to `variance()`.
+   * @param axis Omit to reduce over all elements.
+   * @returns The standard deviation over all elements.
    *
    * @example
    * ```ts
@@ -2868,6 +3045,9 @@ export class Matrix extends ArrayND {
    * Computes the standard deviation along one axis. `0` computes it for
    * each column; `1` for each row.
    * @param ddof Delta degrees of freedom, forwarded to `variance()`.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with the standard deviations.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -2893,7 +3073,9 @@ export class Matrix extends ArrayND {
   /**
    * Computes the cumulative sum of this matrix's elements, flattened in
    * row-major order first (row 0 followed by row 1, etc.): a single
-   * running total over that sequence, as an `Vector` of length `rows * cols`.
+   * running total over that sequence, as a `Vector` of length `rows * cols`.
+   * @param axis Omit to reduce over all elements.
+   * @returns A vector of length `rows * cols` with the running sums over the row-major flattened elements.
    *
    * @example
    * ```ts
@@ -2914,6 +3096,9 @@ export class Matrix extends ArrayND {
    * shape. `0` accumulates down each column independently, restarting
    * the running total at the top of each column. `1` accumulates across
    * each row independently, restarting at the start of each row.
+   * @param axis `0` to accumulate down each column, `1` across each row.
+   * @returns A new matrix of the same shape with running sums down each column (axis `0`) or across each row (axis `1`).
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -2969,6 +3154,8 @@ export class Matrix extends ArrayND {
    * index into the matrix flattened in row-major order. If multiple
    * elements tie for the minimum, the first flat index is returned. NaN
    * elements take priority, matching `min()`'s NaN-propagation semantics.
+   * @param axis Omit to reduce over all elements.
+   * @returns The flat (row-major) index of the smallest element; the first one if several are equal.
    *
    * @example
    * ```ts
@@ -2987,10 +3174,13 @@ export class Matrix extends ArrayND {
   /**
    * Finds the index of the smallest element along one axis. `0` returns,
    * for each column, the *row* index (`0` to `rows - 1`) of that
-   * column's minimum, as an `Vector` of length `cols`. `1` returns, for
+   * column's minimum, as a `Vector` of length `cols`. `1` returns, for
    * each row, the *column* index (`0` to `cols - 1`) of that row's
-   * minimum, as an `Vector` of length `rows`. Ties and NaN priority
+   * minimum, as a `Vector` of length `rows`. Ties and NaN priority
    * follow the no-axis form, applied per row/column.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with, for each column or row, the index within it of its smallest element.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -3018,6 +3208,8 @@ export class Matrix extends ArrayND {
    * index into the matrix flattened in row-major order. If multiple
    * elements tie for the maximum, the first flat index is returned. NaN
    * elements take priority, matching `max()`'s NaN-propagation semantics.
+   * @param axis Omit to reduce over all elements.
+   * @returns The flat (row-major) index of the largest element; the first one if several are equal.
    *
    * @example
    * ```ts
@@ -3036,10 +3228,13 @@ export class Matrix extends ArrayND {
   /**
    * Finds the index of the largest element along one axis. `0` returns,
    * for each column, the *row* index (`0` to `rows - 1`) of that
-   * column's maximum, as an `Vector` of length `cols`. `1` returns, for
+   * column's maximum, as a `Vector` of length `cols`. `1` returns, for
    * each row, the *column* index (`0` to `cols - 1`) of that row's
-   * maximum, as an `Vector` of length `rows`. Ties and NaN priority
+   * maximum, as a `Vector` of length `rows`. Ties and NaN priority
    * follow the no-axis form, applied per row/column.
+   * @param axis `0` to reduce down each column, `1` to reduce across each row.
+   * @returns A `Vector` of length `cols` (axis `0`) or `rows` (axis `1`) with, for each column or row, the index within it of its largest element.
+   * @throws {RangeError} If `axis` is not `0`, `1` or `undefined`.
    *
    * @example
    * ```ts
@@ -3084,6 +3279,7 @@ export class Matrix extends ArrayND {
    * default, which sorts lexicographically).
    * @returns A new matrix, the same shape as this one, with each row or
    * column sorted independently.
+   * @throws {RangeError} If `axis` is not `0` or `1`.
    *
    * @example
    * ```ts
@@ -3151,7 +3347,9 @@ export class Matrix extends ArrayND {
    * semantics as `Array.prototype.slice`, applied independently to rows
    * and columns.
    * @param rowStart Row start index, inclusive. Defaults to `0`.
-   * Negative values count back from the last row.
+   * Negative values count back from the last row. Like all four bounds,
+   * it is truncated toward zero (`1.5` is `1`, `-1.5` is `-1`) and `NaN` counts
+   * as `0`.
    * @param rowEnd Row end index, exclusive. Defaults to `rows`. Negative
    * values count back from the last row.
    * @param colStart Column start index, inclusive. Defaults to `0`.
@@ -3203,6 +3401,7 @@ export class Matrix extends ArrayND {
    * @param repeats Must be a non-negative integer; `0` yields an empty vector.
    * @returns A new vector of length `rows * cols * repeats`.
    * @throws {RangeError} If `repeats` is not a non-negative integer.
+   * @param axis Omit to repeat each element of the row-major flattening.
    *
    * @example
    * ```ts
@@ -3290,10 +3489,11 @@ export class Matrix extends ArrayND {
    * `reps` tiles along the columns only (numpy promotes it to `(1, reps)`);
    * a `[rowReps, colReps]` pair tiles along both axes. Contrast with
    * `repeat()`, which repeats each row/column in place.
-   * @param reps Non-negative integer(s). Must both be `>= 1` here.
+   * @param reps A column count, or a `[rowReps, colReps]` pair; each count must be an integer `>= 1`.
    * @returns A new, independent `rows * rowReps x cols * colReps` matrix.
-   * @throws {RangeError} If a count is not a non-negative integer, or is
-   * `0` (Matrix cannot represent a matrix with 0 rows or 0 columns).
+   * @throws {RangeError} If a count is not an integer `>= 1` (Matrix cannot
+   * represent a matrix with 0 rows or 0 columns).
+   * @throws {TypeError} If `reps` is neither a number nor a `[rowReps, colReps]` pair.
    *
    * @example
    * ```ts
@@ -3391,7 +3591,24 @@ export class Matrix extends ArrayND {
 
   /**
    * Makes Matrix iterable over its rows, e.g. `for (const r of someMatrix)`.
-   * Each yielded value is an Vector.
+   * Each yielded value is a new, independent `Vector` copy of the row.
+   * @returns A generator over the rows, from the first to the last.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2], [3, 4]]);
+   * for (const row of A) console.log(row.toString());
+   * console.log([...A].length);
+   * ```
+   *
+   * Output:
+   * ```text
+   * Vector(1, 2)
+   * Vector(3, 4)
+   * 2
+   * ```
    */
   *[Symbol.iterator](): Generator<Vector, void, unknown> {
     for (let i = 0; i < this.rows; i++) yield this.row(i);
@@ -3609,10 +3826,11 @@ export class Matrix extends ArrayND {
    * version of what `identity(n)` hand-rolls with a loop —
    * `Matrix.diag(Vector.ones(n))` is equivalent to `Matrix.identity(n)`.
    * Inverse of the instance method `diag()`.
-   * @param v The diagonal entries.
+   * @param v The diagonal entries (a `Vector` or array-like of numbers).
    * @returns A new `v.size x v.size` matrix.
    * @throws {RangeError} If `v` is empty (`size === 0`).
    *
+   * @throws {TypeError} If `v` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -3638,9 +3856,11 @@ export class Matrix extends ArrayND {
   }
 
   /**
-   * Creates an Matrix from an array of row arrays.
-   * @param rows Source data; each inner array must have the same length.
+   * Creates a Matrix from an array of rows.
+   * @param rows Source data: one entry per row, each an array of numbers, a typed array or a `Vector`; all rows must have the same, non-zero length. The data is copied.
    * @returns A new matrix with shape `rows.length x rows[0].length`.
+   * @throws {TypeError} If `rows` is not an array, or a row is neither an array-like of numbers nor a `Vector`.
+   * @throws {RangeError} If `rows` is empty, a row is empty, or the rows have different lengths.
    *
    * @example
    * ```ts
@@ -3652,6 +3872,20 @@ export class Matrix extends ArrayND {
    * Output:
    * ```text
    * Matrix[[1, 2, 3], [4, 5, 6]]
+   * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix, Vector } from 'numerics-js/linalg';
+   *
+   * // Rows may be arrays, typed arrays or vectors.
+   * const A = Matrix.from([[1, 2], new Float64Array([3, 4]), Vector.from([5, 6])]);
+   * console.log(A.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 2], [3, 4], [5, 6]]
    * ```
    */
   static from(rows: ReadonlyArray<Vector | ArrayLike<number>>): Matrix {
@@ -3707,6 +3941,7 @@ export class Matrix extends ArrayND {
    * every input's `cols`.
    * @throws {RangeError} If `matrices` is empty, or if any matrix's
    * `rows` doesn't match the first matrix's.
+   * @throws {TypeError} If `matrices` is not an array or contains a non-`Matrix` element.
    *
    * @example
    * ```ts
@@ -3755,6 +3990,7 @@ export class Matrix extends ArrayND {
    * `matrices[0].cols` columns.
    * @throws {RangeError} If `matrices` is empty, or if any matrix's
    * `cols` doesn't match the first matrix's.
+   * @throws {TypeError} If `matrices` is not an array or contains a non-`Matrix` element.
    *
    * @example
    * ```ts
