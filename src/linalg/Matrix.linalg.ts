@@ -172,14 +172,14 @@ function forwardEliminate(A: Matrix, tol = 0): { rank: number; sign: number; piv
     const pivotRow = findPivotRow(m, col, rank, tol);
     if (pivotRow === -1) continue;
     if (pivotRow !== rank) {
-      m.swapRows(rank, pivotRow);
+      m.swapRowsSelf(rank, pivotRow);
       sign = -sign;
     }
     const pivot = m.getUnchecked(rank, col);
     pivots.push(pivot);
     for (let i = rank + 1; i < m.rows; i++) {
       const factor = m.getUnchecked(i, col) / pivot;
-      if (factor !== 0) m.addScaledRow(i, rank, -factor);
+      if (factor !== 0) m.addScaledRowSelf(i, rank, -factor);
     }
     rank++;
   }
@@ -283,12 +283,12 @@ export function inverse(A: Matrix): Matrix {
   for (let col = 0; col < n; col++) {
     const pivotRow = findPivotRow(aug, col, col, 0);
     if (pivotRow === -1) throw new Error('Matrix inverse: matrix is singular.');
-    if (pivotRow !== col) aug.swapRows(col, pivotRow);
-    aug.scaleRow(col, 1 / aug.getUnchecked(col, col));
+    if (pivotRow !== col) aug.swapRowsSelf(col, pivotRow);
+    aug.scaleRowSelf(col, 1 / aug.getUnchecked(col, col));
     for (let i = 0; i < n; i++) {
       if (i === col) continue;
       const factor = aug.getUnchecked(i, col);
-      if (factor !== 0) aug.addScaledRow(i, col, -factor);
+      if (factor !== 0) aug.addScaledRowSelf(i, col, -factor);
     }
   }
   const res = new Matrix(n, n);

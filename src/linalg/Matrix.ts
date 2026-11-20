@@ -41,7 +41,7 @@ function typeName(x: unknown): string {
  * A rows x cols matrix backed by a flat, row-major Float64Array.
  *
  * All element access (`get`, `set`, `row`, `col`, `setRow`, `setCol`,
- * `swapRows`, `scaleRow`, `addScaledRow`) is **0-based**: valid row indices
+ * `swapRowsSelf`, `scaleRowSelf`, `addScaledRowSelf`) is **0-based**: valid row indices
  * are `0..rows-1` and valid column indices are `0..cols-1`, matching JS's
  * usual 0-based indexing convention.
  *
@@ -75,23 +75,27 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `rows` or `cols` is not a positive integer, or
    *   if `input` is provided and its length is not exactly `rows * cols`.
    */
-  constructor(rows: number, cols: number, input?: ArrayLike<number>) {
+  constructor(rows: number, cols: number, input?: Vector | ArrayLike<number>) {
     super();
     if (!Number.isInteger(rows) || rows < 1) {
-      throw new RangeError(`Matrix: rows must be a positive integer, got ${rows}.`);
+      throw new RangeError(`Matrix.constructor: rows must be a positive integer, got ${rows}.`);
     }
     if (!Number.isInteger(cols) || cols < 1) {
-      throw new RangeError(`Matrix: cols must be a positive integer, got ${cols}.`);
+      throw new RangeError(`Matrix.constructor: cols must be a positive integer, got ${cols}.`);
     }
-    if (input !== undefined && input.length !== rows * cols) {
-      throw new RangeError(
-        `Matrix: expected ${rows * cols} values for a ${rows}x${cols} matrix, got ${input.length}.`
-      );
+    const src =
+      input === undefined ? undefined : Matrix._asArrayLike(input, 'constructor', 'input');
+    if (src !== undefined) {
+      if (src.length !== rows * cols) {
+        throw new RangeError(
+          `Matrix.constructor: expected ${rows * cols} values for a ${rows}x${cols} matrix, got ${src.length}.`
+        );
+      }
     }
     this._rows = rows;
     this._cols = cols;
     this.data = new Float64Array(rows * cols);
-    if (input !== undefined) this.data.set(input);
+    if (src !== undefined) this.data.set(src);
   }
 
   /**
@@ -108,147 +112,6 @@ export class Matrix extends ArrayND {
    */
   get cols(): number {
     return this._cols;
-  }
-
-  // -----------------------------------------------------------------
-  // Structural predicates. All default to `tol = 0` (exact), matching
-  // `lu()`/`determinant()`'s "exact zero only" convention — pass a
-  // small positive `tol` when checking a matrix built by floating-point
-  // computation (e.g. the `R` from `qr()`/`qrUpdate()`), whose
-  // off-triangle entries are typically tiny-but-nonzero rather than
-  // exactly `0`.
-  // -----------------------------------------------------------------
-
-  /**
-   * Checks whether this matrix is square (`rows === cols`).
-   * @returns `true` if `rows === cols`.
-   *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
-   * const B = Matrix.from([[1, 2], [3, 4]]);
-   * console.log(A.isSquare());
-   * console.log(B.isSquare());
-   * ```
-   *
-   * Output:
-   * ```text
-   * false
-   * true
-   * ```
-   */
-  isSquare(): boolean {
-    return this.rows === this.cols;
-  }
-
-  /**
-   * Checks whether this matrix equals its own transpose, i.e.
-   * `this[i][j] === this[j][i]` for every `i`, `j`. Always `false` for a
-   * non-square matrix (transposing would change its shape, so it can
-   * never equal itself).
-   * @param tol Absolute tolerance: a pair `(i, j)`/`(j, i)` counts as
-   * equal if `|this[i][j] - this[j][i]| <= tol`. Defaults to `0` (exact).
-   * @returns `true` if this matrix is symmetric within `tol`.
-   *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const S = Matrix.from([[1, 2], [2, 3]]);
-   * const N = Matrix.from([[1, 2], [3, 4]]);
-   * console.log(S.isSymmetric());
-   * console.log(N.isSymmetric());
-   * ```
-   *
-   * Output:
-   * ```text
-   * true
-   * false
-   * ```
-   */
-  isSymmetric(tol: number = 0): boolean {
-    Matrix._checkTol(tol, 'isSymmetric');
-    if (!this.isSquare()) return false;
-    for (let i = 0; i < this.rows; i++) {
-      for (let j = i + 1; j < this.cols; j++) {
-        const a = this.getUnchecked(i, j);
-        const b = this.getUnchecked(j, i);
-        // `a !== b` first so that equal infinities count as equal; NaN never does.
-        if (a !== b && !(Math.abs(a - b) <= tol)) return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Checks whether this matrix is lower triangular: every entry strictly
-   * above the main diagonal (`j > i`) is zero. Unlike `isSymmetric()`,
-   * this doesn't require a square matrix — a wide or tall matrix can
-   * still satisfy "zero above the diagonal" (a trapezoidal shape), the
-   * same generalization `qr()` relies on for `R` when `rows !== cols`.
-   * @param tol Absolute tolerance: an entry above the diagonal counts as
-   * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
-   * @returns `true` if every entry above the main diagonal is zero within `tol`.
-   *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const L = Matrix.from([[1, 0], [2, 3]]);
-   * console.log(L.isLowerTriangular());
-   * console.log(Matrix.from([[1, 2], [0, 3]]).isLowerTriangular());
-   * ```
-   *
-   * Output:
-   * ```text
-   * true
-   * false
-   * ```
-   */
-  isLowerTriangular(tol: number = 0): boolean {
-    Matrix._checkTol(tol, 'isLowerTriangular');
-    for (let i = 0; i < this.rows; i++) {
-      for (let j = i + 1; j < this.cols; j++) {
-        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Checks whether this matrix is upper triangular (or, for a
-   * non-square matrix, upper trapezoidal): every entry strictly below
-   * the main diagonal (`i > j`) is zero. This is the shape `qr()`
-   * guarantees for its `R` factor, including when `rows !== cols`.
-   * @param tol Absolute tolerance: an entry below the diagonal counts as
-   * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
-   * @returns `true` if every entry below the main diagonal is zero within `tol`.
-   *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const U = Matrix.from([[1, 2], [0, 3]]);
-   * console.log(U.isUpperTriangular());
-   * console.log(Matrix.from([[1, 0], [2, 3]]).isUpperTriangular());
-   * ```
-   *
-   * Output:
-   * ```text
-   * true
-   * false
-   * ```
-   */
-  isUpperTriangular(tol: number = 0): boolean {
-    Matrix._checkTol(tol, 'isUpperTriangular');
-    for (let i = 1; i < this.rows; i++) {
-      for (let j = 0; j < Math.min(i, this.cols); j++) {
-        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
-      }
-    }
-    return true;
   }
 
   /**
@@ -1527,7 +1390,7 @@ export class Matrix extends ArrayND {
     }
     if (this.cols !== m.rows) {
       throw new RangeError(
-        `Matrix matmul shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}.`
+        `Matrix.matmul: shape mismatch: ${this.rows}x${this.cols} * ${m.rows}x${m.cols}.`
       );
     }
     const res = new Matrix(this.rows, m.cols);
@@ -1560,10 +1423,11 @@ export class Matrix extends ArrayND {
    * Vector(3, 7)
    * ```
    */
-  mulVec(v: Vector): Vector {
+  mulVec(v: VectorLike): Vector {
+    v = Vector.asVector(v);
     if (v.size !== this.cols) {
       throw new RangeError(
-        `Matrix mulVec shape mismatch: ${this.rows}x${this.cols} * vec(${v.size}).`
+        `Matrix.mulVec: shape mismatch: ${this.rows}x${this.cols} * vector of size ${v.size}.`
       );
     }
     const res = new Vector(this.rows);
@@ -1602,6 +1466,147 @@ export class Matrix extends ArrayND {
     return res;
   }
 
+  // -----------------------------------------------------------------
+  // Structural predicates. All default to `tol = 0` (exact), matching
+  // `lu()`/`determinant()`'s "exact zero only" convention — pass a
+  // small positive `tol` when checking a matrix built by floating-point
+  // computation (e.g. the `R` from `qr()`/`qrUpdate()`), whose
+  // off-triangle entries are typically tiny-but-nonzero rather than
+  // exactly `0`.
+  // -----------------------------------------------------------------
+
+  /**
+   * Checks whether this matrix is square (`rows === cols`).
+   * @returns `true` if `rows === cols`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
+   * const B = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(A.isSquare());
+   * console.log(B.isSquare());
+   * ```
+   *
+   * Output:
+   * ```text
+   * false
+   * true
+   * ```
+   */
+  isSquare(): boolean {
+    return this.rows === this.cols;
+  }
+
+  /**
+   * Checks whether this matrix equals its own transpose, i.e.
+   * `this[i][j] === this[j][i]` for every `i`, `j`. Always `false` for a
+   * non-square matrix (transposing would change its shape, so it can
+   * never equal itself).
+   * @param tol Absolute tolerance: a pair `(i, j)`/`(j, i)` counts as
+   * equal if `|this[i][j] - this[j][i]| <= tol`. Defaults to `0` (exact).
+   * @returns `true` if this matrix is symmetric within `tol`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const S = Matrix.from([[1, 2], [2, 3]]);
+   * const N = Matrix.from([[1, 2], [3, 4]]);
+   * console.log(S.isSymmetric());
+   * console.log(N.isSymmetric());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
+   */
+  isSymmetric(tol: number = 0): boolean {
+    Matrix._checkTol(tol, 'isSymmetric');
+    if (!this.isSquare()) return false;
+    for (let i = 0; i < this.rows; i++) {
+      for (let j = i + 1; j < this.cols; j++) {
+        const a = this.getUnchecked(i, j);
+        const b = this.getUnchecked(j, i);
+        // `a !== b` first so that equal infinities count as equal; NaN never does.
+        if (a !== b && !(Math.abs(a - b) <= tol)) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Checks whether this matrix is lower triangular: every entry strictly
+   * above the main diagonal (`j > i`) is zero. Unlike `isSymmetric()`,
+   * this doesn't require a square matrix — a wide or tall matrix can
+   * still satisfy "zero above the diagonal" (a trapezoidal shape), the
+   * same generalization `qr()` relies on for `R` when `rows !== cols`.
+   * @param tol Absolute tolerance: an entry above the diagonal counts as
+   * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
+   * @returns `true` if every entry above the main diagonal is zero within `tol`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const L = Matrix.from([[1, 0], [2, 3]]);
+   * console.log(L.isLowerTriangular());
+   * console.log(Matrix.from([[1, 2], [0, 3]]).isLowerTriangular());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
+   */
+  isLowerTriangular(tol: number = 0): boolean {
+    Matrix._checkTol(tol, 'isLowerTriangular');
+    for (let i = 0; i < this.rows; i++) {
+      for (let j = i + 1; j < this.cols; j++) {
+        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Checks whether this matrix is upper triangular (or, for a
+   * non-square matrix, upper trapezoidal): every entry strictly below
+   * the main diagonal (`i > j`) is zero. This is the shape `qr()`
+   * guarantees for its `R` factor, including when `rows !== cols`.
+   * @param tol Absolute tolerance: an entry below the diagonal counts as
+   * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
+   * @returns `true` if every entry below the main diagonal is zero within `tol`.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const U = Matrix.from([[1, 2], [0, 3]]);
+   * console.log(U.isUpperTriangular());
+   * console.log(Matrix.from([[1, 0], [2, 3]]).isUpperTriangular());
+   * ```
+   *
+   * Output:
+   * ```text
+   * true
+   * false
+   * ```
+   */
+  isUpperTriangular(tol: number = 0): boolean {
+    Matrix._checkTol(tol, 'isUpperTriangular');
+    for (let i = 1; i < this.rows; i++) {
+      for (let j = 0; j < Math.min(i, this.cols); j++) {
+        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
+      }
+    }
+    return true;
+  }
+
   /**
    * Computes the trace (sum of diagonal elements) of this matrix.
    * @returns The trace.
@@ -1622,7 +1627,9 @@ export class Matrix extends ArrayND {
    */
   trace(): number {
     if (this.rows !== this.cols)
-      throw new RangeError(`Matrix trace requires a square matrix, got ${this.rows}x${this.cols}.`);
+      throw new RangeError(
+        `Matrix.trace: expected a square matrix, got ${this.rows}x${this.cols}.`
+      );
     let sum = 0;
     for (let i = 0; i < this.rows; i++) sum += this.getUnchecked(i, i);
     return sum;
@@ -1875,8 +1882,8 @@ export class Matrix extends ArrayND {
    * Vector(1, 2)
    * ```
    */
-  static luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
-    return linalg.luSolve(decomposition, b, out);
+  static luSolve(decomposition: LUDecomposition, b: VectorLike, out?: Vector): Vector {
+    return linalg.luSolve(decomposition, Vector.asVector(b), out);
   }
 
   /**
@@ -1907,8 +1914,8 @@ export class Matrix extends ArrayND {
    * Vector(1, 1.3333333333333333)
    * ```
    */
-  solveLower(b: Vector, unitDiagonal = false, out?: Vector): Vector {
-    return linalg.solveLower(this, b, unitDiagonal, out);
+  solveLower(b: VectorLike, unitDiagonal = false, out?: Vector): Vector {
+    return linalg.solveLower(this, Vector.asVector(b), unitDiagonal, out);
   }
 
   /**
@@ -1937,8 +1944,8 @@ export class Matrix extends ArrayND {
    * Vector(1, 2)
    * ```
    */
-  solveUpper(b: Vector, out?: Vector): Vector {
-    return linalg.solveUpper(this, b, out);
+  solveUpper(b: VectorLike, out?: Vector): Vector {
+    return linalg.solveUpper(this, Vector.asVector(b), out);
   }
 
   /**
@@ -1967,8 +1974,8 @@ export class Matrix extends ArrayND {
    * Vector(1.4, 3.4)
    * ```
    */
-  solve(b: Vector): Vector {
-    return linalg.solve(this, b);
+  solve(b: VectorLike): Vector {
+    return linalg.solve(this, Vector.asVector(b));
   }
 
   // -----------------------------------------------------------------
@@ -2122,8 +2129,8 @@ export class Matrix extends ArrayND {
    * Vector(0.2777777777777778, 0.4444444444444444)
    * ```
    */
-  choleskySolve(b: Vector): Vector {
-    return linalg.choleskySolve(this, b);
+  choleskySolve(b: VectorLike): Vector {
+    return linalg.choleskySolve(this, Vector.asVector(b));
   }
 
   // -----------------------------------------------------------------
@@ -2222,8 +2229,8 @@ export class Matrix extends ArrayND {
    * Vector(-3.7416573867739418, 9.447285969364182e-16, 3.0588234610191476e-16)
    * ```
    */
-  static qrPivotMulQt(decomposition: QRPivotDecomposition, b: Vector, out?: Vector): Vector {
-    return linalg.qrPivotMulQt(decomposition, b, out);
+  static qrPivotMulQt(decomposition: QRPivotDecomposition, b: VectorLike, out?: Vector): Vector {
+    return linalg.qrPivotMulQt(decomposition, Vector.asVector(b), out);
   }
 
   /**
@@ -2304,8 +2311,8 @@ export class Matrix extends ArrayND {
    * Matrix[[0.9999999999999998, 0], [0, 1], [0.9999999999999998, 0]]
    * ```
    */
-  static qrUpdateSelf(qr: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
-    return linalg.qrUpdateSelf(qr, u, v);
+  static qrUpdateSelf(qr: QRDecomposition, u: VectorLike, v: VectorLike): QRDecomposition {
+    return linalg.qrUpdateSelf(qr, Vector.asVector(u), Vector.asVector(v));
   }
 
   /**
@@ -2336,8 +2343,8 @@ export class Matrix extends ArrayND {
    * Matrix[[1, 0], [0, 1], [0, 0]]
    * ```
    */
-  static qrUpdate(qr: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
-    return linalg.qrUpdate(qr, u, v);
+  static qrUpdate(qr: QRDecomposition, u: VectorLike, v: VectorLike): QRDecomposition {
+    return linalg.qrUpdate(qr, Vector.asVector(u), Vector.asVector(v));
   }
 
   /**
@@ -3057,9 +3064,11 @@ export class Matrix extends ArrayND {
 
   // -----------------------------------------------------------------
   // Axis-aware reshaping: unlike the reductions above, these don't
-  // collapse a dimension — `sort` permutes each row/column in place
-  // (same shape in, same shape out) and `slice` extracts a sub-matrix.
-  // Grouped here by their shared per-axis structure, not by behavior.
+  // collapse a dimension — `sort` returns a copy with each row/column
+  // sorted (same shape in, same shape out), `slice` extracts a
+  // sub-matrix and `repeat`/`tile` enlarge the matrix. All return new
+  // matrices; none mutates the receiver. Grouped here by their shared
+  // per-axis structure, not by behavior.
   // -----------------------------------------------------------------
 
   /**
@@ -3414,7 +3423,7 @@ export class Matrix extends ArrayND {
   transposeSelf(): this {
     if (this.rows !== this.cols)
       throw new RangeError(
-        `Matrix transposeSelf requires a square matrix, got ${this.rows}x${this.cols}.`
+        `Matrix.transposeSelf: expected a square matrix, got ${this.rows}x${this.cols}.`
       );
     for (let i = 0; i < this.rows; i++) {
       for (let j = i + 1; j < this.cols; j++) {
@@ -3439,7 +3448,7 @@ export class Matrix extends ArrayND {
    * import { Matrix } from 'numerics-js/linalg';
    *
    * const A = Matrix.from([[1, 2], [3, 4], [5, 6]]);
-   * A.swapRows(0, 2);
+   * A.swapRowsSelf(0, 2);
    * console.log(A.toString());
    * ```
    *
@@ -3448,9 +3457,9 @@ export class Matrix extends ArrayND {
    * Matrix[[5, 6], [3, 4], [1, 2]]
    * ```
    */
-  swapRows(i: number, j: number): this {
-    this._checkRow(i, 'swapRows');
-    this._checkRow(j, 'swapRows');
+  swapRowsSelf(i: number, j: number): this {
+    this._checkRow(i, 'swapRowsSelf');
+    this._checkRow(j, 'swapRowsSelf');
     if (i === j) return this;
     const oi = this.flatIndex(i, 0);
     const oj = this.flatIndex(j, 0);
@@ -3474,7 +3483,7 @@ export class Matrix extends ArrayND {
    * import { Matrix } from 'numerics-js/linalg';
    *
    * const A = Matrix.from([[1, 2], [3, 4]]);
-   * A.scaleRow(1, 10);
+   * A.scaleRowSelf(1, 10);
    * console.log(A.toString());
    * ```
    *
@@ -3483,8 +3492,8 @@ export class Matrix extends ArrayND {
    * Matrix[[1, 2], [30, 40]]
    * ```
    */
-  scaleRow(i: number, s: number): this {
-    this._checkRow(i, 'scaleRow');
+  scaleRowSelf(i: number, s: number): this {
+    this._checkRow(i, 'scaleRowSelf');
     const offset = this.flatIndex(i, 0);
     for (let k = 0; k < this.cols; k++) this.data[offset + k] *= s;
     return this;
@@ -3502,7 +3511,7 @@ export class Matrix extends ArrayND {
    * import { Matrix } from 'numerics-js/linalg';
    *
    * const A = Matrix.from([[1, 2], [3, 4]]);
-   * A.scaleCol(0, -1);
+   * A.scaleColSelf(0, -1);
    * console.log(A.toString());
    * ```
    *
@@ -3511,8 +3520,8 @@ export class Matrix extends ArrayND {
    * Matrix[[-1, 2], [-3, 4]]
    * ```
    */
-  scaleCol(j: number, s: number): this {
-    this._checkCol(j, 'scaleCol');
+  scaleColSelf(j: number, s: number): this {
+    this._checkCol(j, 'scaleColSelf');
     for (let i = 0; i < this.rows; i++) this.data[this.flatIndex(i, j)] *= s;
     return this;
   }
@@ -3531,7 +3540,7 @@ export class Matrix extends ArrayND {
    * import { Matrix } from 'numerics-js/linalg';
    *
    * const A = Matrix.from([[1, 2], [3, 4]]);
-   * A.addScaledRow(1, 0, -3);
+   * A.addScaledRowSelf(1, 0, -3);
    * console.log(A.toString());
    * ```
    *
@@ -3540,9 +3549,9 @@ export class Matrix extends ArrayND {
    * Matrix[[1, 2], [0, -2]]
    * ```
    */
-  addScaledRow(i: number, j: number, s: number): this {
-    this._checkRow(i, 'addScaledRow');
-    this._checkRow(j, 'addScaledRow');
+  addScaledRowSelf(i: number, j: number, s: number): this {
+    this._checkRow(i, 'addScaledRowSelf');
+    this._checkRow(j, 'addScaledRowSelf');
     const offsetI = this.flatIndex(i, 0);
     const offsetJ = this.flatIndex(j, 0);
     for (let k = 0; k < this.cols; k++) this.data[offsetI + k] += this.data[offsetJ + k] * s;
@@ -3616,7 +3625,8 @@ export class Matrix extends ArrayND {
    * Matrix[[1, 0, 0], [0, 2, 0], [0, 0, 3]]
    * ```
    */
-  static diag(v: Vector): Matrix {
+  static diag(v: VectorLike): Matrix {
+    v = Vector.asVector(v);
     if (v.size === 0) {
       throw new RangeError(
         'Matrix.diag: cannot construct a matrix from an empty vector (need at least one element).'
@@ -3644,7 +3654,7 @@ export class Matrix extends ArrayND {
    * Matrix[[1, 2, 3], [4, 5, 6]]
    * ```
    */
-  static from(rows: number[][]): Matrix {
+  static from(rows: ReadonlyArray<Vector | ArrayLike<number>>): Matrix {
     if (!Array.isArray(rows)) {
       throw new TypeError(`Matrix.from: expected an array of rows, got ${typeName(rows)}.`);
     }
@@ -3653,34 +3663,36 @@ export class Matrix extends ArrayND {
         'Matrix.from: cannot construct a matrix from an empty array (need at least one row).'
       );
     }
+    const src: ArrayLike<number>[] = [];
     for (let i = 0; i < rows.length; i++) {
-      const r: unknown = rows[i];
+      const r: unknown = rows[i] instanceof Vector ? (rows[i] as Vector).data : rows[i];
       if (
         r === null ||
         typeof r !== 'object' ||
         typeof (r as ArrayLike<number>).length !== 'number'
       ) {
         throw new TypeError(
-          `Matrix.from: row ${i} is not an array of numbers, got ${typeName(r)}.`
+          `Matrix.from: row ${i} is not an array of numbers or a Vector, got ${typeName(r)}.`
         );
       }
+      src.push(r as ArrayLike<number>);
     }
     const nRows = rows.length;
-    const nCols = rows[0].length;
+    const nCols = src[0].length;
     if (nCols === 0) {
       throw new RangeError(
         'Matrix.from: cannot construct a matrix with empty rows (need at least one column).'
       );
     }
     for (let i = 1; i < nRows; i++) {
-      if (rows[i].length !== nCols) {
+      if (src[i].length !== nCols) {
         throw new RangeError(
-          `Matrix.from: row ${i} has ${rows[i].length} elements, expected ${nCols} (as in row 0).`
+          `Matrix.from: row ${i} has ${src[i].length} elements, expected ${nCols} (as in row 0).`
         );
       }
     }
     const res = new Matrix(nRows, nCols);
-    for (let i = 0; i < nRows; i++) res.setRow(i, rows[i]);
+    for (let i = 0; i < nRows; i++) res.data.set(src[i], i * nCols);
     return res;
   }
 

@@ -480,7 +480,7 @@ export function quasiNewton(
     // QR decomposition of the scaled Jacobian.
     if (!broydenUpdate || restart) {
       const scaledJ = Jc.copy();
-      for (let i = 0; i < sclf.size; i++) scaledJ.scaleRow(i, sclf.get(i));
+      for (let i = 0; i < sclf.size; i++) scaledJ.scaleRowSelf(i, sclf.get(i));
       ({ Q, R } = scaledJ.qr());
     }
 

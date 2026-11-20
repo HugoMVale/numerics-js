@@ -7,6 +7,7 @@ import {
   type LUDecomposition
 } from '../../src/linalg/Matrix.js';
 import { rand } from '../../src/math.js';
+import { vectorLikeForms } from '../vectorLikeForms.js';
 
 /** Exact 1-norm condition number via an explicit inverse, used as ground truth. */
 function exactCond1(M: Matrix): number {
@@ -1384,18 +1385,18 @@ describe('Matrix', () => {
 
   it('swaps rows in place and validates both indices', () => {
     const m: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
-    m.swapRows(0, 1);
+    m.swapRowsSelf(0, 1);
     expect(m.toArray()).toEqual([
       [3, 4],
       [1, 2]
     ]);
 
-    expect(() => m.swapRows(5, 0)).toThrowError(RangeError);
-    expect(() => m.swapRows(0, 5)).toThrowError(RangeError);
-    expect(() => m.swapRows(5, 5)).toThrowError(RangeError); // equal, out-of-bounds indices must still throw
+    expect(() => m.swapRowsSelf(5, 0)).toThrowError(RangeError);
+    expect(() => m.swapRowsSelf(0, 5)).toThrowError(RangeError);
+    expect(() => m.swapRowsSelf(5, 5)).toThrowError(RangeError); // equal, out-of-bounds indices must still throw
 
     const unchanged: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
-    unchanged.swapRows(1, 1); // same in-bounds index is a no-op
+    unchanged.swapRowsSelf(1, 1); // same in-bounds index is a no-op
     expect(unchanged.toArray()).toEqual([
       [1, 2],
       [3, 4]
@@ -1404,19 +1405,19 @@ describe('Matrix', () => {
 
   it('scales rows and columns and adds a scaled row in place', () => {
     const m: Matrix = new Matrix(2, 2, [1, 2, 3, 4]);
-    m.scaleRow(0, 10);
+    m.scaleRowSelf(0, 10);
     expect(m.row(0).toArray()).toEqual([10, 20]);
 
-    expect(m.scaleCol(1, 3)).toBe(m);
+    expect(m.scaleColSelf(1, 3)).toBe(m);
     expect(m.col(1).toArray()).toEqual([60, 12]);
 
-    m.addScaledRow(1, 0, 2); // row1 += row0 * 2
+    m.addScaledRowSelf(1, 0, 2); // row1 += row0 * 2
     expect(m.row(1).toArray()).toEqual([23, 132]);
 
-    expect(() => m.scaleRow(5, 1)).toThrowError(RangeError);
-    expect(() => m.scaleCol(5, 1)).toThrowError(RangeError);
-    expect(() => m.addScaledRow(5, 0, 1)).toThrowError(RangeError);
-    expect(() => m.addScaledRow(0, 5, 1)).toThrowError(RangeError);
+    expect(() => m.scaleRowSelf(5, 1)).toThrowError(RangeError);
+    expect(() => m.scaleColSelf(5, 1)).toThrowError(RangeError);
+    expect(() => m.addScaledRowSelf(5, 0, 1)).toThrowError(RangeError);
+    expect(() => m.addScaledRowSelf(0, 5, 1)).toThrowError(RangeError);
   });
 
   it('rejects shape mismatches in elementwise and product operations', () => {
@@ -2897,7 +2898,7 @@ describe('Matrix: validation and edge cases', () => {
 
   describe('indices must be integers in range', () => {
     // NaN and fractional indices used to address a wrong element (or none) silently, and
-    // `swapRows(NaN, 0)` overwrote row 0 with NaN.
+    // `swapRowsSelf(NaN, 0)` overwrote row 0 with NaN.
     const bad = [NaN, 0.5, 1.5, Infinity, -Infinity, -1, 2];
 
     it('get, set, row, col throw RangeError and leave the matrix untouched', () => {
@@ -2913,17 +2914,17 @@ describe('Matrix: validation and edge cases', () => {
       }
     });
 
-    it('setRow, setCol, swapRows, scaleRow, scaleCol, addScaledRow throw and do not mutate', () => {
+    it('setRow, setCol, swapRowsSelf, scaleRowSelf, scaleColSelf, addScaledRowSelf throw and do not mutate', () => {
       for (const b of bad) {
         const m = A22();
         expect(() => m.setRow(b, [7, 8])).toThrowError(RangeError);
         expect(() => m.setCol(b, [7, 8])).toThrowError(RangeError);
-        expect(() => m.swapRows(b, 0)).toThrowError(RangeError);
-        expect(() => m.swapRows(0, b)).toThrowError(RangeError);
-        expect(() => m.scaleRow(b, 2)).toThrowError(RangeError);
-        expect(() => m.scaleCol(b, 2)).toThrowError(RangeError);
-        expect(() => m.addScaledRow(b, 0, 2)).toThrowError(RangeError);
-        expect(() => m.addScaledRow(0, b, 2)).toThrowError(RangeError);
+        expect(() => m.swapRowsSelf(b, 0)).toThrowError(RangeError);
+        expect(() => m.swapRowsSelf(0, b)).toThrowError(RangeError);
+        expect(() => m.scaleRowSelf(b, 2)).toThrowError(RangeError);
+        expect(() => m.scaleColSelf(b, 2)).toThrowError(RangeError);
+        expect(() => m.addScaledRowSelf(b, 0, 2)).toThrowError(RangeError);
+        expect(() => m.addScaledRowSelf(0, b, 2)).toThrowError(RangeError);
         expect(m.toArray()).toEqual(A22().toArray());
       }
     });
@@ -3133,7 +3134,7 @@ describe('Matrix: validation and edge cases', () => {
       expect(() => Matrix.from(null as unknown as number[][])).toThrowError(TypeError);
       expect(() => Matrix.from(A22() as unknown as number[][])).toThrowError(TypeError);
       expect(() => Matrix.from([1, 2, 3] as unknown as number[][])).toThrowError(
-        'Matrix.from: row 0 is not an array of numbers, got number.'
+        'Matrix.from: row 0 is not an array of numbers or a Vector, got number.'
       );
       expect(() => Matrix.from([[1], null] as unknown as number[][])).toThrowError(TypeError);
     });
@@ -3367,5 +3368,222 @@ describe('Matrix: non-finite values in axis-wise reductions, cumsum and sort', (
       [3, 1],
       [NaN, 2]
     ]);
+  });
+});
+
+describe('Matrix: input types, naming and error format', () => {
+  const A22 = () => new Matrix(2, 2, [2, 1, 1, 3]);
+
+  describe('vector-shaped arguments accept every VectorLike form', () => {
+    for (const [form, make] of vectorLikeForms) {
+      describe(form, () => {
+        it('mulVec', () => {
+          expect(new Matrix(2, 3, [1, 2, 3, 4, 5, 6]).mulVec(make([1, 0, 1])).toArray()).toEqual([
+            4, 10
+          ]);
+        });
+
+        it('Matrix.diag', () => {
+          expect(Matrix.diag(make([1, 2])).toArray()).toEqual([
+            [1, 0],
+            [0, 2]
+          ]);
+        });
+
+        it('solve, solveLower, solveUpper, choleskySolve, luSolve', () => {
+          const expected = A22()
+            .solve(new Vector([5, 10]))
+            .toArray();
+          expect(
+            A22()
+              .solve(make([5, 10]))
+              .toArray()
+          ).toEqual(expected);
+          expect(
+            A22()
+              .choleskySolve(make([5, 10]))
+              .toArray()
+          ).toEqual(
+            A22()
+              .choleskySolve(new Vector([5, 10]))
+              .toArray()
+          );
+          const lower = new Matrix(2, 2, [2, 0, 1, 3]);
+          expect(lower.solveLower(make([4, 5])).toArray()).toEqual(
+            lower.solveLower(new Vector([4, 5])).toArray()
+          );
+          const upper = new Matrix(2, 2, [2, 1, 0, 3]);
+          expect(upper.solveUpper(make([4, 6])).toArray()).toEqual(
+            upper.solveUpper(new Vector([4, 6])).toArray()
+          );
+          expect(Matrix.luSolve(A22().lu(), make([5, 10])).toArray()).toEqual(expected);
+        });
+
+        it('qrUpdate and qrUpdateSelf', () => {
+          const mk = () => A22().qr();
+          const ref = Matrix.qrUpdate(mk(), new Vector([1, 0]), new Vector([0, 1]));
+          const got = Matrix.qrUpdate(mk(), make([1, 0]), make([0, 1]));
+          expect(got.R.toArray()).toEqual(ref.R.toArray());
+          const self = Matrix.qrUpdateSelf(mk(), make([1, 0]), make([0, 1]));
+          expect(self.Q.toArray()).toEqual(ref.Q.toArray());
+        });
+
+        it('qrPivotMulQt', () => {
+          const dec = A22().qrPivot();
+          expect(Matrix.qrPivotMulQt(dec, make([1, 2])).toArray()).toEqual(
+            Matrix.qrPivotMulQt(dec, new Vector([1, 2])).toArray()
+          );
+        });
+      });
+    }
+
+    it('a plain array operand is not modified and out === b still aliases for a Vector', () => {
+      const b = [4, 6];
+      const upper = new Matrix(2, 2, [2, 1, 0, 3]);
+      upper.solveUpper(b);
+      expect(b).toEqual([4, 6]);
+      const v = new Vector([4, 6]);
+      expect(upper.solveUpper(v, v)).toBe(v);
+    });
+
+    it('wrong container types throw TypeError with the Vector.asVector message', () => {
+      expect(() => A22().mulVec('ab' as unknown as number[])).toThrowError(TypeError);
+      expect(() => A22().solve(null as unknown as number[])).toThrowError(/Vector\.asVector/);
+      expect(() => Matrix.diag(undefined as unknown as number[])).toThrowError(TypeError);
+    });
+  });
+
+  describe('constructor input', () => {
+    it('accepts a Vector, Float64Array and plain array and copies the data', () => {
+      for (const [, make] of vectorLikeForms) {
+        const src = make([1, 2, 3, 4]);
+        const m = new Matrix(2, 2, src as Vector | number[]);
+        expect(m.toArray()).toEqual([
+          [1, 2],
+          [3, 4]
+        ]);
+        m.set(0, 0, 99);
+        expect(src instanceof Vector ? src.get(0) : (src as number[])[0]).toBe(1);
+      }
+    });
+
+    it('rejects null and non-array-like input with TypeError, wrong length with RangeError', () => {
+      expect(() => new Matrix(2, 2, null as unknown as number[])).toThrowError(TypeError);
+      expect(() => new Matrix(2, 2, 5 as unknown as number[])).toThrowError(TypeError);
+      expect(() => new Matrix(2, 2, new Vector(3))).toThrowError(RangeError);
+    });
+
+    it('the constructor rejects a string input (it would be coerced digit by digit)', () => {
+      expect(() => new Matrix(1, 2, '12' as unknown as number[])).toThrowError(
+        'Matrix.constructor: input must be an array-like of numbers or a Vector, got string.'
+      );
+    });
+
+    it('uses the "Matrix.constructor: ... ." message format', () => {
+      expect(() => new Matrix(0, 2)).toThrowError(
+        'Matrix.constructor: rows must be a positive integer, got 0.'
+      );
+      expect(() => new Matrix(2, 1.5)).toThrowError(
+        'Matrix.constructor: cols must be a positive integer, got 1.5.'
+      );
+      expect(() => new Matrix(2, 2, [1])).toThrowError(
+        'Matrix.constructor: expected 4 values for a 2x2 matrix, got 1.'
+      );
+    });
+  });
+
+  describe('Matrix.from', () => {
+    it('accepts rows given as number[], Float64Array and Vector, mixed', () => {
+      const m = Matrix.from([[1, 2], new Float64Array([3, 4]), new Vector([5, 6])]);
+      expect(m.toArray()).toEqual([
+        [1, 2],
+        [3, 4],
+        [5, 6]
+      ]);
+    });
+
+    it('accepts a frozen (readonly) array of rows', () => {
+      expect(Matrix.from(Object.freeze([Object.freeze([1, 2])])).toArray()).toEqual([[1, 2]]);
+    });
+
+    it('rejects a ragged mix and non-row elements', () => {
+      expect(() => Matrix.from([new Vector([1, 2]), [3]])).toThrowError(RangeError);
+      expect(() => Matrix.from([new Vector([1, 2]), 5 as unknown as number[]])).toThrowError(
+        /row 1 is not an array of numbers or a Vector, got number/
+      );
+    });
+  });
+
+  describe('error messages follow "Matrix.method: ... ."', () => {
+    it('shape and square-matrix errors', () => {
+      expect(() => new Matrix(2, 3).matmul(new Matrix(2, 3))).toThrowError(
+        'Matrix.matmul: shape mismatch: 2x3 * 2x3.'
+      );
+      expect(() => new Matrix(2, 3).mulVec(new Vector(2))).toThrowError(
+        'Matrix.mulVec: shape mismatch: 2x3 * vector of size 2.'
+      );
+      expect(() => new Matrix(2, 3).trace()).toThrowError(
+        'Matrix.trace: expected a square matrix, got 2x3.'
+      );
+      expect(() => new Matrix(2, 3).transposeSelf()).toThrowError(
+        'Matrix.transposeSelf: expected a square matrix, got 2x3.'
+      );
+    });
+
+    it('every message thrown by a Matrix.ts check starts with "Matrix.<name>: " and ends with a period', () => {
+      const m = new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+      const calls: (() => unknown)[] = [
+        () => m.get(9, 0),
+        () => m.row(9),
+        () => m.col(9),
+        () => m.setRow(0, [1]),
+        () => m.setCol(0, [1]),
+        () => m.swapRowsSelf(9, 0),
+        () => m.scaleRowSelf(9, 1),
+        () => m.scaleColSelf(9, 1),
+        () => m.addScaledRowSelf(9, 0, 1),
+        () => m.add(new Matrix(1, 1)),
+        () => m.add(new Vector(2)),
+        () => m.sum(2 as 0),
+        () => m.slice(2, 1),
+        () => m.repeat(0, 0),
+        () => m.tile([0, 1]),
+        () => m.isSymmetric(-1),
+        () => Matrix.hstack([]),
+        () => Matrix.vstack([m, new Matrix(1, 2)]),
+        () => Matrix.from([]),
+        () => Matrix.diag([])
+      ];
+      for (const call of calls) {
+        let message = '';
+        try {
+          call();
+        } catch (e) {
+          message = (e as Error).message;
+        }
+        expect(message).toMatch(/^Matrix\.[A-Za-z]+: .*\.$/);
+      }
+    });
+  });
+
+  describe('in-place row/column operations carry the Self suffix', () => {
+    it('swapRowsSelf, scaleRowSelf, scaleColSelf and addScaledRowSelf mutate and return this', () => {
+      const m = new Matrix(2, 2, [1, 2, 3, 4]);
+      expect(m.swapRowsSelf(0, 1)).toBe(m);
+      expect(m.scaleRowSelf(0, 2)).toBe(m);
+      expect(m.scaleColSelf(1, 10)).toBe(m);
+      expect(m.addScaledRowSelf(1, 0, 1)).toBe(m);
+      expect(m.toArray()).toEqual([
+        [6, 80],
+        [7, 100]
+      ]);
+    });
+
+    it('the old names no longer exist', () => {
+      const m = new Matrix(1, 1) as unknown as Record<string, unknown>;
+      for (const name of ['swapRows', 'scaleRow', 'scaleCol', 'addScaledRow']) {
+        expect(m[name]).toBeUndefined();
+      }
+    });
   });
 });
