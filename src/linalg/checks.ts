@@ -40,7 +40,11 @@ export function scanNonFinite(A: Matrix, who: string, lowerOnly = false): boolea
   return nan;
 }
 
-/** Short description of a value's type for error messages (`null`, `undefined`, `Array`, `number`, ...). */
+/**
+ * Short description of a value's type for error messages (`null`, `undefined`, `Array`, `number`, ...).
+ * @param x Any value.
+ * @returns `'null'`, the constructor name for an object, else the `typeof` string.
+ */
 export function typeName(x: unknown): string {
   if (x === null) return 'null';
   if (typeof x === 'object') return (x as object).constructor?.name ?? 'object';

@@ -1859,6 +1859,13 @@ export class Matrix extends ArrayND {
    * `{ method: 'elimination' }` selects the cheaper but less robust
    * estimate based on Gaussian elimination, which was this method's only
    * algorithm before the SVD was available.
+   *
+   * Does not modify this matrix. The SVD method costs `O(rows * cols *
+   * min(rows, cols))` with a larger constant than elimination, which has
+   * the same order. A rank-deficient matrix is the normal use case, not an
+   * error, and any shape is accepted; a 1x1 matrix has rank `1`, or `0` if
+   * its entry is `0`. A `NaN` entry makes the result `NaN` (for both
+   * methods); an infinite entry throws `RangeError`.
    * @param options Either an absolute tolerance on the singular values
    * (shorthand for `{ atol: tol, rtol: 0 }`), or `{ method, atol, rtol }`:
    * the method (`'svd'` by default), an absolute threshold (default `0`)
@@ -1867,9 +1874,10 @@ export class Matrix extends ArrayND {
    * `10 * max(rows, cols) * eps`).
    * @returns The rank, between `0` and `min(rows, cols)`.
    * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`, if
-   * `method` is unknown, or (SVD method) if this matrix contains a
-   * non-finite entry.
+   * `method` is unknown, or if this matrix contains an infinite entry.
    * @throws {Error} If the SVD iteration fails to converge.
+   * @throws {TypeError} If `options` is neither a number nor an object, or
+   *   `atol` or `rtol` is not a number.
    *
    * @example
    * ```ts
@@ -1904,6 +1912,20 @@ export class Matrix extends ArrayND {
    * 49
    * 50
    * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * console.log(Matrix.from([[NaN, 1], [1, 1]]).rank());
+   * console.log(Matrix.from([[1, 2, 3], [2, 4, 6]]).rank());
+   * ```
+   *
+   * Output:
+   * ```text
+   * NaN
+   * 1
+   * ```
    */
   rank(options?: number | RankOptions): number {
     return linalg.rank(this, options);
@@ -1912,8 +1934,17 @@ export class Matrix extends ArrayND {
   /**
    * Computes the determinant of this matrix, via Gaussian elimination
    * with partial pivoting: see `linalg.determinant()` for the algorithm.
+   *
+   * Costs `O(n^3)` for `n = rows`; this matrix is not modified. A singular
+   * matrix has determinant `0` without error (only an exactly zero pivot
+   * counts, as in `lu()`, so a nearly singular matrix gives a tiny nonzero
+   * value). The product of the pivots is not rescaled, so it overflows to
+   * `±Infinity` or underflows to `0` for extreme magnitudes. A 1x1 matrix
+   * returns its entry. A `NaN` entry makes the result `NaN`; an infinite
+   * entry throws `RangeError`.
    * @returns The determinant.
    * @throws {RangeError} If this matrix is not square.
+   * @throws {RangeError} If this matrix contains an infinite entry.
    *
    * @example
    * ```ts
@@ -1927,6 +1958,27 @@ export class Matrix extends ArrayND {
    * ```text
    * -2
    * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const singular = Matrix.from([[1, 2], [2, 4]]);
+   * console.log(singular.determinant());
+   * console.log(Matrix.from([[NaN, 1], [1, 1]]).determinant());
+   * try {
+   *   Matrix.from([[Infinity, 1], [1, 1]]).determinant();
+   * } catch (e) {
+   *   console.log((e as Error).message);
+   * }
+   * ```
+   *
+   * Output:
+   * ```text
+   * 0
+   * NaN
+   * Matrix.determinant: matrix contains an infinite entry at (0, 0), got Infinity.
+   * ```
    */
   determinant(): number {
     return linalg.determinant(this);
@@ -1935,10 +1987,22 @@ export class Matrix extends ArrayND {
   /**
    * Computes the inverse of this matrix, via Gauss-Jordan elimination
    * with partial pivoting: see `linalg.inverse()` for the algorithm.
+   *
+   * Costs `O(n^3)` time and `O(n^2)` extra storage (an `n x 2n` augmented
+   * copy); this matrix is not modified. Only an exactly zero pivot makes
+   * the matrix singular (`Error`): a nearly singular matrix returns a
+   * finite, possibly inaccurate inverse, so check `cond1()` or `rank()` if
+   * that matters. To solve a system, `solve()` is faster and more accurate
+   * than multiplying by the inverse. A 1x1 matrix returns the reciprocal of
+   * its entry; if a pivot is subnormal and its reciprocal overflows, the
+   * affected entries become `Infinity` instead of `NaN`. A `NaN` entry
+   * makes every entry of the result `NaN`; an infinite entry throws
+   * `RangeError`.
    * @returns A new matrix `M` such that `this.matmul(M)` is (up to
    *   floating-point error) the identity matrix.
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If this matrix is singular (not invertible).
+   * @throws {RangeError} If this matrix contains an infinite entry.
    *
    * @example
    * ```ts
@@ -1952,6 +2016,30 @@ export class Matrix extends ArrayND {
    * ```text
    * Matrix[[0.6000000000000001, -0.7000000000000001], [-0.2, 0.4]]
    * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * try {
+   *   Matrix.from([[1, 2], [2, 4]]).inverse();
+   * } catch (e) {
+   *   console.log((e as Error).message);
+   * }
+   * console.log(Matrix.from([[NaN, 1], [1, 1]]).inverse().toString());
+   * try {
+   *   Matrix.from([[Infinity, 1], [1, 1]]).inverse();
+   * } catch (e) {
+   *   console.log((e as Error).message);
+   * }
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix.inverse: matrix is singular.
+   * Matrix[[NaN, NaN], [NaN, NaN]]
+   * Matrix.inverse: matrix contains an infinite entry at (0, 0), got Infinity.
+   * ```
    */
   inverse(): Matrix {
     return linalg.inverse(this);
@@ -1962,6 +2050,14 @@ export class Matrix extends ArrayND {
    * that `P * this = L * U` for the row permutation `P` implied by
    * `perm`: see `linalg.lu()` for the algorithm and why it has no
    * tolerance parameter.
+   *
+   * Costs about `(2/3) n^3` flops. This matrix is read, not modified,
+   * unless it is `out.U`. A singular matrix throws `Error`; there is no
+   * pivot tolerance, so a nearly singular matrix is factored normally (use
+   * `rank()` or `cond1()` to detect it). A 1x1 matrix gives `L = [1]` and
+   * `U = this`. A `NaN` entry makes `L` and `U` all `NaN`, with `perm` the
+   * identity and `sign` `1`, instead of throwing; an infinite entry throws
+   * `RangeError`.
    * @param out Optional storage to reuse, as returned by an earlier call
    * for a matrix of the same size: its `L`, `U`, `perm` and `sign` are
    * overwritten and it is returned, so repeated factorizations allocate
@@ -1973,6 +2069,8 @@ export class Matrix extends ArrayND {
    * match its size, or if this matrix is `out.L`.
    * @throws {Error} If this matrix is singular (some column's largest
    * available pivot is exactly `0`).
+   * @throws {RangeError} If this matrix contains an infinite entry.
+   * @throws {TypeError} If `out` is given but is not an `LUDecomposition`.
    *
    * @example
    * ```ts
@@ -1991,6 +2089,19 @@ export class Matrix extends ArrayND {
    * Matrix[[3, 4], [0, 0.6666666666666667]]
    * [ 1, 0 ]
    * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const dec = Matrix.from([[NaN, 1], [1, 1]]).lu();
+   * console.log(dec.U.toString(), dec.perm, dec.sign);
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[NaN, NaN], [NaN, NaN]] [ 0, 1 ] 1
+   * ```
    */
   lu(out?: LUDecomposition): LUDecomposition {
     return linalg.lu(this, out);
@@ -2001,6 +2112,13 @@ export class Matrix extends ArrayND {
    * returned by `lu()`: see `linalg.luSolve()`. If you need to solve
    * against the same matrix with several right-hand sides, call `lu()`
    * once and reuse this instead of refactoring each time.
+   *
+   * Costs `O(n^2)` (forward, then back substitution); neither
+   * `decomposition` nor `b` is modified. A zero on the diagonal of `U`
+   * throws `Error`. A 1x1 factorization solves `U * x = b` directly.
+   * Entries are not scanned: `NaN` propagates through the arithmetic (so a
+   * factorization that `lu()` filled with `NaN` gives an all-`NaN`
+   * solution) and infinite values follow IEEE rules.
    * @param decomposition The `{ L, U, perm }` factorization of the
    * coefficient matrix, as returned by `lu()`.
    * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === L.rows`.
@@ -2010,6 +2128,7 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If `b` or `out` does not match the size of the
    * factorization, or if `out` is `b`.
    * @throws {Error} If `U` has a zero diagonal entry.
+   * @throws {TypeError} If `decomposition` is not an `LUDecomposition`.
    *
    * @example
    * ```ts
@@ -2033,6 +2152,12 @@ export class Matrix extends ArrayND {
    * Solves `this * x = b` for `x`, treating this matrix as lower
    * triangular: only entries on and below the diagonal are read, so
    * this can be called directly on the `L` factor from `lu()`.
+   *
+   * Costs `O(n^2)`. This matrix and `b` are not modified (unless `out` is
+   * `b`). A zero diagonal entry, which is only read if `unitDiagonal` is
+   * `false`, throws `Error`: the matrix is singular. A 1x1 matrix divides
+   * `b` by its entry. Entries are not scanned: `NaN` and infinite values
+   * follow IEEE arithmetic.
    * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s
    *   (as `lu()`'s `L` always is) and is never read, avoiding a division.
@@ -2066,6 +2191,11 @@ export class Matrix extends ArrayND {
    * Solves `this * x = b` for `x`, treating this matrix as upper
    * triangular: only entries on and above the diagonal are read, so this
    * can be called directly on the `U` factor from `lu()`.
+   *
+   * Costs `O(n^2)`. This matrix and `b` are not modified (unless `out` is
+   * `b`). A zero diagonal entry throws `Error`: the matrix is singular. A
+   * 1x1 matrix divides `b` by its entry. Entries are not scanned: `NaN` and
+   * infinite values follow IEEE arithmetic.
    * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @param out Optional vector of size `this.rows` that receives the
    *   solution, avoiding an allocation. It may be `b` itself, which is
@@ -2100,6 +2230,14 @@ export class Matrix extends ArrayND {
    * against the same matrix with several right-hand sides, call `lu()`
    * once yourself and reuse `Matrix.luSolve` instead of calling this
    * repeatedly.
+   *
+   * Costs about `(2/3) n^3` flops, dominated by `lu()`; neither this matrix
+   * nor `b` is modified. A singular matrix throws `Error` (an exactly zero
+   * pivot; a nearly singular matrix returns finite, possibly inaccurate
+   * numbers, see `cond1()`). For a rank-deficient or non-square system, use
+   * `lstsq()`. A 1x1 system returns `b / this`. A `NaN` entry in this
+   * matrix makes every entry of the result `NaN`; an infinite entry throws
+   * `RangeError`. `b` is not scanned: a `NaN` in `b` gives `NaN` results.
    * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
    *   floating-point error) equal to `b`.
@@ -2107,6 +2245,7 @@ export class Matrix extends ArrayND {
    * @throws {Error} If this matrix is singular (no unique solution).
    *
    * @throws {TypeError} If `b` is neither a `Vector` nor an array-like of numbers.
+   * @throws {RangeError} If this matrix contains an infinite entry.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
@@ -2118,6 +2257,27 @@ export class Matrix extends ArrayND {
    * Output:
    * ```text
    * Vector(1.4, 3.4)
+   * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * try {
+   *   Matrix.from([[1, 2], [2, 4]]).solve([1, 1]);
+   * } catch (e) {
+   *   console.log((e as Error).message);
+   * }
+   * console.log(Matrix.from([[NaN, 1], [1, 1]]).solve([1, 1]).toString());
+   * // A rank-deficient system has a minimum-norm least-squares solution instead.
+   * console.log(Matrix.from([[1, 2], [2, 4]]).lstsq([1, 2]).x.toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix.solve: matrix is singular.
+   * Vector(NaN, NaN)
+   * Vector(0.19999999999999998, 0.39999999999999997)
    * ```
    */
   solve(b: VectorLike): Vector {
@@ -2136,9 +2296,16 @@ export class Matrix extends ArrayND {
    * triangular, `cond1Upper()`/`cond1Lower()` compute a reliable O(n²)
    * estimate instead, without ever forming the inverse; prefer those
    * when applicable.
+   *
+   * This matrix is not modified. An exactly singular matrix gives
+   * `Infinity` rather than an error (a nearly singular one gives a very
+   * large value). A 1x1 matrix has condition number `1` up to rounding, or
+   * `Infinity` if it is `0`. A `NaN` entry makes the result `NaN`; an
+   * infinite entry throws `RangeError`.
    * @returns The 1-norm condition number, or `Infinity` if this matrix
    *   is (numerically) singular.
    * @throws {RangeError} If this matrix is not square.
+   * @throws {RangeError} If this matrix contains an infinite entry.
    *
    * @example
    * ```ts
@@ -2165,6 +2332,11 @@ export class Matrix extends ArrayND {
    * Wilkinson, 1979, as used by LINPACK's `dtrco` and described in
    * Dennis & Schnabel's Algorithm A3.3.1). Reliable in practice, though
    * (like any O(n²) estimator) it is a heuristic, not an exact value.
+   *
+   * This matrix is not modified. A zero diagonal entry gives `Infinity`. A
+   * 1x1 matrix gives `1`, or `Infinity` if it is `0`. Entries are not
+   * scanned: with a `NaN` or infinite entry the result is `NaN` or
+   * meaningless.
    * @returns The 1-norm condition number estimate, or `Infinity` if this
    *   matrix has a zero 1-norm.
    * @throws {RangeError} If this matrix is not square.
@@ -2194,6 +2366,11 @@ export class Matrix extends ArrayND {
    * Wilkinson, 1979, as used by LINPACK's `dtrco` and described in
    * Dennis & Schnabel's Algorithm A3.3.1). Reliable in practice, though
    * (like any O(n²) estimator) it is a heuristic, not an exact value.
+   *
+   * This matrix is not modified. A zero diagonal entry gives `Infinity`. A
+   * 1x1 matrix gives `1`, or `Infinity` if it is `0`. Entries are not
+   * scanned: with a `NaN` or infinite entry the result is `NaN` or
+   * meaningless.
    * @param unitDiagonal If `true`, the diagonal is assumed to be all 1s
    *   (as `lu()`'s `L` always is) and is never read.
    * @returns The 1-norm condition number estimate, or `Infinity` if this
@@ -2227,10 +2404,20 @@ export class Matrix extends ArrayND {
    * L^T`, with `L` lower triangular and positive on the diagonal: see
    * `linalg.cholesky()` for the algorithm, and why it only reads the
    * lower triangle and has no tolerance parameter.
+   *
+   * Costs about `(1/3) n^3` flops; this matrix is not modified. Only its
+   * lower triangle, diagonal included, is read, so the upper triangle can
+   * hold anything, including `NaN`. A matrix that is not positive definite,
+   * which includes a singular positive semidefinite one, throws `Error`. A
+   * 1x1 matrix gives `sqrt` of its entry, or throws `Error` if it is not
+   * positive. A `NaN` entry in the lower triangle makes every entry of the
+   * result `NaN`; an infinite one throws `RangeError`.
    * @returns The lower-triangular factor `L` such that `this = L * L^T`.
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If this matrix is not positive definite (some
    * leading principal minor is not strictly positive).
+   * @throws {RangeError} If the lower triangle of this matrix, diagonal
+   *   included, contains an infinite entry.
    *
    * @example
    * ```ts
@@ -2244,6 +2431,25 @@ export class Matrix extends ArrayND {
    * ```text
    * Matrix[[2, 0], [1, 1.4142135623730951]]
    * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * try {
+   *   Matrix.from([[1, 2], [2, 1]]).cholesky();
+   * } catch (e) {
+   *   console.log((e as Error).message);
+   * }
+   * // Only the lower triangle is read.
+   * console.log(Matrix.from([[4, NaN], [2, 3]]).cholesky().toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix.cholesky: matrix is not positive definite (leading minor of order 2 is not positive).
+   * Matrix[[2, 0], [1, 1.4142135623730951]]
+   * ```
    */
   cholesky(): Matrix {
     return linalg.cholesky(this);
@@ -2255,6 +2461,11 @@ export class Matrix extends ArrayND {
    * `cholesky()`): see `linalg.choleskySolve()`. If you need to solve
    * against the same matrix with several right-hand sides, call
    * `cholesky()` once and reuse this instead of refactoring each time.
+   *
+   * Costs `O(n^2)`; neither this matrix nor `b` is modified. A zero
+   * diagonal entry throws `Error`. A 1x1 matrix `[l]` solves `l * l * x =
+   * b`. Entries are not scanned: `NaN` and infinite values follow IEEE
+   * arithmetic.
    * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @returns The solution vector `x` such that
    * `this.matmul(this.transpose()).mulVec(x)` is (up to floating-point
@@ -2289,7 +2500,17 @@ export class Matrix extends ArrayND {
    * Computes a Householder QR factorization of this matrix: `this = Q *
    * R`, with `Q` orthogonal and `R` upper triangular (trapezoidal if
    * `this.rows > this.cols`).
+   *
+   * Costs `O(rows * cols * min(rows, cols))` time to factor, plus
+   * `O(rows^2 * cols)` to form the `rows x rows` factor `Q` explicitly
+   * (a tall matrix is dominated by this), and `O(rows^2)` storage
+   * (`qrPivot()` forms no `Q`); this matrix is
+   * not modified. Any shape is accepted and rank deficiency is not an
+   * error: `R` then has zero or tiny diagonal entries. A 1x1 matrix gives
+   * `Q = [1]` and `R = this`. A `NaN` entry makes every entry of `Q` and
+   * `R` `NaN`; an infinite entry throws `RangeError`.
    * @returns The `{ Q, R }` factorization.
+   * @throws {RangeError} If this matrix contains an infinite entry.
    *
    * @example
    * ```ts
@@ -2319,6 +2540,13 @@ export class Matrix extends ArrayND {
    * has nonincreasing magnitude, which reveals the numerical rank. See
    * `linalg.qrPivot()` for the algorithm. Use `qrPivotMulQt`, `qrPivotQ` and
    * `qrPivotR` to work with the result.
+   *
+   * Costs `O(rows * cols * min(rows, cols))` time. This matrix is not
+   * modified, unless it is `out.QR`. Any shape is accepted and rank
+   * deficiency is not an error: the diagonal of `R` shows it by decreasing
+   * to zero or tiny values. A `NaN` entry makes `QR` and `tau` all `NaN`,
+   * with `perm` the identity, instead of throwing; an infinite entry throws
+   * `RangeError`.
    * @param out Optional storage to reuse, as returned by an earlier call
    * for a matrix of the same shape: overwritten and returned, so repeated
    * factorizations allocate no result storage. This matrix may be `out.QR`
@@ -2327,6 +2555,9 @@ export class Matrix extends ArrayND {
    * @returns The `{ QR, tau, perm }` factorization: `out` if given,
    * otherwise a new object.
    * @throws {RangeError} If `out` does not match the shape of this matrix.
+   * @throws {RangeError} If this matrix contains an infinite entry.
+   * @throws {TypeError} If `out` is given but is not a
+   *   `QRPivotDecomposition`.
    *
    * @example
    * ```ts
@@ -2353,6 +2584,10 @@ export class Matrix extends ArrayND {
   /**
    * Computes `Q^T * b` for the orthogonal factor `Q` of a pivoted QR
    * factorization, without forming `Q`: see `linalg.qrPivotMulQt()`.
+   *
+   * Costs `O(rows * min(rows, cols))`; `decomposition` and `b` are not
+   * modified (unless `out` is `b`, which is overwritten). Entries are not
+   * scanned: `NaN` propagates under IEEE arithmetic.
    * @param decomposition A factorization, as returned by `qrPivot()`.
    * @param b The vector to transform (a `Vector` or array-like of numbers). Must have `b.size === decomposition.QR.rows`.
    * @param out Optional vector of size `decomposition.QR.rows` that receives
@@ -2361,6 +2596,7 @@ export class Matrix extends ArrayND {
    * vector. For a tall matrix, the norm of the entries beyond the first
    * `min(rows, cols)` is the least-squares residual norm.
    * @throws {RangeError} If `b` or `out` does not match the factorization.
+   * @throws {TypeError} If `decomposition` is not a `QRPivotDecomposition`.
    *
    * @example
    * ```ts
@@ -2383,8 +2619,12 @@ export class Matrix extends ArrayND {
   /**
    * Forms the thin orthogonal factor `Q` (`rows x min(rows, cols)`) of a
    * pivoted QR factorization: see `linalg.qrPivotQ()`.
+   *
+   * Costs `O(rows^2 * min(rows, cols))`; `decomposition` is not modified.
+   * Entries are not scanned: `NaN` propagates under IEEE arithmetic.
    * @param decomposition A factorization, as returned by `qrPivot()`.
    * @returns A new matrix with orthonormal columns.
+   * @throws {TypeError} If `decomposition` is not a `QRPivotDecomposition`.
    *
    * @example
    * ```ts
@@ -2407,8 +2647,11 @@ export class Matrix extends ArrayND {
   /**
    * Extracts the upper-trapezoidal factor `R` (`min(rows, cols) x cols`)
    * of a pivoted QR factorization: see `linalg.qrPivotR()`.
+   *
+   * Costs `O(min(rows, cols) * cols)`; `decomposition` is not modified.
    * @param decomposition A factorization, as returned by `qrPivot()`.
    * @returns A new matrix with exact zeros below the diagonal.
+   * @throws {TypeError} If `decomposition` is not a `QRPivotDecomposition`.
    *
    * @example
    * ```ts
@@ -2432,6 +2675,10 @@ export class Matrix extends ArrayND {
    * Updates a QR decomposition **in place** for the rank-1 modification
    * `A' = A + u * v^T`, without refactoring `A'` from scratch: see
    * `linalg.qrUpdateSelf()` for the algorithm.
+   *
+   * Costs `O(m * (m + n))` for an `m x n` matrix, against `O(m * n * min(m,
+   * n))` to refactor. Entries are not scanned: `NaN` and infinite values
+   * follow IEEE arithmetic.
    * @param qr An existing `{ Q, R }` factorization, as returned by
    * `qr()` (or a previous `qrUpdateSelf`/`qrUpdate` call) — `Q` must be
    * square (`m x m`) and `R` must be `m x n`. **Both `Q` and `R` are
@@ -2442,6 +2689,7 @@ export class Matrix extends ArrayND {
    * @returns `qr` itself, mutated in place, for chaining.
    * @throws {RangeError} If `Q` isn't square, or `Q`/`R`/`u`/`v`'s shapes
    * are inconsistent with each other.
+   * @throws {TypeError} If `qr` is not a `QRDecomposition`.
    *
    * @example
    * ```ts
@@ -2465,6 +2713,10 @@ export class Matrix extends ArrayND {
   /**
    * Non-mutating counterpart to `qrUpdateSelf`: copies `Q` and `R`
    * first, so the factorization passed in is left untouched.
+   *
+   * Costs `O(m * (m + n))` for an `m x n` matrix, plus the copy of `Q` and
+   * `R`. Entries are not scanned: `NaN` and infinite values follow IEEE
+   * arithmetic.
    * @param qr An existing `{ Q, R }` factorization, as returned by `qr()`.
    * @param u The rank-1 update's left vector (a `Vector` or array-like of numbers). Must have `u.size === qr.Q.rows`.
    * @param v The rank-1 update's right vector (a `Vector` or array-like of numbers). Must have `v.size === qr.R.cols`.
@@ -2472,6 +2724,7 @@ export class Matrix extends ArrayND {
    * (up to floating-point error) `qr.Q.matmul(qr.R)`'s value plus the
    * outer product of `u` and `v`.
    * @throws {RangeError} Same conditions as `qrUpdateSelf`.
+   * @throws {TypeError} If `qr` is not a `QRDecomposition`.
    *
    * @example
    * ```ts
@@ -2501,6 +2754,12 @@ export class Matrix extends ArrayND {
    * eigenvectors, use `eig()` instead: it computes both together from
    * the same Schur form, which is cheaper than computing eigenvalues
    * and then eigenvectors separately.
+   *
+   * Costs `O(n^3)`; this matrix is not modified. Singular and defective
+   * matrices are fine (a singular matrix has a zero eigenvalue); only a
+   * square matrix is accepted. A 1x1 matrix returns its entry. A `NaN`
+   * entry makes every eigenvalue `NaN + NaN i`; an infinite entry throws
+   * `RangeError`.
    * @param options Optional settings.
    * @param options.tol Relative tolerance for the deflation test.
    * Defaults to `Number.EPSILON`.
@@ -2512,6 +2771,11 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If the iteration budget is exhausted before every
    * block deflates (e.g. for a pathologically slow-converging matrix).
+   * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations`
+   *   is not a positive integer, or if this matrix contains an infinite
+   *   entry.
+   * @throws {TypeError} If `options` is not an object, or `tol` or
+   *   `maxIterations` is not a number.
    *
    * @example
    * ```ts
@@ -2539,12 +2803,23 @@ export class Matrix extends ArrayND {
    * `0`. Normalization follows LAPACK's convention (`dgeev`): each
    * eigenvector is scaled to Euclidean norm 1, with its
    * largest-magnitude component rotated to be real and positive.
+   *
+   * Costs `O(n^3)`; this matrix is not modified. A defective matrix has no
+   * complete set of independent eigenvectors: the returned vectors are then
+   * (nearly) parallel. A 1x1 matrix returns its entry with eigenvector
+   * `[1]`. A `NaN` entry makes every eigenvalue and eigenvector entry
+   * `NaN`; an infinite entry throws `RangeError`.
    * @param options See `eigenvalues()` — same meaning and defaults.
    * @returns The `rows` eigenpairs, in the same order `eigenvalues()`
    * would return the values alone.
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If the iteration budget is exhausted before every
    * block deflates.
+   * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations`
+   *   is not a positive integer, or if this matrix contains an infinite
+   *   entry.
+   * @throws {TypeError} If `options` is not an object, or `tol` or
+   *   `maxIterations` is not a number.
    *
    * @example
    * ```ts
@@ -2581,10 +2856,21 @@ export class Matrix extends ArrayND {
    * nonincreasing order; the singular vectors are orthonormal, with
    * arbitrary but deterministic signs. If you only need the singular
    * values, `singularValues()` is roughly 1.5 to 3 times faster.
+   *
+   * Costs `O(rows * cols * min(rows, cols))`, or `O(max(rows, cols)^2 *
+   * min(rows, cols))` with `full: true` on a non-square matrix, where the
+   * square singular-vector factor is formed; this matrix is not modified.
+   * Any shape is accepted and rank deficiency is not an error: the trailing
+   * singular values are zero or tiny and the matching singular vectors are
+   * an arbitrary orthonormal completion. A 1x1 matrix `[a]` gives `s =
+   * [|a|]`, with the sign in `U` or `V`. A `NaN` entry makes `U`, `s` and
+   * `V` all `NaN` (with their usual shapes); an infinite entry throws
+   * `RangeError`.
    * @param options `{ full: true }` returns square `U` and `V` instead of
    * the thin `rows x k` and `cols x k` factors, `k = min(rows, cols)`.
    * @returns The `{ U, s, V }` decomposition, `V` not transposed.
-   * @throws {RangeError} If this matrix contains a non-finite entry.
+   * @throws {RangeError} If this matrix contains an infinite entry.
+   * @throws {TypeError} If `options` is not an object.
    * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
@@ -2602,6 +2888,27 @@ export class Matrix extends ArrayND {
    * Vector(6.70820393249937, 2.2360679774997894)
    * true
    * ```
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * const { s } = Matrix.from([[1, 2], [2, 4]]).svd();
+   * console.log(s.get(0).toFixed(6), s.get(1) < 1e-15);
+   * console.log(Matrix.from([[1, NaN], [3, 4]]).svd().s.toString());
+   * try {
+   *   Matrix.from([[1, Infinity], [3, 4]]).svd();
+   * } catch (e) {
+   *   console.log((e as Error).message);
+   * }
+   * ```
+   *
+   * Output:
+   * ```text
+   * 5.000000 true
+   * Vector(NaN, NaN)
+   * Matrix.svd: matrix contains an infinite entry at (0, 1), got Infinity.
+   * ```
    */
   svd(options?: SVDOptions): SVDDecomposition {
     return svdAlgs.svd(this, options);
@@ -2612,8 +2919,13 @@ export class Matrix extends ArrayND {
    * nonincreasing order, without forming the singular vectors: see
    * `svd()` for the algorithm. They are exactly the values `svd()` returns,
    * at roughly a third to two thirds of its cost.
+   *
+   * Costs `O(rows * cols * min(rows, cols))`; this matrix is not modified.
+   * Any shape is accepted; a rank-deficient matrix has zero or tiny
+   * trailing values. A `NaN` entry makes every value `NaN`; an infinite
+   * entry throws `RangeError`.
    * @returns The `min(rows, cols)` singular values.
-   * @throws {RangeError} If this matrix contains a non-finite entry.
+   * @throws {RangeError} If this matrix contains an infinite entry.
    * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example
@@ -2641,13 +2953,24 @@ export class Matrix extends ArrayND {
    * values at or below `max(atol, rtol * s[0])` count as zero, which makes
    * the result stable for (numerically) rank-deficient matrices; for a full-rank
    * square matrix this is just `solve()`, only slower and more robust.
+   *
+   * Costs `O(rows * cols * min(rows, cols))`; neither this matrix nor `b`
+   * is modified. A rank-deficient system is the normal use case (the
+   * minimum-norm solution is returned and `rank` reports the deficiency);
+   * an inconsistent system gets the least-squares solution, with
+   * `residualNorm` above zero; a singular 1x1 matrix `[0]` gives `x = [0]`
+   * and `rank` `0`. A `NaN` entry in this matrix makes `x`, `s`, `rank` and
+   * `residualNorm` all `NaN`, and a `NaN` in `b` makes `x` `NaN`; an
+   * infinite entry in this matrix throws `RangeError`. Invalid `atol` or
+   * `rtol` is reported even then.
    * @param b The right-hand side, of size `rows`.
    * @param options The singular-value cutoff, `atol` and `rtol`.
    * @returns `{ x, rank, residualNorm, s }`: the solution, the numerical
    * rank, the residual norm `||this*x - b||_2`, and the singular values.
-   * @throws {RangeError} If `b.size !== rows`, if this matrix contains a
-   * non-finite entry, or if `atol` or `rtol` is negative.
+   * @throws {RangeError} If `b.size !== rows`, if this matrix contains an
+   * infinite entry, or if `atol` or `rtol` is negative.
    * @throws {Error} If the SVD iteration fails to converge.
+   * @throws {TypeError} If `options`, `atol` or `rtol` has the wrong type.
    *
    * @example
    * ```ts
@@ -2678,11 +3001,19 @@ export class Matrix extends ArrayND {
    * Singular values at or below `max(atol, rtol * s[0])` count as zero. To
    * solve one least-squares problem, `lstsq()` is cheaper than
    * `pinv()` followed by a product.
+   *
+   * Costs `O(rows * cols * min(rows, cols))`; this matrix is not modified.
+   * A singular or rank-deficient matrix is the normal use case: singular
+   * values at or below the cutoff are treated as zero, so the pseudoinverse
+   * of `[0]` is `[0]`. A `NaN` entry makes every entry of the result `NaN`;
+   * an infinite entry throws `RangeError`. Invalid `atol` or `rtol` is
+   * reported even then.
    * @param options The singular-value cutoff, `atol` and `rtol`.
    * @returns A new `cols x rows` matrix.
-   * @throws {RangeError} If this matrix contains a non-finite entry, or if
+   * @throws {RangeError} If this matrix contains an infinite entry, or if
    * `atol` or `rtol` is negative.
    * @throws {Error} If the SVD iteration fails to converge.
+   * @throws {TypeError} If `options`, `atol` or `rtol` has the wrong type.
    *
    * @example
    * ```ts
@@ -2706,8 +3037,13 @@ export class Matrix extends ArrayND {
    * shape) from its singular values: see `cond2()` in `Matrix.svd.ts`.
    * `Infinity` if the matrix is singular. Unlike `cond1()` it needs no
    * inverse and also applies to rectangular matrices.
+   *
+   * Costs `O(rows * cols * min(rows, cols))`; this matrix is not modified.
+   * A singular matrix, including `[0]`, gives `Infinity` rather than an
+   * error; a nonzero 1x1 matrix gives `1`. A `NaN` entry makes the result
+   * `NaN`; an infinite entry throws `RangeError`.
    * @returns The condition number, at least `1`, or `Infinity`.
-   * @throws {RangeError} If this matrix contains a non-finite entry.
+   * @throws {RangeError} If this matrix contains an infinite entry.
    * @throws {Error} If the SVD iteration fails to converge.
    *
    * @example

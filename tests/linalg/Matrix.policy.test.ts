@@ -725,3 +725,78 @@ describe('extreme magnitudes', () => {
     expect(Matrix.diag([1e-200, 1e-200]).determinant()).toBe(0);
   });
 });
+
+describe('behavior stated in the JSDoc: 1x1, singular and rank-deficient input', () => {
+  const m1 = (a: number) => new Matrix(1, 1, [a]);
+
+  it('1x1 matrices', () => {
+    expect(m1(4).cond1()).toBeCloseTo(1, 14);
+    expect(m1(0).cond1()).toBe(Infinity);
+    expect(m1(4).cond1Upper()).toBe(1);
+    expect(m1(4).cond1Lower()).toBe(1);
+    expect(m1(4).cond1Lower(true)).toBe(1);
+    expect(m1(0).cond1Upper()).toBe(Infinity);
+    expect(m1(3).cond2()).toBeCloseTo(1, 14);
+    expect(m1(-3).cond2()).toBe(1);
+    expect(m1(0).cond2()).toBe(Infinity);
+
+    const { Q, R } = m1(5).qr();
+    expect([Q.get(0, 0), R.get(0, 0)]).toEqual([1, 5]);
+    const { U, s, V } = m1(-5).svd();
+    expect(s.get(0)).toBe(5);
+    expect(U.get(0, 0) * V.get(0, 0)).toBe(-1);
+    expect(m1(0).svd().s.get(0)).toBe(0);
+    expect(m1(0).pinv().get(0, 0)).toBe(0);
+    expect(m1(4).pinv().get(0, 0)).toBe(0.25);
+    const ls = m1(0).lstsq([1]);
+    expect([ls.x.get(0), ls.rank, ls.residualNorm]).toEqual([0, 0, 1]);
+    expect(m1(2).choleskySolve([4]).get(0)).toBe(1);
+    expect(m1(4).cholesky().get(0, 0)).toBe(2);
+    expect(() => m1(0).cholesky()).toThrow(/not positive definite/);
+    expect(() => m1(-1).cholesky()).toThrow(Error);
+    expect(m1(2).solveLower([6]).get(0)).toBe(3);
+    expect(m1(2).solveUpper([6]).get(0)).toBe(3);
+    expect(Matrix.luSolve(m1(2).lu(), [6]).get(0)).toBe(3);
+    const lu = m1(7).lu();
+    expect([lu.L.get(0, 0), lu.U.get(0, 0), lu.sign]).toEqual([1, 7, 1]);
+    expect(m1(7).eigenvalues()).toEqual([{ re: 7, im: 0 }]);
+    const [pair] = m1(7).eig();
+    expect(pair.vectorRe.get(0)).toBe(1);
+    expect(pair.vectorIm.get(0)).toBe(0);
+    const qp = m1(3).qrPivot();
+    expect(qp.perm).toEqual([0]);
+    expect(qp.QR.get(0, 0)).toBe(3);
+    expect(Matrix.qrUpdate(m1(2).qr(), [1], [1]).R.get(0, 0)).toBe(3);
+  });
+
+  it('rank-deficient matrices: qr, qrPivot, eigenvalues and cond1Upper do not throw', () => {
+    const A = new Matrix(2, 2, [1, 2, 2, 4]);
+    const { Q, R } = A.qr();
+    expect(Math.abs(R.get(1, 1))).toBeLessThan(1e-15);
+    expect(Q.matmul(R).sub(A).norm()).toBeLessThan(1e-14);
+    const qp = A.qrPivot();
+    expect(Math.abs(qp.QR.get(1, 1))).toBeLessThan(1e-14);
+    expect(
+      A.eigenvalues()
+        .map((e) => e.re)
+        .sort()
+    ).toEqual([0, 5]);
+    expect(new Matrix(2, 2, [1, 1, 0, 0]).cond1Upper()).toBe(Infinity);
+    expect(new Matrix(2, 2).cond1Upper()).toBe(Infinity);
+    expect(new Matrix(2, 2).cond1Lower()).toBe(Infinity);
+  });
+
+  it('cond1Upper/cond1Lower are not scanned: NaN and infinite entries give NaN', () => {
+    expect(new Matrix(2, 2, [1, NaN, 0, 1]).cond1Upper()).toBeNaN();
+    expect(new Matrix(2, 2, [1, Infinity, 0, 1]).cond1Upper()).toBeNaN();
+  });
+
+  it('qrUpdate keeps Q R = A + u v^T for a tall matrix (cost O(m (m + n)) as documented)', () => {
+    const A = randomMatrix(6, 2, 5);
+    const u = [1, 2, 3, 4, 5, 6];
+    const v = [0.5, -1];
+    const upd = Matrix.qrUpdate(A.qr(), u, v);
+    const expected = A.add(Vector.from(u).outer(Vector.from(v)));
+    expect(upd.Q.matmul(upd.R).sub(expected).norm()).toBeLessThan(1e-13 * expected.norm());
+  });
+});

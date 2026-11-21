@@ -941,7 +941,7 @@ function unscale(s: Float64Array, scale: number): Float64Array {
  * @param A The matrix to decompose. Not modified.
  * @param options See {@link SVDOptions}.
  * @returns The `{ U, s, V }` decomposition.
- * @throws {RangeError} If `A` contains a non-finite entry.
+ * @throws {RangeError} If `A` contains an infinite entry.
  * @throws {TypeError} If `options` is not an object.
  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
  */
@@ -984,7 +984,7 @@ export function svd(A: Matrix, options?: SVDOptions): SVDDecomposition {
  * dominates) and saves the `O(rows * cols)` vector storage.
  * @param A The matrix. Not modified.
  * @returns The `min(rows, cols)` singular values.
- * @throws {RangeError} If `A` contains a non-finite entry.
+ * @throws {RangeError} If `A` contains an infinite entry.
  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
  */
 export function singularValues(A: Matrix): Vector {
@@ -1065,9 +1065,10 @@ function countAbove(s: Float64Array, cutoff: number): number {
  * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
  * @returns The solution `x` (size `A.cols`), the numerical rank, the
  * residual norm `||A*x - b||_2`, and the singular values of `A`.
- * @throws {RangeError} If `b.size !== A.rows`, if `A` has a non-finite entry,
+ * @throws {RangeError} If `b.size !== A.rows`, if `A` has an infinite entry,
  * or if `atol` or `rtol` is negative.
  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
+ * @throws {TypeError} If `options`, `atol` or `rtol` has the wrong type.
  */
 export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): LstsqResult {
   const bv = Vector.asVector(b);
@@ -1144,8 +1145,9 @@ export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): Lst
  * @param A The matrix. Not modified.
  * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
  * @returns A new `A.cols x A.rows` matrix.
- * @throws {RangeError} If `A` has a non-finite entry, or `atol` or `rtol` is negative.
+ * @throws {RangeError} If `A` has an infinite entry, or `atol` or `rtol` is negative.
  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
+ * @throws {TypeError} If `options`, `atol` or `rtol` has the wrong type.
  */
 export function pinv(A: Matrix, options?: SVDCutoffOptions): Matrix {
   const m = A.rows;
@@ -1193,7 +1195,9 @@ export function pinv(A: Matrix, options?: SVDCutoffOptions): Matrix {
  * for rectangular matrices too; it costs one `singularValues()` call.
  * @param A The matrix. Not modified.
  * @returns The condition number, at least `1`, or `Infinity`.
- * @throws {RangeError} If `A` contains a non-finite entry.
+ * @throws {RangeError} If `A` contains an infinite entry.
+ * @throws {Error} If the QR iteration fails to converge, which is not
+ *   expected for finite input.
  */
 export function cond2(A: Matrix): number {
   const s = singularValuesOf(A, 'cond2').data;
@@ -1208,7 +1212,9 @@ export function cond2(A: Matrix): number {
  * @param A The matrix. Not modified.
  * @param options Cutoff for the singular values, see {@link SVDCutoffOptions}.
  * @returns The rank, between `0` and `min(rows, cols)`.
- * @throws {RangeError} If `A` has a non-finite entry, or `atol` or `rtol` is negative.
+ * @throws {RangeError} If `A` has an infinite entry, or `atol` or `rtol` is negative.
+ * @throws {TypeError} If `options`, `atol` or `rtol` has the wrong type.
+ * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
  */
 export function rankSvd(A: Matrix, options?: SVDCutoffOptions): number {
   resolveCutoff(A, options, 'rank');

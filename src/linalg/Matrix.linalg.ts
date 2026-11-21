@@ -79,6 +79,7 @@ export interface QRPivotDecomposition {
  * all-zero whenever `value.im` is `0`.
  */
 export interface Eigenpair {
+  /** The eigenvalue. */
   value: Eigenvalue;
   /** Real part of the eigenvector. */
   vectorRe: Vector;
@@ -231,9 +232,11 @@ const RANK_TOL_SCALE = 10;
  * `{ method, atol, rtol }`, see {@link RankOptions}.
  * @returns The rank, between `0` and `min(rows, cols)`.
  * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`, if `method`
- * is unknown, or (SVD method) if `A` has a non-finite entry.
+ * is unknown, or if `A` has an infinite entry.
  * @throws {Error} For the SVD method, if the QR iteration fails to converge,
  * which is not expected for finite input.
+ * @throws {TypeError} If `options` is neither a number nor an object, or
+ *   `atol` or `rtol` is not a number.
  */
 export function rank(A: Matrix, options?: number | RankOptions): number {
   if (typeof options !== 'number') checkOptions(options, 'rank');
@@ -263,6 +266,7 @@ export function rank(A: Matrix, options?: number | RankOptions): number {
  * @param A The matrix to compute the determinant of. Must be square.
  * @returns The determinant.
  * @throws {RangeError} If `A` is not square.
+ * @throws {RangeError} If `A` has an infinite entry.
  */
 export function determinant(A: Matrix): number {
   if (A.rows !== A.cols)
@@ -283,6 +287,7 @@ export function determinant(A: Matrix): number {
  *   floating-point error) the identity matrix.
  * @throws {RangeError} If `A` is not square.
  * @throws {Error} If `A` is singular (not invertible).
+ * @throws {RangeError} If `A` has an infinite entry.
  */
 export function inverse(A: Matrix): Matrix {
   if (A.rows !== A.cols)
@@ -362,6 +367,8 @@ export function inverse(A: Matrix): Matrix {
  * size of `A`, or if `A` is `out.L`.
  * @throws {Error} If `A` is singular (some column's largest available
  * pivot is exactly `0`).
+ * @throws {RangeError} If `A` has an infinite entry.
+ * @throws {TypeError} If `out` is given but is not an `LUDecomposition`.
  */
 export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
   return factorLU(A, out, 'lu');
@@ -578,6 +585,7 @@ function substituteUpper(A: Matrix, b: Vector, out: Vector | undefined, who: str
  * @throws {RangeError} If `b` or `out` does not match the size of the
  * factorization, or if `out` is `b`.
  * @throws {Error} If `U` has a zero diagonal entry.
+ * @throws {TypeError} If `decomposition` is not an `LUDecomposition`.
  */
 export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
   checkRecord(
@@ -615,6 +623,7 @@ export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector)
  *   floating-point error) equal to `b`.
  * @throws {RangeError} If `A` is not square, or `b.size !== A.rows`.
  * @throws {Error} If `A` is singular (no unique solution).
+ * @throws {RangeError} If `A` has an infinite entry.
  */
 export function solve(A: Matrix, b: Vector): Vector {
   if (A.rows !== A.cols)
@@ -640,6 +649,7 @@ export function solve(A: Matrix, b: Vector): Vector {
  * @param A The matrix to evaluate. Must be square.
  * @returns The 1-norm condition number, or `Infinity` if `A` is (numerically) singular.
  * @throws {RangeError} If `A` is not square.
+ * @throws {RangeError} If `A` has an infinite entry.
  */
 export function cond1(A: Matrix): number {
   if (A.rows !== A.cols)
@@ -849,6 +859,8 @@ export function cond1Lower(T: Matrix, unitDiagonal = false): number {
  * @throws {RangeError} If `A` is not square.
  * @throws {Error} If `A` is not positive definite (some leading principal
  * minor is not strictly positive).
+ * @throws {RangeError} If the lower triangle of `A`, diagonal included, has
+ *   an infinite entry.
  */
 export function cholesky(A: Matrix): Matrix {
   if (A.rows !== A.cols)
@@ -981,6 +993,7 @@ function householderQR(A: Matrix): QRDecomposition {
  * orthogonal and `R` upper triangular (trapezoidal if `A.rows > A.cols`).
  * @param A The matrix to factor.
  * @returns The `{ Q, R }` factorization.
+ * @throws {RangeError} If `A` has an infinite entry.
  */
 export function qr(A: Matrix): QRDecomposition {
   if (scanNonFinite(A, 'qr')) return { Q: nanMatrix(A.rows, A.rows), R: nanMatrix(A.rows, A.cols) };
@@ -1018,6 +1031,8 @@ export function qr(A: Matrix): QRDecomposition {
  * @returns The `{ QR, tau, perm }` factorization: `out` if given, otherwise
  * a new object.
  * @throws {RangeError} If `out` does not match the shape of `A`.
+ * @throws {RangeError} If `A` has an infinite entry.
+ * @throws {TypeError} If `out` is given but is not a `QRPivotDecomposition`.
  */
 export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposition {
   const m = A.rows;
@@ -1161,6 +1176,7 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
  * thin `Q`; for a tall matrix the remaining ones hold the part of `b`
  * orthogonal to the range of `A`, whose norm is the least-squares residual.
  * @throws {RangeError} If `b` or `out` does not match the factorization.
+ * @throws {TypeError} If `dec` is not a `QRPivotDecomposition`.
  */
 export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector): Vector {
   checkRecord(
@@ -1203,6 +1219,7 @@ export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector)
  * need `Q` explicitly; solvers should prefer `qrPivotMulQt()`.
  * @param dec A factorization, as returned by `qrPivot()`.
  * @returns A new `rows x k` matrix with orthonormal columns.
+ * @throws {TypeError} If `dec` is not a `QRPivotDecomposition`.
  */
 export function qrPivotQ(dec: QRPivotDecomposition): Matrix {
   checkRecord(
@@ -1249,6 +1266,7 @@ export function qrPivotQ(dec: QRPivotDecomposition): Matrix {
  * diagonal. Its diagonal has nonincreasing magnitude.
  * @param dec A factorization, as returned by `qrPivot()`.
  * @returns A new `k x cols` matrix.
+ * @throws {TypeError} If `dec` is not a `QRPivotDecomposition`.
  */
 export function qrPivotR(dec: QRPivotDecomposition): Matrix {
   checkRecord(
@@ -1374,7 +1392,7 @@ function applyGivensCols(M: Matrix, i: number, j: number, c: number, s: number):
  *
  * Both sweeps are accumulated into `Q` via right-multiplication (the same
  * trick `householderQR` uses for its reflectors), so `Q * R` keeps
- * equaling `A'` throughout. Total cost is `O(m*n)`, versus
+ * equaling `A'` throughout. Total cost is `O(m*(m+n))` (the `m x m` `Q` is updated too), versus
  * `O(m*n*min(m,n))` for `A.add(u.outer(v)).qr()` from scratch — worth it
  * whenever updates are applied repeatedly, e.g. recursive least squares,
  * online/Kalman-filter-style estimation, or a quasi-Newton solver
@@ -1394,6 +1412,7 @@ function applyGivensCols(M: Matrix, i: number, j: number, c: number, s: number):
  * @returns `qrDecomp` itself, mutated in place, for chaining.
  * @throws {RangeError} If `Q` isn't square, or `Q`/`R`/`u`/`v`'s shapes
  * are inconsistent with each other.
+ * @throws {TypeError} If `qrDecomp` is not a `QRDecomposition`.
  */
 export function qrUpdateSelf(qrDecomp: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
   checkRecord(qrDecomp, { matrices: ['Q', 'R'] }, 'qrUpdateSelf', 'qr', QR_LABEL);
@@ -1467,6 +1486,7 @@ export function qrUpdateSelf(qrDecomp: QRDecomposition, u: Vector, v: Vector): Q
  * floating-point error) `qrDecomp.Q.matmul(qrDecomp.R)`'s value plus the
  * outer product of `u` and `v`.
  * @throws {RangeError} Same conditions as `qrUpdateSelf`.
+ * @throws {TypeError} If `qrDecomp` is not a `QRDecomposition`.
  */
 export function qrUpdate(qrDecomp: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
   checkRecord(qrDecomp, { matrices: ['Q', 'R'] }, 'qrUpdate', 'qr', QR_LABEL);
@@ -1996,6 +2016,7 @@ function eigenOptions(
  * same Schur form, which is cheaper than computing eigenvalues and then
  * eigenvectors separately.
  * @param A The matrix to decompose. Must be square.
+ * @param options Optional settings.
  * @param options.tol Relative tolerance for the deflation test: a
  * subdiagonal entry `H[k, k-1]` is treated as converged once
  * `abs(H[k, k-1]) <= tol * (abs(H[k-1,k-1]) + abs(H[k,k]))` (falling back
@@ -2013,6 +2034,10 @@ function eigenOptions(
  * @throws {RangeError} If `A` is not square.
  * @throws {Error} If the iteration budget is exhausted before every
  * block deflates (e.g. for a pathologically slow-converging matrix).
+ * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations` is
+ *   not a positive integer, or if `A` has an infinite entry.
+ * @throws {TypeError} If `options`, `tol` or `maxIterations` has the wrong
+ *   type.
  */
 export function eigenvalues(
   A: Matrix,
@@ -2073,6 +2098,10 @@ export function eigenvalues(
  * @throws {RangeError} If `A` is not square.
  * @throws {Error} If the iteration budget is exhausted before every
  * block deflates.
+ * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations` is
+ *   not a positive integer, or if `A` has an infinite entry.
+ * @throws {TypeError} If `options`, `tol` or `maxIterations` has the wrong
+ *   type.
  */
 export function eig(A: Matrix, options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
   if (A.rows !== A.cols)
