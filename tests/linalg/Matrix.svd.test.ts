@@ -625,7 +625,7 @@ describe('Matrix SVD family', () => {
           [1, NaN],
           [3, 4]
         ]).rank()
-      ).toThrow(/Matrix rank: .*non-finite/);
+      ).toThrow(/Matrix\.rank: .*non-finite/);
     });
   });
 
@@ -653,7 +653,7 @@ describe('Matrix SVD family', () => {
           [1, Infinity],
           [3, 4]
         ]).cond2()
-      ).toThrow(/Matrix cond2: .*non-finite/);
+      ).toThrow(/Matrix\.cond2: .*non-finite/);
     });
   });
 });

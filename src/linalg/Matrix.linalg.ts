@@ -229,12 +229,12 @@ export function rank(A: Matrix, options?: number | RankOptions): number {
   const method = opts.method ?? 'svd';
   if (method === 'svd') return rankSvd(A, opts);
   if (method !== 'elimination') {
-    throw new RangeError(`Matrix rank: unknown method '${String(method)}'.`);
+    throw new RangeError(`Matrix.rank: unknown method '${String(method)}'.`);
   }
   const atol = opts.atol ?? 0;
   const rtol = opts.rtol ?? RANK_TOL_SCALE * Math.max(A.rows, A.cols) * Number.EPSILON;
-  if (!(atol >= 0)) throw new RangeError(`Matrix rank: atol must be >= 0, got ${atol}.`);
-  if (!(rtol >= 0)) throw new RangeError(`Matrix rank: rtol must be >= 0, got ${rtol}.`);
+  if (!(atol >= 0)) throw new RangeError(`Matrix.rank: atol must be >= 0, got ${atol}.`);
+  if (!(rtol >= 0)) throw new RangeError(`Matrix.rank: rtol must be >= 0, got ${rtol}.`);
   return forwardEliminate(A, Math.max(atol, rtol * A.normInf())).rank;
 }
 
@@ -252,7 +252,7 @@ export function rank(A: Matrix, options?: number | RankOptions): number {
  */
 export function determinant(A: Matrix): number {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix determinant requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.determinant: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const { rank: r, sign, pivots } = forwardEliminate(A, 0);
   if (r < A.rows) return 0;
   let det = sign;
@@ -271,7 +271,7 @@ export function determinant(A: Matrix): number {
  */
 export function inverse(A: Matrix): Matrix {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix inverse requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.inverse: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
   // Augment [A | I] and row-reduce the left half to I; the right half
   // then becomes A^-1.
@@ -282,7 +282,7 @@ export function inverse(A: Matrix): Matrix {
   }
   for (let col = 0; col < n; col++) {
     const pivotRow = findPivotRow(aug, col, col, 0);
-    if (pivotRow === -1) throw new Error('Matrix inverse: matrix is singular.');
+    if (pivotRow === -1) throw new Error('Matrix.inverse: matrix is singular.');
     if (pivotRow !== col) aug.swapRowsSelf(col, pivotRow);
     aug.scaleRowSelf(col, 1 / aug.getUnchecked(col, col));
     for (let i = 0; i < n; i++) {
@@ -340,7 +340,7 @@ export function inverse(A: Matrix): Matrix {
  */
 export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix lu requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.lu: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
   const result = out ?? {
     L: new Matrix(n, n),
@@ -351,10 +351,10 @@ export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
   const { L, U, perm } = result;
   if (L.rows !== n || L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
     throw new RangeError(
-      `Matrix lu: out must hold ${n}x${n} L and U factors and a permutation of length ${n}.`
+      `Matrix.lu: out must hold ${n}x${n} L and U factors and a permutation of length ${n}.`
     );
   }
-  if (A === L) throw new RangeError('Matrix lu: A must not be out.L.');
+  if (A === L) throw new RangeError('Matrix.lu: A must not be out.L.');
 
   const u = U.data;
   const l = L.data;
@@ -376,7 +376,7 @@ export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
         pivotRow = i;
       }
     }
-    if (pivotRow === -1) throw new Error('Matrix lu: matrix is singular.');
+    if (pivotRow === -1) throw new Error('Matrix.lu: matrix is singular.');
     if (pivotRow !== col) {
       const colOffset = col * n;
       const pivotOffset = pivotRow * n;
@@ -433,13 +433,13 @@ export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
  */
 export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vector): Vector {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix solveLower requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.solveLower: expected a square matrix, got ${A.rows}x${A.cols}.`);
   if (b.size !== A.rows)
     throw new RangeError(
-      `Matrix solveLower shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size}).`
+      `Matrix.solveLower: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
   if (out !== undefined && out.size !== A.rows)
-    throw new RangeError(`Matrix solveLower out has size ${out.size}, expected ${A.rows}.`);
+    throw new RangeError(`Matrix.solveLower: out has size ${out.size}, expected ${A.rows}.`);
   const n = A.rows;
   // Row i reads only x[0..i-1], which are already final, and b[i] before
   // writing x[i]: so `x` may alias `b`.
@@ -452,7 +452,7 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vec
       x.data[i] = s;
     } else {
       const d = A.data[offset + i];
-      if (d === 0) throw new Error('Matrix solveLower: zero diagonal entry, matrix is singular.');
+      if (d === 0) throw new Error('Matrix.solveLower: zero diagonal entry, matrix is singular.');
       x.data[i] = s / d;
     }
   }
@@ -476,13 +476,13 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vec
  */
 export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix solveUpper requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.solveUpper: expected a square matrix, got ${A.rows}x${A.cols}.`);
   if (b.size !== A.rows)
     throw new RangeError(
-      `Matrix solveUpper shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size}).`
+      `Matrix.solveUpper: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
   if (out !== undefined && out.size !== A.rows)
-    throw new RangeError(`Matrix solveUpper out has size ${out.size}, expected ${A.rows}.`);
+    throw new RangeError(`Matrix.solveUpper: out has size ${out.size}, expected ${A.rows}.`);
   const n = A.rows;
   // Row i reads only x[i+1..n-1], which are already final, and b[i] before
   // writing x[i]: so `x` may alias `b`.
@@ -492,7 +492,7 @@ export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
     let s = b.data[i];
     for (let j = i + 1; j < n; j++) s -= A.data[offset + j] * x.data[j];
     const d = A.data[offset + i];
-    if (d === 0) throw new Error('Matrix solveUpper: zero diagonal entry, matrix is singular.');
+    if (d === 0) throw new Error('Matrix.solveUpper: zero diagonal entry, matrix is singular.');
     x.data[i] = s / d;
   }
   return x;
@@ -521,13 +521,13 @@ export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector)
   const { L, U, perm } = decomposition;
   const n = L.rows;
   if (L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
-    throw new RangeError('Matrix luSolve: inconsistent LU factorization shapes.');
+    throw new RangeError('Matrix.luSolve: inconsistent LU factorization shapes.');
   }
   if (b.size !== n)
-    throw new RangeError(`Matrix luSolve shape mismatch: ${n}x${n} vs vec(${b.size}).`);
+    throw new RangeError(`Matrix.luSolve: shape mismatch: ${n}x${n} vs vector of size ${b.size}.`);
   if (out !== undefined && out.size !== n)
-    throw new RangeError(`Matrix luSolve out has size ${out.size}, expected ${n}.`);
-  if (out !== undefined && out === b) throw new RangeError('Matrix luSolve: out must not be b.');
+    throw new RangeError(`Matrix.luSolve: out has size ${out.size}, expected ${n}.`);
+  if (out !== undefined && out === b) throw new RangeError('Matrix.luSolve: out must not be b.');
   const x = out ?? new Vector(n);
   for (let i = 0; i < n; i++) x.data[i] = b.data[perm[i]];
   solveLower(L, x, true, x);
@@ -549,9 +549,11 @@ export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector)
  */
 export function solve(A: Matrix, b: Vector): Vector {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix solve requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.solve: expected a square matrix, got ${A.rows}x${A.cols}.`);
   if (b.size !== A.rows)
-    throw new RangeError(`Matrix solve shape mismatch: ${A.rows}x${A.cols} vs vec(${b.size}).`);
+    throw new RangeError(
+      `Matrix.solve: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
+    );
   return luSolve(lu(A), b);
 }
 
@@ -571,7 +573,7 @@ export function solve(A: Matrix, b: Vector): Vector {
  */
 export function cond1(A: Matrix): number {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix cond1 requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.cond1: expected a square matrix, got ${A.rows}x${A.cols}.`);
   try {
     return A.norm1() * A.inverse().norm1();
   } catch {
@@ -724,7 +726,7 @@ function cond1Triangular(T: Matrix, lower: boolean, unitDiagonal: boolean): numb
  */
 export function cond1Upper(T: Matrix): number {
   if (T.rows !== T.cols)
-    throw new RangeError(`Matrix cond1Upper requires a square matrix, got ${T.rows}x${T.cols}.`);
+    throw new RangeError(`Matrix.cond1Upper: expected a square matrix, got ${T.rows}x${T.cols}.`);
   return cond1Triangular(T, false, false);
 }
 
@@ -744,7 +746,7 @@ export function cond1Upper(T: Matrix): number {
  */
 export function cond1Lower(T: Matrix, unitDiagonal = false): number {
   if (T.rows !== T.cols)
-    throw new RangeError(`Matrix cond1Lower requires a square matrix, got ${T.rows}x${T.cols}.`);
+    throw new RangeError(`Matrix.cond1Lower: expected a square matrix, got ${T.rows}x${T.cols}.`);
   return cond1Triangular(T, true, unitDiagonal);
 }
 
@@ -778,7 +780,7 @@ export function cond1Lower(T: Matrix, unitDiagonal = false): number {
  */
 export function cholesky(A: Matrix): Matrix {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix cholesky requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.cholesky: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
   const L = new Matrix(n, n);
   for (let i = 0; i < n; i++) {
@@ -791,7 +793,7 @@ export function cholesky(A: Matrix): Matrix {
       if (i === j) {
         if (sum <= 0)
           throw new Error(
-            `Matrix cholesky: matrix is not positive definite (leading minor of order ${i + 1} is not positive).`
+            `Matrix.cholesky: matrix is not positive definite (leading minor of order ${i + 1} is not positive).`
           );
         L.data[rowOffsetL + j] = Math.sqrt(sum);
       } else {
@@ -820,10 +822,12 @@ export function cholesky(A: Matrix): Matrix {
  */
 export function choleskySolve(L: Matrix, b: Vector): Vector {
   if (L.rows !== L.cols)
-    throw new RangeError(`Matrix choleskySolve requires a square matrix, got ${L.rows}x${L.cols}.`);
+    throw new RangeError(
+      `Matrix.choleskySolve: expected a square matrix, got ${L.rows}x${L.cols}.`
+    );
   if (b.size !== L.rows)
     throw new RangeError(
-      `Matrix choleskySolve shape mismatch: ${L.rows}x${L.cols} vs vec(${b.size}).`
+      `Matrix.choleskySolve: shape mismatch: ${L.rows}x${L.cols} vs vector of size ${b.size}.`
     );
   const y = solveLower(L, b, false);
   return solveUpper(L.transpose(), y);
@@ -949,7 +953,7 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
   const { QR, tau, perm } = result;
   if (QR.rows !== m || QR.cols !== n || tau.size !== k || perm.length !== n) {
     throw new RangeError(
-      `Matrix qrPivot: out must hold a ${m}x${n} QR matrix, ${k} tau values and a permutation of length ${n}.`
+      `Matrix.qrPivot: out must hold a ${m}x${n} QR matrix, ${k} tau values and a permutation of length ${n}.`
     );
   }
 
@@ -1074,9 +1078,11 @@ export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector)
   const m = QR.rows;
   const n = QR.cols;
   if (b.size !== m)
-    throw new RangeError(`Matrix qrPivotMulQt shape mismatch: ${m}x${n} vs vec(${b.size}).`);
+    throw new RangeError(
+      `Matrix.qrPivotMulQt: shape mismatch: ${m}x${n} vs vector of size ${b.size}.`
+    );
   if (out !== undefined && out.size !== m)
-    throw new RangeError(`Matrix qrPivotMulQt out has size ${out.size}, expected ${m}.`);
+    throw new RangeError(`Matrix.qrPivotMulQt: out has size ${out.size}, expected ${m}.`);
   const y = out ?? new Vector(m);
   if (y !== b) y.data.set(b.data);
   const d = y.data;
@@ -1750,7 +1756,7 @@ function schurForm(
 
       if (budget-- <= 0) {
         throw new Error(
-          `Matrix eigenvalues: failed to converge within the iteration budget (${maxIterations}).`
+          `Matrix.eigenvalues: failed to converge within the iteration budget (${maxIterations}).`
         );
       }
 
@@ -1880,7 +1886,7 @@ export function eigenvalues(
   options?: { maxIterations?: number; tol?: number }
 ): Eigenvalue[] {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix eigenvalues requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.eigenvalues: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
   const tol = options?.tol ?? Number.EPSILON;
   const maxIterations = options?.maxIterations ?? 30 * n;
@@ -1935,7 +1941,7 @@ export function eigenvalues(
  */
 export function eig(A: Matrix, options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix eig requires a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.eig: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
   const tol = options?.tol ?? Number.EPSILON;
   const maxIterations = options?.maxIterations ?? 30 * n;

@@ -3530,6 +3530,50 @@ describe('Matrix: input types, naming and error format', () => {
       );
     });
 
+    it('linalg and svd errors follow the same format and name the method that was called', () => {
+      const sq = Matrix.from([
+        [2, 1],
+        [1, 3]
+      ]);
+      const rect = new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
+      const singular = new Matrix(2, 2, [1, 2, 2, 4]);
+      const dec = sq.lu();
+      const cases: [string, () => unknown][] = [
+        ['determinant', () => rect.determinant()],
+        ['inverse', () => rect.inverse()],
+        ['inverse', () => singular.inverse()],
+        ['lu', () => rect.lu()],
+        ['lu', () => singular.lu()],
+        ['solve', () => rect.solve([1, 2])],
+        ['solve', () => sq.solve([1])],
+        ['solveLower', () => sq.solveLower([1])],
+        ['solveUpper', () => sq.solveUpper([1, 1], new Vector(1))],
+        ['luSolve', () => Matrix.luSolve(dec, [1])],
+        ['cond1', () => rect.cond1()],
+        ['cholesky', () => rect.cholesky()],
+        ['cholesky', () => singular.cholesky()],
+        ['choleskySolve', () => sq.choleskySolve([1])],
+        ['qrPivot', () => sq.qrPivot(rect.qrPivot())],
+        ['eigenvalues', () => rect.eigenvalues()],
+        ['eig', () => rect.eig()],
+        ['rank', () => rect.rank({ atol: -1 })],
+        ['rank', () => rect.rank({ method: 'x' as 'svd' })],
+        ['lstsq', () => rect.lstsq([1])],
+        ['pinv', () => rect.pinv({ rtol: -1 })],
+        ['svd', () => new Matrix(1, 1, [Infinity]).svd()],
+        ['cond2', () => new Matrix(1, 1, [Infinity]).cond2()]
+      ];
+      for (const [name, call] of cases) {
+        expect(call, name).toThrowError(new RegExp(`^Matrix\\.${name}: .*\\.$`));
+      }
+      expect(() => rect.solve([1, 2])).toThrowError(
+        'Matrix.solve: expected a square matrix, got 2x3.'
+      );
+      expect(() => sq.solve([1])).toThrowError(
+        'Matrix.solve: shape mismatch: 2x2 vs vector of size 1.'
+      );
+    });
+
     it('every message thrown by a Matrix.ts check starts with "Matrix.<name>: " and ends with a period', () => {
       const m = new Matrix(2, 3, [1, 2, 3, 4, 5, 6]);
       const calls: (() => unknown)[] = [
