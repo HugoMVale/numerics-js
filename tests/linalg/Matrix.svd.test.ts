@@ -294,19 +294,37 @@ describe('Matrix SVD family', () => {
       }
     });
 
-    it('throws for non-finite entries', () => {
-      expect(() =>
-        Matrix.from([
-          [1, NaN],
-          [3, 4]
-        ]).svd()
-      ).toThrow(RangeError);
+    it('propagates NaN and throws for infinite entries', () => {
+      const withNaN = Matrix.from([
+        [1, NaN],
+        [3, 4],
+        [5, 6]
+      ]);
+      for (const full of [false, true]) {
+        const { U, s, V } = withNaN.svd({ full });
+        expect(U.rows).toBe(3);
+        expect(U.cols).toBe(full ? 3 : 2);
+        expect(V.rows).toBe(2);
+        expect(V.cols).toBe(2);
+        expect(s.size).toBe(2);
+        expect(U.data.every(Number.isNaN)).toBe(true);
+        expect(V.data.every(Number.isNaN)).toBe(true);
+        expect(s.data.every(Number.isNaN)).toBe(true);
+      }
+      expect(withNaN.singularValues().data.every(Number.isNaN)).toBe(true);
       expect(() =>
         Matrix.from([
           [1, Infinity],
           [3, 4]
         ]).svd()
-      ).toThrow(/non-finite/);
+      ).toThrow(/Matrix\.svd: matrix contains an infinite entry at \(0, 1\)/);
+      // An infinite entry wins over NaN.
+      expect(() =>
+        Matrix.from([
+          [NaN, Infinity],
+          [3, 4]
+        ]).svd()
+      ).toThrow(RangeError);
       expect(() =>
         Matrix.from([
           [1, -Infinity],
@@ -455,7 +473,7 @@ describe('Matrix SVD family', () => {
       expect(A.lstsq(b, { rtol: 0, atol: 1e-3 }).rank).toBe(1);
     });
 
-    it('throws on a shape mismatch, a negative cutoff or non-finite entries', () => {
+    it('throws on a shape mismatch, a negative cutoff or infinite entries, and propagates NaN', () => {
       const A = randomMatrix(3, 2, 2);
       expect(() => A.lstsq([1, 2])).toThrow(RangeError);
       expect(() => A.lstsq([1, 2, 3], { atol: -1 })).toThrow(/atol/);
@@ -463,11 +481,23 @@ describe('Matrix SVD family', () => {
       expect(() => A.lstsq([1, 2, 3], { rtol: NaN })).toThrow(RangeError);
       expect(() =>
         Matrix.from([
-          [1, NaN],
+          [1, -Infinity],
           [3, 4],
           [5, 6]
         ]).lstsq([1, 2, 3])
       ).toThrow(RangeError);
+      const res = Matrix.from([
+        [1, NaN],
+        [3, 4],
+        [5, 6]
+      ]).lstsq([1, 2, 3]);
+      expect(res.x.size).toBe(2);
+      expect(res.x.data.every(Number.isNaN)).toBe(true);
+      expect(res.s.data.every(Number.isNaN)).toBe(true);
+      expect(res.rank).toBeNaN();
+      expect(res.residualNorm).toBeNaN();
+      // Invalid options are reported even for a NaN matrix.
+      expect(() => Matrix.from([[NaN]]).lstsq([1], { atol: -1 })).toThrow(/atol/);
     });
   });
 
@@ -611,7 +641,7 @@ describe('Matrix SVD family', () => {
       }
     });
 
-    it('throws for invalid options, and for non-finite entries with the SVD method', () => {
+    it('throws for invalid options and infinite entries, and is NaN for NaN entries', () => {
       const A = randomMatrix(3, 3, 1);
       for (const method of ['svd', 'elimination'] as const) {
         expect(() => A.rank({ method, atol: -1 })).toThrow(/atol/);
@@ -620,12 +650,19 @@ describe('Matrix SVD family', () => {
       }
       expect(() => A.rank(-1)).toThrow(RangeError);
       expect(() => A.rank({ method: 'qr' as 'svd' })).toThrow(/unknown method/);
-      expect(() =>
-        Matrix.from([
-          [1, NaN],
-          [3, 4]
-        ]).rank()
-      ).toThrow(/Matrix\.rank: .*non-finite/);
+      const withNaN = Matrix.from([
+        [1, NaN],
+        [3, 4]
+      ]);
+      expect(withNaN.rank()).toBeNaN();
+      expect(withNaN.rank({ method: 'elimination' })).toBeNaN();
+      for (const method of ['svd', 'elimination'] as const) {
+        expect(() => Matrix.from([[1, Infinity]]).rank({ method })).toThrow(
+          /Matrix\.rank: matrix contains an infinite entry/
+        );
+        // Invalid options are reported even for a NaN matrix.
+        expect(() => withNaN.rank({ method, atol: -1 })).toThrow(/atol/);
+      }
     });
   });
 
@@ -653,7 +690,8 @@ describe('Matrix SVD family', () => {
           [1, Infinity],
           [3, 4]
         ]).cond2()
-      ).toThrow(/Matrix\.cond2: .*non-finite/);
+      ).toThrow(/Matrix\.cond2: matrix contains an infinite entry/);
+      expect(Matrix.from([[1, NaN]]).cond2()).toBeNaN();
     });
   });
 });

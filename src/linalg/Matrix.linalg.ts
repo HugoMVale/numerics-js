@@ -1,6 +1,13 @@
 import { Matrix } from './Matrix.js';
 import { Vector } from './Vector.js';
 import { rankSvd, type SVDCutoffOptions } from './Matrix.svd.js';
+import {
+  checkNonNegative,
+  checkOptions,
+  checkPositiveInteger,
+  checkRecord,
+  scanNonFinite
+} from './checks.js';
 
 // =======================================================================
 // Matrix.linalg.ts
@@ -125,6 +132,11 @@ export interface RankOptions extends SVDCutoffOptions {
 // inverse/lu.
 // -----------------------------------------------------------------
 
+/** A new `rows x cols` matrix of `NaN`: the result for a matrix with a `NaN` entry. */
+function nanMatrix(rows: number, cols: number): Matrix {
+  return new Matrix(rows, cols).fill(NaN);
+}
+
 /**
  * Finds the best pivot row for column `col`, searching rows `startRow..m.rows-1`.
  * Used internally by `forwardEliminate` and `inverse` to share the
@@ -224,6 +236,7 @@ const RANK_TOL_SCALE = 10;
  * which is not expected for finite input.
  */
 export function rank(A: Matrix, options?: number | RankOptions): number {
+  if (typeof options !== 'number') checkOptions(options, 'rank');
   const opts: RankOptions =
     typeof options === 'number' ? { atol: options, rtol: 0 } : (options ?? {});
   const method = opts.method ?? 'svd';
@@ -233,8 +246,9 @@ export function rank(A: Matrix, options?: number | RankOptions): number {
   }
   const atol = opts.atol ?? 0;
   const rtol = opts.rtol ?? RANK_TOL_SCALE * Math.max(A.rows, A.cols) * Number.EPSILON;
-  if (!(atol >= 0)) throw new RangeError(`Matrix.rank: atol must be >= 0, got ${atol}.`);
-  if (!(rtol >= 0)) throw new RangeError(`Matrix.rank: rtol must be >= 0, got ${rtol}.`);
+  checkNonNegative(atol, 'atol', 'rank');
+  checkNonNegative(rtol, 'rtol', 'rank');
+  if (scanNonFinite(A, 'rank')) return NaN;
   return forwardEliminate(A, Math.max(atol, rtol * A.normInf())).rank;
 }
 
@@ -253,6 +267,7 @@ export function rank(A: Matrix, options?: number | RankOptions): number {
 export function determinant(A: Matrix): number {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.determinant: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  if (scanNonFinite(A, 'determinant')) return NaN;
   const { rank: r, sign, pivots } = forwardEliminate(A, 0);
   if (r < A.rows) return 0;
   let det = sign;
@@ -273,6 +288,7 @@ export function inverse(A: Matrix): Matrix {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.inverse: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
+  if (scanNonFinite(A, 'inverse')) return nanMatrix(n, n);
   // Augment [A | I] and row-reduce the left half to I; the right half
   // then becomes A^-1.
   const aug = new Matrix(n, 2 * n);
@@ -284,7 +300,16 @@ export function inverse(A: Matrix): Matrix {
     const pivotRow = findPivotRow(aug, col, col, 0);
     if (pivotRow === -1) throw new Error('Matrix.inverse: matrix is singular.');
     if (pivotRow !== col) aug.swapRowsSelf(col, pivotRow);
-    aug.scaleRowSelf(col, 1 / aug.getUnchecked(col, col));
+    const pivot = aug.getUnchecked(col, col);
+    const reciprocal = 1 / pivot;
+    if (Number.isFinite(reciprocal)) {
+      aug.scaleRowSelf(col, reciprocal);
+    } else {
+      // A subnormal pivot: its reciprocal overflows, and multiplying by it would turn the
+      // zeros of the row into NaN. Divide instead.
+      const offset = aug.flatIndex(col, 0);
+      for (let j = 0; j < 2 * n; j++) aug.data[offset + j] /= pivot;
+    }
     for (let i = 0; i < n; i++) {
       if (i === col) continue;
       const factor = aug.getUnchecked(i, col);
@@ -339,9 +364,23 @@ export function inverse(A: Matrix): Matrix {
  * pivot is exactly `0`).
  */
 export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
+  return factorLU(A, out, 'lu');
+}
+
+const LU_LABEL = 'an LUDecomposition { L, U, perm, sign }';
+const QR_LABEL = 'a QRDecomposition { Q, R }';
+const QR_PIVOT_LABEL = 'a QRPivotDecomposition { QR, tau, perm }';
+
+/**
+ * Implementation of `lu()`, shared with `solve()`; `who` names the public
+ * method in error messages.
+ */
+function factorLU(A: Matrix, out: LUDecomposition | undefined, who: string): LUDecomposition {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.lu: expected a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
+  if (out !== undefined)
+    checkRecord(out, { matrices: ['L', 'U'], arrays: ['perm'] }, who, 'out', LU_LABEL);
   const result = out ?? {
     L: new Matrix(n, n),
     U: new Matrix(n, n),
@@ -351,13 +390,20 @@ export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
   const { L, U, perm } = result;
   if (L.rows !== n || L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
     throw new RangeError(
-      `Matrix.lu: out must hold ${n}x${n} L and U factors and a permutation of length ${n}.`
+      `Matrix.${who}: out must hold ${n}x${n} L and U factors and a permutation of length ${n}.`
     );
   }
-  if (A === L) throw new RangeError('Matrix.lu: A must not be out.L.');
+  if (A === L) throw new RangeError(`Matrix.${who}: A must not be out.L.`);
 
   const u = U.data;
   const l = L.data;
+  if (scanNonFinite(A, who)) {
+    u.fill(NaN);
+    l.fill(NaN);
+    for (let i = 0; i < n; i++) perm[i] = i;
+    result.sign = 1;
+    return result;
+  }
   if (A !== U) u.set(A.data);
   l.fill(0);
   for (let i = 0; i < n; i++) {
@@ -376,7 +422,7 @@ export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
         pivotRow = i;
       }
     }
-    if (pivotRow === -1) throw new Error('Matrix.lu: matrix is singular.');
+    if (pivotRow === -1) throw new Error(`Matrix.${who}: matrix is singular.`);
     if (pivotRow !== col) {
       const colOffset = col * n;
       const pivotOffset = pivotRow * n;
@@ -432,14 +478,25 @@ export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
  * @throws {Error} If `unitDiagonal` is `false` and a zero diagonal entry is encountered.
  */
 export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vector): Vector {
+  return substituteLower(A, b, unitDiagonal, out, 'solveLower');
+}
+
+/** Implementation of `solveLower()`, shared with `luSolve()` and `choleskySolve()`; `who` names the public method in errors. */
+function substituteLower(
+  A: Matrix,
+  b: Vector,
+  unitDiagonal: boolean,
+  out: Vector | undefined,
+  who: string
+): Vector {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.solveLower: expected a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
   if (b.size !== A.rows)
     throw new RangeError(
-      `Matrix.solveLower: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
+      `Matrix.${who}: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
   if (out !== undefined && out.size !== A.rows)
-    throw new RangeError(`Matrix.solveLower: out has size ${out.size}, expected ${A.rows}.`);
+    throw new RangeError(`Matrix.${who}: out has size ${out.size}, expected ${A.rows}.`);
   const n = A.rows;
   // Row i reads only x[0..i-1], which are already final, and b[i] before
   // writing x[i]: so `x` may alias `b`.
@@ -452,7 +509,7 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vec
       x.data[i] = s;
     } else {
       const d = A.data[offset + i];
-      if (d === 0) throw new Error('Matrix.solveLower: zero diagonal entry, matrix is singular.');
+      if (d === 0) throw new Error(`Matrix.${who}: zero diagonal entry, matrix is singular.`);
       x.data[i] = s / d;
     }
   }
@@ -475,14 +532,19 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vec
  * @throws {Error} If a zero diagonal entry is encountered.
  */
 export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
+  return substituteUpper(A, b, out, 'solveUpper');
+}
+
+/** Implementation of `solveUpper()`, shared with `luSolve()` and `choleskySolve()`; `who` names the public method in errors. */
+function substituteUpper(A: Matrix, b: Vector, out: Vector | undefined, who: string): Vector {
   if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.solveUpper: expected a square matrix, got ${A.rows}x${A.cols}.`);
+    throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
   if (b.size !== A.rows)
     throw new RangeError(
-      `Matrix.solveUpper: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
+      `Matrix.${who}: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
   if (out !== undefined && out.size !== A.rows)
-    throw new RangeError(`Matrix.solveUpper: out has size ${out.size}, expected ${A.rows}.`);
+    throw new RangeError(`Matrix.${who}: out has size ${out.size}, expected ${A.rows}.`);
   const n = A.rows;
   // Row i reads only x[i+1..n-1], which are already final, and b[i] before
   // writing x[i]: so `x` may alias `b`.
@@ -492,7 +554,7 @@ export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
     let s = b.data[i];
     for (let j = i + 1; j < n; j++) s -= A.data[offset + j] * x.data[j];
     const d = A.data[offset + i];
-    if (d === 0) throw new Error('Matrix.solveUpper: zero diagonal entry, matrix is singular.');
+    if (d === 0) throw new Error(`Matrix.${who}: zero diagonal entry, matrix is singular.`);
     x.data[i] = s / d;
   }
   return x;
@@ -518,6 +580,13 @@ export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
  * @throws {Error} If `U` has a zero diagonal entry.
  */
 export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
+  checkRecord(
+    decomposition,
+    { matrices: ['L', 'U'], arrays: ['perm'] },
+    'luSolve',
+    'decomposition',
+    LU_LABEL
+  );
   const { L, U, perm } = decomposition;
   const n = L.rows;
   if (L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
@@ -530,8 +599,8 @@ export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector)
   if (out !== undefined && out === b) throw new RangeError('Matrix.luSolve: out must not be b.');
   const x = out ?? new Vector(n);
   for (let i = 0; i < n; i++) x.data[i] = b.data[perm[i]];
-  solveLower(L, x, true, x);
-  return solveUpper(U, x, x);
+  substituteLower(L, x, true, x, 'luSolve');
+  return substituteUpper(U, x, x, 'luSolve');
 }
 
 /**
@@ -554,7 +623,8 @@ export function solve(A: Matrix, b: Vector): Vector {
     throw new RangeError(
       `Matrix.solve: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
-  return luSolve(lu(A), b);
+  // For a matrix with a NaN entry the factorization is all NaN, hence so is the solution.
+  return luSolve(factorLU(A, undefined, 'solve'), b);
 }
 
 // -----------------------------------------------------------------
@@ -574,6 +644,8 @@ export function solve(A: Matrix, b: Vector): Vector {
 export function cond1(A: Matrix): number {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.cond1: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  if (scanNonFinite(A, 'cond1')) return NaN;
+  // Past the scan, `inverse()` can only throw because `A` is singular.
   try {
     return A.norm1() * A.inverse().norm1();
   } catch {
@@ -782,6 +854,7 @@ export function cholesky(A: Matrix): Matrix {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.cholesky: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
+  if (scanNonFinite(A, 'cholesky', true)) return nanMatrix(n, n);
   const L = new Matrix(n, n);
   for (let i = 0; i < n; i++) {
     const rowOffsetA = A.flatIndex(i, 0);
@@ -829,8 +902,8 @@ export function choleskySolve(L: Matrix, b: Vector): Vector {
     throw new RangeError(
       `Matrix.choleskySolve: shape mismatch: ${L.rows}x${L.cols} vs vector of size ${b.size}.`
     );
-  const y = solveLower(L, b, false);
-  return solveUpper(L.transpose(), y);
+  const y = substituteLower(L, b, false, undefined, 'choleskySolve');
+  return substituteUpper(L.transpose(), y, undefined, 'choleskySolve');
 }
 
 // -----------------------------------------------------------------
@@ -910,6 +983,7 @@ function householderQR(A: Matrix): QRDecomposition {
  * @returns The `{ Q, R }` factorization.
  */
 export function qr(A: Matrix): QRDecomposition {
+  if (scanNonFinite(A, 'qr')) return { Q: nanMatrix(A.rows, A.rows), R: nanMatrix(A.rows, A.cols) };
   return householderQR(A);
 }
 
@@ -949,6 +1023,15 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
   const m = A.rows;
   const n = A.cols;
   const k = Math.min(m, n);
+  if (out !== undefined) {
+    checkRecord(
+      out,
+      { matrices: ['QR'], vectors: ['tau'], arrays: ['perm'] },
+      'qrPivot',
+      'out',
+      QR_PIVOT_LABEL
+    );
+  }
   const result = out ?? { QR: new Matrix(m, n), tau: new Vector(k), perm: new Array<number>(n) };
   const { QR, tau, perm } = result;
   if (QR.rows !== m || QR.cols !== n || tau.size !== k || perm.length !== n) {
@@ -958,6 +1041,12 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
   }
 
   const a = QR.data;
+  if (scanNonFinite(A, 'qrPivot')) {
+    a.fill(NaN);
+    tau.data.fill(NaN);
+    for (let j = 0; j < n; j++) perm[j] = j;
+    return result;
+  }
   if (A !== QR) a.set(A.data);
 
   // vn1: current (downdated) partial column norms; vn2: norms at the last
@@ -1074,6 +1163,13 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
  * @throws {RangeError} If `b` or `out` does not match the factorization.
  */
 export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector): Vector {
+  checkRecord(
+    dec,
+    { matrices: ['QR'], vectors: ['tau'], arrays: ['perm'] },
+    'qrPivotMulQt',
+    'decomposition',
+    QR_PIVOT_LABEL
+  );
   const { QR, tau } = dec;
   const m = QR.rows;
   const n = QR.cols;
@@ -1109,6 +1205,13 @@ export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector)
  * @returns A new `rows x k` matrix with orthonormal columns.
  */
 export function qrPivotQ(dec: QRPivotDecomposition): Matrix {
+  checkRecord(
+    dec,
+    { matrices: ['QR'], vectors: ['tau'], arrays: ['perm'] },
+    'qrPivotQ',
+    'decomposition',
+    QR_PIVOT_LABEL
+  );
   const { QR, tau } = dec;
   const m = QR.rows;
   const n = QR.cols;
@@ -1148,6 +1251,13 @@ export function qrPivotQ(dec: QRPivotDecomposition): Matrix {
  * @returns A new `k x cols` matrix.
  */
 export function qrPivotR(dec: QRPivotDecomposition): Matrix {
+  checkRecord(
+    dec,
+    { matrices: ['QR'], vectors: ['tau'], arrays: ['perm'] },
+    'qrPivotR',
+    'decomposition',
+    QR_PIVOT_LABEL
+  );
   const { QR, tau } = dec;
   const n = QR.cols;
   const k = tau.size;
@@ -1286,6 +1396,7 @@ function applyGivensCols(M: Matrix, i: number, j: number, c: number, s: number):
  * are inconsistent with each other.
  */
 export function qrUpdateSelf(qrDecomp: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
+  checkRecord(qrDecomp, { matrices: ['Q', 'R'] }, 'qrUpdateSelf', 'qr', QR_LABEL);
   const { Q, R } = qrDecomp;
   const m = Q.rows;
   const n = R.cols;
@@ -1358,6 +1469,7 @@ export function qrUpdateSelf(qrDecomp: QRDecomposition, u: Vector, v: Vector): Q
  * @throws {RangeError} Same conditions as `qrUpdateSelf`.
  */
 export function qrUpdate(qrDecomp: QRDecomposition, u: Vector, v: Vector): QRDecomposition {
+  checkRecord(qrDecomp, { matrices: ['Q', 'R'] }, 'qrUpdate', 'qr', QR_LABEL);
   return qrUpdateSelf({ Q: qrDecomp.Q.copy(), R: qrDecomp.R.copy() }, u, v);
 }
 
@@ -1856,6 +1968,27 @@ function schurForm(
 }
 
 /**
+ * Resolves and validates the options of `eigenvalues()` and `eig()`.
+ * @param options The user's options.
+ * @param n Matrix order, for the default iteration budget `30 * n`.
+ * @param who Name of the public method, for the error message.
+ * @throws {TypeError} If `options`, `tol` or `maxIterations` has the wrong type.
+ * @throws {RangeError} If `tol` is negative or `NaN`, or `maxIterations` is not a positive integer.
+ */
+function eigenOptions(
+  options: { maxIterations?: number; tol?: number } | undefined,
+  n: number,
+  who: string
+): { tol: number; maxIterations: number } {
+  checkOptions(options, who);
+  const tol = options?.tol ?? Number.EPSILON;
+  const maxIterations = options?.maxIterations ?? 30 * n;
+  checkNonNegative(tol, 'tol', who);
+  checkPositiveInteger(maxIterations, 'maxIterations', who);
+  return { tol, maxIterations };
+}
+
+/**
  * Computes the eigenvalues of `A` (square), via `schurForm()` (Hessenberg
  * reduction + double-shift QR iteration with deflation — see that
  * function's doc comment for the algorithm). If you also need
@@ -1888,8 +2021,10 @@ export function eigenvalues(
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.eigenvalues: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
-  const tol = options?.tol ?? Number.EPSILON;
-  const maxIterations = options?.maxIterations ?? 30 * n;
+  const { tol, maxIterations } = eigenOptions(options, n, 'eigenvalues');
+  if (scanNonFinite(A, 'eigenvalues')) {
+    return Array.from({ length: n }, () => ({ re: NaN, im: NaN }));
+  }
 
   const { T, blocks } = schurForm(A, false, tol, maxIterations);
   const result: Eigenvalue[] = new Array(n);
@@ -1943,8 +2078,14 @@ export function eig(A: Matrix, options?: { maxIterations?: number; tol?: number 
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.eig: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
-  const tol = options?.tol ?? Number.EPSILON;
-  const maxIterations = options?.maxIterations ?? 30 * n;
+  const { tol, maxIterations } = eigenOptions(options, n, 'eig');
+  if (scanNonFinite(A, 'eig')) {
+    return Array.from({ length: n }, () => ({
+      value: { re: NaN, im: NaN },
+      vectorRe: new Vector(n).fill(NaN),
+      vectorIm: new Vector(n).fill(NaN)
+    }));
+  }
 
   if (n === 1) {
     return [

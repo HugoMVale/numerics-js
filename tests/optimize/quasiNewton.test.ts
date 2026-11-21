@@ -492,6 +492,7 @@ describe('quasiNewton initial Hessian', () => {
       });
       expect(res.success).toBe(false);
       expect(res.message).toContain('Cholesky factorization of initial Hessian failed');
+      expect(res.message.endsWith('..')).toBe(false);
       expect(res.iterations).toBe(0);
     }
 
@@ -507,6 +508,9 @@ describe('quasiNewton initial Hessian', () => {
     });
     expect(res.success).toBe(false);
     expect(res.message).toContain('Inverse of initial Hessian failed');
+    expect(res.message).toContain('Matrix.inverse: matrix is singular.');
+    expect(res.message.endsWith('.')).toBe(true);
+    expect(res.message.endsWith('..')).toBe(false);
     expect(res.iterations).toBe(0);
   });
 

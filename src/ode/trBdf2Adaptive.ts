@@ -504,14 +504,24 @@ export function trBdf2Adaptive(
     luValid = false;
   };
 
-  // Factors I - D*h*J into `lu`, in place. Returns false if the matrix is exactly singular.
+  // Factors I - D*h*J into `lu`, in place. Returns false if the matrix is exactly singular or
+  // is not a finite number (`lu` propagates NaN instead of failing, and rejects infinite entries).
   const factorize = (hStep: number): boolean => {
     const n = dim;
     const md = lu.U.data;
     const jd = (J as Matrix).data;
     const c = D * hStep;
+    let hasNaN = false;
     for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) md[i * n + j] = (i === j ? 1 : 0) - c * jd[i * n + j];
+      for (let j = 0; j < n; j++) {
+        const v = (i === j ? 1 : 0) - c * jd[i * n + j];
+        md[i * n + j] = v;
+        if (v !== v) hasNaN = true;
+      }
+    }
+    if (hasNaN) {
+      luValid = false;
+      return false;
     }
     try {
       lu.U.lu(lu);

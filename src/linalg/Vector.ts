@@ -48,7 +48,8 @@ export class Vector extends ArrayND {
    * zeros) or the components as a `number[]`, read-only array, `Float64Array`
    * or other array-like. The values are copied, so later changes to `input`
    * do not affect the vector.
-   * @throws {RangeError} If `input` is a number that is not a non-negative integer.
+   * @throws {RangeError} If `input` is a number that is not a non-negative
+   * integer, or if the vector is too large to allocate.
    *
    * @example
    * ```ts
@@ -75,10 +76,36 @@ export class Vector extends ArrayND {
       if (input < 0) {
         throw new RangeError(`Vector.constructor: dimension must be >= 0, got ${input}.`);
       }
-      this.data = new Float64Array(input);
+      this.data = Vector._allocate(input, input);
     } else {
-      this.data = new Float64Array(input);
+      this.data = Vector._allocate(input, input.length);
     }
+  }
+
+  /**
+   * Allocates the storage of a new vector, turning the engine's own
+   * `RangeError` for an unallocatable size into a `Vector.constructor:` one.
+   * @param source The constructor argument to copy: a dimension or an array-like.
+   * @param size The resulting length, for the error message.
+   * @throws {RangeError} If the storage cannot be allocated.
+   */
+  private static _allocate(source: number | ArrayLike<number>, size: number): Float64Array {
+    let data: Float64Array;
+    try {
+      // Only the allocation is guarded: errors raised while reading the
+      // elements of `source` (e.g. a throwing getter) must pass through.
+      data = new Float64Array(typeof size === 'number' ? size : 0);
+    } catch (e) {
+      if (!(e instanceof RangeError)) throw e;
+      throw new RangeError(
+        `Vector.constructor: a vector of size ${size} is too large to allocate.`
+      );
+    }
+    if (typeof source === 'number') return data;
+    // Iterables without a numeric `length` (e.g. a Set) keep the native path.
+    if (typeof size !== 'number') return new Float64Array(source);
+    data.set(source);
+    return data;
   }
 
   /**

@@ -47,6 +47,18 @@ Use the narrowest relevant test while iterating, then run `npm run typecheck` an
 - Numerical changes need targeted tests covering expected values, boundary conditions, invalid inputs, and convergence or iteration-limit behavior where applicable.
 - Do not silently alter tolerance defaults, convergence criteria, error handling, callback signatures, output shapes, or indexing conventions.
 
+## Linear-algebra error and non-finite policy
+
+Applies to `Matrix` (`Matrix.ts`, `Matrix.linalg.ts`, `Matrix.svd.ts`); `Vector` and `ArrayND` follow the error-type and message rules only.
+
+- **Error types.** `RangeError` for bad values: non-square input where a square matrix is required, shape or size mismatches, invalid options or tolerances, a matrix too large to allocate, and any `±Infinity` entry (see below). `TypeError` for wrong types. Plain `Error` for numerical failure that depends on the data: a singular matrix, a matrix that is not positive definite, a QR iteration that does not converge. Do not add error classes without being asked.
+- **Message format.** `Matrix.method: description.` (always the public method name, always a trailing period), e.g. `Matrix.solve: expected a square matrix, got 2x3.`
+- **NaN propagates.** A `NaN` entry in the matrix argument is not an error and is not singularity: no throw, and every numeric result is `NaN` (`determinant`, `rank`, `cond1`, `cond2` return `NaN`; matrices, vectors and singular values are filled with `NaN`; a permutation is the identity, `sign` is `1`). This holds for `lu`, `solve`, `inverse`, `determinant`, `rank`, `cholesky`, `qr`, `qrPivot`, `svd`, `singularValues`, `pinv`, `lstsq`, `cond1`, `cond2`, `eigenvalues` and `eig`.
+- **±Infinity throws.** An infinite entry in the matrix argument throws `RangeError` (`Matrix.method: matrix contains an infinite entry, ...`) from the same methods, because elimination silently turns it into plausible but wrong finite numbers. It wins over `NaN`: a matrix with both throws. The one carve-out is `cholesky`, which reads only the lower triangle (diagonal included), so it scans only that part.
+- **What is not scanned.** The `O(n^2)` kernels (`solveLower`, `solveUpper`, `luSolve`, `choleskySolve`, `cond1Upper`, `cond1Lower`, `qrPivot*` helpers, `qrUpdate*`) and right-hand-side vectors follow plain IEEE arithmetic; they throw only on an exactly zero diagonal entry. Callers that need a guarantee check `allFinite()` first (the solvers in `roots` and `optimize` already do).
+- **Singularity.** Throw, never return a flag or `NaN`. A pivot counts as missing only if it is exactly `0` (the LAPACK `dgetrf` convention): `lu`, `solve`, `inverse`, `solveLower` and `solveUpper` throw `Error`, `determinant` returns `0`. There is no pivot tolerance in these methods: a nearly singular matrix returns finite, possibly inaccurate numbers. Finite input whose intermediate results overflow (entries near `1e308`) is not detected as such: it may be reported as singular. Detecting near-singularity is the job of `rank` (with its tolerances), `cond1`/`cond2` and `svd`, which never throw for rank deficiency.
+- **Special shapes.** Every method documents its behavior for singular, rank-deficient, non-square, 1x1 and non-finite input; matrices are never empty (`rows, cols >= 1`).
+
 ## Docstring rules
 
 - Use TypeDoc-compatible JSDoc (`/** ... */`) for exported functions, classes, interfaces, constants, and public methods or accessors.

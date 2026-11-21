@@ -2,6 +2,7 @@ import { ArrayND } from './ArrayND.js';
 import { Vector, type VectorLike } from './Vector.js';
 import * as linalg from './Matrix.linalg.js';
 import * as svdAlgs from './Matrix.svd.js';
+import { typeName } from './checks.js';
 
 // The heavier linear-algebra algorithms (factorizations, linear-system
 // solves, eigendecomposition) live in Matrix.linalg.ts, not here — see
@@ -29,13 +30,6 @@ import type {
 } from './Matrix.linalg.js';
 export type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
 import type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
-
-/** Short description of a value's type for error messages (`null`, `undefined`, `Array`, `number`, ...). */
-function typeName(x: unknown): string {
-  if (x === null) return 'null';
-  if (typeof x === 'object') return (x as object).constructor?.name ?? 'object';
-  return typeof x;
-}
 
 /**
  * A rows x cols matrix of doubles, stored in a single flat, row-major
@@ -129,8 +123,9 @@ export class Matrix extends ArrayND {
    * @param input Optional initial data (a `Vector` or any array-like of
    *   numbers) in row-major order (i.e. row 0 followed by row 1, etc.), of length `rows * cols`.
    *   If omitted, the matrix is initialized to all zeros.
-   * @throws {RangeError} If `rows` or `cols` is not a positive integer, or
-   *   if `input` is provided and its length is not exactly `rows * cols`.
+   * @throws {RangeError} If `rows` or `cols` is not a positive integer, if
+   *   `input` is provided and its length is not exactly `rows * cols`, or if
+   *   the matrix is too large to allocate.
    * @throws {TypeError} If `input` is neither a `Vector` nor an array-like of numbers.
    */
   constructor(rows: number, cols: number, input?: Vector | ArrayLike<number>) {
@@ -152,7 +147,14 @@ export class Matrix extends ArrayND {
     }
     this._rows = rows;
     this._cols = cols;
-    this.data = new Float64Array(rows * cols);
+    try {
+      this.data = new Float64Array(rows * cols);
+    } catch {
+      // The engine's own RangeError ("Invalid typed array length", "Array buffer allocation failed").
+      throw new RangeError(
+        `Matrix.constructor: a ${rows}x${cols} matrix is too large to allocate.`
+      );
+    }
     if (src !== undefined) this.data.set(src);
   }
 

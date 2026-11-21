@@ -1,6 +1,7 @@
 import { copysign } from '../math.js';
 import { Matrix } from './Matrix.js';
 import { Vector, type VectorLike } from './Vector.js';
+import { checkNonNegative, checkOptions, scanNonFinite } from './checks.js';
 
 // =======================================================================
 // Matrix.svd.ts
@@ -310,12 +311,11 @@ interface Prepared {
 
 /**
  * Copies `A` (transposed if it is wide, so that `mw >= nw`) into a fresh
- * working array, rejecting non-finite entries and scaling it into the safe
- * range `[SMLNUM, BIGNUM]` of its largest entry, as `dgesvd` does.
- * @param who Name of the public routine, for the error message.
- * @throws {RangeError} If `A` has a `NaN` or infinite entry.
+ * working array and scales it into the safe range `[SMLNUM, BIGNUM]` of its
+ * largest entry, as `dgesvd` does. `A` must be finite: every public routine
+ * applies `scanNonFinite()` first.
  */
-function prepare(A: Matrix, who: string): Prepared {
+function prepare(A: Matrix): Prepared {
   const m = A.rows;
   const n = A.cols;
   const transposed = m < n;
@@ -333,11 +333,7 @@ function prepare(A: Matrix, who: string): Prepared {
   }
   let amax = 0;
   for (let p = 0; p < a.length; p++) {
-    const v = a[p];
-    if (!Number.isFinite(v)) {
-      throw new RangeError(`Matrix.${who}: matrix contains non-finite entries.`);
-    }
-    const av = Math.abs(v);
+    const av = Math.abs(a[p]);
     if (av > amax) amax = av;
   }
   let scale = 1;
@@ -345,6 +341,11 @@ function prepare(A: Matrix, who: string): Prepared {
   else if (amax > BIGNUM) scale = BIGNUM / amax;
   if (scale !== 1) for (let p = 0; p < a.length; p++) a[p] *= scale;
   return { a, mw, nw, transposed, scale };
+}
+
+/** A new `rows x cols` matrix of `NaN`: the result for a matrix with a `NaN` entry. */
+function nanMatrix(rows: number, cols: number): Matrix {
+  return new Matrix(rows, cols).fill(NaN);
 }
 
 /**
@@ -622,7 +623,8 @@ function bdsqr(
   e: Float64Array,
   n: number,
   right: RowTarget[],
-  left: RowTarget[]
+  left: RowTarget[],
+  who: string
 ): void {
   if (n > 1) {
     // Deflation threshold, from a lower bound on the smallest singular value.
@@ -653,7 +655,7 @@ function bdsqr(
     let iter = 0;
 
     main: while (hi > 0) {
-      if (iter > maxit) throw new Error('Matrix.svd: QR iteration failed to converge.');
+      if (iter > maxit) throw new Error(`Matrix.${who}: QR iteration failed to converge.`);
 
       // Find the bottom unreduced block d[lo..hi], deflating negligible e's.
       let smax = Math.abs(d[hi]);
@@ -940,18 +942,28 @@ function unscale(s: Float64Array, scale: number): Float64Array {
  * @param options See {@link SVDOptions}.
  * @returns The `{ U, s, V }` decomposition.
  * @throws {RangeError} If `A` contains a non-finite entry.
+ * @throws {TypeError} If `options` is not an object.
  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
  */
 export function svd(A: Matrix, options?: SVDOptions): SVDDecomposition {
+  checkOptions(options, 'svd');
   const m = A.rows;
   const n = A.cols;
   const full = options?.full ?? false;
-  const { a, mw, nw, transposed, scale } = prepare(A, 'svd');
+  if (scanNonFinite(A, 'svd')) {
+    const k = Math.min(m, n);
+    return {
+      U: nanMatrix(m, full ? m : k),
+      s: new Vector(k).fill(NaN),
+      V: nanMatrix(n, full ? n : k)
+    };
+  }
+  const { a, mw, nw, transposed, scale } = prepare(A);
   const bd = bidiagonalize(a, mw, nw);
   const rowsU = full ? mw : nw;
   const ut = formQt(bd, rowsU);
   const vt = formPt(bd);
-  bdsqr(bd.d, bd.e, nw, [{ x: vt, ncols: nw }], [{ x: ut, ncols: mw }]);
+  bdsqr(bd.d, bd.e, nw, [{ x: vt, ncols: nw }], [{ x: ut, ncols: mw }], 'svd');
   const s = unscale(bd.d, scale);
 
   // The working matrix is `Uw * S * Vw^T`, `Uw` (mw x rowsU) being the
@@ -984,9 +996,10 @@ export function singularValues(A: Matrix): Vector {
  * `rankSvd()`; `who` names the public routine in the error message.
  */
 function singularValuesOf(A: Matrix, who: string): Vector {
-  const { a, mw, nw, scale } = prepare(A, who);
+  if (scanNonFinite(A, who)) return new Vector(Math.min(A.rows, A.cols)).fill(NaN);
+  const { a, mw, nw, scale } = prepare(A);
   const bd = bidiagonalize(a, mw, nw);
-  bdsqr(bd.d, bd.e, nw, [], []);
+  bdsqr(bd.d, bd.e, nw, [], [], who);
   return Vector.wrapUnchecked(unscale(bd.d, scale));
 }
 
@@ -1001,11 +1014,28 @@ function cutoffOf(
   options: SVDCutoffOptions | undefined,
   who: string
 ): number {
+  const { atol, rtol } = resolveCutoff(A, options, who);
+  return Math.max(atol, rtol * s0);
+}
+
+/**
+ * Resolves and validates the `atol` and `rtol` of a cutoff option. Called
+ * before the matrix is inspected, so that invalid options are reported even
+ * for a matrix with a `NaN` entry.
+ * @throws {TypeError} If `options`, `atol` or `rtol` has the wrong type.
+ * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`.
+ */
+function resolveCutoff(
+  A: Matrix,
+  options: SVDCutoffOptions | undefined,
+  who: string
+): { atol: number; rtol: number } {
+  checkOptions(options, who);
   const atol = options?.atol ?? 0;
   const rtol = options?.rtol ?? Math.max(A.rows, A.cols) * Number.EPSILON;
-  if (!(atol >= 0)) throw new RangeError(`Matrix.${who}: atol must be >= 0, got ${atol}.`);
-  if (!(rtol >= 0)) throw new RangeError(`Matrix.${who}: rtol must be >= 0, got ${rtol}.`);
-  return Math.max(atol, rtol * s0);
+  checkNonNegative(atol, 'atol', who);
+  checkNonNegative(rtol, 'rtol', who);
+  return { atol, rtol };
 }
 
 /**
@@ -1046,7 +1076,16 @@ export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): Lst
   if (bv.size !== m) {
     throw new RangeError(`Matrix.lstsq: shape mismatch: ${m}x${n} vs vector of size ${bv.size}.`);
   }
-  const { a, mw, nw, transposed, scale } = prepare(A, 'lstsq');
+  resolveCutoff(A, options, 'lstsq');
+  if (scanNonFinite(A, 'lstsq')) {
+    return {
+      x: new Vector(n).fill(NaN),
+      rank: NaN,
+      residualNorm: NaN,
+      s: new Vector(Math.min(m, n)).fill(NaN)
+    };
+  }
+  const { a, mw, nw, transposed, scale } = prepare(A);
   const bd = bidiagonalize(a, mw, nw);
   const k = nw;
   const x = new Float64Array(n);
@@ -1060,7 +1099,7 @@ export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): Lst
     applyQ(bd, c, true);
     const cn = c.slice(0, k);
     const vt = formPt(bd);
-    bdsqr(bd.d, bd.e, k, [{ x: vt, ncols: k }], [{ x: cn, ncols: 1 }]);
+    bdsqr(bd.d, bd.e, k, [{ x: vt, ncols: k }], [{ x: cn, ncols: 1 }], 'lstsq');
     s = unscale(bd.d, scale);
     rank = countAbove(s, cutoffOf(A, s[0], options, 'lstsq'));
     for (let i = 0; i < rank; i++) {
@@ -1075,7 +1114,7 @@ export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): Lst
     applyPt(bd, c);
     const ubt = new Float64Array(k * k);
     for (let i = 0; i < k; i++) ubt[i * k + i] = 1;
-    bdsqr(bd.d, bd.e, k, [{ x: c, ncols: 1 }], [{ x: ubt, ncols: k }]);
+    bdsqr(bd.d, bd.e, k, [{ x: c, ncols: 1 }], [{ x: ubt, ncols: k }], 'lstsq');
     s = unscale(bd.d, scale);
     rank = countAbove(s, cutoffOf(A, s[0], options, 'lstsq'));
     const y = new Float64Array(mw);
@@ -1111,11 +1150,13 @@ export function lstsq(A: Matrix, b: VectorLike, options?: SVDCutoffOptions): Lst
 export function pinv(A: Matrix, options?: SVDCutoffOptions): Matrix {
   const m = A.rows;
   const n = A.cols;
-  const { a, mw, nw, transposed, scale } = prepare(A, 'pinv');
+  resolveCutoff(A, options, 'pinv');
+  if (scanNonFinite(A, 'pinv')) return nanMatrix(n, m);
+  const { a, mw, nw, transposed, scale } = prepare(A);
   const bd = bidiagonalize(a, mw, nw);
   const ut = formQt(bd, nw);
   const vt = formPt(bd);
-  bdsqr(bd.d, bd.e, nw, [{ x: vt, ncols: nw }], [{ x: ut, ncols: mw }]);
+  bdsqr(bd.d, bd.e, nw, [{ x: vt, ncols: nw }], [{ x: ut, ncols: mw }], 'pinv');
   const s = unscale(bd.d, scale);
   const rank = countAbove(s, cutoffOf(A, s[0], options, 'pinv'));
 
@@ -1170,6 +1211,8 @@ export function cond2(A: Matrix): number {
  * @throws {RangeError} If `A` has a non-finite entry, or `atol` or `rtol` is negative.
  */
 export function rankSvd(A: Matrix, options?: SVDCutoffOptions): number {
+  resolveCutoff(A, options, 'rank');
   const s = singularValuesOf(A, 'rank').data;
+  if (Number.isNaN(s[0])) return NaN;
   return countAbove(s, cutoffOf(A, s[0], options, 'rank'));
 }

@@ -521,7 +521,7 @@ export function quasiNewton(
         bfgsMethod === 'inverse'
           ? 'Inverse of initial Hessian failed'
           : 'Cholesky factorization of initial Hessian failed';
-      return failure(`${what}: ${errorMessage(e)}.`, 0, xc, fc, gc, H);
+      return failure(`${what}: ${errorMessage(e)}`, 0, xc, fc, gc, H);
     }
   }
 
@@ -547,7 +547,7 @@ export function quasiNewton(
       try {
         ({ H, L } = makeHessianSpd(H!));
       } catch (e) {
-        message = `Perturbed Cholesky factorization of Hessian failed: ${errorMessage(e)}.`;
+        message = `Perturbed Cholesky factorization of Hessian failed: ${errorMessage(e)}`;
         break;
       }
     }
@@ -567,7 +567,7 @@ export function quasiNewton(
         p = L!.choleskySolve(gc).mult(-1);
       }
     } catch (e) {
-      message = `Solve for Newton step failed: ${errorMessage(e)}.`;
+      message = `Solve for Newton step failed: ${errorMessage(e)}`;
       break;
     }
     if (!p.allFinite()) {
@@ -1072,9 +1072,10 @@ function symmetrizeSelf(M: Matrix): Matrix {
   return M;
 }
 
-/** Message of a caught error. */
+/** Message of a caught error, with a trailing period (library errors already have one). */
 function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  const message = e instanceof Error ? e.message : String(e);
+  return message.endsWith('.') ? message : `${message}.`;
 }
 
 /** Title-cases a hyphen/space-separated label, e.g. `'line-search' -> 'Line-Search'`. */
