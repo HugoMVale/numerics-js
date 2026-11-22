@@ -334,7 +334,7 @@ export function inverse(A: Matrix): Matrix {
 /**
  * Computes a partial-pivoted LU factorization of `A`, such that `P * A =
  * L * U` for the row permutation `P` implied by `perm`. Factoring once
- * and reusing the result via `luSolve` (or `solveLower`/`solveUpper`) is
+ * and reusing the result via `solveLU` (or `solveLower`/`solveUpper`) is
  * much cheaper than calling `solve()` repeatedly against the same matrix
  * with different right-hand sides (e.g. inside a Newton solver that
  * reuses a Jacobian across corrector steps).
@@ -488,7 +488,7 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vec
   return substituteLower(A, b, unitDiagonal, out, 'solveLower');
 }
 
-/** Implementation of `solveLower()`, shared with `luSolve()` and `choleskySolve()`; `who` names the public method in errors. */
+/** Implementation of `solveLower()`, shared with `solveLU()` and `choleskySolve()`; `who` names the public method in errors. */
 function substituteLower(
   A: Matrix,
   b: Vector,
@@ -542,7 +542,7 @@ export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
   return substituteUpper(A, b, out, 'solveUpper');
 }
 
-/** Implementation of `solveUpper()`, shared with `luSolve()` and `choleskySolve()`; `who` names the public method in errors. */
+/** Implementation of `solveUpper()`, shared with `solveLU()` and `choleskySolve()`; `who` names the public method in errors. */
 function substituteUpper(A: Matrix, b: Vector, out: Vector | undefined, who: string): Vector {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
@@ -587,35 +587,35 @@ function substituteUpper(A: Matrix, b: Vector, out: Vector | undefined, who: str
  * @throws {Error} If `U` has a zero diagonal entry.
  * @throws {TypeError} If `decomposition` is not an `LUDecomposition`.
  */
-export function luSolve(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
+export function solveLU(decomposition: LUDecomposition, b: Vector, out?: Vector): Vector {
   checkRecord(
     decomposition,
     { matrices: ['L', 'U'], arrays: ['perm'] },
-    'luSolve',
+    'solveLU',
     'decomposition',
     LU_LABEL
   );
   const { L, U, perm } = decomposition;
   const n = L.rows;
   if (L.cols !== n || U.rows !== n || U.cols !== n || perm.length !== n) {
-    throw new RangeError('Matrix.luSolve: inconsistent LU factorization shapes.');
+    throw new RangeError('Matrix.solveLU: inconsistent LU factorization shapes.');
   }
   if (b.size !== n)
-    throw new RangeError(`Matrix.luSolve: shape mismatch: ${n}x${n} vs vector of size ${b.size}.`);
+    throw new RangeError(`Matrix.solveLU: shape mismatch: ${n}x${n} vs vector of size ${b.size}.`);
   if (out !== undefined && out.size !== n)
-    throw new RangeError(`Matrix.luSolve: out has size ${out.size}, expected ${n}.`);
-  if (out !== undefined && out === b) throw new RangeError('Matrix.luSolve: out must not be b.');
+    throw new RangeError(`Matrix.solveLU: out has size ${out.size}, expected ${n}.`);
+  if (out !== undefined && out === b) throw new RangeError('Matrix.solveLU: out must not be b.');
   const x = out ?? new Vector(n);
   for (let i = 0; i < n; i++) x.data[i] = b.data[perm[i]];
-  substituteLower(L, x, true, x, 'luSolve');
-  return substituteUpper(U, x, x, 'luSolve');
+  substituteLower(L, x, true, x, 'solveLU');
+  return substituteUpper(U, x, x, 'solveLU');
 }
 
 /**
  * Solves the linear system `A * x = b` for `x`, via LU decomposition with
  * partial pivoting (`lu()`) followed by forward and back substitution
- * (`luSolve`). If you need to solve against the same matrix with several
- * right-hand sides, call `lu()` once yourself and reuse `luSolve`
+ * (`solveLU`). If you need to solve against the same matrix with several
+ * right-hand sides, call `lu()` once yourself and reuse `solveLU`
  * instead of calling this repeatedly.
  * @param A The coefficient matrix. Must be square.
  * @param b The right-hand side vector. Must have `b.size === A.rows`.
@@ -633,7 +633,7 @@ export function solve(A: Matrix, b: Vector): Vector {
       `Matrix.solve: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
   // For a matrix with a NaN entry the factorization is all NaN, hence so is the solution.
-  return luSolve(factorLU(A, undefined, 'solve'), b);
+  return solveLU(factorLU(A, undefined, 'solve'), b);
 }
 
 // -----------------------------------------------------------------

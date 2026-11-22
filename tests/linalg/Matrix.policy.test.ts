@@ -520,8 +520,8 @@ describe('error types and messages', () => {
       () => lower.solveUpper([1]),
       () => lower.solveUpper([1, 1], new Vector(1)),
       () => new Matrix(2, 2, [1, 1, 0, 0]).solveUpper([1, 1]),
-      () => Matrix.luSolve(dec, [1]),
-      () => Matrix.luSolve(dec, [1, 1], new Vector(1)),
+      () => Matrix.solveLU(dec, [1]),
+      () => Matrix.solveLU(dec, [1, 1], new Vector(1)),
       () => rect.cond1(),
       () => rect.cond1Upper(),
       () => rect.cond1Lower(),
@@ -666,10 +666,10 @@ describe('argument validation', () => {
 
   it('factorization arguments of the wrong type throw a TypeError naming the method', () => {
     const msg = (m: string, what: string, got: string) => `Matrix.${m}: ${what} must be ${got}`;
-    expect(() => Matrix.luSolve(null as never, [1, 1])).toThrow(
-      msg('luSolve', 'decomposition', 'an LUDecomposition { L, U, perm, sign }, got null.')
+    expect(() => Matrix.solveLU(null as never, [1, 1])).toThrow(
+      msg('solveLU', 'decomposition', 'an LUDecomposition { L, U, perm, sign }, got null.')
     );
-    expect(() => Matrix.luSolve({} as never, [1, 1])).toThrow(TypeError);
+    expect(() => Matrix.solveLU({} as never, [1, 1])).toThrow(TypeError);
     expect(() => A().lu({} as never)).toThrow(
       msg('lu', 'out', 'an LUDecomposition { L, U, perm, sign }, got Object.')
     );
@@ -691,8 +691,8 @@ describe('argument validation', () => {
     );
     const dec = new Matrix(2, 2, [1, 2, 3, 4]).lu();
     dec.U.set(1, 1, 0);
-    expect(() => Matrix.luSolve(dec, [1, 1])).toThrow(
-      'Matrix.luSolve: zero diagonal entry, matrix is singular.'
+    expect(() => Matrix.solveLU(dec, [1, 1])).toThrow(
+      'Matrix.solveLU: zero diagonal entry, matrix is singular.'
     );
   });
 });
@@ -756,7 +756,7 @@ describe('behavior stated in the JSDoc: 1x1, singular and rank-deficient input',
     expect(() => m1(-1).cholesky()).toThrow(Error);
     expect(m1(2).solveLower([6]).get(0)).toBe(3);
     expect(m1(2).solveUpper([6]).get(0)).toBe(3);
-    expect(Matrix.luSolve(m1(2).lu(), [6]).get(0)).toBe(3);
+    expect(Matrix.solveLU(m1(2).lu(), [6]).get(0)).toBe(3);
     const lu = m1(7).lu();
     expect([lu.L.get(0, 0), lu.U.get(0, 0), lu.sign]).toEqual([1, 7, 1]);
     expect(m1(7).eigenvalues()).toEqual([{ re: 7, im: 0 }]);

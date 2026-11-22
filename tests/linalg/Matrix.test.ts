@@ -211,7 +211,7 @@ describe('Matrix', () => {
     });
   });
 
-  describe('lu(out), luSolve() and the out argument of the triangular solves', () => {
+  describe('lu(out), solveLU() and the out argument of the triangular solves', () => {
     const a1: Matrix = Matrix.from([
       [0, 2, 1],
       [4, 1, -1],
@@ -283,43 +283,43 @@ describe('Matrix', () => {
       expect(() => singular.lu(Matrix.identity(2).lu())).toThrowError(/singular/);
     });
 
-    it('luSolve solves A x = b and agrees with solve()', () => {
+    it('solveLU solves A x = b and agrees with solve()', () => {
       const b = new Vector([1, 2, 3]);
-      const x = Matrix.luSolve(a1.lu(), b);
+      const x = Matrix.solveLU(a1.lu(), b);
       expect(a1.mulVec(x).allClose(b)).toBe(true);
       expect(x.allClose(a1.solve(b))).toBe(true);
     });
 
-    it('luSolve can be reused for several right-hand sides, with or without out', () => {
+    it('solveLU can be reused for several right-hand sides, with or without out', () => {
       const decomposition = a1.lu();
       const out = new Vector(3);
       for (const b of [new Vector([1, 0, 0]), new Vector([0, 1, 0]), new Vector([5, -2, 7])]) {
-        const x = Matrix.luSolve(decomposition, b, out);
+        const x = Matrix.solveLU(decomposition, b, out);
         expect(x).toBe(out);
         expect(a1.mulVec(x).allClose(b)).toBe(true);
       }
     });
 
-    it('luSolve leaves b untouched and rejects out === b', () => {
+    it('solveLU leaves b untouched and rejects out === b', () => {
       const decomposition = a1.lu();
       const b = new Vector([1, 2, 3]);
-      Matrix.luSolve(decomposition, b, new Vector(3));
+      Matrix.solveLU(decomposition, b, new Vector(3));
       expect(b.data).toEqual(new Float64Array([1, 2, 3]));
-      expect(() => Matrix.luSolve(decomposition, b, b)).toThrowError(RangeError);
+      expect(() => Matrix.solveLU(decomposition, b, b)).toThrowError(RangeError);
     });
 
-    it('luSolve rejects mismatched sizes', () => {
+    it('solveLU rejects mismatched sizes', () => {
       const decomposition = a1.lu();
-      expect(() => Matrix.luSolve(decomposition, new Vector(2))).toThrowError(RangeError);
-      expect(() => Matrix.luSolve(decomposition, new Vector(3), new Vector(2))).toThrowError(
+      expect(() => Matrix.solveLU(decomposition, new Vector(2))).toThrowError(RangeError);
+      expect(() => Matrix.solveLU(decomposition, new Vector(3), new Vector(2))).toThrowError(
         RangeError
       );
     });
 
-    it('luSolve throws on a zero diagonal in U', () => {
+    it('solveLU throws on a zero diagonal in U', () => {
       const decomposition = a1.lu();
       decomposition.U.set(1, 1, 0);
-      expect(() => Matrix.luSolve(decomposition, new Vector([1, 2, 3]))).toThrowError(
+      expect(() => Matrix.solveLU(decomposition, new Vector([1, 2, 3]))).toThrowError(
         /zero diagonal/
       );
     });
@@ -3390,7 +3390,7 @@ describe('Matrix: input types, naming and error format', () => {
           ]);
         });
 
-        it('solve, solveLower, solveUpper, choleskySolve, luSolve', () => {
+        it('solve, solveLower, solveUpper, choleskySolve, solveLU', () => {
           const expected = A22()
             .solve(new Vector([5, 10]))
             .toArray();
@@ -3416,7 +3416,7 @@ describe('Matrix: input types, naming and error format', () => {
           expect(upper.solveUpper(make([4, 6])).toArray()).toEqual(
             upper.solveUpper(new Vector([4, 6])).toArray()
           );
-          expect(Matrix.luSolve(A22().lu(), make([5, 10])).toArray()).toEqual(expected);
+          expect(Matrix.solveLU(A22().lu(), make([5, 10])).toArray()).toEqual(expected);
         });
 
         it('qrUpdate and qrUpdateSelf', () => {
@@ -3548,7 +3548,7 @@ describe('Matrix: input types, naming and error format', () => {
         ['solve', () => sq.solve([1])],
         ['solveLower', () => sq.solveLower([1])],
         ['solveUpper', () => sq.solveUpper([1, 1], new Vector(1))],
-        ['luSolve', () => Matrix.luSolve(dec, [1])],
+        ['solveLU', () => Matrix.solveLU(dec, [1])],
         ['cond1', () => rect.cond1()],
         ['cholesky', () => rect.cholesky()],
         ['cholesky', () => singular.cholesky()],

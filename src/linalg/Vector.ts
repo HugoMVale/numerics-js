@@ -5,7 +5,10 @@ import { asArrayLike, typeName } from './checks.js';
 /**
  * Anything that can be used as a numeric vector input: a {@link Vector}, a plain (possibly
  * read-only) `number[]`, or a `Float64Array`. Public functions that take a numeric sequence
- * accept this type and normalize it once with {@link Vector.asVector}.
+ * accept this type and normalize it once with {@link Vector.asVector}. This applies to
+ * arguments that supply *data* (right-hand sides, row or column values, `Vector.set`).
+ * Operands of an operation between two vectors (`add`, `dot`, `outer`, ...) and `out`
+ * arguments must be actual {@link Vector} instances, and anything else is a `TypeError`.
  */
 export type VectorLike = Vector | readonly number[] | Float64Array;
 
@@ -20,7 +23,9 @@ export type VectorLike = Vector | readonly number[] | Float64Array;
  * and return it; the setters `set`, `setSub` and `fill` also modify `this`.
  *
  * Functions that take a numeric sequence accept any {@link VectorLike}; see
- * {@link Vector.asVector}. Use {@link Vec3} when exactly three components are
+ * {@link Vector.asVector}. Operations between two vectors (`add`, `sub`, `mult`,
+ * `div`, `dot`, `dist`, `isClose`, `outer`, ...) require a `Vector` operand and throw
+ * `TypeError` for a plain array: convert it with {@link Vector.from} first. Use {@link Vec3} when exactly three components are
  * needed.
  *
  * @example
@@ -178,24 +183,7 @@ export class Vector extends ArrayND {
    * @param data The buffer to wrap directly. Not copied.
    * @returns A new Vector wrapping `data`.
    *
-   * @example
-   * ```ts
-   * import { Vector } from 'numerics-js/linalg';
-   *
-   * const buf = new Float64Array([1, 2, 3]);
-   * const v = Vector.wrapUnchecked(buf);
-   * buf[0] = 10;
-   * console.log(v.toString());
-   * console.log(v.size);
-   * console.log(v.data === buf);
-   * ```
-   *
-   * Output:
-   * ```text
-   * Vector(10, 2, 3)
-   * 3
-   * true
-   * ```
+   * @internal
    */
   static wrapUnchecked(data: Float64Array): Vector {
     return new Vector(null, data);

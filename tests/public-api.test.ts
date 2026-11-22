@@ -121,6 +121,23 @@ describe('public API', () => {
     expect(curveFitResult.success).toBe(true);
   });
 
+  it('exports exactly Vector, Matrix and Vec3 as values from linalg', () => {
+    // The factorization kernels in Matrix.linalg.ts and the helpers in checks.ts and
+    // scalar.ts are internal: they are reachable only through the Matrix methods.
+    expect(Object.keys(linalg).sort()).toEqual(['Matrix', 'Vec3', 'Vector']);
+  });
+
+  it('names the LU solve next to the other solves, and has no luSolve', () => {
+    const A = linalg.Matrix.from([
+      [1, 2],
+      [3, 4]
+    ]);
+    const x = linalg.Matrix.solveLU(A.lu(), [5, 11]);
+    expectTypeOf(x).toEqualTypeOf<linalg.Vector>();
+    expect(x.toArray()).toEqual([1, 2]);
+    expect('luSolve' in linalg.Matrix).toBe(false);
+  });
+
   it('exposes the SVD family on Matrix and its result types from linalg', () => {
     const A = linalg.Matrix.from([
       [3, 0],

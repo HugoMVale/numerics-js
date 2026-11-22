@@ -70,6 +70,13 @@ import type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from
  * this case: a `Vector` of size `1` (a scalar) or of size `cols`, and
  * only when the result keeps this matrix's shape. Matrix-with-matrix
  * operands must still match exactly (no `1 x n` / `m x 1` broadcasting).
+ * Operands of an operation between two objects (these, `isClose`/`allClose`,
+ * `dot`/`dist`, `matmul`) and all `out` arguments must be actual `Matrix` /
+ * `Vector` instances; a plain array there is a `TypeError`, because converting
+ * it on every call would allocate in hot loops and a bare array would be
+ * ambiguous as a broadcast operand. Arguments that supply *data* to be read as
+ * a vector (right-hand sides, `setRow`, `setCol`, `diag`) accept any
+ * {@link VectorLike}.
  * `toArray` is not inherited (its natural shape differs per subclass)
  * and is defined here directly, as an array of row arrays.
  */
@@ -259,20 +266,7 @@ export class Matrix extends ArrayND {
    * @param data The buffer to wrap directly. Not copied. Must have length `rows * cols`.
    * @returns A new Matrix wrapping `data`.
    *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const buf = new Float64Array([1, 2, 3, 4]);
-   * const A = Matrix.wrapUnchecked(2, 2, buf);
-   * buf[0] = 10;
-   * console.log(A.toString());
-   * ```
-   *
-   * Output:
-   * ```text
-   * Matrix[[10, 2], [3, 4]]
-   * ```
+   * @internal
    */
   static wrapUnchecked(rows: number, cols: number, data: Float64Array): Matrix {
     return new Matrix(rows, cols, null, data);
@@ -414,20 +408,7 @@ export class Matrix extends ArrayND {
    * @param j Column index (0-based).
    * @returns The flat, 0-based index.
    *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const A = Matrix.from([[1, 2, 3], [4, 5, 6]]);
-   * console.log(A.flatIndex(0, 2));
-   * console.log(A.flatIndex(1, 0));
-   * ```
-   *
-   * Output:
-   * ```text
-   * 2
-   * 3
-   * ```
+   * @internal
    */
   flatIndex(i: number, j: number): number {
     return i * this.cols + j;
@@ -447,18 +428,7 @@ export class Matrix extends ArrayND {
    * @param j Column index (0-based). Must be valid; not checked.
    * @returns The value at `(i, j)`.
    *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const A = Matrix.from([[1, 2], [3, 4]]);
-   * console.log(A.getUnchecked(1, 0));
-   * ```
-   *
-   * Output:
-   * ```text
-   * 3
-   * ```
+   * @internal
    */
   getUnchecked(i: number, j: number): number {
     return this.data[this.flatIndex(i, j)];
@@ -477,19 +447,7 @@ export class Matrix extends ArrayND {
    * @param j Column index (0-based). Must be valid; not checked.
    * @param value The value to store.
    *
-   * @example
-   * ```ts
-   * import { Matrix } from 'numerics-js/linalg';
-   *
-   * const A = Matrix.zero(2, 2);
-   * A.setUnchecked(0, 1, 7);
-   * console.log(A.toString());
-   * ```
-   *
-   * Output:
-   * ```text
-   * Matrix[[0, 7], [0, 0]]
-   * ```
+   * @internal
    */
   setUnchecked(i: number, j: number, value: number): void {
     this.data[this.flatIndex(i, j)] = value;
@@ -1839,8 +1797,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the rank of this matrix (the number of linearly independent
-   * rows/columns): see `linalg.rank()` for the algorithms and the full
-   * meaning of the options. By default it counts the singular values above
+   * rows/columns). By default it counts the singular values above
    * `max(atol, rtol * s[0])`, like `numpy.linalg.matrix_rank`, which is
    * reliable for ill-conditioned and badly scaled matrices.
    * `{ method: 'elimination' }` selects the cheaper but less robust
@@ -1920,7 +1877,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the determinant of this matrix, via Gaussian elimination
-   * with partial pivoting: see `linalg.determinant()` for the algorithm.
+   * with partial pivoting.
    *
    * Costs `O(n^3)` for `n = rows`; this matrix is not modified. A singular
    * matrix has determinant `0` without error (only an exactly zero pivot
@@ -1973,7 +1930,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the inverse of this matrix, via Gauss-Jordan elimination
-   * with partial pivoting: see `linalg.inverse()` for the algorithm.
+   * with partial pivoting.
    *
    * Costs `O(n^3)` time and `O(n^2)` extra storage (an `n x 2n` augmented
    * copy); this matrix is not modified. Only an exactly zero pivot makes
@@ -2035,8 +1992,8 @@ export class Matrix extends ArrayND {
   /**
    * Computes a partial-pivoted LU factorization of this matrix, such
    * that `P * this = L * U` for the row permutation `P` implied by
-   * `perm`: see `linalg.lu()` for the algorithm and why it has no
-   * tolerance parameter.
+   * `perm`. There is no tolerance parameter: a pivot counts as missing only
+   * if it is exactly `0`.
    *
    * Costs about `(2/3) n^3` flops. This matrix is read, not modified,
    * unless it is `out.U`. A singular matrix throws `Error`; there is no
@@ -2096,7 +2053,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Solves `A * x = b` for `x`, given the LU factorization of `A` as
-   * returned by `lu()`: see `linalg.luSolve()`. If you need to solve
+   * returned by `lu()`. If you need to solve
    * against the same matrix with several right-hand sides, call `lu()`
    * once and reuse this instead of refactoring each time.
    *
@@ -2123,7 +2080,7 @@ export class Matrix extends ArrayND {
    *
    * const A = Matrix.from([[1, 2], [3, 4]]);
    * const dec = A.lu();
-   * console.log(Matrix.luSolve(dec, Vector.from([5, 11])).toString());
+   * console.log(Matrix.solveLU(dec, Vector.from([5, 11])).toString());
    * ```
    *
    * Output:
@@ -2131,8 +2088,8 @@ export class Matrix extends ArrayND {
    * Vector(1, 2)
    * ```
    */
-  static luSolve(decomposition: LUDecomposition, b: VectorLike, out?: Vector): Vector {
-    return linalg.luSolve(decomposition, Vector.asVector(b), out);
+  static solveLU(decomposition: LUDecomposition, b: VectorLike, out?: Vector): Vector {
+    return linalg.solveLU(decomposition, Vector.asVector(b), out);
   }
 
   /**
@@ -2213,9 +2170,9 @@ export class Matrix extends ArrayND {
   /**
    * Solves the linear system `this * x = b` for `x`, via LU
    * decomposition with partial pivoting (`lu()`) followed by forward
-   * and back substitution: see `linalg.solve()`. If you need to solve
+   * and back substitution. If you need to solve
    * against the same matrix with several right-hand sides, call `lu()`
-   * once yourself and reuse `Matrix.luSolve` instead of calling this
+   * once yourself and reuse `Matrix.solveLU` instead of calling this
    * repeatedly.
    *
    * Costs about `(2/3) n^3` flops, dominated by `lu()`; neither this matrix
@@ -2278,7 +2235,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the exact 1-norm condition number of this matrix, `‖this‖₁ ·
-   * ‖this⁻¹‖₁`, via `inverse()`: see `linalg.cond1()`. General-purpose,
+   * ‖this⁻¹‖₁`, via `inverse()`. General-purpose,
    * but O(n³) — dominated by the explicit inverse. If this matrix is
    * triangular, `cond1Upper()`/`cond1Lower()` compute a reliable O(n²)
    * estimate instead, without ever forming the inverse; prefer those
@@ -2314,9 +2271,9 @@ export class Matrix extends ArrayND {
   /**
    * Estimates the 1-norm condition number of this matrix, treating it as
    * upper triangular (only entries on and above the diagonal are read,
-   * as with `solveUpper`), in O(n²) without ever forming the inverse:
-   * see `linalg.cond1Upper()` for the algorithm (Cline–Moler–Stewart–
-   * Wilkinson, 1979, as used by LINPACK's `dtrco` and described in
+   * as with `solveUpper`), in O(n²) without ever forming the inverse,
+   * with the algorithm of Cline–Moler–Stewart–
+   * Wilkinson (1979, as used by LINPACK's `dtrco` and described in
    * Dennis & Schnabel's Algorithm A3.3.1). Reliable in practice, though
    * (like any O(n²) estimator) it is a heuristic, not an exact value.
    *
@@ -2348,9 +2305,9 @@ export class Matrix extends ArrayND {
   /**
    * Estimates the 1-norm condition number of this matrix, treating it as
    * lower triangular (only entries on and below the diagonal are read,
-   * as with `solveLower`), in O(n²) without ever forming the inverse:
-   * see `linalg.cond1Lower()` for the algorithm (Cline–Moler–Stewart–
-   * Wilkinson, 1979, as used by LINPACK's `dtrco` and described in
+   * as with `solveLower`), in O(n²) without ever forming the inverse,
+   * with the algorithm of Cline–Moler–Stewart–
+   * Wilkinson (1979, as used by LINPACK's `dtrco` and described in
    * Dennis & Schnabel's Algorithm A3.3.1). Reliable in practice, though
    * (like any O(n²) estimator) it is a heuristic, not an exact value.
    *
@@ -2388,9 +2345,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes the Cholesky factorization of this matrix: `this = L *
-   * L^T`, with `L` lower triangular and positive on the diagonal: see
-   * `linalg.cholesky()` for the algorithm, and why it only reads the
-   * lower triangle and has no tolerance parameter.
+   * L^T`, with `L` lower triangular and positive on the diagonal. There is no tolerance parameter.
    *
    * Costs about `(1/3) n^3` flops; this matrix is not modified. Only its
    * lower triangle, diagonal included, is read, so the upper triangle can
@@ -2445,7 +2400,7 @@ export class Matrix extends ArrayND {
   /**
    * Solves `this * x = b` for `x`, treating this matrix as the Cholesky
    * factor `L` of a symmetric positive-definite matrix (as returned by
-   * `cholesky()`): see `linalg.choleskySolve()`. If you need to solve
+   * `cholesky()`). If you need to solve
    * against the same matrix with several right-hand sides, call
    * `cholesky()` once and reuse this instead of refactoring each time.
    *
@@ -2524,8 +2479,7 @@ export class Matrix extends ArrayND {
    * matrix (any shape), in compact storage: `this[:, perm] = Q * R`. The
    * orthogonal factor is never formed, so a tall matrix costs `O(rows *
    * cols)` memory instead of the `O(rows^2)` of `qr()`; the diagonal of `R`
-   * has nonincreasing magnitude, which reveals the numerical rank. See
-   * `linalg.qrPivot()` for the algorithm. Use `qrPivotMulQt`, `qrPivotQ` and
+   * has nonincreasing magnitude, which reveals the numerical rank. Use `qrPivotMulQt`, `qrPivotQ` and
    * `qrPivotR` to work with the result.
    *
    * Costs `O(rows * cols * min(rows, cols))` time. This matrix is not
@@ -2570,7 +2524,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes `Q^T * b` for the orthogonal factor `Q` of a pivoted QR
-   * factorization, without forming `Q`: see `linalg.qrPivotMulQt()`.
+   * factorization, without forming `Q`.
    *
    * Costs `O(rows * min(rows, cols))`; `decomposition` and `b` are not
    * modified (unless `out` is `b`, which is overwritten). Entries are not
@@ -2605,7 +2559,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Forms the thin orthogonal factor `Q` (`rows x min(rows, cols)`) of a
-   * pivoted QR factorization: see `linalg.qrPivotQ()`.
+   * pivoted QR factorization.
    *
    * Costs `O(rows^2 * min(rows, cols))`; `decomposition` is not modified.
    * Entries are not scanned: `NaN` propagates under IEEE arithmetic.
@@ -2633,7 +2587,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Extracts the upper-trapezoidal factor `R` (`min(rows, cols) x cols`)
-   * of a pivoted QR factorization: see `linalg.qrPivotR()`.
+   * of a pivoted QR factorization.
    *
    * Costs `O(min(rows, cols) * cols)`; `decomposition` is not modified.
    * @param decomposition A factorization, as returned by `qrPivot()`.
@@ -2660,8 +2614,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Updates a QR decomposition **in place** for the rank-1 modification
-   * `A' = A + u * v^T`, without refactoring `A'` from scratch: see
-   * `linalg.qrUpdateSelf()` for the algorithm.
+   * `A' = A + u * v^T`, without refactoring `A'` from scratch.
    *
    * Costs `O(m * (m + n))` for an `m x n` matrix, against `O(m * n * min(m,
    * n))` to refactor. Entries are not scanned: `NaN` and infinite values
@@ -2735,9 +2688,8 @@ export class Matrix extends ArrayND {
   }
 
   /**
-   * Computes the eigenvalues of this (square) matrix: see
-   * `linalg.eigenvalues()` for the algorithm (Hessenberg reduction +
-   * double-shift QR iteration with deflation). If you also need
+   * Computes the eigenvalues of this (square) matrix, via Hessenberg reduction +
+   * double-shift QR iteration with deflation. If you also need
    * eigenvectors, use `eig()` instead: it computes both together from
    * the same Schur form, which is cheaper than computing eigenvalues
    * and then eigenvectors separately.
@@ -2783,7 +2735,7 @@ export class Matrix extends ArrayND {
 
   /**
    * Computes both the eigenvalues and eigenvectors of this (square)
-   * matrix: see `linalg.eig()` for the algorithm. A real matrix's
+   * matrix. A real matrix's
    * eigenvector for a genuinely complex eigenvalue is itself genuinely
    * complex, so each pair carries `vectorRe`/`vectorIm` rather than a
    * single real `Vector`; `vectorIm` is all-zero whenever `value.im` is

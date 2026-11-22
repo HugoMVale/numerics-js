@@ -552,7 +552,7 @@ export function trBdf2Adaptive(
       fc(tStage, yStage, fStage);
       const fd = fStage.data;
       for (let i = 0; i < dim; i++) rd[i] = hStep * fd[i] - zd[i];
-      Matrix.luSolve(lu, resid, delta);
+      Matrix.solveLU(lu, resid, delta);
       const dd = delta.data;
 
       let sumSq = 0;
@@ -698,7 +698,7 @@ export function trBdf2Adaptive(
       const z1d = z1.data;
       for (let i = 0; i < dim; i++) ed[i] = E_N * znd[i] + E_G * zgd[i] + E_1 * z1d[i];
     }
-    const filtered = Matrix.luSolve(lu, resid, delta);
+    const filtered = Matrix.solveLU(lu, resid, delta);
     let sumSq = 0;
     {
       const yd = y.data;

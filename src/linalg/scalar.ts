@@ -69,7 +69,7 @@ export function sqrtOrScaled(sumSq: number, a: ArrayLike<number>, b?: ArrayLike<
 
 /**
  * Euclidean norm of three components, with the same range guarantees as
- * {@link sqrtOrScaled}.
+ * `sqrtOrScaled`.
  * @param sumSq The sum of squares of `x`, `y` and `z`, computed naively.
  * @param x First component.
  * @param y Second component.
