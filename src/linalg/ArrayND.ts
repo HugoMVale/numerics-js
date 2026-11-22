@@ -63,6 +63,7 @@ export abstract class ArrayND {
    * @param caller Name of the public method invoking this check, used to
    * produce a precise, class-specific error message.
    * @throws {RangeError} If `other`'s shape is not compatible with this one.
+   * @throws {TypeError} If `other` is not an instance of the same class.
    */
   protected abstract _checkSameShape(other: this, caller: string): void;
 
@@ -85,6 +86,8 @@ export abstract class ArrayND {
    * every element.
    * @param x The instance to add. Must be shape-compatible with this one.
    * @returns A new instance equal to `this + x`.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -138,6 +141,8 @@ export abstract class ArrayND {
    * scalar from every element.
    * @param x The instance to subtract. Must be shape-compatible with this one.
    * @returns A new instance equal to `this - x`.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -191,6 +196,8 @@ export abstract class ArrayND {
    * product), or scales every element by a scalar.
    * @param x The instance to multiply by. Must be shape-compatible with this one.
    * @returns A new instance where each element is `this[i] * x[i]`.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -246,6 +253,8 @@ export abstract class ArrayND {
    * or `NaN`).
    * @param x The instance to divide by. Must be shape-compatible with this one.
    * @returns A new instance where each element is `this[i] / x[i]`.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -410,6 +419,8 @@ export abstract class ArrayND {
    * scalar to every element: `this += x`.
    * @param x The instance to add. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -463,6 +474,8 @@ export abstract class ArrayND {
    * subtracts a scalar from every element: `this -= x`.
    * @param x The instance to subtract. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -516,6 +529,8 @@ export abstract class ArrayND {
    * (Hadamard product), or scales every element by a scalar: `this *= x`.
    * @param x The instance to multiply by. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -571,6 +586,8 @@ export abstract class ArrayND {
    * (`Infinity`, `-Infinity`, or `NaN`).
    * @param x The instance to divide by. Must be shape-compatible with this one.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance.
    *
    * @example
    * ```ts
@@ -832,6 +849,7 @@ export abstract class ArrayND {
    * @param atol Absolute tolerance.
    * @returns A boolean array, one entry per element of the flat buffer.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   * @throws {TypeError} If `x` is not an instance of the same class.
    *
    * @example
    * ```ts
@@ -870,6 +888,7 @@ export abstract class ArrayND {
    * @param atol Absolute tolerance.
    * @returns `true` if every element of `this` is close to the corresponding element of `x`.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   * @throws {TypeError} If `x` is not an instance of the same class.
    *
    * @example
    * ```ts
@@ -954,6 +973,7 @@ export abstract class ArrayND {
    * @param x The other instance. Must be shape-compatible with this one.
    * @returns The scalar `this · x`, summed over every element of the flat buffer.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   * @throws {TypeError} If `x` is not an instance of the same class.
    *
    * @example
    * ```ts
@@ -984,6 +1004,7 @@ export abstract class ArrayND {
    * @param x The other instance. Must be shape-compatible with this one.
    * @returns The distance between `this` and `x`.
    * @throws {RangeError} If `x` is not shape-compatible with this instance.
+   * @throws {TypeError} If `x` is not an instance of the same class.
    *
    * @example
    * ```ts

@@ -231,6 +231,7 @@ export class Matrix extends ArrayND {
    * @param other The other matrix.
    * @param caller Name of the public method invoking this check, used to
    * produce a precise error message (e.g. `"add"`).
+   * @throws {TypeError} If `other` is not a `Matrix`.
    * @throws {RangeError} If `other.rows !== this.rows || other.cols !== this.cols`.
    */
   protected _checkSameShape(other: this, caller: string): void {
@@ -291,6 +292,7 @@ export class Matrix extends ArrayND {
    * Throws if `(i, j)` is not a valid 0-based index into this matrix.
    * @param i Row index (0-based).
    * @param j Column index (0-based).
+   * @param caller Name of the public method invoking this check, for the message.
    * @throws {RangeError} If `i` or `j` is out of range.
    */
   private _checkBounds(i: number, j: number, caller: string): void {
@@ -340,6 +342,7 @@ export class Matrix extends ArrayND {
    * Throws if `tol` is not a usable absolute tolerance (negative or NaN).
    * @param tol The tolerance.
    * @param caller Name of the public method invoking this check.
+   * @throws {TypeError} If `tol` is not a number.
    * @throws {RangeError} If `tol` is not `>= 0`.
    */
   private static _checkTol(tol: number, caller: string): void {
@@ -3022,6 +3025,7 @@ export class Matrix extends ArrayND {
    * row, over that row's `cols` values.
    * @param axis `0` to reduce down columns, `1` to reduce across rows.
    * @param reduceFn Reduces one row's or column's values to a single number.
+   * @param caller Name of the public method, for error messages.
    * @returns A `Vector` of length `cols` (for `axis: 0`) or `rows` (for `axis: 1`).
    */
   private _reduceAxis(

@@ -149,6 +149,16 @@ describe('Vector operands of the wrong type', () => {
     });
   }
 
+  it('documents and throws RangeError for a size mismatch in addScaledSelf, setSub and outer', () => {
+    expect(() => v().addScaledSelf(Vector.zero(3), 1)).toThrowError(
+      'Vector.addScaledSelf: dimension mismatch: 2 vs 3.'
+    );
+    expect(() => v().setSub(v(), Vector.zero(3))).toThrowError(
+      'Vector.setSub: dimension mismatch: 2 vs 3.'
+    );
+    expect(() => new Vector(0).outer(v())).toThrowError(RangeError);
+  });
+
   it('keeps scalar broadcasting and the RangeError for a size mismatch', () => {
     expect(v().add(1).toArray()).toEqual([2, 3]);
     expect(() => v().add(Vector.zero(3))).toThrowError('Vector.add: dimension mismatch: 2 vs 3.');

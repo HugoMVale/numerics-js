@@ -131,6 +131,7 @@ export class Vector extends ArrayND {
    * Allocates the storage of a new vector, turning the engine's own
    * `RangeError` for an unallocatable size into a `Vector.constructor:` one.
    * @param size The length, an integer `>= 0`.
+   * @returns A zero-filled buffer of length `size`.
    * @throws {RangeError} If the storage cannot be allocated.
    */
   private static _allocate(size: number): Float64Array {
@@ -221,6 +222,7 @@ export class Vector extends ArrayND {
    * Gets a component by its 0-based index.
    * @param i Component index (0-based).
    * @returns The component value.
+   * @throws {RangeError} If `i` is not an integer in `[0, size)` (this includes `NaN` and `Infinity`).
    *
    * @example
    * ```ts
@@ -485,6 +487,7 @@ export class Vector extends ArrayND {
    * @returns A new `this.size x v.size` matrix.
    * @throws {RangeError} If this vector or `v` is empty (`size === 0`)
    * — same restriction `Matrix` places on its own dimensions.
+   * @throws {TypeError} If `v` is not a `Vector`.
    *
    * @example
    * ```ts
@@ -879,6 +882,8 @@ export class Vector extends ArrayND {
    * @param v The vector to scale and add. Must have the same `size` as this one.
    * @param s The scale factor applied to `v`.
    * @returns `this`, for chaining.
+   * @throws {TypeError} If `v` is not a `Vector`.
+   * @throws {RangeError} If `v.size !== size`.
    *
    * @example
    * ```ts
@@ -907,6 +912,8 @@ export class Vector extends ArrayND {
    * @param a The vector to subtract from. Must have the same `size` as this vector.
    * @param b The vector to subtract. Must have the same `size` as `a` and as this vector.
    * @returns `this`, set to `a - b`.
+   * @throws {TypeError} If `a` or `b` is not a `Vector`.
+   * @throws {RangeError} If `a.size` or `b.size` differs from `size`.
    *
    * @example
    * ```ts
