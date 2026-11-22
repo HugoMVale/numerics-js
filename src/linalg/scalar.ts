@@ -25,6 +25,9 @@ export function isCloseScalar(a: number, b: number, rtol: number, atol: number):
  */
 const NORM_SQ_MIN = 1e-250;
 
+/** Smallest positive normal double; below it a reciprocal loses precision. @internal */
+export const MIN_NORMAL = 2.2250738585072014e-308;
+
 /**
  * Euclidean norm of `a`, or of `a - b` if `b` is given, computed with scaling so
  * that it neither overflows nor underflows unless the true result does.

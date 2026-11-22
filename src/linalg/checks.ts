@@ -52,6 +52,19 @@ export function typeName(x: unknown): string {
 }
 
 /**
+ * Rejects an `out` argument that is not a `Vector` (a plain array or a typed array
+ * would otherwise surface as a misleading size error).
+ * @param out The `out` argument as received.
+ * @param who Prefix for the message, e.g. `'Matrix.solveLU'`.
+ * @throws {TypeError} If `out` is not a `Vector`.
+ */
+export function checkVectorOut(out: unknown, who: string): void {
+  if (!(out instanceof Vector)) {
+    throw new TypeError(`${who}: out must be a Vector, got ${typeName(out)}.`);
+  }
+}
+
+/**
  * Returns the numbers held by a `Vector` or an array-like object (an array, a
  * typed array, ...), rejecting everything else. Strings, numbers, `null`,
  * iterables without a `length` (a `Set`) and other values are refused, since

@@ -1,5 +1,5 @@
 import { asArrayLike } from './checks.js';
-import { isCloseScalar, sqrtOrHypot } from './scalar.js';
+import { isCloseScalar, MIN_NORMAL, sqrtOrHypot } from './scalar.js';
 
 /**
  * A 3-component vector of `number`s, used for positions, directions,
@@ -177,7 +177,11 @@ export class Vec3 {
   norm(): number {
     const s = this.x * this.x + this.y * this.y + this.z * this.z;
     // Fast path inlined: this is the hot-loop type, and the range test is the only extra cost.
-    return s >= 1e-250 && s < Infinity ? Math.sqrt(s) : sqrtOrHypot(s, this.x, this.y, this.z);
+    return s >= 1e-250 && s < Infinity
+      ? Math.sqrt(s)
+      : s === 0 && this.x === 0 && this.y === 0 && this.z === 0
+        ? 0
+        : sqrtOrHypot(s, this.x, this.y, this.z);
   }
 
   /**
@@ -203,9 +207,16 @@ export class Vec3 {
   normalize(): Vec3 {
     const m = this.norm();
     if (m === 0) return new Vec3();
+    if (m === Infinity) {
+      // The norm overflowed although the components may be finite: rescale first.
+      const mx = Math.max(Math.abs(this.x), Math.abs(this.y), Math.abs(this.z));
+      if (mx < Infinity) return new Vec3(this.x / mx, this.y / mx, this.z / mx).normalize();
+    }
     const inv = 1 / m;
-    // For a subnormal norm `1 / m` overflows; dividing is then the only exact way.
-    return inv < Infinity ? this.mult(inv) : new Vec3(this.x / m, this.y / m, this.z / m);
+    // Dividing is the only accurate way when `1 / m` overflows or is subnormal.
+    return inv >= MIN_NORMAL && inv < Infinity
+      ? this.mult(inv)
+      : new Vec3(this.x / m, this.y / m, this.z / m);
   }
 
   /**

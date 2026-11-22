@@ -165,6 +165,8 @@ describe('Vector operands of the wrong type', () => {
   });
 });
 
+// Shape guard only: V8 maps cannot be compared from JS, so this pins property names/order
+// (the part of the hidden class that a regression would most likely change).
 describe('wrapUnchecked builds objects of the same shape as the constructors', () => {
   it('Vector: same own property names, in the same order', () => {
     const wrapped = Vector.wrapUnchecked(new Float64Array(3));
@@ -199,7 +201,6 @@ describe('wrapUnchecked builds objects of the same shape as the constructors', (
 
 describe('Euclidean norm range', () => {
   it('does not overflow for large components', () => {
-    expect(Vector.from([3e200, 4e200]).norm()).toBeCloseTo(5e200, -190);
     expect(Vector.from([3e200, 4e200]).norm() / 5e200).toBeCloseTo(1, 14);
     expect(Matrix.from([[3e200, 4e200]]).norm() / 5e200).toBeCloseTo(1, 14);
     expect(Vector.from([3e200]).dist(Vector.from([-4e200])) / 7e200).toBeCloseTo(1, 14);
@@ -268,4 +269,55 @@ describe('Vec3.from rejects wrong-typed input', () => {
     expect(Vec3.from([1, 2, 3, 4]).toArray()).toEqual([1, 2, 3]);
     expect(Vec3.from(new Float64Array([4, 5, 6])).toArray()).toEqual([4, 5, 6]);
   });
+});
+
+describe('internal adopt overload is not reachable by accident', () => {
+  it('ignores a stray second argument of the public constructors', () => {
+    const Ctor = Vector as unknown as new (a: unknown, b: unknown) => Vector;
+    expect(new Ctor(3, new Float64Array([1, 2])).size).toBe(3);
+    expect(() => new Ctor(-1, 'xx')).toThrowError(/^Vector\.constructor: dimension/);
+  });
+});
+
+describe('normalize near the ends of the double range', () => {
+  it('does not return zero for a vector whose norm overflows', () => {
+    const v = new Vector([1.7e308, 1.7e308]).normalize();
+    expect(v.get(0)).toBeCloseTo(Math.SQRT1_2, 14);
+    const w = new Vec3(1.7e308, 1.7e308, 0).normalize();
+    expect(w.x).toBeCloseTo(Math.SQRT1_2, 14);
+  });
+
+  it('is accurate when 1/norm is subnormal', () => {
+    expect(new Vec3(1e308, 1e308, 0).normalize().x).toBeCloseTo(Math.SQRT1_2, 15);
+    expect(new Vector([1e308, 1e308]).normalize().get(0)).toBeCloseTo(Math.SQRT1_2, 15);
+  });
+
+  it('Vec3 zero vector still has norm 0', () => {
+    expect(new Vec3().norm()).toBe(0);
+  });
+});
+
+describe('dist and norm with mixed NaN and Infinity', () => {
+  it('propagate NaN', () => {
+    expect(Vector.from([NaN, Infinity]).dist(Vector.from([0, 0]))).toBeNaN();
+    expect(Vector.from([Infinity, 1]).dist(Vector.from([Infinity, 1]))).toBeNaN();
+    expect(Vector.from([Infinity, 1]).dist(Vector.from([0, 1]))).toBe(Infinity);
+  });
+});
+
+describe('out arguments must be Vectors', () => {
+  const A = Matrix.from([
+    [2, 1],
+    [1, 3]
+  ]);
+  it.each([[[0, 0]], [new Float64Array(2)], [null]] as unknown[][])(
+    'solveLU/solveLower/solveUpper reject %o with a TypeError',
+    (bad) => {
+      expect(() => Matrix.solveLU(A.lu(), [1, 2], bad as never)).toThrowError(
+        /^Matrix\.solveLU: out must be a Vector/
+      );
+      expect(() => A.solveLower([1, 2], false, bad as never)).toThrowError(TypeError);
+      expect(() => A.solveUpper([1, 2], bad as never)).toThrowError(TypeError);
+    }
+  );
 });

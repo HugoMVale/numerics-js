@@ -1,6 +1,7 @@
 import { ArrayND } from './ArrayND.js';
 import { Matrix } from './Matrix.js';
 import { asArrayLike, typeName } from './checks.js';
+import { MIN_NORMAL } from './scalar.js';
 
 /**
  * Anything that can be used as a numeric vector input: a {@link Vector}, a plain (possibly
@@ -81,7 +82,7 @@ export class Vector extends ArrayND {
   constructor(input: null, adopt: Float64Array);
   constructor(input: number | ArrayLike<number> | null, adopt?: Float64Array) {
     super();
-    if (adopt !== undefined) {
+    if (input === null && adopt instanceof Float64Array) {
       // Internal fast path (see `wrapUnchecked`): take the buffer as is.
       this.data = adopt;
     } else if (typeof input === 'number') {
@@ -418,9 +419,15 @@ export class Vector extends ArrayND {
   normalize(): Vector {
     const m = this.norm();
     if (m === 0) return new Vector(this.size);
+    if (m === Infinity) {
+      // The norm overflowed although the components may be finite: rescale first.
+      const mx = this.normInf();
+      if (mx < Infinity) return this.div(mx).normalize();
+    }
     const inv = 1 / m;
-    // For a subnormal norm `1 / m` overflows; dividing is then the only exact way.
-    return inv < Infinity ? this.mult(inv) : this.div(m);
+    // `1 / m` overflows for a subnormal norm and is subnormal (inexact, or 0 for an
+    // overflowed norm) for a huge one; dividing is then the only accurate way.
+    return inv >= MIN_NORMAL && inv < Infinity ? this.mult(inv) : this.div(m);
   }
 
   /**

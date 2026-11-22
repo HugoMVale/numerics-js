@@ -6,6 +6,7 @@ import {
   checkOptions,
   checkPositiveInteger,
   checkRecord,
+  checkVectorOut,
   scanNonFinite
 } from './checks.js';
 
@@ -502,6 +503,7 @@ function substituteLower(
     throw new RangeError(
       `Matrix.${who}: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
+  if (out !== undefined) checkVectorOut(out, `Matrix.${who}`);
   if (out !== undefined && out.size !== A.rows)
     throw new RangeError(`Matrix.${who}: out has size ${out.size}, expected ${A.rows}.`);
   const n = A.rows;
@@ -550,6 +552,7 @@ function substituteUpper(A: Matrix, b: Vector, out: Vector | undefined, who: str
     throw new RangeError(
       `Matrix.${who}: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
+  if (out !== undefined) checkVectorOut(out, `Matrix.${who}`);
   if (out !== undefined && out.size !== A.rows)
     throw new RangeError(`Matrix.${who}: out has size ${out.size}, expected ${A.rows}.`);
   const n = A.rows;
@@ -602,6 +605,7 @@ export function solveLU(decomposition: LUDecomposition, b: Vector, out?: Vector)
   }
   if (b.size !== n)
     throw new RangeError(`Matrix.solveLU: shape mismatch: ${n}x${n} vs vector of size ${b.size}.`);
+  if (out !== undefined) checkVectorOut(out, `Matrix.solveLU`);
   if (out !== undefined && out.size !== n)
     throw new RangeError(`Matrix.solveLU: out has size ${out.size}, expected ${n}.`);
   if (out !== undefined && out === b) throw new RangeError('Matrix.solveLU: out must not be b.');
@@ -1193,6 +1197,7 @@ export function qrPivotMulQt(dec: QRPivotDecomposition, b: Vector, out?: Vector)
     throw new RangeError(
       `Matrix.qrPivotMulQt: shape mismatch: ${m}x${n} vs vector of size ${b.size}.`
     );
+  if (out !== undefined) checkVectorOut(out, `Matrix.qrPivotMulQt`);
   if (out !== undefined && out.size !== m)
     throw new RangeError(`Matrix.qrPivotMulQt: out has size ${out.size}, expected ${m}.`);
   const y = out ?? new Vector(m);

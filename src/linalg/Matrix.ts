@@ -145,7 +145,7 @@ export class Matrix extends ArrayND {
     adopt?: Float64Array
   ) {
     super();
-    if (adopt !== undefined) {
+    if (input === null && adopt instanceof Float64Array) {
       // Internal fast path (see `wrapUnchecked`): take the buffer as is.
       this._rows = rows;
       this._cols = cols;
@@ -2090,6 +2090,7 @@ export class Matrix extends ArrayND {
    * ```text
    * Vector(1, 2)
    * ```
+   * @throws {TypeError} If `out` is given and is not a `Vector`.
    */
   static solveLU(decomposition: LUDecomposition, b: VectorLike, out?: Vector): Vector {
     return linalg.solveLU(decomposition, Vector.asVector(b), out);
@@ -2129,6 +2130,7 @@ export class Matrix extends ArrayND {
    * ```text
    * Vector(1, 1.3333333333333333)
    * ```
+   * @throws {TypeError} If `out` is given and is not a `Vector`.
    */
   solveLower(b: VectorLike, unitDiagonal = false, out?: Vector): Vector {
     return linalg.solveLower(this, Vector.asVector(b), unitDiagonal, out);
@@ -2165,6 +2167,7 @@ export class Matrix extends ArrayND {
    * ```text
    * Vector(1, 2)
    * ```
+   * @throws {TypeError} If `out` is given and is not a `Vector`.
    */
   solveUpper(b: VectorLike, out?: Vector): Vector {
     return linalg.solveUpper(this, Vector.asVector(b), out);
@@ -2555,6 +2558,7 @@ export class Matrix extends ArrayND {
    * ```text
    * Vector(-3.7416573867739418, 9.447285969364182e-16, 3.0588234610191476e-16)
    * ```
+   * @throws {TypeError} If `out` is given and is not a `Vector`.
    */
   static qrPivotMulQt(decomposition: QRPivotDecomposition, b: VectorLike, out?: Vector): Vector {
     return linalg.qrPivotMulQt(decomposition, Vector.asVector(b), out);
