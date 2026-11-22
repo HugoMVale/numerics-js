@@ -1,4 +1,4 @@
-import { isCloseScalar } from './scalar.js';
+import { isCloseScalar, sqrtOrScaled } from './scalar.js';
 
 /**
  * Abstract base class for N-dimensional arrays backed by a flat
@@ -945,7 +945,7 @@ export abstract class ArrayND {
    * ```
    */
   norm(): number {
-    return Math.sqrt(this.normSq());
+    return sqrtOrScaled(this.normSq(), this.data);
   }
 
   /**
@@ -1007,7 +1007,7 @@ export abstract class ArrayND {
       const d = this.data[i] - x.data[i];
       sum += d * d;
     }
-    return Math.sqrt(sum);
+    return sqrtOrScaled(sum, this.data, x.data);
   }
 
   // -----------------------------------------------------------------

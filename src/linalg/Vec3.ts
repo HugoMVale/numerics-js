@@ -1,4 +1,5 @@
-import { isCloseScalar } from './scalar.js';
+import { asArrayLike } from './checks.js';
+import { isCloseScalar, sqrtOrHypot } from './scalar.js';
 
 /**
  * A 3-component vector of `number`s, used for positions, directions,
@@ -174,7 +175,9 @@ export class Vec3 {
    * ```
    */
   norm(): number {
-    return Math.sqrt(this.normSq());
+    const s = this.x * this.x + this.y * this.y + this.z * this.z;
+    // Fast path inlined: this is the hot-loop type, and the range test is the only extra cost.
+    return s >= 1e-250 && s < Infinity ? Math.sqrt(s) : sqrtOrHypot(s, this.x, this.y, this.z);
   }
 
   /**
@@ -199,7 +202,10 @@ export class Vec3 {
    */
   normalize(): Vec3 {
     const m = this.norm();
-    return m === 0 ? new Vec3() : this.mult(1 / m);
+    if (m === 0) return new Vec3();
+    const inv = 1 / m;
+    // For a subnormal norm `1 / m` overflows; dividing is then the only exact way.
+    return inv < Infinity ? this.mult(inv) : new Vec3(this.x / m, this.y / m, this.z / m);
   }
 
   /**
@@ -652,8 +658,10 @@ export class Vec3 {
 
   /**
    * Creates a Vec3 from an array or array-like of `[x, y, z]`.
-   * @param arr Source values; missing entries default to 0.
+   * @param arr Source values (an array or other array-like); missing entries default
+   * to 0 and entries beyond the third are ignored.
    * @returns A new vector.
+   * @throws {TypeError} If `arr` is not an array-like (a string, `null`, ...).
    *
    * @example
    * ```ts
@@ -670,6 +678,7 @@ export class Vec3 {
    * ```
    */
   static from(arr: ArrayLike<number>): Vec3 {
-    return new Vec3(arr[0] ?? 0, arr[1] ?? 0, arr[2] ?? 0);
+    const a = asArrayLike(arr, 'Vec3.from', 'arr');
+    return new Vec3(a[0] ?? 0, a[1] ?? 0, a[2] ?? 0);
   }
 }

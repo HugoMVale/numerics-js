@@ -52,6 +52,32 @@ export function typeName(x: unknown): string {
 }
 
 /**
+ * Returns the numbers held by a `Vector` or an array-like object (an array, a
+ * typed array, ...), rejecting everything else. Strings, numbers, `null`,
+ * iterables without a `length` (a `Set`) and other values are refused, since
+ * `Float64Array.set` would silently coerce or mis-handle them. Only the
+ * container is validated, not the individual elements.
+ * @param x The argument as received.
+ * @param who Name of the public method, for the message (e.g. `Matrix.setRow`).
+ * @param what Name of the argument, for the message.
+ * @param expected Description of what was expected, for the message.
+ * @returns The underlying values (not copied).
+ * @throws {TypeError} If `x` is not a `Vector` or an object with a numeric `length`.
+ */
+export function asArrayLike(
+  x: unknown,
+  who: string,
+  what: string,
+  expected = 'an array-like of numbers or a Vector'
+): ArrayLike<number> {
+  if (x instanceof Vector) return x.data;
+  if (x === null || typeof x !== 'object' || typeof (x as ArrayLike<number>).length !== 'number') {
+    throw new TypeError(`${who}: ${what} must be ${expected}, got ${typeName(x)}.`);
+  }
+  return x as ArrayLike<number>;
+}
+
+/**
  * Validates an options argument: `undefined`, `null` or an object.
  * @param options The argument to check.
  * @param who Name of the public method, for the error message.

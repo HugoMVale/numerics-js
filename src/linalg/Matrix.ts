@@ -2,7 +2,7 @@ import { ArrayND } from './ArrayND.js';
 import { Vector, type VectorLike } from './Vector.js';
 import * as linalg from './Matrix.linalg.js';
 import * as svdAlgs from './Matrix.svd.js';
-import { typeName } from './checks.js';
+import { asArrayLike, typeName } from './checks.js';
 
 // The heavier linear-algebra algorithms (factorizations, linear-system
 // solves, eigendecomposition) live in Matrix.linalg.ts, not here — see
@@ -128,16 +128,30 @@ export class Matrix extends ArrayND {
    *   the matrix is too large to allocate.
    * @throws {TypeError} If `input` is neither a `Vector` nor an array-like of numbers.
    */
-  constructor(rows: number, cols: number, input?: Vector | ArrayLike<number>) {
+  constructor(rows: number, cols: number, input?: Vector | ArrayLike<number>);
+  /** @internal */
+  constructor(rows: number, cols: number, input: null, adopt: Float64Array);
+  constructor(
+    rows: number,
+    cols: number,
+    input?: Vector | ArrayLike<number> | null,
+    adopt?: Float64Array
+  ) {
     super();
+    if (adopt !== undefined) {
+      // Internal fast path (see `wrapUnchecked`): take the buffer as is.
+      this._rows = rows;
+      this._cols = cols;
+      this.data = adopt;
+      return;
+    }
     if (!Number.isInteger(rows) || rows < 1) {
       throw new RangeError(`Matrix.constructor: rows must be a positive integer, got ${rows}.`);
     }
     if (!Number.isInteger(cols) || cols < 1) {
       throw new RangeError(`Matrix.constructor: cols must be a positive integer, got ${cols}.`);
     }
-    const src =
-      input === undefined ? undefined : Matrix._asArrayLike(input, 'constructor', 'input');
+    const src = input === undefined ? undefined : asArrayLike(input, 'Matrix.constructor', 'input');
     if (src !== undefined) {
       if (src.length !== rows * cols) {
         throw new RangeError(
@@ -236,8 +250,10 @@ export class Matrix extends ArrayND {
    * (rather than a leading underscore) is the actual "don't call this
    * unless you already hold a validated, freshly-built buffer" signal:
    * skip it and you can construct a Matrix whose declared shape doesn't
-   * match its buffer's length. Like `_create`'s `as this` cast, this
-   * assumes Matrix is never itself subclassed.
+   * match its buffer's length. It goes through the (internal) constructor
+   * overload rather than `Object.create`, so that every matrix has the same
+   * hidden class and the hot paths that mix them stay monomorphic. Like
+   * `_create`'s `as this` cast, this assumes Matrix is never itself subclassed.
    * @param rows Number of rows.
    * @param cols Number of columns.
    * @param data The buffer to wrap directly. Not copied. Must have length `rows * cols`.
@@ -259,11 +275,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   static wrapUnchecked(rows: number, cols: number, data: Float64Array): Matrix {
-    const m = Object.create(Matrix.prototype) as Matrix;
-    m._rows = rows;
-    m._cols = cols;
-    m.data = data;
-    return m;
+    return new Matrix(rows, cols, null, data);
   }
 
   /**
@@ -341,31 +353,6 @@ export class Matrix extends ArrayND {
       throw new TypeError(`Matrix.${caller}: tol must be a number, got ${typeName(tol)}.`);
     }
     if (!(tol >= 0)) throw new RangeError(`Matrix.${caller}: tol must be >= 0, got ${tol}.`);
-  }
-
-  /**
-   * Returns the numbers held by a `Vector` or an array-like object (an
-   * array, a typed array, ...). Strings, numbers, `null` and other values
-   * are rejected, since `Float64Array.set` would silently coerce or
-   * mis-handle them.
-   * @param x The argument as received.
-   * @param caller Name of the public method invoking this check.
-   * @param what Name of the argument, for the message.
-   * @returns The underlying values (not copied).
-   * @throws {TypeError} If `x` is not a `Vector` or an object with a numeric `length`.
-   */
-  private static _asArrayLike(x: unknown, caller: string, what: string): ArrayLike<number> {
-    if (x instanceof Vector) return x.data;
-    if (
-      x === null ||
-      typeof x !== 'object' ||
-      typeof (x as ArrayLike<number>).length !== 'number'
-    ) {
-      throw new TypeError(
-        `Matrix.${caller}: ${what} must be an array-like of numbers or a Vector, got ${typeName(x)}.`
-      );
-    }
-    return x as ArrayLike<number>;
   }
 
   /**
@@ -673,7 +660,7 @@ export class Matrix extends ArrayND {
    */
   setRow(i: number, values: Vector | ArrayLike<number>): this {
     this._checkRow(i, 'setRow');
-    const src = Matrix._asArrayLike(values, 'setRow', 'values');
+    const src = asArrayLike(values, 'Matrix.setRow', 'values');
     if (src.length !== this.cols) {
       throw new RangeError(
         `Matrix.setRow: expected ${this.cols} values for row ${i}, got ${src.length}.`
@@ -707,7 +694,7 @@ export class Matrix extends ArrayND {
    */
   setCol(j: number, values: Vector | ArrayLike<number>): this {
     this._checkCol(j, 'setCol');
-    const given = Matrix._asArrayLike(values, 'setCol', 'values');
+    const given = asArrayLike(values, 'Matrix.setCol', 'values');
     if (given.length !== this.rows) {
       throw new RangeError(
         `Matrix.setCol: expected ${this.rows} values for column ${j}, got ${given.length}.`

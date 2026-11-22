@@ -1,5 +1,6 @@
 import { ArrayND } from './ArrayND.js';
 import { Matrix } from './Matrix.js';
+import { asArrayLike, typeName } from './checks.js';
 
 /**
  * Anything that can be used as a numeric vector input: a {@link Vector}, a plain (possibly
@@ -49,7 +50,10 @@ export class Vector extends ArrayND {
    * or other array-like. The values are copied, so later changes to `input`
    * do not affect the vector.
    * @throws {RangeError} If `input` is a number that is not a non-negative
+   * integer, if it is an array-like whose `length` is not a non-negative
    * integer, or if the vector is too large to allocate.
+   * @throws {TypeError} If `input` is neither a number nor an array-like (a
+   * string, `null`, a `Set`, ...).
    *
    * @example
    * ```ts
@@ -67,45 +71,72 @@ export class Vector extends ArrayND {
    * Vector(1, 2, 3)
    * ```
    */
-  constructor(input: number | ArrayLike<number>) {
+  constructor(input: number | ArrayLike<number>);
+  /** @internal */
+  constructor(input: null, adopt: Float64Array);
+  constructor(input: number | ArrayLike<number> | null, adopt?: Float64Array) {
     super();
-    if (typeof input === 'number') {
+    if (adopt !== undefined) {
+      // Internal fast path (see `wrapUnchecked`): take the buffer as is.
+      this.data = adopt;
+    } else if (typeof input === 'number') {
       if (!Number.isInteger(input)) {
         throw new RangeError(`Vector.constructor: dimension must be an integer, got ${input}.`);
       }
       if (input < 0) {
         throw new RangeError(`Vector.constructor: dimension must be >= 0, got ${input}.`);
       }
-      this.data = Vector._allocate(input, input);
+      this.data = Vector._allocate(input);
+    } else if (Vector._isLengthlessIterable(input)) {
+      // An iterable without a `length` (e.g. a `Set`) is outside the declared type but
+      // harmless: let the engine consume it.
+      this.data = new Float64Array(input);
     } else {
-      this.data = Vector._allocate(input, input.length);
+      const src = asArrayLike(
+        input,
+        'Vector.constructor',
+        'input',
+        'a dimension or an array-like of numbers'
+      );
+      if (!Number.isInteger(src.length) || src.length < 0) {
+        throw new RangeError(
+          `Vector.constructor: input length must be a non-negative integer, got ${src.length}.`
+        );
+      }
+      this.data = Vector._allocate(src.length);
+      this.data.set(src);
     }
+  }
+
+  /**
+   * Whether `x` is an object that can be iterated but has no numeric `length`.
+   * @param x The constructor argument as received.
+   * @returns `true` for e.g. a `Set`; `false` for array-likes, strings and non-objects.
+   */
+  private static _isLengthlessIterable(x: unknown): x is Iterable<number> {
+    return (
+      typeof x === 'object' &&
+      x !== null &&
+      typeof (x as { length?: unknown }).length !== 'number' &&
+      typeof (x as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function'
+    );
   }
 
   /**
    * Allocates the storage of a new vector, turning the engine's own
    * `RangeError` for an unallocatable size into a `Vector.constructor:` one.
-   * @param source The constructor argument to copy: a dimension or an array-like.
-   * @param size The resulting length, for the error message.
+   * @param size The length, an integer `>= 0`.
    * @throws {RangeError} If the storage cannot be allocated.
    */
-  private static _allocate(source: number | ArrayLike<number>, size: number): Float64Array {
-    let data: Float64Array;
+  private static _allocate(size: number): Float64Array {
     try {
-      // Only the allocation is guarded: errors raised while reading the
-      // elements of `source` (e.g. a throwing getter) must pass through.
-      data = new Float64Array(typeof size === 'number' ? size : 0);
+      return new Float64Array(size);
     } catch (e) {
       if (!(e instanceof RangeError)) throw e;
       throw new RangeError(
         `Vector.constructor: a vector of size ${size} is too large to allocate.`
       );
     }
-    if (typeof source === 'number') return data;
-    // Iterables without a numeric `length` (e.g. a Set) keep the native path.
-    if (typeof size !== 'number') return new Float64Array(source);
-    data.set(source);
-    return data;
   }
 
   /**
@@ -116,9 +147,13 @@ export class Vector extends ArrayND {
    * @param other The other vector.
    * @param caller Name of the public method invoking this check, used to
    * produce a precise error message (e.g. `"add"`).
+   * @throws {TypeError} If `other` is not a `Vector`.
    * @throws {RangeError} If `other.size !== this.size`.
    */
   protected _checkSameShape(other: this, caller: string): void {
+    if (!(other instanceof Vector)) {
+      throw new TypeError(`Vector.${caller}: expected a Vector, got ${typeName(other)}.`);
+    }
     if (other.size !== this.size) {
       throw new RangeError(`Vector.${caller}: dimension mismatch: ${this.size} vs ${other.size}.`);
     }
@@ -136,8 +171,10 @@ export class Vector extends ArrayND {
    * underscore) is the actual "don't call this unless you already hold
    * a validated, freshly-built buffer" signal: skip it and you can
    * construct a Vector whose declared size doesn't match its buffer's
-   * length. Like `_create`'s `as this` cast, this assumes Vector is
-   * never itself subclassed.
+   * length. It goes through the (internal) constructor overload rather than
+   * `Object.create`, so that every vector has the same hidden class and the
+   * hot paths that mix them stay monomorphic. Like `_create`'s `as this`
+   * cast, this assumes Vector is never itself subclassed.
    * @param data The buffer to wrap directly. Not copied.
    * @returns A new Vector wrapping `data`.
    *
@@ -161,9 +198,7 @@ export class Vector extends ArrayND {
    * ```
    */
   static wrapUnchecked(data: Float64Array): Vector {
-    const v = Object.create(Vector.prototype) as Vector;
-    v.data = data;
-    return v;
+    return new Vector(null, data);
   }
 
   /**
@@ -392,7 +427,10 @@ export class Vector extends ArrayND {
    */
   normalize(): Vector {
     const m = this.norm();
-    return m === 0 ? new Vector(this.size) : this.mult(1 / m);
+    if (m === 0) return new Vector(this.size);
+    const inv = 1 / m;
+    // For a subnormal norm `1 / m` overflows; dividing is then the only exact way.
+    return inv < Infinity ? this.mult(inv) : this.div(m);
   }
 
   /**
@@ -475,6 +513,9 @@ export class Vector extends ArrayND {
    * ```
    */
   outer(v: Vector): Matrix {
+    if (!(v instanceof Vector)) {
+      throw new TypeError(`Vector.outer: expected a Vector, got ${typeName(v)}.`);
+    }
     const n = v.size;
     if (this.size === 0 || n === 0) {
       throw new RangeError(
@@ -487,7 +528,7 @@ export class Vector extends ArrayND {
       const offset = i * n;
       for (let j = 0; j < n; j++) data[offset + j] = ui * v.data[j];
     }
-    return new Matrix(this.size, n, data);
+    return Matrix.wrapUnchecked(this.size, n, data);
   }
 
   /**
@@ -785,9 +826,10 @@ export class Vector extends ArrayND {
 
   /**
    * Sets this vector's components directly, mutating it in place.
-   * @param values Values to copy in, as a `number[]`, read-only array, `Float64Array` or
-   * other array-like. Must have length `size`.
+   * @param values Values to copy in, as a `Vector`, `number[]`, read-only array,
+   * `Float64Array` or other array-like. Must have length `size`.
    * @throws {RangeError} If `values.length !== size`.
+   * @throws {TypeError} If `values` is neither a `Vector` nor an array-like.
    * @returns `this`, for chaining.
    *
    * @example
@@ -804,7 +846,7 @@ export class Vector extends ArrayND {
    * Vector(1, 2, 3)
    * ```
    */
-  set(values: ArrayLike<number>): this;
+  set(values: Vector | ArrayLike<number>): this;
 
   /**
    * Sets one component by its 0-based index, mutating this vector in place.
@@ -829,17 +871,16 @@ export class Vector extends ArrayND {
    */
   set(i: number, value: number): this;
 
-  set(valuesOrIndex: ArrayLike<number> | number, value?: number): this {
+  set(valuesOrIndex: Vector | ArrayLike<number> | number, value?: number): this {
     if (typeof valuesOrIndex === 'number') {
       this._checkIndex(valuesOrIndex, 'set');
       this.data[valuesOrIndex] = value as number;
     } else {
-      if (valuesOrIndex.length !== this.size) {
-        throw new RangeError(
-          `Vector.set: expected ${this.size} values, got ${valuesOrIndex.length}.`
-        );
+      const src = asArrayLike(valuesOrIndex, 'Vector.set', 'values');
+      if (src.length !== this.size) {
+        throw new RangeError(`Vector.set: expected ${this.size} values, got ${src.length}.`);
       }
-      this.data.set(valuesOrIndex);
+      this.data.set(src);
     }
     return this;
   }
@@ -971,6 +1012,9 @@ export class Vector extends ArrayND {
    * @param arr Source values, as a `number[]`, read-only array, `Float64Array` or
    * other array-like. They are copied.
    * @returns A new vector with dimension equal to `arr.length`.
+   * @throws {TypeError} If `arr` is not an array-like. In particular a number is rejected: use `new Vector(n)` or `Vector.zero(n)` for a vector of zeros.
+   * @throws {RangeError} If `arr.length` is not a non-negative integer, or if the vector
+   * is too large to allocate.
    *
    * @example
    * ```ts
@@ -986,7 +1030,7 @@ export class Vector extends ArrayND {
    * ```
    */
   static from(arr: ArrayLike<number>): Vector {
-    return new Vector(arr);
+    return new Vector(asArrayLike(arr, 'Vector.from', 'arr'));
   }
 
   /**
@@ -995,7 +1039,7 @@ export class Vector extends ArrayND {
    * read-only array or `Float64Array` is copied into a new `Vector`. With `copy = true` the
    * result is always an independent vector, so that changes to it never affect `x` and vice
    * versa; use this when the data will be stored or modified. Contrast with {@link Vector.from},
-   * which always returns a fresh copy and does not accept a `Vector`. Only the container type
+   * which always returns a fresh copy of an array-like. Only the container type
    * is validated, not the individual elements.
    * @param x A `Vector`, a plain `number[]` (possibly read-only) or a `Float64Array`.
    * @param copy Whether to return a copy even if `x` is already a `Vector`. Arrays and typed
@@ -1029,9 +1073,8 @@ export class Vector extends ArrayND {
       v.data.set(x);
       return v;
     }
-    const got = x === null ? 'null' : typeof x === 'object' ? x.constructor?.name : typeof x;
     throw new TypeError(
-      `Vector.asVector: expected a Vector, number[] or Float64Array, got ${got ?? 'object'}.`
+      `Vector.asVector: expected a Vector, number[] or Float64Array, got ${typeName(x)}.`
     );
   }
 
