@@ -187,7 +187,9 @@ export class Vec3 {
   /**
    * Returns a unit-length version of this vector (same direction, length 1).
    * If this vector has zero length, returns a zero vector instead of
-   * dividing by zero.
+   * dividing by zero. An infinite component gives the limit direction, as in
+   * `Vector.normalize` (`(Infinity, 1, 2)` gives `(1, 0, 0)`); a `NaN`
+   * component gives all `NaN`.
    * @returns The normalized vector, or `(0, 0, 0)` if this vector is zero.
    *
    * @example
@@ -211,6 +213,14 @@ export class Vec3 {
       // The norm overflowed although the components may be finite: rescale first.
       const mx = Math.max(Math.abs(this.x), Math.abs(this.y), Math.abs(this.z));
       if (mx < Infinity) return new Vec3(this.x / mx, this.y / mx, this.z / mx).normalize();
+      // An infinite component: the limit direction (see `Vector.normalize`); NaN still wins.
+      if (Number.isNaN(this.x) || Number.isNaN(this.y) || Number.isNaN(this.z)) {
+        return new Vec3(NaN, NaN, NaN);
+      }
+      const dir = (c: number) => (c === Infinity ? 1 : c === -Infinity ? -1 : 0);
+      const infinite = Math.abs(dir(this.x)) + Math.abs(dir(this.y)) + Math.abs(dir(this.z));
+      const k = Math.sqrt(1 / infinite);
+      return new Vec3(dir(this.x) * k, dir(this.y) * k, dir(this.z) * k);
     }
     const inv = 1 / m;
     // Dividing is the only accurate way when `1 / m` overflows or is subnormal.

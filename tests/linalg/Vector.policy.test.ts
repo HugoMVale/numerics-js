@@ -297,6 +297,54 @@ describe('normalize near the ends of the double range', () => {
   });
 });
 
+describe('normalize with an infinite component', () => {
+  // The direction is the limit as the component grows: infinite entries count as +-1 and
+  // finite ones as 0. It used to be `(NaN, 0)`, IEEE's `x / Infinity` leaking through.
+  const R = Math.SQRT1_2;
+
+  it('gives the limit direction', () => {
+    expect(Vector.from([Infinity, 1]).normalize().toArray()).toEqual([1, 0]);
+    expect(Vector.from([-Infinity, 2, 0]).normalize().toArray()).toEqual([-1, 0, 0]);
+    expect(Vector.from([-Infinity]).normalize().toArray()).toEqual([-1]);
+    expect(Vector.from([Infinity, Infinity]).normalize().toArray()).toEqual([R, R]);
+    expect(Vector.from([Infinity, -Infinity]).normalize().toArray()).toEqual([R, -R]);
+    expect(Vector.from([0, -Infinity, 5, Infinity]).normalize().toArray()).toEqual([0, -R, 0, R]);
+  });
+
+  it('is the continuation of a huge finite component', () => {
+    const huge = Vector.from([1e300, 1]).normalize().toArray();
+    expect(huge[0]).toBe(1);
+    expect(huge[1]).toBeLessThan(1e-299);
+    expect(Vector.from([Infinity, 1]).normalize().toArray()).toEqual([1, 0]);
+  });
+
+  it('has unit length and never produces -0', () => {
+    for (const a of [
+      [Infinity, 1],
+      [-Infinity, -Infinity, 3],
+      [0, Infinity, -Infinity, 0]
+    ]) {
+      const u = Vector.from(a).normalize();
+      expect(u.norm()).toBeCloseTo(1, 15);
+      expect(u.toArray().some((x) => Object.is(x, -0))).toBe(false);
+    }
+  });
+
+  it('is still NaN if a component is NaN', () => {
+    expect(Vector.from([NaN, Infinity]).normalize().toArray().every(Number.isNaN)).toBe(true);
+    expect(Vector.from([Infinity, NaN, 1]).normalize().toArray().every(Number.isNaN)).toBe(true);
+    expect(Vector.from([NaN, 1]).normalize().toArray().every(Number.isNaN)).toBe(true);
+  });
+
+  it('Vec3 agrees with Vector', () => {
+    expect(new Vec3(Infinity, 1, 2).normalize().toArray()).toEqual([1, 0, 0]);
+    expect(new Vec3(-Infinity, Infinity, 0).normalize().toArray()).toEqual([-R, R, 0]);
+    expect(new Vec3(Infinity, -Infinity, -Infinity).normalize().norm()).toBeCloseTo(1, 15);
+    expect(new Vec3(NaN, Infinity, 0).normalize().toArray().every(Number.isNaN)).toBe(true);
+    expect(new Vec3(Infinity, NaN, 0).normalize().toArray().every(Number.isNaN)).toBe(true);
+  });
+});
+
 describe('dist and norm with mixed NaN and Infinity', () => {
   it('propagate NaN', () => {
     expect(Vector.from([NaN, Infinity]).dist(Vector.from([0, 0]))).toBeNaN();

@@ -398,7 +398,16 @@ export class Vector extends ArrayND {
   /**
    * Returns a unit-length version of this vector (same direction, length 1).
    * If this vector has zero length, returns a zero vector instead of
-   * dividing by zero.
+   * dividing by zero. The result does not overflow or underflow for finite
+   * components of any magnitude.
+   *
+   * **Infinite components.** The direction of a vector with an infinite
+   * component is the limit as that component grows, as it already is for a
+   * finite one that is huge (`[1e300, 1]` normalizes to `(1, 1e-300)`): each
+   * infinite component counts as `±1` and every finite one as `0`, so
+   * `[Infinity, 1]` gives `(1, 0)` and `[Infinity, -Infinity]` gives
+   * `(0.7071067811865475, -0.7071067811865475)`. A `NaN` component still wins:
+   * the result is then all `NaN`.
    * @returns The normalized vector, or a zero vector if this vector is zero.
    *
    * @example
@@ -408,12 +417,14 @@ export class Vector extends ArrayND {
    * const v = Vector.from([3, 4]);
    * console.log(v.normalize().toString());
    * console.log(Vector.zero(2).normalize().toString());
+   * console.log(Vector.from([Infinity, 1]).normalize().toString());
    * ```
    *
    * Output:
    * ```text
    * Vector(0.6000000000000001, 0.8)
    * Vector(0, 0)
+   * Vector(1, 0)
    * ```
    */
   normalize(): Vector {
@@ -423,6 +434,23 @@ export class Vector extends ArrayND {
       // The norm overflowed although the components may be finite: rescale first.
       const mx = this.normInf();
       if (mx < Infinity) return this.div(mx).normalize();
+      // An infinite component: the direction is the limit as it grows, in which the infinite
+      // components share the unit length equally and the finite ones vanish.
+      const res = new Vector(this.size);
+      let infinite = 0;
+      for (let i = 0; i < this.size; i++) {
+        const x = this.data[i];
+        if (Number.isNaN(x)) {
+          res.data.fill(NaN);
+          return res;
+        }
+        if (x === Infinity || x === -Infinity) {
+          res.data[i] = Math.sign(x);
+          infinite++;
+        }
+      }
+      // sqrt(1 / n) rather than 1 / sqrt(n): exact for the common n = 2 (Math.SQRT1_2).
+      return res.mult(Math.sqrt(1 / infinite));
     }
     const inv = 1 / m;
     // `1 / m` overflows for a subnormal norm and is subnormal (inexact, or 0 for an
