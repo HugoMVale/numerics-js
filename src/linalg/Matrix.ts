@@ -2404,39 +2404,41 @@ export class Matrix extends ArrayND {
   }
 
   /**
-   * Solves `this * x = b` for `x`, treating this matrix as the Cholesky
-   * factor `L` of a symmetric positive-definite matrix (as returned by
-   * `cholesky()`). If you need to solve
-   * against the same matrix with several right-hand sides, call
-   * `cholesky()` once and reuse this instead of refactoring each time.
+   * Solves `A * x = b` for `x`, where this matrix is the lower-triangular
+   * Cholesky factor `L` of the symmetric positive-definite matrix
+   * `A = L * L^T` (as returned by `cholesky()`), by one forward and one
+   * backward substitution. If you need to solve against the same matrix with
+   * several right-hand sides, call `cholesky()` once and reuse the factor
+   * instead of refactoring each time. See also `solve` (general square
+   * `A`), `solveLU`, `solveLower` and `solveUpper`.
    *
-   * Costs `O(n^2)`; neither this matrix nor `b` is modified. A zero
-   * diagonal entry throws `Error`. A 1x1 matrix `[l]` solves `l * l * x =
-   * b`. Entries are not scanned: `NaN` and infinite values follow IEEE
-   * arithmetic.
+   * Costs `O(n^2)`; neither this matrix nor `b` is modified. Only the lower
+   * triangle of this matrix is read. A zero diagonal entry throws `Error`. A
+   * 1x1 matrix `[l]` solves `l * l * x = b`. Entries are not scanned: `NaN`
+   * and infinite values follow IEEE arithmetic.
    * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @returns The solution vector `x` such that
    * `this.matmul(this.transpose()).mulVec(x)` is (up to floating-point
    * error) equal to `b`.
    * @throws {RangeError} If this matrix is not square, or `b.size !== this.rows`.
+   * @throws {TypeError} If `b` is neither a `Vector` nor an array-like of numbers.
    * @throws {Error} If this matrix has a zero diagonal entry.
    *
-   * @throws {TypeError} If `b` is neither a `Vector` nor an array-like of numbers.
    * @example
    * ```ts
    * import { Matrix, Vector } from 'numerics-js/linalg';
    *
    * const S = Matrix.from([[4, 2], [2, 3]]);
-   * console.log(S.choleskySolve(Vector.from([8, 8])).toString());
+   * console.log(S.cholesky().solveCholesky(Vector.from([8, 8])).toString());
    * ```
    *
    * Output:
    * ```text
-   * Vector(0.2777777777777778, 0.4444444444444444)
+   * Vector(1, 1.9999999999999998)
    * ```
    */
-  choleskySolve(b: VectorLike): Vector {
-    return linalg.choleskySolve(this, Vector.asVector(b));
+  solveCholesky(b: VectorLike): Vector {
+    return linalg.solveCholesky(this, Vector.asVector(b));
   }
 
   // -----------------------------------------------------------------

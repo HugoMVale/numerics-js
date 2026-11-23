@@ -505,7 +505,7 @@ export function quasiNewton(
       }
       gc = R.transpose().mulVec(Q.transpose().mulVec(sclf_fc));
       const L = H.cholesky();
-      p = L.choleskySolve(gc).mult(-1);
+      p = L.solveCholesky(gc).mult(-1);
       Rstep = L.transpose();
     }
 

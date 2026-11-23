@@ -561,10 +561,10 @@ export function quasiNewton(
       } else if (bfgsUpdate && bfgsMethod === 'unfactored') {
         // H.p = - gc
         L = H!.cholesky();
-        p = L.choleskySolve(gc).mult(-1);
+        p = L.solveCholesky(gc).mult(-1);
       } else {
         // (L.Lᵀ).p = - gc
-        p = L!.choleskySolve(gc).mult(-1);
+        p = L!.solveCholesky(gc).mult(-1);
       }
     } catch (e) {
       message = `Solve for Newton step failed: ${errorMessage(e)}`;

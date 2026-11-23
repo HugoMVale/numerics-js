@@ -367,8 +367,8 @@ describe('non-square input', () => {
     expect(() => A.solveLower([1])).toThrow(
       'Matrix.solveLower: shape mismatch: 3x3 vs vector of size 1.'
     );
-    expect(() => A.cholesky().choleskySolve([1])).toThrow(
-      'Matrix.choleskySolve: shape mismatch: 3x3 vs vector of size 1.'
+    expect(() => A.cholesky().solveCholesky([1])).toThrow(
+      'Matrix.solveCholesky: shape mismatch: 3x3 vs vector of size 1.'
     );
   });
 });
@@ -527,8 +527,8 @@ describe('error types and messages', () => {
       () => rect.cond1Lower(),
       () => rect.cholesky(),
       () => new Matrix(2, 2, [1, 2, 2, 1]).cholesky(),
-      () => lower.choleskySolve([1]),
-      () => rect.choleskySolve([1, 1]),
+      () => lower.solveCholesky([1]),
+      () => rect.solveCholesky([1, 1]),
       () => sq.qrPivot(qrp),
       () => Matrix.qrPivotMulQt(qrp, [1]),
       () => Matrix.qrPivotMulQt(qrp, [1, 1], new Vector(1)),
@@ -686,8 +686,8 @@ describe('argument validation', () => {
 
   it('substitution errors name the public method that was called', () => {
     const zeroDiag = new Matrix(2, 2, [0, 0, 1, 1]);
-    expect(() => zeroDiag.choleskySolve([1, 1])).toThrow(
-      'Matrix.choleskySolve: zero diagonal entry, matrix is singular.'
+    expect(() => zeroDiag.solveCholesky([1, 1])).toThrow(
+      'Matrix.solveCholesky: zero diagonal entry, matrix is singular.'
     );
     const dec = new Matrix(2, 2, [1, 2, 3, 4]).lu();
     dec.U.set(1, 1, 0);
@@ -750,7 +750,7 @@ describe('behavior stated in the JSDoc: 1x1, singular and rank-deficient input',
     expect(m1(4).pinv().get(0, 0)).toBe(0.25);
     const ls = m1(0).lstsq([1]);
     expect([ls.x.get(0), ls.rank, ls.residualNorm]).toEqual([0, 0, 1]);
-    expect(m1(2).choleskySolve([4]).get(0)).toBe(1);
+    expect(m1(2).solveCholesky([4]).get(0)).toBe(1);
     expect(m1(4).cholesky().get(0, 0)).toBe(2);
     expect(() => m1(0).cholesky()).toThrow(/not positive definite/);
     expect(() => m1(-1).cholesky()).toThrow(Error);

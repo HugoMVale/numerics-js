@@ -489,7 +489,7 @@ export function solveLower(A: Matrix, b: Vector, unitDiagonal = false, out?: Vec
   return substituteLower(A, b, unitDiagonal, out, 'solveLower');
 }
 
-/** Implementation of `solveLower()`, shared with `solveLU()` and `choleskySolve()`; `who` names the public method in errors. */
+/** Implementation of `solveLower()`, shared with `solveLU()` and `solveCholesky()`; `who` names the public method in errors. */
 function substituteLower(
   A: Matrix,
   b: Vector,
@@ -544,7 +544,7 @@ export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
   return substituteUpper(A, b, out, 'solveUpper');
 }
 
-/** Implementation of `solveUpper()`, shared with `solveLU()` and `choleskySolve()`; `who` names the public method in errors. */
+/** Implementation of `solveUpper()`, shared with `solveLU()` and `solveCholesky()`; `who` names the public method in errors. */
 function substituteUpper(A: Matrix, b: Vector, out: Vector | undefined, who: string): Vector {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
@@ -909,17 +909,17 @@ export function cholesky(A: Matrix): Matrix {
  * @throws {RangeError} If `L` is not square, or `b.size !== L.rows`.
  * @throws {Error} If `L` has a zero diagonal entry.
  */
-export function choleskySolve(L: Matrix, b: Vector): Vector {
+export function solveCholesky(L: Matrix, b: Vector): Vector {
   if (L.rows !== L.cols)
     throw new RangeError(
-      `Matrix.choleskySolve: expected a square matrix, got ${L.rows}x${L.cols}.`
+      `Matrix.solveCholesky: expected a square matrix, got ${L.rows}x${L.cols}.`
     );
   if (b.size !== L.rows)
     throw new RangeError(
-      `Matrix.choleskySolve: shape mismatch: ${L.rows}x${L.cols} vs vector of size ${b.size}.`
+      `Matrix.solveCholesky: shape mismatch: ${L.rows}x${L.cols} vs vector of size ${b.size}.`
     );
-  const y = substituteLower(L, b, false, undefined, 'choleskySolve');
-  return substituteUpper(L.transpose(), y, undefined, 'choleskySolve');
+  const y = substituteLower(L, b, false, undefined, 'solveCholesky');
+  return substituteUpper(L.transpose(), y, undefined, 'solveCholesky');
 }
 
 // -----------------------------------------------------------------

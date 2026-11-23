@@ -520,7 +520,7 @@ describe('Matrix', () => {
     });
   });
 
-  describe('choleskySolve()', () => {
+  describe('solveCholesky()', () => {
     it('solves A * x = b given the Cholesky factor of A', () => {
       const a: Matrix = Matrix.from([
         [4, 12, -16],
@@ -529,7 +529,7 @@ describe('Matrix', () => {
       ]);
       const l: Matrix = a.cholesky();
       const b: Vector = new Vector([1, 2, 3]);
-      const x = l.choleskySolve(b);
+      const x = l.solveCholesky(b);
       expect(a.mulVec(x).allClose(b)).toBe(true);
     });
 
@@ -547,15 +547,15 @@ describe('Matrix', () => {
         [-1, -2, -3]
       ]) {
         const b = new Vector(raw);
-        expect(l.choleskySolve(b).allClose(a.solve(b))).toBe(true);
+        expect(l.solveCholesky(b).allClose(a.solve(b))).toBe(true);
       }
     });
 
     it('rejects non-square input and shape-mismatched vectors', () => {
-      expect(() => new Matrix(2, 3).choleskySolve(new Vector(2))).toThrowError(RangeError);
+      expect(() => new Matrix(2, 3).solveCholesky(new Vector(2))).toThrowError(RangeError);
 
       const square: Matrix = new Matrix(2, 2, [1, 0, 1, 1]);
-      expect(() => square.choleskySolve(new Vector(3))).toThrowError(RangeError);
+      expect(() => square.solveCholesky(new Vector(3))).toThrowError(RangeError);
     });
   });
 
@@ -3390,7 +3390,7 @@ describe('Matrix: input types, naming and error format', () => {
           ]);
         });
 
-        it('solve, solveLower, solveUpper, choleskySolve, solveLU', () => {
+        it('solve, solveLower, solveUpper, solveCholesky, solveLU', () => {
           const expected = A22()
             .solve(new Vector([5, 10]))
             .toArray();
@@ -3401,11 +3401,11 @@ describe('Matrix: input types, naming and error format', () => {
           ).toEqual(expected);
           expect(
             A22()
-              .choleskySolve(make([5, 10]))
+              .solveCholesky(make([5, 10]))
               .toArray()
           ).toEqual(
             A22()
-              .choleskySolve(new Vector([5, 10]))
+              .solveCholesky(new Vector([5, 10]))
               .toArray()
           );
           const lower = new Matrix(2, 2, [2, 0, 1, 3]);
@@ -3552,7 +3552,7 @@ describe('Matrix: input types, naming and error format', () => {
         ['cond1', () => rect.cond1()],
         ['cholesky', () => rect.cholesky()],
         ['cholesky', () => singular.cholesky()],
-        ['choleskySolve', () => sq.choleskySolve([1])],
+        ['solveCholesky', () => sq.solveCholesky([1])],
         ['qrPivot', () => sq.qrPivot(rect.qrPivot())],
         ['eigenvalues', () => rect.eigenvalues()],
         ['eig', () => rect.eig()],
