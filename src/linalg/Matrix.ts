@@ -43,8 +43,7 @@ import type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from
  * `transposeSelf`, `swapRowsSelf`, ...) mutate the receiver and return
  * `this`; the setters `set`, `setRow`, `setCol` and `fill` also mutate (and
  * return `this`). Every other method returns a new object that does not share
- * storage with the receiver (the one exception is the internal
- * `wrapUnchecked`, which wraps the buffer it is given).
+ * storage with the receiver.
  *
  * **Errors.** Invalid arguments throw `RangeError` (a bad value: an index
  * outside the matrix or not an integer, a shape mismatch, an invalid `axis`

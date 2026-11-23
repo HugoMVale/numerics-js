@@ -75,6 +75,12 @@ Applies to `Matrix` (`Matrix.ts`, `Matrix.linalg.ts`, `Matrix.svd.ts`); `Vector`
 - No public API uses a bare `tol`. A local variable or internal parameter named `tol` is fine when it holds one already-resolved threshold (for example `max(atol, rtol * norm)`).
 - Positional tolerance pairs are legacy and inconsistent (`ArrayND`/`Vec3` `isClose(x, rtol, atol)` but `math.isClose(a, b, atol, rtol)`). Do not add new ones: take an options object with named `atol`/`rtol`.
 
+## Internal declarations
+
+- Tag anything that other modules need but users must not see with `@internal` (helpers, shared types, the `wrapUnchecked`/`getUnchecked`/`setUnchecked`/`flatIndex` fast paths of `Vector` and `Matrix`, the unchecked constructor overloads). TypeDoc hides it (`excludeInternal`) and the build removes it from the published `.d.ts` (`stripInternal` in `tsconfig.build.json`). The emitted JavaScript keeps it, so code in `src` uses it freely; only consumers of the declarations lose sight of it.
+- A public signature must not mention an `@internal` type: the declaration that remains would import a name that no longer exists. Either make the type public or tag the whole module's exports. `tests/declarations.test.ts` emits the declarations in memory and fails on a leaked `@internal` or on such a dangling reference (TypeScript hides the latter from consumers with `skipLibCheck`, as an `any`).
+- Do not mention an `@internal` member in public prose.
+
 ## Docstring rules
 
 - Use TypeDoc-compatible JSDoc (`/** ... */`) for exported functions, classes, interfaces, constants, and public methods or accessors.

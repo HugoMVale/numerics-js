@@ -10,6 +10,8 @@ import type { OdeEvent, OdeEventOccurrence } from './types.js';
  * @param who Name of the calling solver, used as prefix of error messages.
  * @throws {TypeError} If `events` is not an array or an event function is not a function.
  * @throws {RangeError} If `direction` or `terminal` of an event is invalid.
+ *
+ * @internal
  */
 export function validateEvents(events: readonly OdeEvent[], who: string): void {
   if (!Array.isArray(events)) throw new TypeError(`${who}: events must be an array.`);
@@ -45,6 +47,8 @@ export function validateEvents(events: readonly OdeEvent[], who: string): void {
  *
  * Only sign changes between accepted points are detected; two crossings inside one step cancel
  * and go unnoticed, so `hMax` should be used to bound the step if that matters.
+ *
+ * @internal
  */
 export class EventDetector {
   /** Located occurrences so far, in chronological order. */

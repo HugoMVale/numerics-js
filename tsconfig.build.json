@@ -5,6 +5,7 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
+    "stripInternal": true,
     "sourceMap": true,
     "noEmit": false
   },
