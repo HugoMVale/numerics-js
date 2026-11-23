@@ -454,10 +454,10 @@ export interface RungeKuttaAdaptiveOptions extends OdeAdaptiveOptions {}
  * Output:
  * ```text
  * {
- *  message: 'Integration stopped by a terminal event.',
- *  hitTime: 0.45152364098573017,
- *  hitHeight: -1.1102230246251565e-16,
- *  expectedTime: 0.4515236409857309
+ *   message: 'Integration stopped by a terminal event.',
+ *   hitTime: 0.45152364098573033,
+ *   hitHeight: -3.3306690738754696e-16,
+ *   expectedTime: 0.4515236409857309
  * }
  * ```
  *
@@ -504,9 +504,9 @@ export interface RungeKuttaAdaptiveOptions extends OdeAdaptiveOptions {}
  * Output:
  * ```text
  * {
- *  eventTime: 1.5707963266771703,
- *  eventVelocity: -0.9999999993753101,
- *  expectedTime: 1.5707963267948966
+ *   eventTime: 1.5707963266771703,
+ *   eventVelocity: -0.9999999993753101,
+ *   expectedTime: 1.5707963267948966
  * }
  * ```
  *

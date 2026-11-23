@@ -160,7 +160,10 @@ function analyze(code) {
   }));
 }
 
-/** The `@example` code fences of every declaration, in source order. */
+/**
+ * The `@example` code fences of every declaration, in source order, as `{ codes, outputs }`:
+ * `outputs[k]` is the text of the "Output:" block that follows `codes[k]` (`null` if none).
+ */
 function extractExampleGroups(file) {
   const groups = [];
   const seen = new Set();
@@ -172,13 +175,18 @@ function extractExampleGroups(file) {
       .filter((tag) => tag.tagName.text === 'example' && !seen.has(tag.pos));
     if (tags.length > 0) {
       const codes = [];
+      const outputs = [];
       for (const tag of tags) {
         seen.add(tag.pos);
         const text = ts.getTextOfJSDocComment(tag.comment) ?? '';
         const match = /```ts\r?\n([\s\S]*?)\r?\n```/.exec(text);
-        if (match) codes.push(match[1]);
+        if (!match) continue;
+        codes.push(match[1]);
+        const rest = text.slice(match.index + match[0].length);
+        const output = /Output:\s*```text\r?\n([\s\S]*?)\r?\n```/.exec(rest);
+        outputs.push(output ? output[1] : null);
       }
-      if (codes.length > 0) groups.push(codes);
+      if (codes.length > 0) groups.push({ codes, outputs });
     }
     ts.forEachChild(node, visit);
   };
@@ -309,8 +317,9 @@ export function createChecker() {
 }
 
 /**
- * Every `@example` in `src/` as `{ file, code, program }` (no type-checking, so this is
- * fast): `code` is the example as written, `program` its self-contained version.
+ * Every `@example` in `src/` as `{ file, code, program, output }` (no type-checking, so this is
+ * fast): `code` is the example as written, `program` its self-contained version and `output`
+ * the text of its "Output:" block (`null` if it has none).
  */
 export async function extractExamples() {
   const exportsByName = loadExports();
@@ -324,10 +333,10 @@ export async function extractExamples() {
       ts.ScriptTarget.ES2022,
       true
     );
-    for (const codes of extractExampleGroups(file)) {
+    for (const { codes, outputs } of extractExampleGroups(file)) {
       codes.forEach((code, k) => {
         const program = buildProgram(codes, k, homeModule, exportsByName);
-        examples.push({ file: `src/${rel}`, code, program });
+        examples.push({ file: `src/${rel}`, code, program, output: outputs[k] });
       });
     }
   }

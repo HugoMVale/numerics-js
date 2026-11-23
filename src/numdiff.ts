@@ -254,7 +254,7 @@ export function scaleVector(x: Vector): Vector {
  *
  * Output:
  * ```text
- * Matrix[[2, 4], [2, 1]]
+ * Matrix[[2.0000000298023224, 4.000000029802322], [2, 1]]
  * ```
  */
 export function jacobianForward(

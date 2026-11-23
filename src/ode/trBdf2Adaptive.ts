@@ -244,12 +244,7 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
  *
  * Output:
  * ```text
- * {
- *  success: true,
- *  steps: 21,
- *  evaluations: 84,
- *  yEnd: 0.5411713864049918
- * }
+ * { success: true, steps: 21, evaluations: 84, yEnd: 0.5411713864049918 }
  * ```
  *
  * @example
@@ -283,11 +278,11 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
  * Output:
  * ```text
  * {
- *  success: true,
- *  evaluations: 652,
- *  evaluationsJacobian: 1,
- *  decompositions: 37,
- *  yEnd: 0.5411437997526206
+ *   success: true,
+ *   evaluations: 652,
+ *   evaluationsJacobian: 1,
+ *   decompositions: 37,
+ *   yEnd: 0.5411437997526156
  * }
  * ```
  *
@@ -328,11 +323,11 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
  * Output:
  * ```text
  * {
- *  message: 'Integration stopped by a terminal event.',
- *  hitTime: 1.5717963234203387,
- *  hitDirection: 'falling',
- *  steps: 577,
- *  evaluations: 2355
+ *   message: 'Integration stopped by a terminal event.',
+ *   hitTime: 1.571796323420337,
+ *   hitDirection: 'falling',
+ *   steps: 577,
+ *   evaluations: 2355
  * }
  * ```
  *

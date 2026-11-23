@@ -10,6 +10,8 @@ export interface UncheckedExample {
   code: string;
   /** Self-contained version: imports added, earlier statements pulled in. */
   program: string;
+  /** Text of the "Output:" block that follows the example, or `null` if it has none. */
+  output: string | null;
 }
 
 export interface CheckResult {

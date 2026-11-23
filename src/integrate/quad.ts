@@ -346,8 +346,8 @@ function unboundedTransform(): QuadTransform {
  *   message: 'Estimated error is at most `atol + rtol*|value|`.',
  *   evaluations: 285,
  *   subintervals: 10,
- *   value: 9.513507687893949,
- *   error: 0.000003934779215342132
+ *   value: 9.513507687898873,
+ *   error: 0.00000393477391114061
  * }
  * ```
  *
