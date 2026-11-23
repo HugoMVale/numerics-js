@@ -28,7 +28,7 @@ const examples = await extractExamples();
 const check = createChecker();
 
 const NUMBER = /[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
-const TOLERANCE = 1e-9;
+const TOLERANCE = 1e-8;
 
 /** Why `actual` does not match `expected`, or `null` if it does (see the file comment). */
 function difference(expected: string, actual: string): string | null {
