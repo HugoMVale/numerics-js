@@ -926,6 +926,65 @@ export function solveCholesky(L: Matrix, b: Vector): Vector {
 // QR factorization and rank-1 updates.
 // -----------------------------------------------------------------
 
+// A sum of squares in [SUMSQ_MIN, SUMSQ_MAX] is accurate and cannot overflow when
+// a Householder vector built from it (up to twice as long) is squared again.
+// Outside of it, the squares may have underflowed to zero or to subnormals (below)
+// or overflowed to `Infinity` (above), so the norm is recomputed on scaled data.
+// The window is wide, so ordinary matrices never take the scaled path.
+const SUMSQ_MIN = 1e-280;
+const SUMSQ_MAX = 1e300;
+
+/**
+ * A power of two close to the largest magnitude among the `count` entries
+ * `data[offset + i * stride]`, to divide them by exactly so that they are of
+ * order one. Used only on the rare scaled path.
+ * @param data The storage.
+ * @param offset Index of the first entry.
+ * @param stride Distance between consecutive entries.
+ * @param count Number of entries.
+ * @returns The scale, or `0` if all entries are zero.
+ */
+function powerOfTwoScale(
+  data: Float64Array,
+  offset: number,
+  stride: number,
+  count: number
+): number {
+  let max = 0;
+  for (let i = 0; i < count; i++) {
+    const x = Math.abs(data[offset + i * stride]);
+    if (x > max) max = x;
+  }
+  return max === 0 ? 0 : Math.pow(2, Math.floor(Math.log2(max)));
+}
+
+/**
+ * Euclidean norm of the `count` entries `data[offset + i * stride]`, without
+ * spurious overflow or underflow. Plain sum of squares when that is safe (so
+ * ordinary inputs give the same bits as a naive loop), scaled otherwise.
+ * @param data The storage.
+ * @param offset Index of the first entry.
+ * @param stride Distance between consecutive entries.
+ * @param count Number of entries.
+ * @returns The 2-norm.
+ */
+function norm2(data: Float64Array, offset: number, stride: number, count: number): number {
+  let sum = 0;
+  for (let i = 0; i < count; i++) {
+    const x = data[offset + i * stride];
+    sum += x * x;
+  }
+  if (sum >= SUMSQ_MIN && sum <= SUMSQ_MAX) return Math.sqrt(sum);
+  const scale = powerOfTwoScale(data, offset, stride, count);
+  if (scale === 0) return 0;
+  sum = 0;
+  for (let i = 0; i < count; i++) {
+    const x = data[offset + i * stride] / scale;
+    sum += x * x;
+  }
+  return scale * Math.sqrt(sum);
+}
+
 /**
  * Raw Householder QR factorization: `A = Q * R`. Shared implementation
  * used both by the public `qr()` (called on the matrix directly) and
@@ -945,22 +1004,31 @@ function householderQR(A: Matrix): QRDecomposition {
   const kMax = Math.min(m - 1, n);
 
   for (let k = 0; k < kMax; k++) {
-    let normX = 0;
+    // The unit reflector vector does not depend on the scale of the column, so it is built
+    // from a copy of the column that is rescaled to order one if its sum of squares is not safe.
+    let normXSq = 0;
     for (let i = k; i < m; i++) {
       const x = R.getUnchecked(i, k);
-      normX += x * x;
+      v[i] = x;
+      normXSq += x * x;
     }
-    normX = Math.sqrt(normX);
-    if (normX === 0) continue;
+    if (!(normXSq >= SUMSQ_MIN && normXSq <= SUMSQ_MAX)) {
+      // Also taken for an all-zero column (scale 0), and for one whose squares underflowed.
+      const scale = powerOfTwoScale(v, k, 1, m - k);
+      if (scale === 0) continue;
+      normXSq = 0;
+      for (let i = k; i < m; i++) {
+        v[i] /= scale;
+        normXSq += v[i] * v[i];
+      }
+    }
+    const normX = Math.sqrt(normXSq);
 
-    const x0 = R.getUnchecked(k, k);
+    const x0 = v[k];
     const alpha = x0 >= 0 ? -normX : normX;
+    v[k] = x0 - alpha;
     let vnormSq = 0;
-    for (let i = k; i < m; i++) {
-      const val = i === k ? x0 - alpha : R.getUnchecked(i, k);
-      v[i] = val;
-      vnormSq += val * val;
-    }
+    for (let i = k; i < m; i++) vnormSq += v[i] * v[i];
     if (vnormSq === 0) continue;
     const vnorm = Math.sqrt(vnormSq);
     for (let i = k; i < m; i++) v[i] /= vnorm;
@@ -1074,12 +1142,7 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
   const vn2 = new Float64Array(n);
   const w = new Float64Array(n);
   for (let j = 0; j < n; j++) {
-    let s = 0;
-    for (let i = 0; i < m; i++) {
-      const x = a[i * n + j];
-      s += x * x;
-    }
-    vn1[j] = Math.sqrt(s);
+    vn1[j] = norm2(a, j, n, m);
     vn2[j] = vn1[j];
     perm[j] = j;
   }
@@ -1103,12 +1166,7 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
     // Householder reflector that maps column j (rows j..m-1) to beta*e_j
     // (LAPACK `dlarfg`).
     const alpha = a[j * n + j];
-    let xs = 0;
-    for (let i = j + 1; i < m; i++) {
-      const x = a[i * n + j];
-      xs += x * x;
-    }
-    const xnorm = Math.sqrt(xs);
+    const xnorm = norm2(a, (j + 1) * n + j, n, m - j - 1);
     let tj = 0;
     if (xnorm !== 0) {
       const beta = alpha >= 0 ? -Math.hypot(alpha, xnorm) : Math.hypot(alpha, xnorm);
@@ -1151,12 +1209,7 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
         const temp = Math.max(0, 1 - r * r);
         const ratio = vn1[c] / vn2[c];
         if (temp * ratio * ratio <= tol3z) {
-          let s = 0;
-          for (let i = j + 1; i < m; i++) {
-            const x = a[i * n + c];
-            s += x * x;
-          }
-          vn1[c] = Math.sqrt(s);
+          vn1[c] = norm2(a, (j + 1) * n + c, n, m - j - 1);
           vn2[c] = vn1[c];
         } else {
           vn1[c] *= Math.sqrt(temp);
