@@ -2115,6 +2115,35 @@ describe('Matrix', () => {
     expect(zero.dist(a)).toBe(5);
   });
 
+  it('builds constant matrices via static ones() and full(), like Vector.ones() and Vector.full()', () => {
+    expect(Matrix.ones(2, 3).toArray()).toEqual([
+      [1, 1, 1],
+      [1, 1, 1]
+    ]);
+    expect(Matrix.full(2, 2, 2.5).toArray()).toEqual([
+      [2.5, 2.5],
+      [2.5, 2.5]
+    ]);
+    expect(Matrix.full(1, 3, 0).toArray()).toEqual(Matrix.zero(1, 3).toArray());
+    // `full` stores the value as given, as `Vector.full` does.
+    expect(Matrix.full(2, 2, NaN).data.every(Number.isNaN)).toBe(true);
+    expect(Matrix.full(1, 2, -Infinity).toArray()).toEqual([[-Infinity, -Infinity]]);
+    // Every call returns a new matrix with its own storage.
+    const a = Matrix.ones(2, 2);
+    const b = Matrix.ones(2, 2);
+    a.set(0, 0, 9);
+    expect(b.get(0, 0)).toBe(1);
+    // Same shape checks as zero() and the constructor.
+    expect(() => Matrix.ones(0, 2)).toThrowError(RangeError);
+    expect(() => Matrix.ones(2, 1.5)).toThrowError(RangeError);
+    expect(() => Matrix.full(-1, 2, 3)).toThrowError(RangeError);
+    expect(
+      Matrix.ones(3, 3)
+        .sub(Matrix.diag(Vector.ones(3)))
+        .norm1()
+    ).toBe(2);
+  });
+
   it('builds matrices via static zero(), identity(), and from()', () => {
     expect(Matrix.zero(2, 2).toArray()).toEqual([
       [0, 0],

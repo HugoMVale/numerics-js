@@ -4084,6 +4084,56 @@ export class Matrix extends ArrayND {
   }
 
   /**
+   * Creates a `rows x cols` matrix of ones, the counterpart of `Vector.ones`.
+   * @param rows Number of rows (must be a positive integer).
+   * @param cols Number of columns (must be a positive integer).
+   * @returns A new matrix with every entry equal to `1`.
+   * @throws {RangeError} If `rows` or `cols` is not a positive integer, or the matrix is
+   * too large to allocate.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * console.log(Matrix.ones(2, 3).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[1, 1, 1], [1, 1, 1]]
+   * ```
+   */
+  static ones(rows: number, cols: number): Matrix {
+    return new Matrix(rows, cols).fill(1);
+  }
+
+  /**
+   * Creates a `rows x cols` matrix filled with `value`, the counterpart of `Vector.full`.
+   * Like `Vector.full` it does not check `value`: `NaN` and infinite values are stored as given.
+   * @param rows Number of rows (must be a positive integer).
+   * @param cols Number of columns (must be a positive integer).
+   * @param value The value to fill with.
+   * @returns A new matrix with every entry equal to `value`.
+   * @throws {RangeError} If `rows` or `cols` is not a positive integer, or the matrix is
+   * too large to allocate.
+   *
+   * @example
+   * ```ts
+   * import { Matrix } from 'numerics-js/linalg';
+   *
+   * console.log(Matrix.full(2, 2, 2.5).toString());
+   * ```
+   *
+   * Output:
+   * ```text
+   * Matrix[[2.5, 2.5], [2.5, 2.5]]
+   * ```
+   */
+  static full(rows: number, cols: number, value: number): Matrix {
+    return new Matrix(rows, cols).fill(value);
+  }
+
+  /**
    * Creates an `n x n` identity matrix.
    * @param n The matrix dimension.
    * @returns A new identity matrix.
