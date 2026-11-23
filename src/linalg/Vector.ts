@@ -406,7 +406,7 @@ export class Vector extends ArrayND {
    * finite one that is huge (`[1e300, 1]` normalizes to `(1, 1e-300)`): each
    * infinite component counts as `±1` and every finite one as `0`, so
    * `[Infinity, 1]` gives `(1, 0)` and `[Infinity, -Infinity]` gives
-   * `(0.7071067811865475, -0.7071067811865475)`. A `NaN` component still wins:
+   * `(0.7071067811865476, -0.7071067811865476)`. A `NaN` component still wins:
    * the result is then all `NaN`.
    * @returns The normalized vector, or a zero vector if this vector is zero.
    *
