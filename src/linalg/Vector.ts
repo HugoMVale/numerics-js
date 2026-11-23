@@ -136,6 +136,11 @@ export class Vector extends ArrayND {
    * @throws {RangeError} If the storage cannot be allocated.
    */
   private static _allocate(size: number): Float64Array {
+    if (size >= 2 ** 32) {
+      throw new RangeError(
+        `Vector.constructor: a vector of size ${size} is too large to allocate.`
+      );
+    }
     try {
       return new Float64Array(size);
     } catch (e) {
