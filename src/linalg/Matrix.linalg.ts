@@ -224,7 +224,7 @@ const RANK_TOL_SCALE = 10;
  * rank-revealing, and its default is ten times more tolerant than the SVD
  * one: use it for well-scaled matrices when the cost of an SVD matters.
  *
- * Passing a plain number `tol` is shorthand for `{ atol: tol, rtol: 0 }`
+ * Passing a plain number `atol` is shorthand for `{ atol, rtol: 0 }`
  * with the SVD method: an absolute threshold on the singular values, as in
  * `numpy.linalg.matrix_rank(A, tol)`. `0` counts every nonzero singular
  * value.
@@ -1832,7 +1832,7 @@ function backSubstitute(
 function schurForm(
   A: Matrix,
   accumulateQ: boolean,
-  tol: number,
+  rtol: number,
   maxIterations: number
 ): { T: Matrix; Q: Matrix | null; blocks: [number, number][] } {
   const n = A.rows;
@@ -1879,7 +1879,7 @@ function schurForm(
       let splitAt = -1;
       for (let k = hi; k > lo; k--) {
         const s = Math.abs(H.getUnchecked(k - 1, k - 1)) + Math.abs(H.getUnchecked(k, k));
-        const threshold = tol * (s === 0 ? anorm : s);
+        const threshold = rtol * (s === 0 ? anorm : s);
         if (Math.abs(H.getUnchecked(k, k - 1)) <= threshold) {
           splitAt = k;
           break;
@@ -1997,20 +1997,20 @@ function schurForm(
  * @param options The user's options.
  * @param n Matrix order, for the default iteration budget `30 * n`.
  * @param who Name of the public method, for the error message.
- * @throws {TypeError} If `options`, `tol` or `maxIterations` has the wrong type.
- * @throws {RangeError} If `tol` is negative or `NaN`, or `maxIterations` is not a positive integer.
+ * @throws {TypeError} If `options`, `rtol` or `maxIterations` has the wrong type.
+ * @throws {RangeError} If `rtol` is negative or `NaN`, or `maxIterations` is not a positive integer.
  */
 function eigenOptions(
-  options: { maxIterations?: number; tol?: number } | undefined,
+  options: { maxIterations?: number; rtol?: number } | undefined,
   n: number,
   who: string
-): { tol: number; maxIterations: number } {
+): { rtol: number; maxIterations: number } {
   checkOptions(options, who);
-  const tol = options?.tol ?? Number.EPSILON;
+  const rtol = options?.rtol ?? Number.EPSILON;
   const maxIterations = options?.maxIterations ?? 30 * n;
-  checkNonNegative(tol, 'tol', who);
+  checkNonNegative(rtol, 'rtol', who);
   checkPositiveInteger(maxIterations, 'maxIterations', who);
-  return { tol, maxIterations };
+  return { rtol, maxIterations };
 }
 
 /**
@@ -2022,10 +2022,10 @@ function eigenOptions(
  * eigenvectors separately.
  * @param A The matrix to decompose. Must be square.
  * @param options Optional settings.
- * @param options.tol Relative tolerance for the deflation test: a
+ * @param options.rtol Relative tolerance for the deflation test: a
  * subdiagonal entry `H[k, k-1]` is treated as converged once
- * `abs(H[k, k-1]) <= tol * (abs(H[k-1,k-1]) + abs(H[k,k]))` (falling back
- * to `tol * norm` when that sum is `0`). Defaults to `Number.EPSILON`,
+ * `abs(H[k, k-1]) <= rtol * (abs(H[k-1,k-1]) + abs(H[k,k]))` (falling back
+ * to `rtol * norm` when that sum is `0`). Defaults to `Number.EPSILON`,
  * i.e. one unit in the last place — the same machine-precision
  * convention LAPACK (`dlamch('P')`) and EISPACK use for this test.
  * @param options.maxIterations Total shifted-QR iteration budget across
@@ -2039,24 +2039,24 @@ function eigenOptions(
  * @throws {RangeError} If `A` is not square.
  * @throws {Error} If the iteration budget is exhausted before every
  * block deflates (e.g. for a pathologically slow-converging matrix).
- * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations` is
+ * @throws {RangeError} If `rtol` is negative or `NaN`, if `maxIterations` is
  *   not a positive integer, or if `A` has an infinite entry.
- * @throws {TypeError} If `options`, `tol` or `maxIterations` has the wrong
+ * @throws {TypeError} If `options`, `rtol` or `maxIterations` has the wrong
  *   type.
  */
 export function eigenvalues(
   A: Matrix,
-  options?: { maxIterations?: number; tol?: number }
+  options?: { maxIterations?: number; rtol?: number }
 ): Eigenvalue[] {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.eigenvalues: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
-  const { tol, maxIterations } = eigenOptions(options, n, 'eigenvalues');
+  const { rtol, maxIterations } = eigenOptions(options, n, 'eigenvalues');
   if (scanNonFinite(A, 'eigenvalues')) {
     return Array.from({ length: n }, () => ({ re: NaN, im: NaN }));
   }
 
-  const { T, blocks } = schurForm(A, false, tol, maxIterations);
+  const { T, blocks } = schurForm(A, false, rtol, maxIterations);
   const result: Eigenvalue[] = new Array(n);
   for (const [lo, hi] of blocks) {
     if (hi === lo) {
@@ -2103,16 +2103,16 @@ export function eigenvalues(
  * @throws {RangeError} If `A` is not square.
  * @throws {Error} If the iteration budget is exhausted before every
  * block deflates.
- * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations` is
+ * @throws {RangeError} If `rtol` is negative or `NaN`, if `maxIterations` is
  *   not a positive integer, or if `A` has an infinite entry.
- * @throws {TypeError} If `options`, `tol` or `maxIterations` has the wrong
+ * @throws {TypeError} If `options`, `rtol` or `maxIterations` has the wrong
  *   type.
  */
-export function eig(A: Matrix, options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
+export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number }): Eigenpair[] {
   if (A.rows !== A.cols)
     throw new RangeError(`Matrix.eig: expected a square matrix, got ${A.rows}x${A.cols}.`);
   const n = A.rows;
-  const { tol, maxIterations } = eigenOptions(options, n, 'eig');
+  const { rtol, maxIterations } = eigenOptions(options, n, 'eig');
   if (scanNonFinite(A, 'eig')) {
     return Array.from({ length: n }, () => ({
       value: { re: NaN, im: NaN },
@@ -2131,7 +2131,7 @@ export function eig(A: Matrix, options?: { maxIterations?: number; tol?: number 
     ];
   }
 
-  const { T, Q, blocks } = schurForm(A, true, tol, maxIterations);
+  const { T, Q, blocks } = schurForm(A, true, rtol, maxIterations);
   const Qt = Q!; // accumulateQ was true, so Q is always populated here.
 
   // Floor for the back-substitution denominator, guarding against

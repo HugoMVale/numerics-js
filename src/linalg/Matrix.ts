@@ -339,17 +339,17 @@ export class Matrix extends ArrayND {
   }
 
   /**
-   * Throws if `tol` is not a usable absolute tolerance (negative or NaN).
-   * @param tol The tolerance.
+   * Throws if `atol` is not a usable absolute tolerance (negative or NaN).
+   * @param atol The tolerance.
    * @param caller Name of the public method invoking this check.
-   * @throws {TypeError} If `tol` is not a number.
-   * @throws {RangeError} If `tol` is not `>= 0`.
+   * @throws {TypeError} If `atol` is not a number.
+   * @throws {RangeError} If `atol` is not `>= 0`.
    */
-  private static _checkTol(tol: number, caller: string): void {
-    if (typeof tol !== 'number') {
-      throw new TypeError(`Matrix.${caller}: tol must be a number, got ${typeName(tol)}.`);
+  private static _checkAtol(atol: number, caller: string): void {
+    if (typeof atol !== 'number') {
+      throw new TypeError(`Matrix.${caller}: atol must be a number, got ${typeName(atol)}.`);
     }
-    if (!(tol >= 0)) throw new RangeError(`Matrix.${caller}: tol must be >= 0, got ${tol}.`);
+    if (!(atol >= 0)) throw new RangeError(`Matrix.${caller}: atol must be >= 0, got ${atol}.`);
   }
 
   /**
@@ -1550,9 +1550,9 @@ export class Matrix extends ArrayND {
   }
 
   // -----------------------------------------------------------------
-  // Structural predicates. All default to `tol = 0` (exact), matching
+  // Structural predicates. All default to `atol = 0` (exact), matching
   // `lu()`/`determinant()`'s "exact zero only" convention — pass a
-  // small positive `tol` when checking a matrix built by floating-point
+  // small positive `atol` when checking a matrix built by floating-point
   // computation (e.g. the `R` from `qr()`/`qrUpdate()`), whose
   // off-triangle entries are typically tiny-but-nonzero rather than
   // exactly `0`.
@@ -1588,12 +1588,12 @@ export class Matrix extends ArrayND {
    * non-square matrix (transposing would change its shape, so it can
    * never equal itself). A pair containing `NaN` is never equal; equal
    * infinities are.
-   * @param tol Absolute tolerance: a pair `(i, j)`/`(j, i)` counts as
-   * equal if `|this[i][j] - this[j][i]| <= tol`. Defaults to `0` (exact).
-   * @returns `true` if this matrix is symmetric within `tol`.
-   * @throws {RangeError} If `tol` is negative or `NaN`.
+   * @param atol Absolute tolerance: a pair `(i, j)`/`(j, i)` counts as
+   * equal if `|this[i][j] - this[j][i]| <= atol`. Defaults to `0` (exact).
+   * @returns `true` if this matrix is symmetric within `atol`.
+   * @throws {RangeError} If `atol` is negative or `NaN`.
    *
-   * @throws {TypeError} If `tol` is not a number.
+   * @throws {TypeError} If `atol` is not a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1610,15 +1610,15 @@ export class Matrix extends ArrayND {
    * false
    * ```
    */
-  isSymmetric(tol: number = 0): boolean {
-    Matrix._checkTol(tol, 'isSymmetric');
+  isSymmetric(atol: number = 0): boolean {
+    Matrix._checkAtol(atol, 'isSymmetric');
     if (!this.isSquare()) return false;
     for (let i = 0; i < this.rows; i++) {
       for (let j = i + 1; j < this.cols; j++) {
         const a = this.getUnchecked(i, j);
         const b = this.getUnchecked(j, i);
         // `a !== b` first so that equal infinities count as equal; NaN never does.
-        if (a !== b && !(Math.abs(a - b) <= tol)) return false;
+        if (a !== b && !(Math.abs(a - b) <= atol)) return false;
       }
     }
     return true;
@@ -1630,12 +1630,12 @@ export class Matrix extends ArrayND {
    * this doesn't require a square matrix — a wide or tall matrix can
    * still satisfy "zero above the diagonal" (a trapezoidal shape), the
    * same generalization `qr()` relies on for `R` when `rows !== cols`.
-   * @param tol Absolute tolerance: an entry above the diagonal counts as
-   * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
-   * @returns `true` if every entry above the main diagonal is zero within `tol`.
-   * @throws {RangeError} If `tol` is negative or `NaN`.
+   * @param atol Absolute tolerance: an entry above the diagonal counts as
+   * zero if `|this[i][j]| <= atol`. Defaults to `0` (exact).
+   * @returns `true` if every entry above the main diagonal is zero within `atol`.
+   * @throws {RangeError} If `atol` is negative or `NaN`.
    *
-   * @throws {TypeError} If `tol` is not a number.
+   * @throws {TypeError} If `atol` is not a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1651,11 +1651,11 @@ export class Matrix extends ArrayND {
    * false
    * ```
    */
-  isLowerTriangular(tol: number = 0): boolean {
-    Matrix._checkTol(tol, 'isLowerTriangular');
+  isLowerTriangular(atol: number = 0): boolean {
+    Matrix._checkAtol(atol, 'isLowerTriangular');
     for (let i = 0; i < this.rows; i++) {
       for (let j = i + 1; j < this.cols; j++) {
-        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
+        if (!(Math.abs(this.getUnchecked(i, j)) <= atol)) return false;
       }
     }
     return true;
@@ -1666,12 +1666,12 @@ export class Matrix extends ArrayND {
    * non-square matrix, upper trapezoidal): every entry strictly below
    * the main diagonal (`i > j`) is zero. This is the shape `qr()`
    * guarantees for its `R` factor, including when `rows !== cols`.
-   * @param tol Absolute tolerance: an entry below the diagonal counts as
-   * zero if `|this[i][j]| <= tol`. Defaults to `0` (exact).
-   * @returns `true` if every entry below the main diagonal is zero within `tol`.
-   * @throws {RangeError} If `tol` is negative or `NaN`.
+   * @param atol Absolute tolerance: an entry below the diagonal counts as
+   * zero if `|this[i][j]| <= atol`. Defaults to `0` (exact).
+   * @returns `true` if every entry below the main diagonal is zero within `atol`.
+   * @throws {RangeError} If `atol` is negative or `NaN`.
    *
-   * @throws {TypeError} If `tol` is not a number.
+   * @throws {TypeError} If `atol` is not a number.
    * @example
    * ```ts
    * import { Matrix } from 'numerics-js/linalg';
@@ -1687,11 +1687,11 @@ export class Matrix extends ArrayND {
    * false
    * ```
    */
-  isUpperTriangular(tol: number = 0): boolean {
-    Matrix._checkTol(tol, 'isUpperTriangular');
+  isUpperTriangular(atol: number = 0): boolean {
+    Matrix._checkAtol(atol, 'isUpperTriangular');
     for (let i = 1; i < this.rows; i++) {
       for (let j = 0; j < Math.min(i, this.cols); j++) {
-        if (!(Math.abs(this.getUnchecked(i, j)) <= tol)) return false;
+        if (!(Math.abs(this.getUnchecked(i, j)) <= atol)) return false;
       }
     }
     return true;
@@ -1814,7 +1814,7 @@ export class Matrix extends ArrayND {
    * its entry is `0`. A `NaN` entry makes the result `NaN` (for both
    * methods); an infinite entry throws `RangeError`.
    * @param options Either an absolute tolerance on the singular values
-   * (shorthand for `{ atol: tol, rtol: 0 }`), or `{ method, atol, rtol }`:
+   * (shorthand for `{ atol, rtol: 0 }`), or `{ method, atol, rtol }`:
    * the method (`'svd'` by default), an absolute threshold (default `0`)
    * and a threshold relative to the largest singular value, or to the
    * infinity norm for elimination (defaults `max(rows, cols) * eps`, resp.
@@ -2709,7 +2709,7 @@ export class Matrix extends ArrayND {
    * entry makes every eigenvalue `NaN + NaN i`; an infinite entry throws
    * `RangeError`.
    * @param options Optional settings.
-   * @param options.tol Relative tolerance for the deflation test.
+   * @param options.rtol Relative tolerance for the deflation test.
    * Defaults to `Number.EPSILON`.
    * @param options.maxIterations Total shifted-QR iteration budget
    * across the whole computation. Defaults to `30 * this.rows`.
@@ -2719,10 +2719,10 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If the iteration budget is exhausted before every
    * block deflates (e.g. for a pathologically slow-converging matrix).
-   * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations`
+   * @throws {RangeError} If `rtol` is negative or `NaN`, if `maxIterations`
    *   is not a positive integer, or if this matrix contains an infinite
    *   entry.
-   * @throws {TypeError} If `options` is not an object, or `tol` or
+   * @throws {TypeError} If `options` is not an object, or `rtol` or
    *   `maxIterations` is not a number.
    *
    * @example
@@ -2738,7 +2738,7 @@ export class Matrix extends ArrayND {
    * [ { re: 3, im: 0 }, { re: 1, im: 0 } ]
    * ```
    */
-  eigenvalues(options?: { maxIterations?: number; tol?: number }): Eigenvalue[] {
+  eigenvalues(options?: { maxIterations?: number; rtol?: number }): Eigenvalue[] {
     return linalg.eigenvalues(this, options);
   }
 
@@ -2763,10 +2763,10 @@ export class Matrix extends ArrayND {
    * @throws {RangeError} If this matrix is not square.
    * @throws {Error} If the iteration budget is exhausted before every
    * block deflates.
-   * @throws {RangeError} If `tol` is negative or `NaN`, if `maxIterations`
+   * @throws {RangeError} If `rtol` is negative or `NaN`, if `maxIterations`
    *   is not a positive integer, or if this matrix contains an infinite
    *   entry.
-   * @throws {TypeError} If `options` is not an object, or `tol` or
+   * @throws {TypeError} If `options` is not an object, or `rtol` or
    *   `maxIterations` is not a number.
    *
    * @example
@@ -2785,7 +2785,7 @@ export class Matrix extends ArrayND {
    * { re: 0, im: -1 } Vector(0.7071067811865475, 0) Vector(0, 0.7071067811865475)
    * ```
    */
-  eig(options?: { maxIterations?: number; tol?: number }): Eigenpair[] {
+  eig(options?: { maxIterations?: number; rtol?: number }): Eigenpair[] {
     return linalg.eig(this, options);
   }
 

@@ -67,6 +67,13 @@ Applies to `Matrix` (`Matrix.ts`, `Matrix.linalg.ts`, `Matrix.svd.ts`); `Vector`
 - **Solvers** are `solve` followed by the structure being solved with: `solve` (general square `A`, factorizes internally), `solveLower` and `solveUpper` (triangular receiver), `solveLU` (a decomposition returned by `lu()`) and `solveCholesky` (the factor `L` returned by `cholesky()`). A new solver is `solve<Structure>`, never `<structure>Solve`, so the family sorts together in the API docs.
 - A solver is an instance method when its receiver is an ordinary `Matrix` (`solveLower`, `solveUpper`, `solveCholesky`) and a static method when it takes a plain decomposition object (`solveLU`).
 
+## Tolerance naming
+
+- `atol` is an absolute tolerance on a quantity (`|x| <= atol`) and `rtol` a relative one, scaled by a reference magnitude that the docs name. An API that takes both documents how they combine (`atol + rtol * |reference|` for closeness and error control, `max(atol, rtol * reference)` for cutoffs). This covers `isClose`/`allClose`, `integrate`, `ode`, the `rank`/SVD cutoffs, the `Matrix` structural predicates (`isSymmetric`, `isLowerTriangular`, `isUpperTriangular`: `atol`, default `0` = exact) and `eigenvalues`/`eig` (`rtol`: relative deflation threshold, default `Number.EPSILON`).
+- `tolx`, `tolf` and `tolg` are the stopping tests of the iterative solvers in `roots` and `optimize`, named by the quantity they test (step in `x`, residual `f`, gradient `g`); each option documents its own scaling. `epsf` is the noise level of `f` used by finite differences.
+- No public API uses a bare `tol`. A local variable or internal parameter named `tol` is fine when it holds one already-resolved threshold (for example `max(atol, rtol * norm)`).
+- Positional tolerance pairs are legacy and inconsistent (`ArrayND`/`Vec3` `isClose(x, rtol, atol)` but `math.isClose(a, b, atol, rtol)`). Do not add new ones: take an options object with named `atol`/`rtol`.
+
 ## Docstring rules
 
 - Use TypeDoc-compatible JSDoc (`/** ... */`) for exported functions, classes, interfaces, constants, and public methods or accessors.

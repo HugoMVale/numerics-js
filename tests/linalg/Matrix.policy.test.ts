@@ -634,16 +634,16 @@ describe('argument validation', () => {
           new RegExp(`^Matrix\\.${name}: maxIterations must be a positive integer, got `)
         );
       }
-      expect(() => A()[name]({ tol: -1 })).toThrow(`Matrix.${name}: tol must be >= 0, got -1.`);
-      expect(() => A()[name]({ tol: NaN })).toThrow(RangeError);
-      expect(() => A()[name]({ tol: '1' as unknown as number })).toThrow(TypeError);
+      expect(() => A()[name]({ rtol: -1 })).toThrow(`Matrix.${name}: rtol must be >= 0, got -1.`);
+      expect(() => A()[name]({ rtol: NaN })).toThrow(RangeError);
+      expect(() => A()[name]({ rtol: '1' as unknown as number })).toThrow(TypeError);
       expect(() => A()[name](5 as never)).toThrow(
         `Matrix.${name}: options must be an object, got number.`
       );
-      expect(() => new Matrix(1, 1, [3])[name]({ tol: -1 })).toThrow(RangeError);
-      expect(() => new Matrix(2, 2, [NaN, 0, 0, 1])[name]({ tol: -1 })).toThrow(RangeError);
+      expect(() => new Matrix(1, 1, [3])[name]({ rtol: -1 })).toThrow(RangeError);
+      expect(() => new Matrix(2, 2, [NaN, 0, 0, 1])[name]({ rtol: -1 })).toThrow(RangeError);
     }
-    expect(() => A().eigenvalues({ tol: 0, maxIterations: 1 })).not.toThrow();
+    expect(() => A().eigenvalues({ rtol: 0, maxIterations: 1 })).not.toThrow();
   });
 
   it('rank() rejects options of the wrong type', () => {

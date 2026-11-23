@@ -1155,16 +1155,36 @@ describe('Matrix', () => {
       expect(() => m.eigenvalues({ maxIterations: 0 })).toThrowError();
     });
 
-    it('accepts a custom tol without breaking correctness on a well-behaved matrix', () => {
+    it('accepts a custom rtol without breaking correctness on a well-behaved matrix', () => {
       const m: Matrix = Matrix.from([
         [2, -1, 0],
         [-1, 2, -1],
         [0, -1, 2]
       ]);
-      const eigs = sortEigs(m.eigenvalues({ tol: 1e-10 })).map((e) => e.re);
+      const eigs = sortEigs(m.eigenvalues({ rtol: 1e-10 })).map((e) => e.re);
       expect(eigs[0]).toBeCloseTo(2 - Math.SQRT2);
       expect(eigs[1]).toBeCloseTo(2);
       expect(eigs[2]).toBeCloseTo(2 + Math.SQRT2);
+    });
+
+    it('rtol is the relative deflation tolerance: a loose value measurably degrades the result', () => {
+      const m = Matrix.from([
+        [4, 1, 2, 0.5, 1, 0],
+        [0.3, 3, 1, 2, 0, 1],
+        [1, 0.2, 5, 1, 1, 0.5],
+        [0, 1, 0.4, 2, 1, 1],
+        [2, 0, 1, 0.1, 6, 1],
+        [1, 1, 0, 1, 0.3, 1]
+      ]);
+      const re = (e: { re: number }[]) => e.map((x) => x.re).sort((a, b) => a - b);
+      const maxDiff = (a: number[], b: number[]) =>
+        Math.max(...a.map((x, i) => Math.abs(x - b[i])));
+      const reference = re(m.eigenvalues());
+      // Measured: about 6e-9 for rtol 1e-8 and about 1e-1 for rtol 0.1.
+      expect(maxDiff(re(m.eigenvalues({ rtol: 1e-8 })), reference)).toBeLessThan(1e-6);
+      expect(maxDiff(re(m.eigenvalues({ rtol: 0.1 })), reference)).toBeGreaterThan(1e-2);
+      const pairs = m.eig({ rtol: 0.1 }).map((p) => p.value);
+      expect(maxDiff(re(pairs), reference)).toBeGreaterThan(1e-2);
     });
   });
 
@@ -2402,7 +2422,7 @@ describe('Matrix', () => {
       expect(m.isSymmetric()).toBe(false);
     });
 
-    it('is false for a non-square matrix, regardless of tol', () => {
+    it('is false for a non-square matrix, regardless of atol', () => {
       const m = new Matrix(2, 3);
       expect(m.isSymmetric()).toBe(false);
       expect(m.isSymmetric(1e9)).toBe(false);
@@ -2973,7 +2993,7 @@ describe('Matrix: validation and edge cases', () => {
     });
   });
 
-  describe('predicates treat NaN as neither equal nor zero and validate tol', () => {
+  describe('predicates treat NaN as neither equal nor zero and validate atol', () => {
     it('isSymmetric is false when a mirrored pair contains NaN', () => {
       expect(new Matrix(2, 2, [1, NaN, NaN, 1]).isSymmetric()).toBe(false);
       expect(new Matrix(2, 2, [1, NaN, 2, 1]).isSymmetric()).toBe(false);
@@ -2997,17 +3017,17 @@ describe('Matrix: validation and edge cases', () => {
       expect(new Matrix(2, 2, [NaN, 0, NaN, 1]).isLowerTriangular()).toBe(true);
     });
 
-    it('reject a NaN or negative tol with RangeError, even for non-square matrices', () => {
-      for (const tol of [NaN, -1]) {
-        expect(() => A22().isSymmetric(tol)).toThrowError(RangeError);
-        expect(() => A22().isLowerTriangular(tol)).toThrowError(RangeError);
-        expect(() => A22().isUpperTriangular(tol)).toThrowError(RangeError);
-        expect(() => new Matrix(2, 3).isSymmetric(tol)).toThrowError(RangeError);
+    it('reject a NaN or negative atol with RangeError, even for non-square matrices', () => {
+      for (const atol of [NaN, -1]) {
+        expect(() => A22().isSymmetric(atol)).toThrowError(RangeError);
+        expect(() => A22().isLowerTriangular(atol)).toThrowError(RangeError);
+        expect(() => A22().isUpperTriangular(atol)).toThrowError(RangeError);
+        expect(() => new Matrix(2, 3).isSymmetric(atol)).toThrowError(RangeError);
       }
-      expect(() => A22().isSymmetric(NaN)).toThrowError(/^Matrix\.isSymmetric: tol must be >= 0/);
+      expect(() => A22().isSymmetric(NaN)).toThrowError(/^Matrix\.isSymmetric: atol must be >= 0/);
     });
 
-    it('still honour a positive tol', () => {
+    it('still honour a positive atol', () => {
       expect(new Matrix(2, 2, [1, 2, 2.05, 1]).isSymmetric(0.1)).toBe(true);
       expect(new Matrix(2, 2, [1, 0.05, 0, 1]).isUpperTriangular(0.1)).toBe(true);
       expect(new Matrix(2, 2, [1, 0.05, 0, 1]).isLowerTriangular(0.1)).toBe(true);
@@ -3313,13 +3333,13 @@ describe('Matrix: operand and argument types', () => {
   });
 
   it('tolerances must be numbers: null and strings are a TypeError, not 0 or a coerced value', () => {
-    for (const tol of [null, '1', {}] as unknown as number[]) {
-      expect(() => I2().isSymmetric(tol)).toThrowError(TypeError);
-      expect(() => I2().isLowerTriangular(tol)).toThrowError(TypeError);
-      expect(() => I2().isUpperTriangular(tol)).toThrowError(TypeError);
+    for (const atol of [null, '1', {}] as unknown as number[]) {
+      expect(() => I2().isSymmetric(atol)).toThrowError(TypeError);
+      expect(() => I2().isLowerTriangular(atol)).toThrowError(TypeError);
+      expect(() => I2().isUpperTriangular(atol)).toThrowError(TypeError);
     }
     expect(() => I2().isSymmetric(null as unknown as number)).toThrowError(
-      'Matrix.isSymmetric: tol must be a number, got null.'
+      'Matrix.isSymmetric: atol must be a number, got null.'
     );
     // undefined still selects the default tolerance of 0.
     expect(I2().isSymmetric(undefined)).toBe(true);
