@@ -2,7 +2,7 @@ import { ArrayND } from './ArrayND.js';
 import { Vector, type VectorLike } from './Vector.js';
 import * as linalg from './Matrix.linalg.js';
 import * as svdAlgs from './Matrix.svd.js';
-import { asArrayLike, typeName } from './checks.js';
+import { asArrayLike, assertSquare, typeName } from './checks.js';
 
 // The heavier linear-algebra algorithms (factorizations, linear-system
 // solves, eigendecomposition) live in Matrix.linalg.ts, not here — see
@@ -30,6 +30,17 @@ import type {
 } from './Matrix.linalg.js';
 export type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
 import type { SVDDecomposition, SVDOptions, SVDCutoffOptions, LstsqResult } from './Matrix.svd.js';
+
+/**
+ * The error for an operand of `add`, `sub`, `mult` or `div` (or their `Self` variants) that is
+ * neither a matrix, a vector (broadcast as a row) nor a number. The generic shape check would say
+ * "expected a Matrix", which is misleading here.
+ */
+function operandError(caller: string, x: unknown): TypeError {
+  return new TypeError(
+    `Matrix.${caller}: expected a Matrix, a Vector or a number, got ${typeName(x)}.`
+  );
+}
 
 /**
  * A rows x cols matrix of doubles, stored in a single flat, row-major
@@ -169,8 +180,9 @@ export class Matrix extends ArrayND {
     this._cols = cols;
     try {
       this.data = new Float64Array(rows * cols);
-    } catch {
+    } catch (e) {
       // The engine's own RangeError ("Invalid typed array length", "Array buffer allocation failed").
+      if (!(e instanceof RangeError)) throw e;
       throw new RangeError(
         `Matrix.constructor: a ${rows}x${cols} matrix is too large to allocate.`
       );
@@ -750,6 +762,7 @@ export class Matrix extends ArrayND {
 
   add(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'add', false);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('add', x);
     return typeof x === 'number' ? super.add(x) : super.add(x);
   }
 
@@ -830,6 +843,7 @@ export class Matrix extends ArrayND {
 
   addSelf(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'add', true);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('addSelf', x);
     return typeof x === 'number' ? super.addSelf(x) : super.addSelf(x);
   }
 
@@ -907,6 +921,7 @@ export class Matrix extends ArrayND {
 
   sub(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'sub', false);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('sub', x);
     return typeof x === 'number' ? super.sub(x) : super.sub(x);
   }
 
@@ -987,6 +1002,7 @@ export class Matrix extends ArrayND {
 
   subSelf(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'sub', true);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('subSelf', x);
     return typeof x === 'number' ? super.subSelf(x) : super.subSelf(x);
   }
 
@@ -1064,6 +1080,7 @@ export class Matrix extends ArrayND {
 
   mult(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'mult', false);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('mult', x);
     return typeof x === 'number' ? super.mult(x) : super.mult(x);
   }
 
@@ -1144,6 +1161,7 @@ export class Matrix extends ArrayND {
 
   multSelf(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'mult', true);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('multSelf', x);
     return typeof x === 'number' ? super.multSelf(x) : super.multSelf(x);
   }
 
@@ -1221,6 +1239,7 @@ export class Matrix extends ArrayND {
 
   div(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'div', false);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('div', x);
     return typeof x === 'number' ? super.div(x) : super.div(x);
   }
 
@@ -1301,6 +1320,7 @@ export class Matrix extends ArrayND {
 
   divSelf(x: this | number | Vector): this {
     if (x instanceof Vector) return this._broadcastRow(x, 'div', true);
+    if (typeof x !== 'number' && !(x instanceof Matrix)) throw operandError('divSelf', x);
     return typeof x === 'number' ? super.divSelf(x) : super.divSelf(x);
   }
 
@@ -1715,10 +1735,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   trace(): number {
-    if (this.rows !== this.cols)
-      throw new RangeError(
-        `Matrix.trace: expected a square matrix, got ${this.rows}x${this.cols}.`
-      );
+    assertSquare(this, 'trace');
     let sum = 0;
     for (let i = 0; i < this.rows; i++) sum += this.getUnchecked(i, i);
     return sum;
@@ -1811,7 +1828,11 @@ export class Matrix extends ArrayND {
    * the same order. A rank-deficient matrix is the normal use case, not an
    * error, and any shape is accepted; a 1x1 matrix has rank `1`, or `0` if
    * its entry is `0`. A `NaN` entry makes the result `NaN` (for both
-   * methods); an infinite entry throws `RangeError`.
+   * methods); an infinite entry throws `RangeError`. Both methods work for
+   * entries near `1e308` or `1e-308`: the singular values and the pivots are
+   * compared with the tolerance in a scaled form, so the rank of a matrix does
+   * not become `0` because a norm overflows. `atol` is always an absolute
+   * threshold, in the units of the entries.
    * @param options Either an absolute tolerance on the singular values
    * (shorthand for `{ atol, rtol: 0 }`), or `{ method, atol, rtol }`:
    * the method (`'svd'` by default), an absolute threshold (default `0`)
@@ -1884,10 +1905,17 @@ export class Matrix extends ArrayND {
    * Costs `O(n^3)` for `n = rows`; this matrix is not modified. A singular
    * matrix has determinant `0` without error (only an exactly zero pivot
    * counts, as in `lu()`, so a nearly singular matrix gives a tiny nonzero
-   * value). The product of the pivots is not rescaled, so it overflows to
-   * `±Infinity` or underflows to `0` for extreme magnitudes. A 1x1 matrix
-   * returns its entry. A `NaN` entry makes the result `NaN`; an infinite
-   * entry throws `RangeError`.
+   * value). The result does not depend on how the matrix is scaled: the
+   * elimination runs on the matrix scaled by a power of two, and the pivots
+   * are multiplied as a mantissa and a binary exponent, so the determinant is
+   * correct to rounding whenever it is representable, even if the entries are
+   * near `1e308` or `1e-308`, or the partial products of the pivots are not
+   * (`diag(1e200, 1e200, 1e-200, 1e-200)` gives `1`). If the true determinant
+   * itself is out of range, the result is `±Infinity` (overflow) or `±0`
+   * (underflow), with the sign of the determinant; for example `1e300 * I`
+   * of size 3 gives `Infinity`, however well scaled the factorization is. A
+   * 1x1 matrix returns its entry. A `NaN` entry makes the result `NaN`; an
+   * infinite entry throws `RangeError`.
    * @returns The determinant.
    * @throws {RangeError} If this matrix is not square.
    * @throws {RangeError} If this matrix contains an infinite entry.
@@ -1941,7 +1969,10 @@ export class Matrix extends ArrayND {
    * that matters. To solve a system, `solve()` is faster and more accurate
    * than multiplying by the inverse. A 1x1 matrix returns the reciprocal of
    * its entry; if a pivot is subnormal and its reciprocal overflows, the
-   * affected entries become `Infinity` instead of `NaN`. A `NaN` entry
+   * affected entries become `Infinity` instead of `NaN`. The elimination
+   * runs on the matrix scaled by a power of two, so a matrix with entries
+   * near `1e308` or `1e-308` is inverted correctly; an entry of the inverse
+   * that is out of range is `±Infinity` or `±0`, never `NaN`. A `NaN` entry
    * makes every entry of the result `NaN`; an infinite entry throws
    * `RangeError`.
    * @returns A new matrix `M` such that `this.matmul(M)` is (up to
@@ -2004,6 +2035,18 @@ export class Matrix extends ArrayND {
    * `U = this`. A `NaN` entry makes `L` and `U` all `NaN`, with `perm` the
    * identity and `sign` `1`, instead of throwing; an infinite entry throws
    * `RangeError`.
+   *
+   * The elimination is safe for any finite matrix: if the largest entry is
+   * outside `[2^-900, 2^900]` (about `1e±271`) the matrix is divided by a power of
+   * two before the elimination and `U` is multiplied by it afterwards, so a
+   * matrix with entries near `1e308` or `1e-308` is not mistaken for a singular
+   * one. `L` and `perm` are those of the exact elimination, and `U` is exact too,
+   * except that an entry that is out of range is `±Infinity` (the elimination
+   * can grow an entry of `U` beyond the largest one of this matrix, by up to a
+   * factor `2^(n-1)`). `solve()` is not affected by that, because it works with
+   * the scaled factors. A matrix whose entries span nearly the whole range of
+   * doubles (`1e308` next to `1e-300`) is not scaled, since that would flush the
+   * small entries to zero.
    * @param out Optional storage to reuse, as returned by an earlier call
    * for a matrix of the same size: its `L`, `U`, `perm` and `sign` are
    * overwritten and it is returned, so repeated factorizations allocate
@@ -2184,9 +2227,13 @@ export class Matrix extends ArrayND {
    * nor `b` is modified. A singular matrix throws `Error` (an exactly zero
    * pivot; a nearly singular matrix returns finite, possibly inaccurate
    * numbers, see `cond1()`). For a rank-deficient or non-square system, use
-   * `lstsq()`. A 1x1 system returns `b / this`. A `NaN` entry in this
-   * matrix makes every entry of the result `NaN`; an infinite entry throws
-   * `RangeError`. `b` is not scanned: a `NaN` in `b` gives `NaN` results.
+   * `lstsq()`. A 1x1 system returns `b / this`. The system is solved with
+   * this matrix and `b` scaled by powers of two when their entries are near
+   * `1e308` or `1e-308`, so such systems give the correct solution; a
+   * solution entry that is out of range is `±Infinity`, not `NaN`. A `NaN`
+   * entry in this matrix makes every entry of the result `NaN`; an infinite
+   * entry throws `RangeError`. `b` is not scanned: a `NaN` in `b` gives `NaN`
+   * results.
    * @param b The right-hand side (a `Vector` or array-like of numbers). Must have `b.size === this.rows`.
    * @returns The solution vector `x` such that `this.mulVec(x)` is (up to
    *   floating-point error) equal to `b`.
@@ -2248,9 +2295,12 @@ export class Matrix extends ArrayND {
    *
    * This matrix is not modified. An exactly singular matrix gives
    * `Infinity` rather than an error (a nearly singular one gives a very
-   * large value). A 1x1 matrix has condition number `1` up to rounding, or
-   * `Infinity` if it is `0`. A `NaN` entry makes the result `NaN`; an
-   * infinite entry throws `RangeError`.
+   * large value). The condition number does not depend on the scale of the
+   * matrix, and is computed on the matrix scaled by a power of two, so the
+   * norms cannot overflow: `1e308 * A` has the condition number of `A`, even
+   * if its inverse overflows. A 1x1 matrix has condition number `1` up to
+   * rounding, or `Infinity` if it is `0`. A `NaN` entry makes the result
+   * `NaN`; an infinite entry throws `RangeError`.
    * @returns The 1-norm condition number, or `Infinity` if this matrix
    *   is (numerically) singular.
    * @throws {RangeError} If this matrix is not square.
@@ -2707,6 +2757,10 @@ export class Matrix extends ArrayND {
    * square matrix is accepted. A 1x1 matrix returns its entry. A `NaN`
    * entry makes every eigenvalue `NaN + NaN i`; an infinite entry throws
    * `RangeError`.
+   * The result is scale-safe: entries of any magnitude work (the matrix is
+   * internally scaled by an exact power of two) and the eigenvalues scale
+   * with the matrix; an eigenvalue much smaller than the largest entry
+   * times `Number.EPSILON` is not resolved, as usual.
    * @param options Optional settings.
    * @param options.rtol Relative tolerance for the deflation test.
    * Defaults to `Number.EPSILON`.
@@ -2756,6 +2810,8 @@ export class Matrix extends ArrayND {
    * (nearly) parallel. A 1x1 matrix returns its entry with eigenvector
    * `[1]`. A `NaN` entry makes every eigenvalue and eigenvector entry
    * `NaN`; an infinite entry throws `RangeError`.
+   * Like `eigenvalues()`, it is scale-safe: the eigenvectors do not depend
+   * on the magnitude of the entries.
    * @param options See `eigenvalues()` — same meaning and defaults.
    * @returns The `rows` eigenpairs, in the same order `eigenvalues()`
    * would return the values alone.
@@ -3924,10 +3980,7 @@ export class Matrix extends ArrayND {
    * ```
    */
   transposeSelf(): this {
-    if (this.rows !== this.cols)
-      throw new RangeError(
-        `Matrix.transposeSelf: expected a square matrix, got ${this.rows}x${this.cols}.`
-      );
+    assertSquare(this, 'transposeSelf');
     for (let i = 0; i < this.rows; i++) {
       for (let j = i + 1; j < this.cols; j++) {
         const tmp = this.getUnchecked(i, j);

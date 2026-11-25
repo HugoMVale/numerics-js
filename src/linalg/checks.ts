@@ -2,6 +2,40 @@ import { Matrix } from './Matrix.js';
 import { Vector } from './Vector.js';
 
 /**
+ * `scanNonFinite` for the whole matrix, fused with the search of the largest absolute entry, for
+ * the routines that need it (the elimination routines scale the matrix by it, see `safeScale` in
+ * `Matrix.linalg.ts`): one pass instead of two, and the same errors, raised at the same entry.
+ * Internal; not part of the public API.
+ * @param A The matrix to scan. Not modified.
+ * @param who Name of the public method, for the error message.
+ * @returns `NaN` if `A` has a `NaN` entry (and no infinite one), else the largest absolute entry
+ * (`0` for a matrix of zeros).
+ * @throws {RangeError} If `A` has an infinite entry, even if it also has a `NaN`.
+ */
+export function scanExtent(A: Matrix, who: string): number {
+  const d = A.data;
+  let max = 0;
+  let nan = false;
+  for (let k = 0; k < d.length; k++) {
+    const v = d[k];
+    // `v - v` is 0 for every finite v and NaN for NaN and ±Infinity.
+    if (v - v !== 0) {
+      if (v === v) {
+        const i = Math.floor(k / A.cols);
+        throw new RangeError(
+          `Matrix.${who}: matrix contains an infinite entry at (${i}, ${k - i * A.cols}), got ${v}.`
+        );
+      }
+      nan = true;
+    } else {
+      const a = v < 0 ? -v : v;
+      if (a > max) max = a;
+    }
+  }
+  return nan ? NaN : max;
+}
+
+/**
  * Applies the library's non-finite input policy to the matrix argument of a
  * factorization, solve or decomposition (see "Linear-algebra error and
  * non-finite policy" in AGENTS.md): any infinite entry is a domain error,
@@ -162,4 +196,15 @@ export function checkRecord(
   if (!ok) {
     throw new TypeError(`Matrix.${who}: ${role} must be ${label}, got ${typeName(value)}.`);
   }
+}
+
+/**
+ * Throws unless `A` is square.
+ * @param A The matrix to check.
+ * @param who Name of the calling method, without the `Matrix.` prefix.
+ * @throws {RangeError} If `A.rows !== A.cols`: "Matrix.who: expected a square matrix, got RxC."
+ */
+export function assertSquare(A: Matrix, who: string): void {
+  if (A.rows !== A.cols)
+    throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
 }

@@ -7,7 +7,9 @@ import {
   checkPositiveInteger,
   checkRecord,
   checkVectorOut,
-  scanNonFinite
+  scanExtent,
+  scanNonFinite,
+  assertSquare
 } from './checks.js';
 
 // =======================================================================
@@ -134,9 +136,110 @@ export interface RankOptions extends SVDCutoffOptions {
 // inverse/lu.
 // -----------------------------------------------------------------
 
+/**
+ * The error thrown by `cholesky` for a matrix that is not positive definite, so that callers
+ * which retry with a perturbed matrix (see `makeHessianSpd`) can tell this expected failure apart
+ * from any other one, such as an invalid argument. It is an ordinary `Error` for everybody else,
+ * so it is documented as such.
+ *
+ * @internal
+ */
+export class NotPositiveDefiniteError extends Error {}
+
 /** A new `rows x cols` matrix of `NaN`: the result for a matrix with a `NaN` entry. */
 function nanMatrix(rows: number, cols: number): Matrix {
   return new Matrix(rows, cols).fill(NaN);
+}
+
+// A matrix whose largest entry lies in [ELIMINATION_MIN, ELIMINATION_MAX] is eliminated as it
+// is. Elimination with partial pivoting never grows an entry by more than a factor 2^(n-1), so
+// the upper bound leaves room for n up to ~120 before an intermediate result can overflow,
+// and the lower bound keeps the rounding error of subnormal results (an absolute 2^-1074)
+// negligible compared with the entries. The window is wide, so ordinary matrices never take the
+// scaled path; and since the scale is a power of two, scaling does not even change the bits
+// of the results, except where it prevents an overflow or an underflow.
+const ELIMINATION_MAX = 2 ** 900;
+const ELIMINATION_MIN = 2 ** -900;
+// Bands of the running product of the pivots of `determinant`, see there.
+const PIVOT_HIGH = 2 ** 200;
+const PIVOT_LOW = 2 ** -200;
+const PRODUCT_HIGH = 2 ** 500;
+const PRODUCT_LOW = 2 ** -500;
+/** Smallest positive normal double. */
+const MIN_NORMAL = 2 ** -1022;
+
+/**
+ * The power of two `σ` by which the entries `data` of a matrix (or a right-hand side) are divided
+ * before Gaussian elimination (or substitution), so that these cannot overflow, nor lose the
+ * entries to underflow. Used by `lu`, `solve`, `inverse`, `determinant`, `rank` (elimination)
+ * and `cond1`.
+ *
+ * `σ` is `1` if the largest entry is in the safe window, so that ordinary matrices are not
+ * touched. Otherwise it is the power of two just below the largest entry (`powerOfTwoScale`,
+ * the same helper as for the Householder norms), unless dividing by it would push the
+ * smallest nonzero entry out of the normal range: entries that span (nearly) the
+ * whole range of doubles cannot be scaled safely, and are used as they are, as before.
+ * @param data The entries. `NaN` is ignored, and an infinite entry disables the scaling.
+ * @param extent The largest absolute entry, if the caller knows it already (`scanExtent`).
+ * @returns `σ`, a power of two (`1` for all zeros).
+ */
+function safeScale(data: Float64Array, extent?: number): number {
+  let max = extent ?? 0;
+  if (extent === undefined) {
+    for (let i = 0; i < data.length; i++) {
+      const x = Math.abs(data[i]);
+      if (x > max) max = x;
+    }
+  }
+  if (max === 0 || max === Infinity || (max >= ELIMINATION_MIN && max <= ELIMINATION_MAX)) {
+    return 1;
+  }
+  const sigma = powerOfTwoScale(data, 0, 1, data.length);
+  if (sigma > 1) {
+    let min = Infinity;
+    for (let i = 0; i < data.length; i++) {
+      const x = Math.abs(data[i]);
+      if (x !== 0 && x < min) min = x;
+    }
+    if (min / sigma < MIN_NORMAL) return 1;
+  }
+  return sigma;
+}
+
+/**
+ * Multiplies `x` by `2^e` without a spurious overflow or underflow of `2^e` itself, and with
+ * at most one rounding (when the result is subnormal), like C's `ldexp`.
+ * @param x The number.
+ * @param e The integer exponent. Clamped to `±3000`, far beyond the range of doubles.
+ * @returns `x * 2^e`.
+ */
+function ldexp(x: number, e: number): number {
+  let r = x;
+  let k = Math.max(-3000, Math.min(3000, e));
+  while (k > 1000) {
+    r *= 2 ** 1000;
+    k -= 1000;
+  }
+  while (k < -1000) {
+    r *= 2 ** -1000;
+    k += 1000;
+  }
+  return r * 2 ** k;
+}
+
+/**
+ * A copy of `A` divided by the power of two `sigma` (exactly, barring underflow).
+ * @param A The matrix. Not modified.
+ * @param sigma A power of two, see `safeScale`.
+ * @returns A new matrix `A / sigma`.
+ */
+function scaledCopy(A: Matrix, sigma: number): Matrix {
+  const m = A.copy();
+  if (sigma !== 1) {
+    const d = m.data;
+    for (let i = 0; i < d.length; i++) d[i] /= sigma;
+  }
+  return m;
 }
 
 /**
@@ -163,7 +266,7 @@ function findPivotRow(m: Matrix, col: number, startRow: number, tol: number): nu
 }
 
 /**
- * Reduces a copy of `A` to row echelon form via Gaussian elimination with
+ * Reduces `m` in place to row echelon form via Gaussian elimination with
  * partial pivoting (forward elimination only, no back-substitution or row
  * scaling). Shared building block for `rank()` and `determinant()`, which
  * both need the same elimination but reduce the result differently — and,
@@ -172,13 +275,14 @@ function findPivotRow(m: Matrix, col: number, startRow: number, tol: number): nu
  * `lu()`), while `rank()` defaults to an auto-scaled nonzero tolerance
  * (see its own docstring), since detecting near-singularity (not just
  * exact singularity) is rank's whole job.
- * @param A The matrix to eliminate. Not mutated (a copy is worked on).
- * @param tol Absolute tolerance below which a candidate pivot is treated as zero.
+ * @param m The working matrix, destroyed by the elimination: pass a copy, scaled by
+ *   `scaledCopy` if need be.
+ * @param tol Absolute tolerance below which a candidate pivot is treated as zero, in the
+ *   units of `m`.
  * @returns `rank` is the number of pivots found; `sign` is `+1`/`-1` tracking the row-swap
- *   parity; `pivots` are the pivot values in the order they were chosen.
+ *   parity; `pivots` are the pivot values (of `m`) in the order they were chosen.
  */
-function forwardEliminate(A: Matrix, tol = 0): { rank: number; sign: number; pivots: number[] } {
-  const m = A.copy();
+function forwardEliminate(m: Matrix, tol = 0): { rank: number; sign: number; pivots: number[] } {
   let rank = 0;
   let sign = 1;
   const pivots: number[] = [];
@@ -252,8 +356,13 @@ export function rank(A: Matrix, options?: number | RankOptions): number {
   const rtol = opts.rtol ?? RANK_TOL_SCALE * Math.max(A.rows, A.cols) * Number.EPSILON;
   checkNonNegative(atol, 'atol', 'rank');
   checkNonNegative(rtol, 'rtol', 'rank');
-  if (scanNonFinite(A, 'rank')) return NaN;
-  return forwardEliminate(A, Math.max(atol, rtol * A.normInf())).rank;
+  const extent = scanExtent(A, 'rank');
+  if (Number.isNaN(extent)) return NaN;
+  // Eliminate (and measure) the matrix in its safe range, so that neither the pivots nor
+  // `normInf` can overflow.
+  const sigma = safeScale(A.data, extent);
+  const m = scaledCopy(A, sigma);
+  return forwardEliminate(m, Math.max(atol / sigma, rtol * m.normInf())).rank;
 }
 
 /**
@@ -264,47 +373,76 @@ export function rank(A: Matrix, options?: number | RankOptions): number {
  * kind of LU factorization). A near-singular matrix will generally return
  * a small-but-nonzero float here, not `0` — if you need near-singularity
  * detection, use `rank()` instead, which is built for exactly that.
+ *
+ * The result is not affected by the scale of the matrix: the elimination runs on the
+ * matrix scaled into a safe range, and the product of the pivots is accumulated as a
+ * mantissa and a binary exponent. So the determinant is exact to rounding whenever it is
+ * representable, even if the matrix has entries near `1e308` or `1e-308`, or if the
+ * partial products of the pivots would overflow or underflow. It overflows to `±Infinity`
+ * (and underflows to `±0`) only if the true determinant does, which is not rare: the
+ * determinant of a `3x3` matrix with entries of order `1e200` is out of range.
  * @param A The matrix to compute the determinant of. Must be square.
  * @returns The determinant.
  * @throws {RangeError} If `A` is not square.
  * @throws {RangeError} If `A` has an infinite entry.
  */
 export function determinant(A: Matrix): number {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.determinant: expected a square matrix, got ${A.rows}x${A.cols}.`);
-  if (scanNonFinite(A, 'determinant')) return NaN;
-  const { rank: r, sign, pivots } = forwardEliminate(A, 0);
-  if (r < A.rows) return 0;
-  let det = sign;
-  for (const p of pivots) det *= p;
-  return det;
+  assertSquare(A, 'determinant');
+  const extent = scanExtent(A, 'determinant');
+  if (Number.isNaN(extent)) return NaN;
+  const n = A.rows;
+  const sigma = safeScale(A.data, extent);
+  const { rank: r, sign, pivots } = forwardEliminate(scaledCopy(A, sigma), 0);
+  if (r < n) return 0;
+  // det(A) = sigma^n * sign * product(pivots). The product is accumulated as `prod * 2^exp`, with
+  // `prod` renormalized only when a pivot, or the running product, leaves a wide safe band: for
+  // ordinary matrices it is the plain product, in the same order as always. After the check
+  // `|prod| in [2^-500, 2^500]` and `|p| in [2^-200, 2^200]`, so `prod * p` cannot overflow or
+  // underflow; the renormalizations are exact (powers of two).
+  let prod = sign;
+  let exp = sigma === 1 ? 0 : n * Math.round(Math.log2(sigma));
+  for (let k = 0; k < pivots.length; k++) {
+    let p = pivots[k];
+    const ap = Math.abs(p);
+    if (ap > PIVOT_HIGH || ap < PIVOT_LOW) {
+      const e = Math.floor(Math.log2(ap));
+      p /= 2 ** e;
+      exp += e;
+    }
+    prod *= p;
+    const a = Math.abs(prod);
+    if (a > PRODUCT_HIGH || a < PRODUCT_LOW) {
+      const e = Math.floor(Math.log2(a));
+      prod /= 2 ** e;
+      exp += e;
+    }
+  }
+  return exp === 0 ? prod : ldexp(prod, exp);
 }
 
 /**
- * Computes the inverse of `A`, via Gauss-Jordan elimination with partial
- * pivoting.
- * @param A The matrix to invert. Must be square.
- * @returns A new matrix `M` such that `A.matmul(M)` is (up to
- *   floating-point error) the identity matrix.
- * @throws {RangeError} If `A` is not square.
- * @throws {Error} If `A` is singular (not invertible).
- * @throws {RangeError} If `A` has an infinite entry.
+ * Gauss-Jordan inversion of `A / sigma`, with partial pivoting.
+ * @param A A finite square matrix. Not modified.
+ * @param sigma The power of two `A` is divided by, see `safeScale`.
+ * @returns The inverse of `A / sigma`, that is `sigma` times the inverse of `A`; `null` if `A`
+ * is singular.
  */
-export function inverse(A: Matrix): Matrix {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.inverse: expected a square matrix, got ${A.rows}x${A.cols}.`);
+function invertScaled(A: Matrix, sigma: number): Matrix | null {
   const n = A.rows;
-  if (scanNonFinite(A, 'inverse')) return nanMatrix(n, n);
   // Augment [A | I] and row-reduce the left half to I; the right half
   // then becomes A^-1.
   const aug = new Matrix(n, 2 * n);
   for (let i = 0; i < n; i++) {
     aug.data.set(A.data.subarray(A.flatIndex(i, 0), A.flatIndex(i, 0) + n), aug.flatIndex(i, 0));
+    if (sigma !== 1) {
+      const offset = aug.flatIndex(i, 0);
+      for (let j = 0; j < n; j++) aug.data[offset + j] /= sigma;
+    }
     aug.setUnchecked(i, n + i, 1);
   }
   for (let col = 0; col < n; col++) {
     const pivotRow = findPivotRow(aug, col, col, 0);
-    if (pivotRow === -1) throw new Error('Matrix.inverse: matrix is singular.');
+    if (pivotRow === -1) return null;
     if (pivotRow !== col) aug.swapRowsSelf(col, pivotRow);
     const pivot = aug.getUnchecked(col, col);
     const reciprocal = 1 / pivot;
@@ -333,6 +471,34 @@ export function inverse(A: Matrix): Matrix {
 }
 
 /**
+ * Computes the inverse of `A`, via Gauss-Jordan elimination with partial
+ * pivoting. The elimination runs on the matrix scaled into a safe range, so
+ * it works for entries near `1e308` or `1e-308`; an entry of the inverse
+ * that is out of range is `±Infinity` (or `±0`).
+ * @param A The matrix to invert. Must be square.
+ * @returns A new matrix `M` such that `A.matmul(M)` is (up to
+ *   floating-point error) the identity matrix.
+ * @throws {RangeError} If `A` is not square.
+ * @throws {Error} If `A` is singular (not invertible).
+ * @throws {RangeError} If `A` has an infinite entry.
+ */
+export function inverse(A: Matrix): Matrix {
+  assertSquare(A, 'inverse');
+  const n = A.rows;
+  const extent = scanExtent(A, 'inverse');
+  if (Number.isNaN(extent)) return nanMatrix(n, n);
+  const sigma = safeScale(A.data, extent);
+  const res = invertScaled(A, sigma);
+  if (res === null) throw new Error('Matrix.inverse: matrix is singular.');
+  // inverse(A) = inverse(A / sigma) / sigma
+  if (sigma !== 1) {
+    const d = res.data;
+    for (let i = 0; i < d.length; i++) d[i] /= sigma;
+  }
+  return res;
+}
+
+/**
  * Computes a partial-pivoted LU factorization of `A`, such that `P * A =
  * L * U` for the row permutation `P` implied by `perm`. Factoring once
  * and reusing the result via `solveLU` (or `solveLower`/`solveUpper`) is
@@ -348,6 +514,15 @@ export function inverse(A: Matrix): Matrix {
  * in reference implementations; if you need that kind of near-singularity
  * detection, use `rank()`, which does expose a tolerance for exactly this
  * purpose.
+ *
+ * The elimination is safe for any finite matrix: if the largest entry is
+ * close to the limits of the double range (beyond about `1e±270`), the
+ * matrix is scaled by a power of two before the elimination and `U` is
+ * scaled back after it, so a matrix with entries near `1e308` or `1e-308` is
+ * not reported singular. The factors are then exact, except that an entry
+ * of `U` that is out of range (it can exceed the largest entry of `A` by the
+ * growth of the elimination) is `±Infinity`; `solve()` is not affected by
+ * that, since it works on the scaled factors.
  *
  * Repeated factorizations of same-sized matrices (e.g. one per step of
  * an implicit ODE solver) can avoid all allocation by passing the
@@ -372,7 +547,14 @@ export function inverse(A: Matrix): Matrix {
  * @throws {TypeError} If `out` is given but is not an `LUDecomposition`.
  */
 export function lu(A: Matrix, out?: LUDecomposition): LUDecomposition {
-  return factorLU(A, out, 'lu');
+  const result = prepareLU(A, out, 'lu');
+  const sigma = factorLU(A, result, 'lu');
+  // `factorLU` leaves the factors of `A / sigma`: P * A = L * (sigma * U').
+  if (sigma !== 1) {
+    const u = result.U.data;
+    for (let i = 0; i < u.length; i++) u[i] *= sigma;
+  }
+  return result;
 }
 
 const LU_LABEL = 'an LUDecomposition { L, U, perm, sign }';
@@ -380,12 +562,11 @@ const QR_LABEL = 'a QRDecomposition { Q, R }';
 const QR_PIVOT_LABEL = 'a QRPivotDecomposition { QR, tau, perm }';
 
 /**
- * Implementation of `lu()`, shared with `solve()`; `who` names the public
- * method in error messages.
+ * Validates the arguments of `lu()` and `solve()` and returns the storage for the
+ * factorization: `out`, or a new one. `who` names the public method in error messages.
  */
-function factorLU(A: Matrix, out: LUDecomposition | undefined, who: string): LUDecomposition {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
+function prepareLU(A: Matrix, out: LUDecomposition | undefined, who: string): LUDecomposition {
+  assertSquare(A, who);
   const n = A.rows;
   if (out !== undefined)
     checkRecord(out, { matrices: ['L', 'U'], arrays: ['perm'] }, who, 'out', LU_LABEL);
@@ -402,17 +583,38 @@ function factorLU(A: Matrix, out: LUDecomposition | undefined, who: string): LUD
     );
   }
   if (A === L) throw new RangeError(`Matrix.${who}: A must not be out.L.`);
+  return result;
+}
 
+/**
+ * Factors `A` into `result`, which `prepareLU` has validated: partial-pivoted LU, in
+ * the style of `dgetrf`. The matrix is divided by the power of two `sigma` first if its
+ * entries are close to the limits of the double range (see `safeScale`), so
+ * that the elimination can neither overflow nor underflow. Since the scale is a power of two,
+ * the multipliers in `L` are exactly those of `A`, while `U` holds the factor of
+ * `A / sigma`, that is `U / sigma`.
+ * @param A The matrix to factor, which may be `result.U`.
+ * @param result The storage from `prepareLU`.
+ * @param who Name of the public method, for the error messages.
+ * @returns `sigma`, `1` for ordinary matrices: `U` of the result must be multiplied by it to
+ *   get the factor of `A`, and a right-hand side divided by it to be solved against `U`.
+ */
+function factorLU(A: Matrix, result: LUDecomposition, who: string): number {
+  const { L, U, perm } = result;
+  const n = A.rows;
   const u = U.data;
   const l = L.data;
-  if (scanNonFinite(A, who)) {
+  const extent = scanExtent(A, who);
+  if (Number.isNaN(extent)) {
     u.fill(NaN);
     l.fill(NaN);
     for (let i = 0; i < n; i++) perm[i] = i;
     result.sign = 1;
-    return result;
+    return 1;
   }
+  const sigma = safeScale(A.data, extent);
   if (A !== U) u.set(A.data);
+  if (sigma !== 1) for (let i = 0; i < u.length; i++) u[i] /= sigma;
   l.fill(0);
   for (let i = 0; i < n; i++) {
     l[i * n + i] = 1;
@@ -465,7 +667,7 @@ function factorLU(A: Matrix, out: LUDecomposition | undefined, who: string): LUD
     }
   }
   result.sign = sign;
-  return result;
+  return sigma;
 }
 
 /**
@@ -497,8 +699,7 @@ function substituteLower(
   out: Vector | undefined,
   who: string
 ): Vector {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  assertSquare(A, who);
   if (b.size !== A.rows)
     throw new RangeError(
       `Matrix.${who}: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
@@ -546,8 +747,7 @@ export function solveUpper(A: Matrix, b: Vector, out?: Vector): Vector {
 
 /** Implementation of `solveUpper()`, shared with `solveLU()` and `solveCholesky()`; `who` names the public method in errors. */
 function substituteUpper(A: Matrix, b: Vector, out: Vector | undefined, who: string): Vector {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.${who}: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  assertSquare(A, who);
   if (b.size !== A.rows)
     throw new RangeError(
       `Matrix.${who}: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
@@ -630,14 +830,30 @@ export function solveLU(decomposition: LUDecomposition, b: Vector, out?: Vector)
  * @throws {RangeError} If `A` has an infinite entry.
  */
 export function solve(A: Matrix, b: Vector): Vector {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.solve: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  assertSquare(A, 'solve');
   if (b.size !== A.rows)
     throw new RangeError(
       `Matrix.solve: shape mismatch: ${A.rows}x${A.cols} vs vector of size ${b.size}.`
     );
+  const n = A.rows;
   // For a matrix with a NaN entry the factorization is all NaN, hence so is the solution.
-  return solveLU(factorLU(A, undefined, 'solve'), b);
+  const decomposition = prepareLU(A, undefined, 'solve');
+  // The factors are those of `A / sigma`, solved against `b / tau`: the solution of the
+  // scaled system, `y`, relates to the one wanted by `x = y * tau / sigma`. Applying that
+  // factor last gives `±Infinity` for an `x` that is out of range, rather than `NaN`.
+  const sigma = factorLU(A, decomposition, 'solve');
+  const tau = safeScale(b.data);
+  const { L, U, perm } = decomposition;
+  const x = new Vector(n);
+  for (let i = 0; i < n; i++) x.data[i] = b.data[perm[i]];
+  if (tau !== 1) for (let i = 0; i < n; i++) x.data[i] /= tau;
+  substituteLower(L, x, true, x, 'solve');
+  substituteUpper(U, x, x, 'solve');
+  if (sigma !== 1 || tau !== 1) {
+    const shift = Math.round(Math.log2(tau)) - Math.round(Math.log2(sigma));
+    for (let i = 0; i < n; i++) x.data[i] = ldexp(x.data[i], shift);
+  }
+  return x;
 }
 
 // -----------------------------------------------------------------
@@ -656,15 +872,15 @@ export function solve(A: Matrix, b: Vector): Vector {
  * @throws {RangeError} If `A` has an infinite entry.
  */
 export function cond1(A: Matrix): number {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.cond1: expected a square matrix, got ${A.rows}x${A.cols}.`);
-  if (scanNonFinite(A, 'cond1')) return NaN;
-  // Past the scan, `inverse()` can only throw because `A` is singular.
-  try {
-    return A.norm1() * A.inverse().norm1();
-  } catch {
-    return Infinity;
-  }
+  assertSquare(A, 'cond1');
+  const extent = scanExtent(A, 'cond1');
+  if (Number.isNaN(extent)) return NaN;
+  // The condition number does not depend on the scale: work on the matrix in its safe range,
+  // where the norms cannot overflow either.
+  const sigma = safeScale(A.data, extent);
+  const m = sigma === 1 ? A : scaledCopy(A, sigma);
+  const inv = invertScaled(m, 1);
+  return inv === null ? Infinity : m.norm1() * inv.norm1();
 }
 
 /**
@@ -811,8 +1027,7 @@ function cond1Triangular(T: Matrix, lower: boolean, unitDiagonal: boolean): numb
  * @throws {RangeError} If `T` is not square.
  */
 export function cond1Upper(T: Matrix): number {
-  if (T.rows !== T.cols)
-    throw new RangeError(`Matrix.cond1Upper: expected a square matrix, got ${T.rows}x${T.cols}.`);
+  assertSquare(T, 'cond1Upper');
   return cond1Triangular(T, false, false);
 }
 
@@ -831,8 +1046,7 @@ export function cond1Upper(T: Matrix): number {
  * @throws {RangeError} If `T` is not square.
  */
 export function cond1Lower(T: Matrix, unitDiagonal = false): number {
-  if (T.rows !== T.cols)
-    throw new RangeError(`Matrix.cond1Lower: expected a square matrix, got ${T.rows}x${T.cols}.`);
+  assertSquare(T, 'cond1Lower');
   return cond1Triangular(T, true, unitDiagonal);
 }
 
@@ -867,8 +1081,7 @@ export function cond1Lower(T: Matrix, unitDiagonal = false): number {
  *   an infinite entry.
  */
 export function cholesky(A: Matrix): Matrix {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.cholesky: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  assertSquare(A, 'cholesky');
   const n = A.rows;
   if (scanNonFinite(A, 'cholesky', true)) return nanMatrix(n, n);
   const L = new Matrix(n, n);
@@ -881,7 +1094,7 @@ export function cholesky(A: Matrix): Matrix {
       for (let k = 0; k < j; k++) sum -= L.data[rowOffsetL + k] * L.data[colOffsetL + k];
       if (i === j) {
         if (sum <= 0)
-          throw new Error(
+          throw new NotPositiveDefiniteError(
             `Matrix.cholesky: matrix is not positive definite (leading minor of order ${i + 1} is not positive).`
           );
         L.data[rowOffsetL + j] = Math.sqrt(sum);
@@ -910,16 +1123,37 @@ export function cholesky(A: Matrix): Matrix {
  * @throws {Error} If `L` has a zero diagonal entry.
  */
 export function solveCholesky(L: Matrix, b: Vector): Vector {
-  if (L.rows !== L.cols)
-    throw new RangeError(
-      `Matrix.solveCholesky: expected a square matrix, got ${L.rows}x${L.cols}.`
-    );
+  assertSquare(L, 'solveCholesky');
   if (b.size !== L.rows)
     throw new RangeError(
       `Matrix.solveCholesky: shape mismatch: ${L.rows}x${L.cols} vs vector of size ${b.size}.`
     );
-  const y = substituteLower(L, b, false, undefined, 'solveCholesky');
-  return substituteUpper(L.transpose(), y, undefined, 'solveCholesky');
+  const x = substituteLower(L, b, false, undefined, 'solveCholesky');
+  substituteLowerTransposed(L, x, 'solveCholesky');
+  return x;
+}
+
+/**
+ * Solves `Lᵀ * x = y` in place (`x` replaces `y`) for a lower-triangular `L`, that is back
+ * substitution with the upper-triangular `Lᵀ`, without forming it: the entries of `Lᵀ` are read
+ * down the columns of `L`. The operations, and their order, are those of `substituteUpper` applied
+ * to `L.transpose()`, so the result is bit for bit the same, minus the `n²` temporary.
+ * @param L Square matrix; only its lower triangle is read.
+ * @param x On entry `y`, on exit the solution. `L.rows` entries.
+ * @param who Name of the public method, for the error message.
+ * @throws {Error} If `L` has a zero diagonal entry.
+ */
+function substituteLowerTransposed(L: Matrix, x: Vector, who: string): void {
+  const n = L.rows;
+  const l = L.data;
+  const xd = x.data;
+  for (let i = n - 1; i >= 0; i--) {
+    let s = xd[i];
+    for (let j = i + 1; j < n; j++) s -= l[L.flatIndex(j, i)] * xd[j];
+    const d = l[L.flatIndex(i, i)];
+    if (d === 0) throw new Error(`Matrix.${who}: zero diagonal entry, matrix is singular.`);
+    xd[i] = s / d;
+  }
 }
 
 // -----------------------------------------------------------------
@@ -932,6 +1166,8 @@ export function solveCholesky(L: Matrix, b: Vector): Vector {
 // or overflowed to `Infinity` (above), so the norm is recomputed on scaled data.
 // The window is wide, so ordinary matrices never take the scaled path.
 const SUMSQ_MIN = 1e-280;
+// Below this magnitude `1 / x` is no longer guaranteed to be finite (and exact in scale).
+const MIN_NORMAL_RECIPROCAL_GUARD = 2 ** -1000;
 const SUMSQ_MAX = 1e300;
 
 /**
@@ -1171,8 +1407,14 @@ export function qrPivot(A: Matrix, out?: QRPivotDecomposition): QRPivotDecomposi
     if (xnorm !== 0) {
       const beta = alpha >= 0 ? -Math.hypot(alpha, xnorm) : Math.hypot(alpha, xnorm);
       tj = (beta - alpha) / beta;
-      const scale = 1 / (alpha - beta);
-      for (let i = j + 1; i < m; i++) a[i * n + j] *= scale;
+      const denom = alpha - beta;
+      if (Math.abs(denom) >= MIN_NORMAL_RECIPROCAL_GUARD) {
+        const scale = 1 / denom;
+        for (let i = j + 1; i < m; i++) a[i * n + j] *= scale;
+      } else {
+        // For a (sub)normal-range column the reciprocal would overflow: divide instead.
+        for (let i = j + 1; i < m; i++) a[i * n + j] /= denom;
+      }
       a[j * n + j] = beta;
     }
     tau.data[j] = tj;
@@ -1779,7 +2021,8 @@ function backSubstitute(
   lambdaIm: number,
   yRe: Float64Array,
   yIm: Float64Array,
-  floor: number
+  floor: number,
+  detFloor: number
 ): void {
   for (let bi = blockIdx - 1; bi >= 0; bi--) {
     const [p, q] = blocks[bi];
@@ -1826,11 +2069,11 @@ function backSubstitute(
 
     const [numPARe, numPAIm] = cmul(rpRe, rpIm, m11Re, m11Im);
     const [numPBRe, numPBIm] = cmul(m01Re, 0, rqRe, rqIm);
-    const [ypRe, ypIm] = cdiv(numPARe - numPBRe, numPAIm - numPBIm, detRe, detIm, floor);
+    const [ypRe, ypIm] = cdiv(numPARe - numPBRe, numPAIm - numPBIm, detRe, detIm, detFloor);
 
     const [numQARe, numQAIm] = cmul(m00Re, m00Im, rqRe, rqIm);
     const [numQBRe, numQBIm] = cmul(m10Re, 0, rpRe, rpIm);
-    const [yqRe, yqIm] = cdiv(numQARe - numQBRe, numQAIm - numQBIm, detRe, detIm, floor);
+    const [yqRe, yqIm] = cdiv(numQARe - numQBRe, numQAIm - numQBIm, detRe, detIm, detFloor);
 
     yRe[p] = ypRe;
     yIm[p] = ypIm;
@@ -2046,6 +2289,23 @@ function schurForm(
 }
 
 /**
+ * Power of two that brings the entries of a matrix of largest magnitude `extent` into a range where the
+ * Hessenberg reduction and the shifted QR iteration are safe (their norms, deflation thresholds and
+ * Wilkinson shifts square and multiply entries, so they misbehave far from 1). `1` (no scaling, and so
+ * unchanged bits) while `extent` lies in `[2^-100, 2^100]`, and for a zero matrix.
+ * @param extent Largest absolute entry of the matrix, finite.
+ * @returns A power of two `sigma`, such that `A / sigma` has largest entry in `[1, 2)` when scaled.
+ */
+function eigenScale(extent: number): number {
+  if (extent === 0 || (extent >= 2 ** -100 && extent <= 2 ** 100)) return 1;
+  let e = Math.floor(Math.log2(extent));
+  // Math.log2 may be off by one at the edges: make `2**e <= extent < 2**(e+1)` hold exactly.
+  if (2 ** e > extent) e--;
+  else if (e < 1023 && 2 ** (e + 1) <= extent) e++;
+  return 2 ** e;
+}
+
+/**
  * Resolves and validates the options of `eigenvalues()` and `eig()`.
  * @param options The user's options.
  * @param n Matrix order, for the default iteration budget `30 * n`.
@@ -2101,19 +2361,26 @@ export function eigenvalues(
   A: Matrix,
   options?: { maxIterations?: number; rtol?: number }
 ): Eigenvalue[] {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.eigenvalues: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  assertSquare(A, 'eigenvalues');
   const n = A.rows;
   const { rtol, maxIterations } = eigenOptions(options, n, 'eigenvalues');
-  if (scanNonFinite(A, 'eigenvalues')) {
+  const extent = scanExtent(A, 'eigenvalues');
+  if (extent !== extent) {
     return Array.from({ length: n }, () => ({ re: NaN, im: NaN }));
   }
 
-  const { T, blocks } = schurForm(A, false, rtol, maxIterations);
+  // Exact power-of-two scaling, as dgeev does: eigenvalues scale with the matrix.
+  const sigma = eigenScale(extent);
+  const { T, blocks } = schurForm(
+    sigma === 1 ? A : scaledCopy(A, sigma),
+    false,
+    rtol,
+    maxIterations
+  );
   const result: Eigenvalue[] = new Array(n);
   for (const [lo, hi] of blocks) {
     if (hi === lo) {
-      result[lo] = { re: T.getUnchecked(lo, lo), im: 0 };
+      result[lo] = { re: T.getUnchecked(lo, lo) * sigma, im: 0 };
     } else {
       const [e1, e2] = solve2x2Eigs(
         T.getUnchecked(lo, lo),
@@ -2121,8 +2388,8 @@ export function eigenvalues(
         T.getUnchecked(hi, lo),
         T.getUnchecked(hi, hi)
       );
-      result[lo] = e1;
-      result[hi] = e2;
+      result[lo] = { re: e1.re * sigma, im: e1.im * sigma };
+      result[hi] = { re: e2.re * sigma, im: e2.im * sigma };
     }
   }
   return result;
@@ -2162,11 +2429,11 @@ export function eigenvalues(
  *   type.
  */
 export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number }): Eigenpair[] {
-  if (A.rows !== A.cols)
-    throw new RangeError(`Matrix.eig: expected a square matrix, got ${A.rows}x${A.cols}.`);
+  assertSquare(A, 'eig');
   const n = A.rows;
   const { rtol, maxIterations } = eigenOptions(options, n, 'eig');
-  if (scanNonFinite(A, 'eig')) {
+  const extent = scanExtent(A, 'eig');
+  if (extent !== extent) {
     return Array.from({ length: n }, () => ({
       value: { re: NaN, im: NaN },
       vectorRe: new Vector(n).fill(NaN),
@@ -2184,7 +2451,15 @@ export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number
     ];
   }
 
-  const { T, Q, blocks } = schurForm(A, true, rtol, maxIterations);
+  // Exact power-of-two scaling, as dgeev does: the eigenvectors are unaffected, the eigenvalues are
+  // scaled back on output.
+  const sigma = eigenScale(extent);
+  const { T, Q, blocks } = schurForm(
+    sigma === 1 ? A : scaledCopy(A, sigma),
+    true,
+    rtol,
+    maxIterations
+  );
   const Qt = Q!; // accumulateQ was true, so Q is always populated here.
 
   // Floor for the back-substitution denominator, guarding against
@@ -2192,7 +2467,12 @@ export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number
   // LAPACK's dtrevc safe-minimum plays.
   let tnorm = 0;
   for (let i = 0; i < n; i++) for (let j = i; j < n; j++) tnorm += Math.abs(T.getUnchecked(i, j));
-  const floor = Number.EPSILON * Math.max(tnorm, 1);
+  // Relative to the (scaled) matrix, so that small matrices get small floors; the lower bound only
+  // keeps `floor * floor` representable for a zero matrix.
+  const floor = Number.EPSILON * Math.max(tnorm, 2 ** -400);
+  // The determinant of a shifted 2x2 block is quadratic in the entries of `T`: its floor is smaller
+  // than `floor` by the same factor when `T` is small (and equal to it when `tnorm >= 1`).
+  const detFloor = floor * Math.min(1, Math.max(tnorm, 2 ** -100));
 
   const result: Eigenpair[] = new Array(n);
 
@@ -2208,7 +2488,7 @@ export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number
       const yRe = new Float64Array(n),
         yIm = new Float64Array(n);
       yRe[lo] = 1;
-      backSubstitute(T, blocks, blockIdx, lo, lambda, 0, yRe, yIm, floor);
+      backSubstitute(T, blocks, blockIdx, lo, lambda, 0, yRe, yIm, floor, detFloor);
 
       const vRe = new Array<number>(n).fill(0);
       for (let i = 0; i < n; i++) {
@@ -2222,7 +2502,7 @@ export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number
       if (norm > 0) for (let i = 0; i < n; i++) vRe[i] /= norm;
 
       result[lo] = {
-        value: { re: lambda, im: 0 },
+        value: { re: lambda * sigma, im: 0 },
         vectorRe: new Vector(vRe),
         vectorIm: new Vector(new Array<number>(n).fill(0))
       };
@@ -2258,7 +2538,7 @@ export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number
       yIm[lo] = v0im;
       yRe[hi] = v1re;
       yIm[hi] = v1im;
-      backSubstitute(T, blocks, blockIdx, hi, lamRe, lamIm, yRe, yIm, floor);
+      backSubstitute(T, blocks, blockIdx, hi, lamRe, lamIm, yRe, yIm, floor, detFloor);
 
       const vRe = new Array<number>(n).fill(0),
         vIm = new Array<number>(n).fill(0);
@@ -2308,12 +2588,12 @@ export function eig(A: Matrix, options?: { maxIterations?: number; rtol?: number
 
       const vImConj = vIm.map((x) => -x);
       result[lo] = {
-        value: { re: lamRe, im: lamIm },
+        value: { re: lamRe * sigma, im: lamIm * sigma },
         vectorRe: new Vector(vRe),
         vectorIm: new Vector(vIm)
       };
       result[hi] = {
-        value: { re: lamRe, im: -lamIm },
+        value: { re: lamRe * sigma, im: -lamIm * sigma },
         vectorRe: new Vector(vRe),
         vectorIm: new Vector(vImConj)
       };

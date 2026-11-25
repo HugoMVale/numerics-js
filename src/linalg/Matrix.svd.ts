@@ -1217,8 +1217,15 @@ export function cond2(A: Matrix): number {
  * @throws {Error} If the QR iteration fails to converge, which is not expected for finite input.
  */
 export function rankSvd(A: Matrix, options?: SVDCutoffOptions): number {
-  resolveCutoff(A, options, 'rank');
-  const s = singularValuesOf(A, 'rank').data;
+  const { atol, rtol } = resolveCutoff(A, options, 'rank');
+  if (scanNonFinite(A, 'rank')) return NaN;
+  // Count in the scaled units of the working matrix, rather than after `unscale()`: for a matrix
+  // with entries near `1e308`, the largest singular value can be out of range (`Infinity`),
+  // which would make the cutoff infinite and the rank zero.
+  const { a, mw, nw, scale } = prepare(A);
+  const bd = bidiagonalize(a, mw, nw);
+  bdsqr(bd.d, bd.e, nw, [], [], 'rank');
+  const s = bd.d;
   if (Number.isNaN(s[0])) return NaN;
-  return countAbove(s, cutoffOf(A, s[0], options, 'rank'));
+  return countAbove(s, Math.max(atol * scale, rtol * s[0]));
 }

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
+import { typeName } from '../../src/linalg/checks.js';
+import { NotPositiveDefiniteError } from '../../src/linalg/Matrix.linalg.js';
 import { rand } from '../../src/math.js';
 
 // Tests of the linear-algebra error and non-finite policy (see AGENTS.md):
@@ -568,9 +570,46 @@ describe('error types and messages', () => {
         run();
         expect.unreachable();
       } catch (e) {
-        expect((e as Error).constructor).toBe(Error);
+        expect(e).toBeInstanceOf(Error);
+        expect(e).not.toBeInstanceOf(RangeError);
       }
     }
+    // Indefiniteness has its own (internal) subclass, which callers retrying with a perturbed
+    // matrix tell apart from other errors.
+    expect(() => new Matrix(2, 2, [1, 2, 2, 1]).cholesky()).toThrow(NotPositiveDefiniteError);
+    expect(() => new Matrix(2, 2).inverse()).not.toThrow(NotPositiveDefiniteError);
+  });
+});
+
+describe('operands of the elementwise arithmetic', () => {
+  const ops = ['add', 'addSelf', 'sub', 'subSelf', 'mult', 'multSelf', 'div', 'divSelf'] as const;
+
+  it.each(ops)('%s lists every accepted operand type in its TypeError', (op) => {
+    const A = () =>
+      Matrix.from([
+        [1, 2, 3],
+        [4, 5, 6]
+      ]);
+    for (const bad of [[1, 2, 3], new Float64Array(3), 'x', null, undefined, {}]) {
+      const call = () => (A()[op] as (x: unknown) => Matrix)(bad);
+      expect(call).toThrow(TypeError);
+      expect(call).toThrow(
+        `Matrix.${op}: expected a Matrix, a Vector or a number, got ${typeName(bad)}.`
+      );
+    }
+  });
+
+  it('data inputs accept a plain array or a Float64Array, operands do not', () => {
+    const A = Matrix.from([
+      [2, 0],
+      [0, 4]
+    ]);
+    for (const b of [[2, 4], new Float64Array([2, 4]), Vector.from([2, 4])]) {
+      expect(A.mulVec(b).toArray()).toEqual([4, 16]);
+      expect(A.solve(b).toArray()).toEqual([1, 1]);
+    }
+    expect(() => Vector.from([1, 2]).add([1, 2] as unknown as Vector)).toThrow(TypeError);
+    expect(() => A.matmul([[1]] as unknown as Matrix)).toThrow(TypeError);
   });
 });
 
@@ -702,7 +741,9 @@ describe('extreme magnitudes', () => {
     const D = Matrix.diag([1e-320, 1e-320]);
     const inv = D.inverse();
     expect(Array.from(inv.data)).toEqual([Infinity, 0, 0, Infinity]);
-    expect(D.cond1()).toBe(Infinity);
+    // The condition number does not depend on the scale, so it is 1 although the inverse
+    // overflows: cond1() works on the matrix scaled into the safe range.
+    expect(D.cond1()).toBeCloseTo(1, 14);
   });
 
   it('inverse() is unchanged for ordinary pivots (reciprocal scaling)', () => {

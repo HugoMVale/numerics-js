@@ -7,9 +7,13 @@ import { MIN_NORMAL } from './scalar.js';
  * Anything that can be used as a numeric vector input: a {@link Vector}, a plain (possibly
  * read-only) `number[]`, or a `Float64Array`. Public functions that take a numeric sequence
  * accept this type and normalize it once with {@link Vector.asVector}. This applies to
- * arguments that supply *data* (right-hand sides, row or column values, `Vector.set`).
- * Operands of an operation between two vectors (`add`, `dot`, `outer`, ...) and `out`
- * arguments must be actual {@link Vector} instances, and anything else is a `TypeError`.
+ * arguments that supply *data*: the vector of `Matrix.mulVec`, right-hand sides (`solve`,
+ * `lstsq`, ...), and the values of `setRow`, `setCol` and `Vector.set` (these three accept any
+ * `ArrayLike<number>`). Operands of an elementwise operation (`add`, `sub`, `mult`, `div`,
+ * `dot`, `outer`, ...) and `out` arguments must be actual {@link Vector} (or
+ * {@link Matrix}) instances, and anything else is a `TypeError`: a bare array would be
+ * ambiguous next to the scalar and row-broadcast overloads of `Matrix`, and converting it on
+ * every call would allocate in hot loops.
  */
 export type VectorLike = Vector | readonly number[] | Float64Array;
 

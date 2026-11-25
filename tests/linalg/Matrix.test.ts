@@ -3231,7 +3231,7 @@ describe('Matrix: validation and edge cases', () => {
         expect(() => m.dot(x)).toThrowError(TypeError);
       }
       expect(() => m.add([1, 2] as unknown as Matrix)).toThrowError(
-        'Matrix.add: expected a Matrix, got Array.'
+        'Matrix.add: expected a Matrix, a Vector or a number, got Array.'
       );
     });
   });
