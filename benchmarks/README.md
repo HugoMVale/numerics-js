@@ -53,3 +53,18 @@ sync when changing a benchmark.
 | [`special/`](./special/)         | Bessel zeros `y_{n,m}`       | [`besselYZero.scipy.benchmark.md`](./special/besselYZero.scipy.benchmark.md)                         |
 | [`special/`](./special/)         | Error functions              | [`erf.mpmath.benchmark.md`](./special/erf.mpmath.benchmark.md)                                       |
 | [`special/`](./special/)         | Gamma functions              | [`gamma.mpmath.benchmark.md`](./special/gamma.mpmath.benchmark.md)                                   |
+
+## Timing
+
+The suites above check accuracy, not speed. `linalg/perf.mjs` is a hand-run timing
+microbenchmark of the common `Vector`/`Matrix` operations and of the LU family. It is not part of
+the test suite, because timings depend on the machine. Build the library first, then compare any
+number of builds (for example an older commit checked out in a worktree), interleaved and with
+ratios:
+
+```bash
+npm run build
+node benchmarks/linalg/perf.mjs                 # current build
+node benchmarks/linalg/perf.mjs old/dist dist   # ratio of the second to the first
+FILTER='lu|solve' ROUNDS=40 node benchmarks/linalg/perf.mjs dist
+```
