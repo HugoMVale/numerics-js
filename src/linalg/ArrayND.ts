@@ -1,4 +1,4 @@
-import { isCloseScalar, sqrtOrScaled } from './scalar.js';
+import { checkCloseOptions, isCloseScalar, sqrtOrScaled } from './scalar.js';
 
 /**
  * Abstract base class for N-dimensional arrays backed by a flat
@@ -845,11 +845,13 @@ export abstract class ArrayND {
    * of `x` is close to nothing but itself. NaN elements are never close
    * to anything, including other NaNs.
    * @param x The other instance. Must be shape-compatible with this one.
-   * @param rtol Relative tolerance, applied to `x`'s elements.
-   * @param atol Absolute tolerance.
+   * @param options Tolerances: `atol` (absolute, default `1e-8`) and `rtol` (relative, applied
+   * to `x`'s elements, default `1e-5`).
    * @returns A boolean array, one entry per element of the flat buffer.
-   * @throws {RangeError} If `x` is not shape-compatible with this instance.
-   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance, or `atol` or `rtol`
+   * is negative or `NaN`.
+   * @throws {TypeError} If `x` is not an instance of the same class, or `options` is not an
+   * object, or `atol` or `rtol` is not a number.
    *
    * @example
    * ```ts
@@ -867,8 +869,11 @@ export abstract class ArrayND {
    * [ true, true, true, false ]
    * ```
    */
-  isClose(x: this, rtol: number = 1e-5, atol: number = 1e-8): boolean[] {
+  isClose(x: this, options?: { atol?: number; rtol?: number }): boolean[] {
     this._checkSameShape(x, 'isClose');
+    checkCloseOptions(options, `${this._className()}.isClose`);
+    const atol = options?.atol ?? 1e-8;
+    const rtol = options?.rtol ?? 1e-5;
     const result: boolean[] = new Array(this.data.length);
     for (let i = 0; i < this.data.length; i++) {
       result[i] = isCloseScalar(this.data[i], x.data[i], rtol, atol);
@@ -880,15 +885,16 @@ export abstract class ArrayND {
    * Checks whether this instance is close to another across *every*
    * element, using the same `|a - b| <= atol + rtol * |b|` test as
    * `isClose` (same asymmetry, same handling of infinities and NaN). Unlike
-   * `isClose(x, rtol, atol).every(Boolean)`, this stops at the first
+   * `isClose(x, options).every(Boolean)`, this stops at the first
    * non-close pair instead of computing and allocating a full result
    * array first.
    * @param x The other instance. Must be shape-compatible with this one.
-   * @param rtol Relative tolerance, applied to `x`'s elements.
-   * @param atol Absolute tolerance.
+   * @param options Tolerances, as for `isClose`.
    * @returns `true` if every element of `this` is close to the corresponding element of `x`.
-   * @throws {RangeError} If `x` is not shape-compatible with this instance.
-   * @throws {TypeError} If `x` is not an instance of the same class.
+   * @throws {RangeError} If `x` is not shape-compatible with this instance, or `atol` or `rtol`
+   * is negative or `NaN`.
+   * @throws {TypeError} If `x` is not an instance of the same class, or `options` is not an
+   * object, or `atol` or `rtol` is not a number.
    *
    * @example
    * ```ts
@@ -906,8 +912,11 @@ export abstract class ArrayND {
    * false
    * ```
    */
-  allClose(x: this, rtol: number = 1e-5, atol: number = 1e-8): boolean {
+  allClose(x: this, options?: { atol?: number; rtol?: number }): boolean {
     this._checkSameShape(x, 'allClose');
+    checkCloseOptions(options, `${this._className()}.allClose`);
+    const atol = options?.atol ?? 1e-8;
+    const rtol = options?.rtol ?? 1e-5;
     for (let i = 0; i < this.data.length; i++) {
       if (!isCloseScalar(this.data[i], x.data[i], rtol, atol)) return false;
     }

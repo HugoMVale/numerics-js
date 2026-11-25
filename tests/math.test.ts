@@ -27,13 +27,13 @@ describe('copysign()', () => {
 
 describe('isClose()', () => {
   it('checks absolute tolerance and rejects values outside it', () => {
-    expect(isClose(1, 1.001, 0.001)).toBe(true);
-    expect(isClose(1, 1.002, 0.001)).toBe(false);
+    expect(isClose(1, 1.001, { atol: 0.001 })).toBe(true);
+    expect(isClose(1, 1.002, { atol: 0.001 })).toBe(false);
   });
 
   it('includes the relative tolerance term', () => {
-    expect(isClose(100, 101, 0, 0.01)).toBe(true);
-    expect(isClose(100, 101.1, 0, 0.01)).toBe(false);
+    expect(isClose(100, 101, { atol: 0, rtol: 0.01 })).toBe(true);
+    expect(isClose(100, 101.1, { atol: 0, rtol: 0.01 })).toBe(false);
   });
 });
 

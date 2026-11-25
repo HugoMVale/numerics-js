@@ -568,8 +568,8 @@ describe('Matrix', () => {
       ]);
       const { Q, R } = a.qr();
 
-      expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
-      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+      expect(Q.matmul(R).allClose(a, { rtol: 1e-9 })).toBe(true);
+      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), { rtol: 1e-9 })).toBe(true);
       for (let i = 1; i < 3; i++) {
         for (let j = 0; j < i; j++) expect(R.get(i, j)).toBe(0);
       }
@@ -587,8 +587,8 @@ describe('Matrix', () => {
       expect(Q.cols).toBe(3);
       expect(R.rows).toBe(3);
       expect(R.cols).toBe(2);
-      expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
-      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+      expect(Q.matmul(R).allClose(a, { rtol: 1e-9 })).toBe(true);
+      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), { rtol: 1e-9 })).toBe(true);
       expect(R.get(1, 0)).toBe(0);
       expect(R.get(2, 0)).toBe(0);
       expect(R.get(2, 1)).toBe(0);
@@ -601,7 +601,7 @@ describe('Matrix', () => {
         [0, 1]
       ]);
       const { Q, R } = a.qr();
-      expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
+      expect(Q.matmul(R).allClose(a, { rtol: 1e-9 })).toBe(true);
     });
 
     it('reduces to the identity/original matrix on an already-orthogonal input', () => {
@@ -610,8 +610,8 @@ describe('Matrix', () => {
         [1, 0]
       ]);
       const { Q, R } = a.qr();
-      expect(Q.matmul(R).allClose(a, 1e-9)).toBe(true);
-      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), 1e-9)).toBe(true);
+      expect(Q.matmul(R).allClose(a, { rtol: 1e-9 })).toBe(true);
+      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), { rtol: 1e-9 })).toBe(true);
     });
   });
 
@@ -654,8 +654,12 @@ describe('Matrix', () => {
         expect(dec.tau.size).toBe(k);
         expect([...dec.perm].sort((x, y) => x - y)).toEqual(Array.from({ length: n }, (_, i) => i));
 
-        expect(Q.matmul(R).allClose(permuteCols(a, dec.perm), 1e-12, 1e-12)).toBe(true);
-        expect(Q.transpose().matmul(Q).allClose(Matrix.identity(k), 1e-12, 1e-12)).toBe(true);
+        expect(Q.matmul(R).allClose(permuteCols(a, dec.perm), { atol: 1e-12, rtol: 1e-12 })).toBe(
+          true
+        );
+        expect(
+          Q.transpose().matmul(Q).allClose(Matrix.identity(k), { atol: 1e-12, rtol: 1e-12 })
+        ).toBe(true);
         for (let i = 0; i < k; i++) {
           for (let j = 0; j < Math.min(i, n); j++) expect(R.get(i, j)).toBe(0);
           if (i > 0)
@@ -696,9 +700,11 @@ describe('Matrix', () => {
       expect(Math.abs(R.get(2, 2))).toBeLessThan(1e-12 * Math.abs(R.get(0, 0)));
       expect(Math.abs(R.get(1, 1))).toBeGreaterThan(1e-3 * Math.abs(R.get(0, 0)));
       expect(dec.perm[2]).not.toBe(2); // one of the dependent columns is pushed last
-      expect(Matrix.qrPivotQ(dec).matmul(R).allClose(permuteCols(a, dec.perm), 1e-12, 1e-12)).toBe(
-        true
-      );
+      expect(
+        Matrix.qrPivotQ(dec)
+          .matmul(R)
+          .allClose(permuteCols(a, dec.perm), { atol: 1e-12, rtol: 1e-12 })
+      ).toBe(true);
     });
 
     it('handles zero columns and the zero matrix without producing NaN', () => {
@@ -712,7 +718,7 @@ describe('Matrix', () => {
       expect(
         Matrix.qrPivotQ(dec)
           .matmul(Matrix.qrPivotR(dec))
-          .allClose(permuteCols(a, dec.perm), 1e-12, 1e-12)
+          .allClose(permuteCols(a, dec.perm), { atol: 1e-12, rtol: 1e-12 })
       ).toBe(true);
 
       const z = new Matrix(3, 2).qrPivot();
@@ -733,7 +739,7 @@ describe('Matrix', () => {
       const a = randomMatrix(6, 3, 7);
       const before = a.copy();
       a.qrPivot();
-      expect(a.allClose(before, 0, 0)).toBe(true);
+      expect(a.allClose(before, { atol: 0, rtol: 0 })).toBe(true);
     });
 
     it('reuses the storage passed as `out`, and can factor in place', () => {
@@ -743,8 +749,8 @@ describe('Matrix', () => {
       const out = randomMatrix(6, 3, 12).qrPivot();
       const res = a.qrPivot(out);
       expect(res).toBe(out);
-      expect(res.QR.allClose(reference.QR, 0, 0)).toBe(true);
-      expect(res.tau.allClose(reference.tau, 0, 0)).toBe(true);
+      expect(res.QR.allClose(reference.QR, { atol: 0, rtol: 0 })).toBe(true);
+      expect(res.tau.allClose(reference.tau, { atol: 0, rtol: 0 })).toBe(true);
       expect(res.perm).toEqual(reference.perm);
 
       const inPlace = a.copy();
@@ -754,7 +760,7 @@ describe('Matrix', () => {
         perm: [0, 0, 0]
       });
       expect(decInPlace.QR).toBe(inPlace);
-      expect(decInPlace.QR.allClose(reference.QR, 0, 0)).toBe(true);
+      expect(decInPlace.QR.allClose(reference.QR, { atol: 0, rtol: 0 })).toBe(true);
       expect(decInPlace.perm).toEqual(reference.perm);
     });
 
@@ -778,7 +784,7 @@ describe('Matrix', () => {
 
         const thin = Matrix.qrPivotQ(dec).transpose().mulVec(b);
         expect(qtb.size).toBe(9);
-        expect(qtb.slice(0, 4).allClose(thin, 1e-12, 1e-12)).toBe(true);
+        expect(qtb.slice(0, 4).allClose(thin, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
         expect(qtb.norm()).toBeCloseTo(b.norm(), 12);
       });
 
@@ -796,7 +802,7 @@ describe('Matrix', () => {
 
         // Normal equations as the independent reference.
         const xNormal = a.transpose().matmul(a).solve(a.transpose().mulVec(b));
-        expect(x.allClose(xNormal, 1e-10, 1e-10)).toBe(true);
+        expect(x.allClose(xNormal, { atol: 1e-10, rtol: 1e-10 })).toBe(true);
         expect(qtb.slice(3).norm()).toBeCloseTo(a.mulVec(x).sub(b).norm(), 10);
       });
 
@@ -809,11 +815,11 @@ describe('Matrix', () => {
 
         const out = new Vector(5);
         expect(Matrix.qrPivotMulQt(dec, b, out)).toBe(out);
-        expect(out.allClose(expected, 0, 0)).toBe(true);
+        expect(out.allClose(expected, { atol: 0, rtol: 0 })).toBe(true);
 
         const inPlace = b.copy();
         expect(Matrix.qrPivotMulQt(dec, inPlace, inPlace)).toBe(inPlace);
-        expect(inPlace.allClose(expected, 0, 0)).toBe(true);
+        expect(inPlace.allClose(expected, { atol: 0, rtol: 0 })).toBe(true);
       });
 
       it('throws a RangeError for mismatched sizes', () => {
@@ -839,8 +845,8 @@ describe('Matrix', () => {
 
       const { Q, R } = Matrix.qrUpdate(a.qr(), u, v);
 
-      expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
-      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+      expect(Q.matmul(R).allClose(expected, { rtol: 1e-9 })).toBe(true);
+      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), { rtol: 1e-9 })).toBe(true);
       expect(R.isUpperTriangular(1e-9)).toBe(true);
     });
 
@@ -860,8 +866,8 @@ describe('Matrix', () => {
       expect(Q.cols).toBe(3);
       expect(R.rows).toBe(3);
       expect(R.cols).toBe(2);
-      expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
-      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+      expect(Q.matmul(R).allClose(expected, { rtol: 1e-9 })).toBe(true);
+      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(3), { rtol: 1e-9 })).toBe(true);
       expect(R.isUpperTriangular(1e-9)).toBe(true);
     });
 
@@ -880,8 +886,8 @@ describe('Matrix', () => {
       expect(Q.cols).toBe(2);
       expect(R.rows).toBe(2);
       expect(R.cols).toBe(3);
-      expect(Q.matmul(R).allClose(expected, 1e-9)).toBe(true);
-      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), 1e-9)).toBe(true);
+      expect(Q.matmul(R).allClose(expected, { rtol: 1e-9 })).toBe(true);
+      expect(Q.transpose().matmul(Q).allClose(Matrix.identity(2), { rtol: 1e-9 })).toBe(true);
       expect(R.isUpperTriangular(1e-9)).toBe(true);
     });
 
@@ -900,7 +906,7 @@ describe('Matrix', () => {
       expect(result).toBe(qr);
       expect(result.Q).toBe(origQ);
       expect(result.R).toBe(origR);
-      expect(result.Q.matmul(result.R).allClose(a.add(u.outer(v)), 1e-9)).toBe(true);
+      expect(result.Q.matmul(result.R).allClose(a.add(u.outer(v)), { rtol: 1e-9 })).toBe(true);
     });
 
     it('qrUpdate leaves the original factorization untouched (unlike qrUpdateSelf)', () => {
@@ -919,7 +925,7 @@ describe('Matrix', () => {
       expect(qr.Q.allClose(qBefore)).toBe(true);
       expect(qr.R.allClose(rBefore)).toBe(true);
       expect(updated).not.toBe(qr);
-      expect(updated.Q.matmul(updated.R).allClose(a.add(u.outer(v)), 1e-9)).toBe(true);
+      expect(updated.Q.matmul(updated.R).allClose(a.add(u.outer(v)), { rtol: 1e-9 })).toBe(true);
     });
 
     it('applies a rank-2 change as two sequential rank-1 updates', () => {
@@ -941,8 +947,8 @@ describe('Matrix', () => {
       Matrix.qrUpdateSelf(qr, u1, v1);
       Matrix.qrUpdateSelf(qr, u2, v2);
 
-      expect(qr.Q.matmul(qr.R).allClose(expected, 1e-9)).toBe(true);
-      expect(qr.Q.transpose().matmul(qr.Q).allClose(Matrix.identity(3), 1e-9)).toBe(true);
+      expect(qr.Q.matmul(qr.R).allClose(expected, { rtol: 1e-9 })).toBe(true);
+      expect(qr.Q.transpose().matmul(qr.Q).allClose(Matrix.identity(3), { rtol: 1e-9 })).toBe(true);
       expect(qr.R.isUpperTriangular(1e-9)).toBe(true);
     });
 
@@ -957,8 +963,8 @@ describe('Matrix', () => {
 
       Matrix.qrUpdateSelf(qr, new Vector([0, 0]), new Vector([5, -3]));
 
-      expect(qr.Q.allClose(qBefore, 1e-9)).toBe(true);
-      expect(qr.R.allClose(rBefore, 1e-9)).toBe(true);
+      expect(qr.Q.allClose(qBefore, { rtol: 1e-9 })).toBe(true);
+      expect(qr.R.allClose(rBefore, { rtol: 1e-9 })).toBe(true);
     });
 
     it('throws if Q is not square', () => {
@@ -1549,8 +1555,8 @@ describe('Matrix', () => {
   it('isClose: rtol scales the argument, not `this` (asymmetric)', () => {
     const smaller: Matrix = new Matrix(1, 1, [0.5]);
     const larger: Matrix = new Matrix(1, 1, [1]);
-    expect(smaller.isClose(larger, 0.5, 0)).toEqual([true]);
-    expect(larger.isClose(smaller, 0.5, 0)).toEqual([false]);
+    expect(smaller.isClose(larger, { atol: 0, rtol: 0.5 })).toEqual([true]);
+    expect(larger.isClose(smaller, { atol: 0, rtol: 0.5 })).toEqual([false]);
   });
 
   it('throws on shape mismatch in isClose/allClose, rather than returning false', () => {

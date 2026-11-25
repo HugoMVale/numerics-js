@@ -152,7 +152,9 @@ describe('quasiNewton method options', () => {
       expect(res.L).not.toBeNull();
       expect(res.L!.isLowerTriangular()).toBe(true);
       expect(res.Hinv).toBeNull();
-      expect(res.Hx!.allClose(res.L!.matmul(res.L!.transpose()), 1e-12, 1e-12)).toBe(true);
+      expect(
+        res.Hx!.allClose(res.L!.matmul(res.L!.transpose()), { atol: 1e-12, rtol: 1e-12 })
+      ).toBe(true);
       expect(res.Hx!.isSymmetric(1e-9)).toBe(true);
     });
 
@@ -182,7 +184,7 @@ describe('quasiNewton method options', () => {
 
     it('no update: Hx is the last evaluated Hessian', () => {
       const res = quasiNewton(q.f, q.x0, { grad: q.grad, hess: q.hess });
-      expect(res.Hx!.allClose(A, 1e-12, 1e-12)).toBe(true);
+      expect(res.Hx!.allClose(A, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
       expect(res.L).toBeNull();
       expect(res.Hinv).toBeNull();
     });
@@ -442,7 +444,7 @@ describe('quasiNewton initial Hessian', () => {
     const H0 = Matrix.identity(3);
     const res = quasiNewton(q.f, q.x0, { grad: q.grad, hess: q.hess, H0, bfgsUpdate: true });
     expect(res.evaluationsHessian).toBe(0);
-    expect(H0.allClose(Matrix.identity(3), 0, 0)).toBe(true);
+    expect(H0.allClose(Matrix.identity(3), { atol: 0, rtol: 0 })).toBe(true);
   });
 
   it('H0 replaces the Hessian evaluation at x0 if the Hessian is re-evaluated', () => {
@@ -702,6 +704,6 @@ describe('quasiNewton user-supplied derivative shapes', () => {
       globalMethod: 'line-search',
       maxIter: 5
     });
-    expect(H.allClose(copy, 0, 0)).toBe(true);
+    expect(H.allClose(copy, { atol: 0, rtol: 0 })).toBe(true);
   });
 });

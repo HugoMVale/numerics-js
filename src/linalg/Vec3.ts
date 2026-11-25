@@ -369,8 +369,8 @@ export class Vec3 {
    * component of `v` is close to nothing but itself, and NaN is never close
    * to anything.
    * @param v The other vector.
-   * @param rtol Relative tolerance, applied to `v`'s components.
-   * @param atol Absolute tolerance.
+   * @param options Tolerances: `atol` (absolute, default `1e-8`) and `rtol` (relative, applied
+   * to `v`'s components, default `1e-5`). Not validated, like the other `Vec3` arguments.
    * @returns `true` if all components of `this` are close to `v`'s.
    *
    * @example
@@ -388,7 +388,9 @@ export class Vec3 {
    * false
    * ```
    */
-  allClose(v: Vec3, rtol: number = 1e-5, atol: number = 1e-8): boolean {
+  allClose(v: Vec3, options?: { atol?: number; rtol?: number }): boolean {
+    const atol = options?.atol ?? 1e-8;
+    const rtol = options?.rtol ?? 1e-5;
     return (
       isCloseScalar(this.x, v.x, rtol, atol) &&
       isCloseScalar(this.y, v.y, rtol, atol) &&

@@ -97,7 +97,7 @@ describe('Vec3', () => {
     const v: Vec3 = new Vec3(1, 2, 3);
     expect(v.allClose(new Vec3(1.00001, 2, 3))).toBe(true);
     expect(v.allClose(new Vec3(1.1, 2, 3))).toBe(false);
-    expect(v.allClose(new Vec3(1.1, 2, 3), 0.1, 0)).toBe(true);
+    expect(v.allClose(new Vec3(1.1, 2, 3), { atol: 0, rtol: 0.1 })).toBe(true);
     expect(v.toString()).toBe('Vec3(1, 2, 3)');
     expect([...v]).toEqual([1, 2, 3]);
   });

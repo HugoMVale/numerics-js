@@ -29,7 +29,7 @@ describe.each(Object.entries(LEAST_SQUARES_PROBLEMS))(
       expect(res.success, res.message).toBe(true);
       expectMinimum(2 * res.cost, problem.minSumSquares);
       if (problem.xs) {
-        expect(res.x.allClose(problem.xs, 1e-5, 1e-5), res.x.toString()).toBe(true);
+        expect(res.x.allClose(problem.xs, { atol: 1e-5, rtol: 1e-5 }), res.x.toString()).toBe(true);
       }
       expect(res.evaluationsJacobian).toBe(0);
     });
@@ -43,7 +43,9 @@ describe.each(Object.entries(LEAST_SQUARES_PROBLEMS))(
         expect(res.success, res.message).toBe(true);
         expectMinimum(2 * res.cost, problem.minSumSquares);
         if (problem.xs) {
-          expect(res.x.allClose(problem.xs, 1e-5, 1e-5), res.x.toString()).toBe(true);
+          expect(res.x.allClose(problem.xs, { atol: 1e-5, rtol: 1e-5 }), res.x.toString()).toBe(
+            true
+          );
         }
         expect(res.evaluationsJacobian).toBeGreaterThan(0);
         expect(res.evaluations).toBeLessThan(fd.evaluations);
@@ -56,7 +58,7 @@ describe('levenbergMarquardt — result consistency', () => {
   it('returns the residual, cost and Jacobian that belong to the solution', () => {
     const res = levenbergMarquardt(beale.f, beale.x0);
 
-    expect(res.fx.allClose(beale.f(res.x), 0, 0)).toBe(true);
+    expect(res.fx.allClose(beale.f(res.x), { atol: 0, rtol: 0 })).toBe(true);
     expect(res.cost).toBeCloseTo(0.5 * res.fx.normSq(), 14);
     expect(res.Jx).not.toBeNull();
     expect(res.Jx!.rows).toBe(3);
@@ -93,11 +95,11 @@ describe('levenbergMarquardt — result consistency', () => {
     const exact = levenbergMarquardt(beale.f, beale.x0, { ...options, jacFinal: true });
 
     // Same iterations; only the last Jacobian differs.
-    expect(exact.x.allClose(stale.x, 0, 0)).toBe(true);
+    expect(exact.x.allClose(stale.x, { atol: 0, rtol: 0 })).toBe(true);
     expect(exact.iterations).toBe(stale.iterations);
-    expect(exact.Jx!.allClose(beale.jac!(exact.x), 0, 0)).toBe(true);
+    expect(exact.Jx!.allClose(beale.jac!(exact.x), { atol: 0, rtol: 0 })).toBe(true);
     // The last iteration ended with an accepted step, so `jacFinal` costs one Jacobian evaluation.
-    expect(stale.Jx!.allClose(beale.jac!(stale.x), 0, 0)).toBe(false);
+    expect(stale.Jx!.allClose(beale.jac!(stale.x), { atol: 0, rtol: 0 })).toBe(false);
     expect(exact.evaluationsJacobian).toBe(stale.evaluationsJacobian + 1);
     expect(exact.evaluations).toBe(stale.evaluations);
   });
@@ -114,7 +116,7 @@ describe('levenbergMarquardt — result consistency', () => {
     const exact = levenbergMarquardt(f, beale.x0, { jacFinal: true });
     expect(exact.evaluations).toBe(calls);
     expect(exact.evaluations).toBe(stale.evaluations + beale.x0.size);
-    expect(exact.Jx!.allClose(beale.jac!(exact.x), 1e-5, 1e-5)).toBe(true);
+    expect(exact.Jx!.allClose(beale.jac!(exact.x), { atol: 1e-5, rtol: 1e-5 })).toBe(true);
   });
 
   it('does not re-evaluate the Jacobian with `jacFinal` if it was evaluated at the solution already', () => {
@@ -139,7 +141,7 @@ describe('levenbergMarquardt — result consistency', () => {
     const before = x0.copy();
     const res = levenbergMarquardt(rosenbrock.f, x0);
 
-    expect(x0.allClose(before, 0, 0)).toBe(true);
+    expect(x0.allClose(before, { atol: 0, rtol: 0 })).toBe(true);
     expect(res.success, res.message).toBe(true);
   });
 
@@ -202,7 +204,7 @@ describe('levenbergMarquardt — options', () => {
     });
     expect(res.success, res.message).toBe(true);
     expect(res.method).toContain('Fixed');
-    expect(res.x.allClose(brownBadlyScaled.xs!, 1e-6, 1e-12)).toBe(true);
+    expect(res.x.allClose(brownBadlyScaled.xs!, { atol: 1e-12, rtol: 1e-6 })).toBe(true);
     expect(levenbergMarquardt(brownBadlyScaled.f, brownBadlyScaled.x0).method).toContain(
       'Adaptive'
     );
@@ -216,7 +218,7 @@ describe('levenbergMarquardt — options', () => {
   it('a smaller initial trust region still converges', () => {
     const res = levenbergMarquardt(rosenbrock.f, rosenbrock.x0, { trustLenFactor: 0.1 });
     expect(res.success, res.message).toBe(true);
-    expect(res.x.allClose(rosenbrock.xs!, 1e-6, 1e-6)).toBe(true);
+    expect(res.x.allClose(rosenbrock.xs!, { atol: 1e-6, rtol: 1e-6 })).toBe(true);
   });
 
   it('a looser tolf/tolx terminates earlier', () => {

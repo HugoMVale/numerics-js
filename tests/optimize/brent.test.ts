@@ -198,7 +198,7 @@ describe('brent (test problems ported from polykin test_brent.py)', () => {
     it(`finds the minimum for "${name}"`, () => {
       const result = brent(f, xa, xb, { tolx });
       expect(
-        isClose(result.x, xmin, 2 * tolx),
+        isClose(result.x, xmin, { atol: 2 * tolx }),
         `Incorrect minimum for ${name}: x=${result.x}, expected ${xmin}`
       ).toBe(true);
     });

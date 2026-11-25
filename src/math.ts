@@ -63,15 +63,15 @@ export function copysign(magnitude: number, sign: number): number {
  *
  * @param a First value.
  * @param b Second value (reference value for the relative tolerance term).
- * @param atol Absolute tolerance.
- * @param rtol Relative tolerance.
+ * @param options Tolerances: `atol` (absolute, default `1e-8`) and `rtol` (relative, applied to
+ * `|b|`, default `1e-5`). Not validated.
  * @returns True if a and b are within tolerance of each other.
  *
  * @example
  * ```ts
  * import { isClose } from 'numerics-js/math';
  *
- * const result = isClose(Math.PI, 3.14159, 1e-5);
+ * const result = isClose(Math.PI, 3.14159, { atol: 1e-5 });
  * console.log(result);
  * ```
  *
@@ -80,7 +80,9 @@ export function copysign(magnitude: number, sign: number): number {
  * true
  * ```
  */
-export function isClose(a: number, b: number, atol: number, rtol: number = 1e-5): boolean {
+export function isClose(a: number, b: number, options?: { atol?: number; rtol?: number }): boolean {
+  const atol = options?.atol ?? 1e-8;
+  const rtol = options?.rtol ?? 1e-5;
   return Math.abs(a - b) <= atol + rtol * Math.abs(b);
 }
 

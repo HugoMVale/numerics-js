@@ -34,15 +34,15 @@ describe('curveFit — linear model against the closed-form solution', () => {
     const res = curveFit(line, x, y, Vector.from([0, 0]));
 
     expect(res.success, res.message).toBe(true);
-    expect(res.p.allClose(ref.p, 1e-7, 1e-9)).toBe(true);
+    expect(res.p.allClose(ref.p, { atol: 1e-9, rtol: 1e-7 })).toBe(true);
     const s2 = ref.rss / (m - 2);
-    expect(res.cov.allClose(ref.Ainv.mult(s2), 1e-5, 1e-12)).toBe(true);
-    expect(res.stderr.allClose(res.cov.diag().sqrt(), 0, 0)).toBe(true);
+    expect(res.cov.allClose(ref.Ainv.mult(s2), { atol: 1e-12, rtol: 1e-5 })).toBe(true);
+    expect(res.stderr.allClose(res.cov.diag().sqrt(), { atol: 0, rtol: 0 })).toBe(true);
     expect(res.rss).toBeCloseTo(ref.rss, 10);
     expect(res.dof).toBe(m - 2);
     // residuals = y - f(x, p)
     const expected = y.sub(line(x, res.p));
-    expect(res.residuals.allClose(expected, 1e-9, 1e-12)).toBe(true);
+    expect(res.residuals.allClose(expected, { atol: 1e-12, rtol: 1e-9 })).toBe(true);
     expect(res.residuals.normSq()).toBeCloseTo(res.rss, 10);
     expect(res.cov.isSymmetric(1e-12 * res.cov.normInf())).toBe(true);
   });
@@ -53,9 +53,11 @@ describe('curveFit — linear model against the closed-form solution', () => {
     const res = curveFit(line, x, y, Vector.from([0, 0]), { sigma });
 
     expect(res.success, res.message).toBe(true);
-    expect(res.p.allClose(ref.p, 1e-7, 1e-9)).toBe(true);
+    expect(res.p.allClose(ref.p, { atol: 1e-9, rtol: 1e-7 })).toBe(true);
     expect(res.rss).toBeCloseTo(ref.rss, 10);
-    expect(res.cov.allClose(ref.Ainv.mult(ref.rss / (m - 2)), 1e-5, 1e-12)).toBe(true);
+    expect(res.cov.allClose(ref.Ainv.mult(ref.rss / (m - 2)), { atol: 1e-12, rtol: 1e-5 })).toBe(
+      true
+    );
     // residuals stay unweighted
     expect(res.residuals.div(sigma).normSq()).toBeCloseTo(res.rss, 10);
   });
@@ -66,15 +68,17 @@ describe('curveFit — linear model against the closed-form solution', () => {
 
     const rel1 = curveFit(line, x, y, Vector.from([0, 0]), { sigma });
     const rel2 = curveFit(line, x, y, Vector.from([0, 0]), { sigma: scaled });
-    expect(rel2.cov.allClose(rel1.cov, 1e-6, 1e-14)).toBe(true);
+    expect(rel2.cov.allClose(rel1.cov, { atol: 1e-14, rtol: 1e-6 })).toBe(true);
 
     const abs1 = curveFit(line, x, y, Vector.from([0, 0]), { sigma, absoluteSigma: true });
     const abs2 = curveFit(line, x, y, Vector.from([0, 0]), {
       sigma: scaled,
       absoluteSigma: true
     });
-    expect(abs2.cov.allClose(abs1.cov.mult(100), 1e-6, 1e-14)).toBe(true);
-    expect(abs1.cov.allClose(linearReference(x, y, sigma).Ainv, 1e-5, 1e-12)).toBe(true);
+    expect(abs2.cov.allClose(abs1.cov.mult(100), { atol: 1e-14, rtol: 1e-6 })).toBe(true);
+    expect(abs1.cov.allClose(linearReference(x, y, sigma).Ainv, { atol: 1e-12, rtol: 1e-5 })).toBe(
+      true
+    );
   });
 
   it('does not modify its input Vectors', () => {
@@ -103,7 +107,7 @@ describe('curveFit — nonlinear models', () => {
     );
 
     expect(res.success, res.message).toBe(true);
-    expect(res.p.allClose(Vector.from([2.5, 1.3]), 1e-6, 1e-8)).toBe(true);
+    expect(res.p.allClose(Vector.from([2.5, 1.3]), { atol: 1e-8, rtol: 1e-6 })).toBe(true);
     expect(res.rss).toBeLessThan(1e-15);
     expect(res.stderr.max()).toBeLessThan(1e-6);
   });
@@ -131,9 +135,9 @@ describe('curveFit — nonlinear models', () => {
 
     expect(fd.success, fd.message).toBe(true);
     expect(an.success, an.message).toBe(true);
-    expect(an.p.allClose(fd.p, 1e-6, 1e-8)).toBe(true);
+    expect(an.p.allClose(fd.p, { atol: 1e-8, rtol: 1e-6 })).toBe(true);
     // Entries that vanish by symmetry (~1e-12 vs ~1e-16) need a tolerance relative to the largest entry.
-    expect(an.cov.allClose(fd.cov, 1e-5, 1e-6 * an.cov.normInf())).toBe(true);
+    expect(an.cov.allClose(fd.cov, { atol: 1e-6 * an.cov.normInf(), rtol: 1e-5 })).toBe(true);
     expect(Math.abs(an.p.get(0) - 4)).toBeLessThan(0.1);
     expect(Math.abs(an.p.get(1) - 1)).toBeLessThan(0.05);
     expect(an.evaluations).toBeLessThan(fd.evaluations);
@@ -156,17 +160,23 @@ describe('curveFit — nonlinear models', () => {
     });
     expect(exact.success, exact.message).toBe(true);
     expect(stale.success, stale.message).toBe(true);
-    expect(stale.p.allClose(exact.p, 0, 0)).toBe(true);
-    expect(exact.cov.allClose(reference.cov, 1e-8, 1e-8 * exact.cov.normInf())).toBe(true);
+    expect(stale.p.allClose(exact.p, { atol: 0, rtol: 0 })).toBe(true);
+    expect(
+      exact.cov.allClose(reference.cov, { atol: 1e-8 * exact.cov.normInf(), rtol: 1e-8 })
+    ).toBe(true);
     // The last Jacobian is one step behind: slightly different covariance, one evaluation less.
-    expect(stale.cov.allClose(exact.cov, 1e-3, 1e-3 * exact.cov.normInf())).toBe(true);
+    expect(stale.cov.allClose(exact.cov, { atol: 1e-3 * exact.cov.normInf(), rtol: 1e-3 })).toBe(
+      true
+    );
     expect(stale.evaluationsJacobian).toBe(exact.evaluationsJacobian - 1);
 
     // Same with finite differences, where the saving is `n` evaluations of the residuals.
     const fdStale = curveFit(gauss, x, y, p0);
     const fdExact = curveFit(gauss, x, y, p0, { jacFinal: true });
     expect(fdStale.evaluations).toBe(fdExact.evaluations - p0.size);
-    expect(fdStale.cov.allClose(fdExact.cov, 1e-3, 1e-3 * fdExact.cov.normInf())).toBe(true);
+    expect(
+      fdStale.cov.allClose(fdExact.cov, { atol: 1e-3 * fdExact.cov.normInf(), rtol: 1e-3 })
+    ).toBe(true);
   });
 
   it('fits a logistic curve with fixed parameter scaling', () => {
@@ -181,7 +191,7 @@ describe('curveFit — nonlinear models', () => {
     );
     expect(res.success, res.message).toBe(true);
     expect(res.method).toContain('Fixed');
-    expect(res.p.allClose(Vector.from([1000, 0.6, 9]), 0.05, 0.1)).toBe(true);
+    expect(res.p.allClose(Vector.from([1000, 0.6, 9]), { atol: 0.1, rtol: 0.05 })).toBe(true);
   });
 
   it('counts evaluations of the whole residual vector, including those of the finite-difference Jacobian', () => {
@@ -242,7 +252,7 @@ describe('curveFit — covariance edge cases', () => {
     const y2 = Vector.from([1, 3]);
     const rel = curveFit(line, x2, y2, Vector.from([0, 0]));
     expect(rel.dof).toBe(0);
-    expect(rel.p.allClose(Vector.from([1, 2]), 1e-6, 1e-8)).toBe(true);
+    expect(rel.p.allClose(Vector.from([1, 2]), { atol: 1e-8, rtol: 1e-6 })).toBe(true);
     expect(rel.cov.data.every((v) => v === Infinity)).toBe(true);
 
     const abs = curveFit(line, x2, y2, Vector.from([0, 0]), {
@@ -257,8 +267,7 @@ describe('curveFit — covariance edge cases', () => {
           [1, -1],
           [-1, 2]
         ]).mult(0.01),
-        1e-5,
-        1e-12
+        { atol: 1e-12, rtol: 1e-5 }
       )
     ).toBe(true);
   });
@@ -284,8 +293,8 @@ describe('curveFit — jac option', () => {
     const fd = curveFit(line, x, y, Vector.from([0, 0]));
     const analytic = curveFit(line, x, y, Vector.from([0, 0]), { jac: lineJac });
     expect(analytic.success, analytic.message).toBe(true);
-    expect(analytic.p.allClose(fd.p, 1e-7, 1e-9)).toBe(true);
-    expect(analytic.cov.allClose(fd.cov, 1e-7, 1e-9)).toBe(true);
+    expect(analytic.p.allClose(fd.p, { atol: 1e-9, rtol: 1e-7 })).toBe(true);
+    expect(analytic.cov.allClose(fd.cov, { atol: 1e-9, rtol: 1e-7 })).toBe(true);
   });
 
   it('applies sigma to the Jacobian rows', () => {
@@ -293,8 +302,8 @@ describe('curveFit — jac option', () => {
     const fd = curveFit(line, x, y, Vector.from([0, 0]), { sigma });
     const analytic = curveFit(line, x, y, Vector.from([0, 0]), { sigma, jac: lineJac });
     expect(analytic.success, analytic.message).toBe(true);
-    expect(analytic.p.allClose(fd.p, 1e-7, 1e-9)).toBe(true);
-    expect(analytic.cov.allClose(fd.cov, 1e-6, 1e-9)).toBe(true);
+    expect(analytic.p.allClose(fd.p, { atol: 1e-9, rtol: 1e-7 })).toBe(true);
+    expect(analytic.cov.allClose(fd.cov, { atol: 1e-9, rtol: 1e-6 })).toBe(true);
   });
 
   it('fails if the Jacobian is inconsistent with the model, unless jacCheck is disabled', () => {

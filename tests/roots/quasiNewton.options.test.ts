@@ -43,7 +43,7 @@ describe('quasiNewton option ranges', () => {
         epsf: 0,
         maxIter: 30
       });
-      expect(res.x.allClose(Vector.from([Math.SQRT2, 1]), 1e-6, 1e-6)).toBe(true);
+      expect(res.x.allClose(Vector.from([Math.SQRT2, 1]), { atol: 1e-6, rtol: 1e-6 })).toBe(true);
     }
   );
 
@@ -60,7 +60,7 @@ describe('quasiNewton option ranges', () => {
         tolx: Number.MIN_VALUE
       });
       expect(res.iterations).toBeLessThanOrEqual(2);
-      expect(res.x.allClose(Vector.from([3, 3]), 0, 0)).toBe(true);
+      expect(res.x.allClose(Vector.from([3, 3]), { atol: 0, rtol: 0 })).toBe(true);
     }
   });
 });

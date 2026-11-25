@@ -76,7 +76,9 @@ describe('Matrix SVD family', () => {
       expect(orthogonalityError(V)).toBeLessThan(50 * n * EPS);
       const Uk = U.slice(0, m, 0, k);
       const Vk = V.slice(0, n, 0, k);
-      expect(Uk.matmul(Matrix.diag(s)).matmul(Vk.transpose()).allClose(A, 1e-13, 1e-13)).toBe(true);
+      expect(
+        Uk.matmul(Matrix.diag(s)).matmul(Vk.transpose()).allClose(A, { atol: 1e-13, rtol: 1e-13 })
+      ).toBe(true);
     });
 
     it('thin and full decompositions share the same singular values and leading vectors', () => {
@@ -84,7 +86,7 @@ describe('Matrix SVD family', () => {
       const thin = A.svd();
       const full = A.svd({ full: true });
       expect(thin.s.data).toEqual(full.s.data);
-      expect(thin.U.allClose(full.U.slice(0, 7, 0, 4), 1e-12, 1e-12)).toBe(true);
+      expect(thin.U.allClose(full.U.slice(0, 7, 0, 4), { atol: 1e-12, rtol: 1e-12 })).toBe(true);
     });
 
     it('matches closed-form singular values', () => {
@@ -145,7 +147,9 @@ describe('Matrix SVD family', () => {
         const { U, s, V } = A.svd();
         for (let i = 0; i < r; i++) expect(s.get(i)).toBeGreaterThan(1e-3);
         for (let i = r; i < s.size; i++) expect(s.get(i)).toBeLessThan(1e-13);
-        expect(U.matmul(Matrix.diag(s)).matmul(V.transpose()).allClose(A, 1e-12, 1e-12)).toBe(true);
+        expect(
+          U.matmul(Matrix.diag(s)).matmul(V.transpose()).allClose(A, { atol: 1e-12, rtol: 1e-12 })
+        ).toBe(true);
         expect(orthogonalityError(U)).toBeLessThan(1e-13);
         expect(orthogonalityError(V)).toBeLessThan(1e-13);
       }
@@ -360,7 +364,9 @@ describe('Matrix SVD family', () => {
 
     it('does not depend on the orientation of the matrix', () => {
       const A = randomMatrix(8, 3, 31);
-      expect(A.transpose().singularValues().allClose(A.singularValues(), 1e-14, 1e-14)).toBe(true);
+      expect(
+        A.transpose().singularValues().allClose(A.singularValues(), { atol: 1e-14, rtol: 1e-14 })
+      ).toBe(true);
     });
   });
 
@@ -390,7 +396,7 @@ describe('Matrix SVD family', () => {
       ]);
       const b = new Vector([1, 2, 3]);
       const { x, residualNorm } = A.lstsq(b);
-      expect(x.allClose(A.solve(b), 1e-13, 1e-13)).toBe(true);
+      expect(x.allClose(A.solve(b), { atol: 1e-13, rtol: 1e-13 })).toBe(true);
       expect(residualNorm).toBeLessThan(1e-14);
     });
 
@@ -420,7 +426,9 @@ describe('Matrix SVD family', () => {
       // x = A^T (A A^T)^{-1} b = A^T [2/3, 2/3] = [2/3, 4/3, 2/3].
       expect(rank).toBe(2);
       expect(residualNorm).toBeLessThan(1e-14);
-      expect(x.allClose(new Vector([2 / 3, 4 / 3, 2 / 3]), 1e-14, 1e-14)).toBe(true);
+      expect(x.allClose(new Vector([2 / 3, 4 / 3, 2 / 3]), { atol: 1e-14, rtol: 1e-14 })).toBe(
+        true
+      );
     });
 
     it.each([
@@ -528,16 +536,20 @@ describe('Matrix SVD family', () => {
 
     it('equals the inverse of a nonsingular square matrix', () => {
       const A = randomMatrix(5, 5, 14);
-      expect(A.pinv().allClose(A.inverse(), 1e-10, 1e-10)).toBe(true);
+      expect(A.pinv().allClose(A.inverse(), { atol: 1e-10, rtol: 1e-10 })).toBe(true);
     });
 
     it('matches known values', () => {
       // pinv of a column vector v is v^T / (v^T v).
       const p = Matrix.from([[1], [2], [2]]).pinv();
-      expect(p.allClose(Matrix.from([[1 / 9, 2 / 9, 2 / 9]]), 1e-15, 1e-15)).toBe(true);
+      expect(p.allClose(Matrix.from([[1 / 9, 2 / 9, 2 / 9]]), { atol: 1e-15, rtol: 1e-15 })).toBe(
+        true
+      );
       // pinv(diag) inverts the nonzero entries and keeps the zeros.
       const d = Matrix.diag(new Vector([2, 0, -4])).pinv();
-      expect(d.allClose(Matrix.diag(new Vector([0.5, 0, -0.25])), 1e-15, 1e-15)).toBe(true);
+      expect(
+        d.allClose(Matrix.diag(new Vector([0.5, 0, -0.25])), { atol: 1e-15, rtol: 1e-15 })
+      ).toBe(true);
     });
 
     it('returns the zero matrix, transposed in shape, for the zero matrix', () => {
@@ -549,7 +561,7 @@ describe('Matrix SVD family', () => {
 
     it('is an involution: pinv(pinv(A)) = A', () => {
       const A = lowRank(6, 4, 2, 17);
-      expect(A.pinv().pinv().allClose(A, 1e-12, 1e-12)).toBe(true);
+      expect(A.pinv().pinv().allClose(A, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
     });
 
     it('applies the cutoff options', () => {

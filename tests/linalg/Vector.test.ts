@@ -149,8 +149,8 @@ describe('Vector', () => {
     const smaller: Vector = new Vector([0.5]);
     const larger: Vector = new Vector([1]);
 
-    expect(smaller.isClose(larger, 0.5, 0)).toEqual([true]);
-    expect(larger.isClose(smaller, 0.5, 0)).toEqual([false]);
+    expect(smaller.isClose(larger, { atol: 0, rtol: 0.5 })).toEqual([true]);
+    expect(larger.isClose(smaller, { atol: 0, rtol: 0.5 })).toEqual([false]);
   });
 
   it('returns a per-component boolean array from isClose', () => {

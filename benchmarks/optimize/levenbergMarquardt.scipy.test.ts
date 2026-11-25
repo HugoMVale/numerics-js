@@ -28,13 +28,13 @@ describe('test problems mirror the SciPy reference functions', () => {
       expect(
         problem
           .f(Vector.from(fixture.x0))
-          .allClose(Vector.from(fixture.fx0), MIRROR_TOLERANCE, MIRROR_TOLERANCE)
+          .allClose(Vector.from(fixture.fx0), { atol: MIRROR_TOLERANCE, rtol: MIRROR_TOLERANCE })
       ).toBe(true);
       for (const point of fixture.mirrorPoints) {
         expect(
           problem
             .f(Vector.from(point.x))
-            .allClose(Vector.from(point.fx), MIRROR_TOLERANCE, MIRROR_TOLERANCE)
+            .allClose(Vector.from(point.fx), { atol: MIRROR_TOLERANCE, rtol: MIRROR_TOLERANCE })
         ).toBe(true);
       }
     });

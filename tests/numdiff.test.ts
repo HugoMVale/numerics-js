@@ -68,7 +68,7 @@ describe('jacobianForward', () => {
     ]);
 
     // Utilizing Matrix.allClose with a relative tolerance (rtol) of 1e-6
-    expect(jacobian.allClose(expectedMatrix, 1e-6)).toBe(true);
+    expect(jacobian.allClose(expectedMatrix, { rtol: 1e-6 })).toBe(true);
   });
 
   it('returns a matrix with as many rows as f has components and as many columns as x', () => {
@@ -82,8 +82,7 @@ describe('jacobianForward', () => {
           [1, 1, 1],
           [3, 0, 1]
         ]),
-        1e-6,
-        1e-6
+        { atol: 1e-6, rtol: 1e-6 }
       )
     ).toBe(true);
   });
@@ -152,9 +151,11 @@ describe('gradientForward', () => {
 
   it('matches the analytical gradient and the original Python values', () => {
     const g = gradientForward(f, x);
-    expect(g.allClose(Vector.from([-32, 48]), 1e-6, 1e-6)).toBe(true);
+    expect(g.allClose(Vector.from([-32, 48]), { atol: 1e-6, rtol: 1e-6 })).toBe(true);
     // Values of the original Python implementation (polykin.math.gradient_forward).
-    expect(g.allClose(Vector.from([-32.00000024, 47.99999928]), 1e-9, 1e-9)).toBe(true);
+    expect(g.allClose(Vector.from([-32.00000024, 47.99999928]), { atol: 1e-9, rtol: 1e-9 })).toBe(
+      true
+    );
   });
 
   it('needs N evaluations if fx is given and N+1 otherwise', () => {
@@ -223,8 +224,7 @@ describe('hessianForward', () => {
           [-16, 48],
           [48, -48]
         ]),
-        1e-3,
-        1e-3
+        { atol: 1e-3, rtol: 1e-3 }
       )
     ).toBe(true);
     // Values of the original Python implementation (polykin.math.hessian_forward).
@@ -234,8 +234,7 @@ describe('hessianForward', () => {
           [-16.00001242, 47.99984347],
           [47.99984347, -47.99972236]
         ]),
-        1e-9,
-        1e-9
+        { atol: 1e-9, rtol: 1e-9 }
       )
     ).toBe(true);
   });
@@ -269,7 +268,7 @@ describe('hessianForward', () => {
     ]);
     const q = (v: Vector) => 0.5 * v.dot(A.mulVec(v));
     const H = hessianForward(q, Vector.from([1.0, 2.0]));
-    expect(H.allClose(A, 1e-4, 1e-4)).toBe(true);
+    expect(H.allClose(A, { atol: 1e-4, rtol: 1e-4 })).toBe(true);
   });
 
   it('throws if sclx is too short, or has a zero or non-finite value', () => {

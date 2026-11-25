@@ -107,7 +107,7 @@ describe('quasiNewton input validation', () => {
     const options: QuasiNewtonOptions = { sclx, H0, grad: t.grad, maxIter: 3 };
     quasiNewton(t.f, t.x0, options);
     expect(sclx).toEqual([1, 2]);
-    expect(H0.allClose(Matrix.identity(2), 0, 0)).toBe(true);
+    expect(H0.allClose(Matrix.identity(2), { atol: 0, rtol: 0 })).toBe(true);
     expect(Object.keys(options).sort()).toEqual(['H0', 'grad', 'maxIter', 'sclx']);
   });
 

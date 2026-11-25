@@ -40,29 +40,26 @@ describe('test functions mirror the SciPy reference functions', () => {
       expect(f, `no matching test function registered for id "${fixture.id}"`).toBeDefined();
 
       expect(
-        f(Vector.from(fixture.x0)).allClose(
-          Vector.from(fixture.fx0),
-          MIRROR_TOLERANCE,
-          MIRROR_TOLERANCE
-        )
+        f(Vector.from(fixture.x0)).allClose(Vector.from(fixture.fx0), {
+          atol: MIRROR_TOLERANCE,
+          rtol: MIRROR_TOLERANCE
+        })
       ).toBe(true);
       expect(
-        f(Vector.from(fixture.scipyX)).allClose(
-          Vector.from(fixture.scipyFx),
-          MIRROR_TOLERANCE,
-          MIRROR_TOLERANCE
-        )
+        f(Vector.from(fixture.scipyX)).allClose(Vector.from(fixture.scipyFx), {
+          atol: MIRROR_TOLERANCE,
+          rtol: MIRROR_TOLERANCE
+        })
       ).toBe(true);
 
       // x0 and the solution can be special points (e.g. a term vanishes there), so also
       // compare at generic points.
       for (const point of fixture.mirrorPoints) {
         expect(
-          f(Vector.from(point.x)).allClose(
-            Vector.from(point.fx),
-            MIRROR_TOLERANCE,
-            MIRROR_TOLERANCE
-          )
+          f(Vector.from(point.x)).allClose(Vector.from(point.fx), {
+            atol: MIRROR_TOLERANCE,
+            rtol: MIRROR_TOLERANCE
+          })
         ).toBe(true);
       }
     });

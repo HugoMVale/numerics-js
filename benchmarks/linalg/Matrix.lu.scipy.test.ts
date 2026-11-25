@@ -16,8 +16,12 @@ describe('Matrix.lu() vs scipy.linalg.lu reference values', () => {
         const residual = permuted.sub(result.L.matmul(result.U)).norm() / matrix.norm();
         expect(residual).toBeLessThanOrEqual(Math.max(1e-10, fixture.scipyResidual * 10));
       } else {
-        expect(result.L.allClose(Matrix.from(fixture.scipyL), 1e-12, 1e-12)).toBe(true);
-        expect(result.U.allClose(Matrix.from(fixture.scipyU), 1e-12, 1e-12)).toBe(true);
+        expect(result.L.allClose(Matrix.from(fixture.scipyL), { atol: 1e-12, rtol: 1e-12 })).toBe(
+          true
+        );
+        expect(result.U.allClose(Matrix.from(fixture.scipyU), { atol: 1e-12, rtol: 1e-12 })).toBe(
+          true
+        );
       }
     });
   }

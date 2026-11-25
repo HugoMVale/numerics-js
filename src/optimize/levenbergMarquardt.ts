@@ -384,7 +384,7 @@ export function levenbergMarquardt(
     const Jfd = jacobianForward(countedF, x, { fx: fvec, sclx, epsf: options.epsf });
     const epsfEff = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
     const tol = 1e2 * Math.sqrt(epsfEff);
-    if (!J.allClose(Jfd, tol, tol)) {
+    if (!J.allClose(Jfd, { atol: tol, rtol: tol })) {
       return failure(
         'User-provided Jacobian `jac` does not match finite-difference approximation.'
       );

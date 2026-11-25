@@ -141,7 +141,7 @@ describe('quasiNewton', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.x.allClose(Vector.from([1, 0]), 1e-6, 1e-6)).toBe(true);
+    expect(result.x.allClose(Vector.from([1, 0]), { atol: 1e-6, rtol: 1e-6 })).toBe(true);
   });
 
   it.each([
@@ -247,7 +247,7 @@ describe('quasiNewton', () => {
             true
           );
           if (testFunction !== fPowellSingular) {
-            expect(result.x.allClose(testFunction.xs, 1e-7, 1e-7)).toBe(true);
+            expect(result.x.allClose(testFunction.xs, { atol: 1e-7, rtol: 1e-7 })).toBe(true);
           }
         }
       }
@@ -263,7 +263,7 @@ describe('quasiNewton', () => {
 
       expect(result.success, testFunction.f.name).toBe(true);
       if (testFunction !== fPowellSingular) {
-        expect(result.x.allClose(testFunction.xs, 1e-7, 1e-7)).toBe(true);
+        expect(result.x.allClose(testFunction.xs, { atol: 1e-7, rtol: 1e-7 })).toBe(true);
       }
     }
   });
@@ -378,7 +378,7 @@ describe('quasiNewton', () => {
 
         expect(vi.mocked(lineSearch).mock.calls.length).toBeGreaterThan(2);
         expect(result.success).toBe(true);
-        expect(result.x.allClose(fExample65.xs, 1e-6, 1e-6)).toBe(true);
+        expect(result.x.allClose(fExample65.xs, { atol: 1e-6, rtol: 1e-6 })).toBe(true);
         // Broyden: one Jacobian at x0 plus one for the restart, and no others.
         expect(result.evaluationsJacobian).toBe(useJac ? 2 : 0);
         expect(jacCalls).toBe(useJac ? 2 : 0);
@@ -466,7 +466,7 @@ describe('quasiNewton', () => {
 
       expect(result.iterations).toBe(3);
       expect(result.message).toBe('Maximum number of iterations (3) reached.');
-      expect(result.Jx!.allClose(A, 1e-10, 1e-10)).toBe(true);
+      expect(result.Jx!.allClose(A, { atol: 1e-10, rtol: 1e-10 })).toBe(true);
     });
   });
 
@@ -513,7 +513,10 @@ describe('quasiNewton', () => {
 
       // A much coarser epsf means a much larger finite-difference step.
       expect(
-        jacobianAfterOneIteration(1e-2).allClose(jacobianAfterOneIteration(), 1e-4, 1e-4)
+        jacobianAfterOneIteration(1e-2).allClose(jacobianAfterOneIteration(), {
+          atol: 1e-4,
+          rtol: 1e-4
+        })
       ).toBe(false);
     });
 
@@ -521,7 +524,7 @@ describe('quasiNewton', () => {
       const result = quasiNewton(fExample65.f, fExample65.x0, { epsf: 1e-8 });
 
       expect(result.success).toBe(true);
-      expect(result.x.allClose(fExample65.xs, 1e-4, 1e-4)).toBe(true);
+      expect(result.x.allClose(fExample65.xs, { atol: 1e-4, rtol: 1e-4 })).toBe(true);
     });
   });
 
@@ -770,7 +773,7 @@ describe('quasiNewton', () => {
 
         expect(nonFiniteSeen).toBe(true);
         expect(result.success).toBe(true);
-        expect(result.x.allClose(Vector.from([1]), 1e-8, 1e-8)).toBe(true);
+        expect(result.x.allClose(Vector.from([1]), { atol: 1e-8, rtol: 1e-8 })).toBe(true);
       }
     );
 

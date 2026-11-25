@@ -84,3 +84,27 @@ export function sqrtOrHypot(sumSq: number, x: number, y: number, z: number): num
   if (sumSq >= NORM_SQ_MIN && sumSq < Infinity) return Math.sqrt(sumSq);
   return sumSq !== sumSq ? sumSq : Math.hypot(x, y, z);
 }
+
+/**
+ * Validates the options of `isClose`/`allClose` when they are given.
+ * @param options The options argument.
+ * @param who Full name of the public method (`Vector.isClose`), for the error message.
+ * @throws {TypeError} If `options` is not an object (for example a number: the old positional
+ * `(rtol, atol)` form), or `atol`/`rtol` is not a number.
+ * @throws {RangeError} If `atol` or `rtol` is negative or `NaN`.
+ * @internal
+ */
+export function checkCloseOptions(options: unknown, who: string): void {
+  if (options === undefined) return;
+  if (options === null || typeof options !== 'object') {
+    const got = options === null ? 'null' : typeof options;
+    throw new TypeError(`${who}: options must be an object like { atol, rtol }, got ${got}.`);
+  }
+  for (const name of ['atol', 'rtol'] as const) {
+    const v = (options as Record<string, unknown>)[name];
+    if (v === undefined) continue;
+    if (typeof v !== 'number')
+      throw new TypeError(`${who}: ${name} must be a number, got ${typeof v}.`);
+    if (!(v >= 0)) throw new RangeError(`${who}: ${name} must be >= 0, got ${v}.`);
+  }
+}

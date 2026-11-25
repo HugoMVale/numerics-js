@@ -405,7 +405,7 @@ export function quasiNewton(
     const Jfd = jacobianForward(countedF, xc, { fx: fc, sclx: sclx, epsf: options.epsf });
     const epsfEff = options.epsf !== undefined ? Math.max(options.epsf, EPS) : EPS;
     const tol = 1e2 * Math.sqrt(epsfEff);
-    if (!Jjac.allClose(Jfd, tol, tol)) {
+    if (!Jjac.allClose(Jfd, { atol: tol, rtol: tol })) {
       return failure(
         'User-provided Jacobian `jac` does not match finite-difference approximation.',
         0,

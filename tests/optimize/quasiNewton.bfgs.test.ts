@@ -34,7 +34,7 @@ const LLt = (L: Matrix) => L.matmul(L.transpose());
 describe('BFGS updates', () => {
   it('unfactored: satisfies the secant equation, symmetry and positive definiteness', () => {
     const H = updateBfgsUnfactored(xc, xp, gc, gp, H0.copy(), true);
-    expect(H.mulVec(s).allClose(y, 1e-12, 1e-12)).toBe(true);
+    expect(H.mulVec(s).allClose(y, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
     expect(H.isSymmetric(0)).toBe(true);
     expect(() => H.cholesky()).not.toThrow();
   });
@@ -42,12 +42,12 @@ describe('BFGS updates', () => {
   it('factored: satisfies the secant equation and returns a lower-triangular factor', () => {
     const L = updateBfgsFactored(xc, xp, gc, gp, factorOf(H0), true);
     expect(L.isLowerTriangular()).toBe(true);
-    expect(LLt(L).mulVec(s).allClose(y, 1e-12, 1e-12)).toBe(true);
+    expect(LLt(L).mulVec(s).allClose(y, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
   });
 
   it('inverse: satisfies the inverse secant equation and is symmetric', () => {
     const B = updateBfgsInverse(xc, xp, gc, gp, H0.inverse(), true);
-    expect(B.mulVec(y).allClose(s, 1e-12, 1e-12)).toBe(true);
+    expect(B.mulVec(y).allClose(s, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
     expect(B.isSymmetric(0)).toBe(true);
   });
 
@@ -55,8 +55,8 @@ describe('BFGS updates', () => {
     const H = updateBfgsUnfactored(xc, xp, gc, gp, H0.copy(), true);
     const L = updateBfgsFactored(xc, xp, gc, gp, factorOf(H0), true);
     const B = updateBfgsInverse(xc, xp, gc, gp, H0.inverse(), true);
-    expect(LLt(L).allClose(H, 1e-12, 1e-12)).toBe(true);
-    expect(B.matmul(H).allClose(Matrix.identity(3), 1e-10, 1e-10)).toBe(true);
+    expect(LLt(L).allClose(H, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
+    expect(B.matmul(H).allClose(Matrix.identity(3), { atol: 1e-10, rtol: 1e-10 })).toBe(true);
   });
 
   it('the forms stay equivalent over a sequence of updates', () => {
@@ -73,8 +73,8 @@ describe('BFGS updates', () => {
       x = next;
       g = gn;
     }
-    expect(LLt(L).allClose(H, 1e-10, 1e-10)).toBe(true);
-    expect(B.matmul(H).allClose(Matrix.identity(3), 1e-9, 1e-9)).toBe(true);
+    expect(LLt(L).allClose(H, { atol: 1e-10, rtol: 1e-10 })).toBe(true);
+    expect(B.matmul(H).allClose(Matrix.identity(3), { atol: 1e-9, rtol: 1e-9 })).toBe(true);
   });
 
   it('unfactored and inverse updates act in place; the factored update does not', () => {
@@ -86,14 +86,14 @@ describe('BFGS updates', () => {
     const Lcopy = L.copy();
     const Lp = updateBfgsFactored(xc, xp, gc, gp, L, true);
     expect(Lp).not.toBe(L);
-    expect(L.allClose(Lcopy, 0, 0)).toBe(true);
+    expect(L.allClose(Lcopy, { atol: 0, rtol: 0 })).toBe(true);
   });
 
   describe('skips the update', () => {
     const unchanged = (update: (c: Matrix) => Matrix, base: Matrix) => {
       const copy = base.copy();
       const result = update(base);
-      expect(result.allClose(copy, 0, 0)).toBe(true);
+      expect(result.allClose(copy, { atol: 0, rtol: 0 })).toBe(true);
     };
 
     it('if the curvature condition is not met (yᵀs <= 0)', () => {
@@ -125,8 +125,8 @@ describe('BFGS updates', () => {
     const g = gc.add(yClose);
     const analytic = updateBfgsUnfactored(xc, xp, gc, g, H0.copy(), true);
     const approximate = updateBfgsUnfactored(xc, xp, gc, g, H0.copy(), false);
-    expect(analytic.allClose(H0, 0, 0)).toBe(false);
-    expect(approximate.allClose(H0, 0, 0)).toBe(true);
+    expect(analytic.allClose(H0, { atol: 0, rtol: 0 })).toBe(false);
+    expect(approximate.allClose(H0, { atol: 0, rtol: 0 })).toBe(true);
   });
 });
 
@@ -134,15 +134,15 @@ describe('makeHessianSpd', () => {
   it('leaves a well-conditioned SPD matrix unchanged', () => {
     const { H, L, perturbation } = makeHessianSpd(A);
     expect(perturbation).toBe(0);
-    expect(H.allClose(A, 0, 0)).toBe(true);
-    expect(LLt(L).allClose(A, 1e-14, 1e-14)).toBe(true);
+    expect(H.allClose(A, { atol: 0, rtol: 0 })).toBe(true);
+    expect(LLt(L).allClose(A, { atol: 1e-14, rtol: 1e-14 })).toBe(true);
     expect(L.isLowerTriangular()).toBe(true);
   });
 
   it('does not modify its input and returns an independent matrix', () => {
     const input = A.copy();
     const { H } = makeHessianSpd(input);
-    expect(input.allClose(A, 0, 0)).toBe(true);
+    expect(input.allClose(A, { atol: 0, rtol: 0 })).toBe(true);
     expect(H).not.toBe(input);
   });
 
@@ -181,7 +181,7 @@ describe('makeHessianSpd', () => {
     ]) {
       const { H, L, perturbation } = makeHessianSpd(Matrix.from(m));
       expect(perturbation).toBeGreaterThan(0);
-      expect(LLt(L).allClose(H, 1e-12, 1e-12)).toBe(true);
+      expect(LLt(L).allClose(H, { atol: 1e-12, rtol: 1e-12 })).toBe(true);
       expect(H.allFinite()).toBe(true);
     }
   });
@@ -189,8 +189,8 @@ describe('makeHessianSpd', () => {
   it('turns the zero matrix into the identity', () => {
     const { H, L, perturbation } = makeHessianSpd(new Matrix(3, 3));
     expect(perturbation).toBe(1);
-    expect(H.allClose(Matrix.identity(3), 0, 0)).toBe(true);
-    expect(L.allClose(Matrix.identity(3), 0, 0)).toBe(true);
+    expect(H.allClose(Matrix.identity(3), { atol: 0, rtol: 0 })).toBe(true);
+    expect(L.allClose(Matrix.identity(3), { atol: 0, rtol: 0 })).toBe(true);
   });
 
   it('handles a 1x1 matrix', () => {
