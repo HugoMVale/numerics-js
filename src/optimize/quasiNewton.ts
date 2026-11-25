@@ -1,5 +1,6 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
+import { NotPositiveDefiniteError } from '../linalg/Matrix.linalg.js';
 import { gradientForward, hessianForward, jacobianForward, scaleVector } from '../numdiff.js';
 import { lineSearch } from '../roots/lineSearch.js';
 import { dogleg } from '../roots/dogleg.js';
@@ -985,12 +986,18 @@ function negligible(y: Vector, Hs: Vector, gc: Vector, gp: Vector, tol: number):
  * @param maxIter Maximum number of perturbation attempts, besides the unperturbed one.
  * @returns The perturbed Hessian `H`, its lower-triangular Cholesky factor `L`, and the total
  * perturbation added to the diagonal.
+ * @throws {RangeError} If `Hin` has a non-finite entry.
  * @throws {Error} If the Cholesky factorization still fails after `maxIter` attempts.
  */
 export function makeHessianSpd(
   Hin: Matrix,
   maxIter = 10
 ): { H: Matrix; L: Matrix; perturbation: number } {
+  if (!Hin.allFinite()) {
+    // `cholesky` rejects an infinite entry and passes a NaN on, and neither is cured by a
+    // perturbation.
+    throw new RangeError('makeHessianSpd: the Hessian must contain only finite values.');
+  }
   const n = Hin.rows;
   const H = symmetrize(Hin);
 
@@ -1040,7 +1047,10 @@ export function makeHessianSpd(
     try {
       const L = Hp.cholesky();
       return { H: Hp, L, perturbation: perturb + mu };
-    } catch {
+    } catch (e) {
+      // Only "not positive definite" is cured by a larger perturbation: anything else is a bug
+      // or a bad argument, and is reported as it is.
+      if (!(e instanceof NotPositiveDefiniteError)) throw e;
       perturb = Math.max(perturb0, 10 * perturb);
     }
   }

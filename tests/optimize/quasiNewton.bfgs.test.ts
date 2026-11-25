@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { Vector } from '../../src/linalg/Vector.js';
 import {
@@ -217,6 +217,45 @@ describe('makeHessianSpd', () => {
     expect(() => H.cholesky()).not.toThrow();
   });
 
+  it('reports a non-finite Hessian as such, without retrying', () => {
+    // An infinite entry used to be swallowed as a failed Cholesky factorization, retried 11
+    // times and reported as "Perturbed Cholesky failed".
+    for (const bad of [Infinity, -Infinity, NaN]) {
+      const H = Matrix.from([
+        [2, bad],
+        [bad, 3]
+      ]);
+      expect(() => makeHessianSpd(H)).toThrow(RangeError);
+      expect(() => makeHessianSpd(H)).toThrow(
+        'makeHessianSpd: the Hessian must contain only finite values.'
+      );
+    }
+    const diagonal = Matrix.from([
+      [Infinity, 0],
+      [0, 1]
+    ]);
+    expect(() => makeHessianSpd(diagonal)).toThrow(/only finite values/);
+  });
+
+  it('retries only for a matrix that is not positive definite', () => {
+    // Not positive definite: retried, and finally reported as such.
+    const indefinite = Matrix.from([
+      [1, -3],
+      [-3, -2]
+    ]);
+    expect(() => makeHessianSpd(indefinite)).toThrow(/Perturbed Cholesky failed/);
+    // Any other error from cholesky is rethrown as it is, not retried.
+    const spy = vi.spyOn(Matrix.prototype, 'cholesky').mockImplementation(() => {
+      throw new TypeError('unexpected');
+    });
+    try {
+      expect(() => makeHessianSpd(Matrix.identity(2))).toThrow(new TypeError('unexpected'));
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('does not exceed the allowed number of perturbation attempts', () => {
     const indefinite = Matrix.from([
       [1, -3],
@@ -254,5 +293,42 @@ describe('gradientCondition', () => {
     const x = Vector.from([1, 1]);
     expect(gradientCondition(x, 0, Vector.from([0, NaN]), sclx, 1, 1)).toBe(false);
     expect(gradientCondition(x, NaN, Vector.from([0, 0]), sclx, 1, 1)).toBe(false);
+  });
+});
+
+describe('non-finite Hessians in the solver', () => {
+  it('reports them accurately, not as a failed Cholesky factorization', async () => {
+    const { quasiNewton } = await import('../../src/optimize/quasiNewton.js');
+    const f = (x: Vector) => x.get(0) ** 2 + x.get(1) ** 2;
+    const grad = (x: Vector) => Vector.from([2 * x.get(0), 2 * x.get(1)]);
+    for (const bfgsUpdate of [true, false]) {
+      const res = quasiNewton(f, [1, 1], {
+        grad,
+        hess: () =>
+          Matrix.from([
+            [Infinity, 0],
+            [0, 1]
+          ]),
+        bfgsUpdate
+      });
+      expect(res.success).toBe(false);
+      expect(res.message).toMatch(/non-finite/);
+      expect(res.message).not.toMatch(/Perturbed Cholesky/);
+    }
+  });
+
+  it('cholesky throws an Error whose message says "not positive definite"', () => {
+    expect(() =>
+      Matrix.from([
+        [1, 2],
+        [2, 1]
+      ]).cholesky()
+    ).toThrow(Error);
+    expect(() =>
+      Matrix.from([
+        [1, 2],
+        [2, 1]
+      ]).cholesky()
+    ).toThrow(/not positive definite/);
   });
 });

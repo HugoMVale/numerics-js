@@ -521,6 +521,9 @@ export function trBdf2Adaptive(
     try {
       lu.U.lu(lu);
     } catch {
+      // Deliberately any error: a singular iteration matrix (`Error`) and one with an infinite
+      // entry (`RangeError`) both mean that this step size is unusable, so the step is retried
+      // with a smaller one.
       luValid = false;
       return false;
     }
