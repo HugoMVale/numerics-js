@@ -1,3 +1,4 @@
+import { clip } from '../math/clip.js';
 import { Matrix } from './Matrix.js';
 import { Vector } from './Vector.js';
 import { rankSvd, type SVDCutoffOptions } from './Matrix.svd.js';
@@ -215,7 +216,7 @@ function safeScale(data: Float64Array, extent?: number): number {
  */
 function ldexp(x: number, e: number): number {
   let r = x;
-  let k = Math.max(-3000, Math.min(3000, e));
+  let k = clip(e, -3000, 3000);
   while (k > 1000) {
     r *= 2 ** 1000;
     k -= 1000;

@@ -1,4 +1,6 @@
-import { checkCloseOptions, isCloseScalar, sqrtOrScaled } from './scalar.js';
+import { DEFAULT_ATOL, DEFAULT_RTOL, isCloseScalar, type CloseOptions } from '../math/isClose.js';
+import { clip } from '../math/clip.js';
+import { checkCloseOptions, sqrtOrScaled } from './scalar.js';
 
 /**
  * Abstract base class for N-dimensional arrays backed by a flat
@@ -405,8 +407,7 @@ export abstract class ArrayND {
       throw new RangeError(`${this._className()}.clip: min (${min}) must be <= max (${max}).`);
     }
     const res = this._create(new Float64Array(this.data.length));
-    for (let i = 0; i < this.data.length; i++)
-      res.data[i] = Math.min(Math.max(this.data[i], min), max);
+    for (let i = 0; i < this.data.length; i++) res.data[i] = clip(this.data[i], min, max);
     return res;
   }
 
@@ -750,8 +751,7 @@ export abstract class ArrayND {
     if (!(min <= max)) {
       throw new RangeError(`${this._className()}.clipSelf: min (${min}) must be <= max (${max}).`);
     }
-    for (let i = 0; i < this.data.length; i++)
-      this.data[i] = Math.min(Math.max(this.data[i], min), max);
+    for (let i = 0; i < this.data.length; i++) this.data[i] = clip(this.data[i], min, max);
     return this;
   }
 
@@ -869,14 +869,14 @@ export abstract class ArrayND {
    * [ true, true, true, false ]
    * ```
    */
-  isClose(x: this, options?: { atol?: number; rtol?: number }): boolean[] {
+  isClose(x: this, options?: CloseOptions): boolean[] {
     this._checkSameShape(x, 'isClose');
     checkCloseOptions(options, `${this._className()}.isClose`);
-    const atol = options?.atol ?? 1e-8;
-    const rtol = options?.rtol ?? 1e-5;
+    const atol = options?.atol ?? DEFAULT_ATOL;
+    const rtol = options?.rtol ?? DEFAULT_RTOL;
     const result: boolean[] = new Array(this.data.length);
     for (let i = 0; i < this.data.length; i++) {
-      result[i] = isCloseScalar(this.data[i], x.data[i], rtol, atol);
+      result[i] = isCloseScalar(this.data[i], x.data[i], atol, rtol);
     }
     return result;
   }
@@ -912,13 +912,13 @@ export abstract class ArrayND {
    * false
    * ```
    */
-  allClose(x: this, options?: { atol?: number; rtol?: number }): boolean {
+  allClose(x: this, options?: CloseOptions): boolean {
     this._checkSameShape(x, 'allClose');
     checkCloseOptions(options, `${this._className()}.allClose`);
-    const atol = options?.atol ?? 1e-8;
-    const rtol = options?.rtol ?? 1e-5;
+    const atol = options?.atol ?? DEFAULT_ATOL;
+    const rtol = options?.rtol ?? DEFAULT_RTOL;
     for (let i = 0; i < this.data.length; i++) {
-      if (!isCloseScalar(this.data[i], x.data[i], rtol, atol)) return false;
+      if (!isCloseScalar(this.data[i], x.data[i], atol, rtol)) return false;
     }
     return true;
   }

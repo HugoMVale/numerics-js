@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { Vector } from '../../src/linalg/Vector.js';
-import { rand } from '../../src/math.js';
+import { createRng } from '../../src/math.js';
 
 const EPS = Number.EPSILON;
 
 /** Random m x n matrix with entries in [-1, 1). */
 const randomMatrix = (m: number, n: number, seed: number): Matrix => {
-  const rnd = rand(seed);
+  const rnd = createRng(seed);
   return new Matrix(m, n).map(() => 2 * rnd() - 1);
 };
 
 const randomVector = (n: number, seed: number): Vector => {
-  const rnd = rand(seed);
+  const rnd = createRng(seed);
   return new Vector(Array.from({ length: n }, () => 2 * rnd() - 1));
 };
 
@@ -282,7 +282,7 @@ describe('Matrix SVD family', () => {
     });
 
     it('handles matrices of random 2x2 blocks with a wide dynamic range', () => {
-      const rnd = rand(77);
+      const rnd = createRng(77);
       const entry = (): number => (2 * rnd() - 1) * 10 ** Math.round(12 * (rnd() - 0.5));
       for (let t = 0; t < 300; t++) {
         const A = Matrix.from([

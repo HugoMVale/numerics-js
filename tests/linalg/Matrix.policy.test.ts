@@ -3,7 +3,7 @@ import { Vector } from '../../src/linalg/Vector.js';
 import { Matrix } from '../../src/linalg/Matrix.js';
 import { typeName } from '../../src/linalg/checks.js';
 import { NotPositiveDefiniteError } from '../../src/linalg/Matrix.linalg.js';
-import { rand } from '../../src/math.js';
+import { createRng } from '../../src/math.js';
 
 // Tests of the linear-algebra error and non-finite policy (see AGENTS.md):
 // NaN propagates, infinite entries throw RangeError, singular matrices throw
@@ -12,7 +12,7 @@ import { rand } from '../../src/math.js';
 const EPS = Number.EPSILON;
 
 const randomMatrix = (m: number, n: number, seed: number): Matrix => {
-  const rnd = rand(seed);
+  const rnd = createRng(seed);
   const A = new Matrix(m, n);
   for (let i = 0; i < m * n; i++) A.data[i] = rnd() * 2 - 1;
   return A;

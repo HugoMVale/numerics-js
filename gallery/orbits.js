@@ -142,7 +142,7 @@ export function mountOrbits() {
     } else if (name === 'solar') {
       eps2 = 1e-4;
       viewR = 2.3;
-      const rnd = math.rand(seed++);
+      const rnd = math.createRng(seed++);
       const radii = [0.32, 0.55, 0.85, 1.25, 1.75];
       const masses = [2e-4, 5e-4, 7e-4, 3e-4, 1.2e-3];
       let px = 0;
@@ -178,7 +178,7 @@ export function mountOrbits() {
     } else {
       eps2 = 2e-3;
       viewR = 2.0;
-      const rnd = math.rand(seed++);
+      const rnd = math.createRng(seed++);
       let mx = 0;
       let my = 0;
       let mt = 0;

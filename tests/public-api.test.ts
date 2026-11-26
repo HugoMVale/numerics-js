@@ -39,7 +39,10 @@ describe('public API', () => {
     expect(typeof math.clip).toBe('function');
     expect(typeof math.copysign).toBe('function');
     expect(typeof math.isClose).toBe('function');
-    expect(typeof math.rand).toBe('function');
+    expect(typeof math.createRng).toBe('function');
+    expect(Object.keys(math).sort()).toEqual(['clip', 'copysign', 'createRng', 'isClose']);
+    expectTypeOf<math.CloseOptions>().toEqualTypeOf<{ atol?: number; rtol?: number }>();
+    expectTypeOf<math.RngMethod>().toEqualTypeOf<'mulberry32'>();
     expect(typeof numdiff.derivativeCentered).toBe('function');
     expect(typeof numdiff.jacobianForward).toBe('function');
     expect(typeof numdiff.gradientForward).toBe('function');

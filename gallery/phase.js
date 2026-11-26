@@ -202,7 +202,7 @@ export function mountPhase() {
   }
 
   // ---- particles ----------------------------------------------------------------------------
-  const rnd = math.rand(5);
+  const rnd = math.createRng(5);
   const P = Array.from({ length: NP }, () => spawn({}));
   function spawn(p) {
     p.x = (rnd() * 2 - 1) * V;

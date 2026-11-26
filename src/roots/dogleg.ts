@@ -1,4 +1,5 @@
 import { Vector } from '../linalg/Vector.js';
+import { clip } from '../math/clip.js';
 import { Matrix } from '../linalg/Matrix.js';
 import { ARMIJO_ALPHA, relativeStepLength } from './common.js';
 import type { GlobalStepContext, GlobalStepResult } from './types.js';
@@ -218,7 +219,7 @@ function updateTrustRegion(
       state = TrustState.Rejected;
       if (finite) {
         const raw = (-slope * stepLen) / (2 * (df - slope));
-        trustLen = Math.min(Math.max(raw, 0.1 * trustLen), 0.5 * trustLen);
+        trustLen = clip(raw, 0.1 * trustLen, 0.5 * trustLen);
       } else {
         // Non-finite objective value: no model to interpolate, shrink strongly.
         trustLen *= 0.1;

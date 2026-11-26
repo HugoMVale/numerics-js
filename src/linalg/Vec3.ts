@@ -1,5 +1,6 @@
 import { asArrayLike } from './checks.js';
-import { isCloseScalar, MIN_NORMAL, sqrtOrHypot } from './scalar.js';
+import { DEFAULT_ATOL, DEFAULT_RTOL, isCloseScalar, type CloseOptions } from '../math/isClose.js';
+import { MIN_NORMAL, sqrtOrHypot } from './scalar.js';
 
 /**
  * A 3-component vector of `number`s, used for positions, directions,
@@ -388,13 +389,13 @@ export class Vec3 {
    * false
    * ```
    */
-  allClose(v: Vec3, options?: { atol?: number; rtol?: number }): boolean {
-    const atol = options?.atol ?? 1e-8;
-    const rtol = options?.rtol ?? 1e-5;
+  allClose(v: Vec3, options?: CloseOptions): boolean {
+    const atol = options?.atol ?? DEFAULT_ATOL;
+    const rtol = options?.rtol ?? DEFAULT_RTOL;
     return (
-      isCloseScalar(this.x, v.x, rtol, atol) &&
-      isCloseScalar(this.y, v.y, rtol, atol) &&
-      isCloseScalar(this.z, v.z, rtol, atol)
+      isCloseScalar(this.x, v.x, atol, rtol) &&
+      isCloseScalar(this.y, v.y, atol, rtol) &&
+      isCloseScalar(this.z, v.z, atol, rtol)
     );
   }
 

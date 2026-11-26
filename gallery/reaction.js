@@ -59,7 +59,7 @@ export function mountReaction() {
   const cst = createStage(cycleCanvas);
 
   const field = createField('waves');
-  const rnd = math.rand(7);
+  const rnd = math.createRng(7);
   let regime = 'waves';
 
   // ---- kymograph buffer: one row per solver call, newest at the bottom -----------------------

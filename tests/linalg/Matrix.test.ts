@@ -6,7 +6,7 @@ import {
   type Eigenpair,
   type LUDecomposition
 } from '../../src/linalg/Matrix.js';
-import { rand } from '../../src/math.js';
+import { createRng } from '../../src/math.js';
 import { vectorLikeForms } from '../vectorLikeForms.js';
 
 /** Exact 1-norm condition number via an explicit inverse, used as ground truth. */
@@ -16,7 +16,7 @@ function exactCond1(M: Matrix): number {
 
 /** Builds a random n x n triangular matrix with a well-scaled diagonal (bounded condition number). */
 function randomTriangular(n: number, upper: boolean, seed: number): Matrix {
-  const rnd = rand(seed);
+  const rnd = createRng(seed);
   const M = new Matrix(n, n);
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
@@ -618,7 +618,7 @@ describe('Matrix', () => {
   describe('qrPivot() and its helpers', () => {
     /** Random m x n matrix with entries in [-1, 1). */
     const randomMatrix = (m: number, n: number, seed: number): Matrix => {
-      const rnd = rand(seed);
+      const rnd = createRng(seed);
       return new Matrix(m, n).map(() => 2 * rnd() - 1);
     };
 
@@ -2035,7 +2035,7 @@ describe('Matrix', () => {
       // Independent reference: tile the vector into a full matrix and use the
       // long-standing same-shape elementwise path. Each element undergoes the
       // exact same single floating-point operation, so results must be identical.
-      const rnd = rand(12345);
+      const rnd = createRng(12345);
       const shapes: Array<[number, number]> = [
         [1, 1],
         [1, 5],
