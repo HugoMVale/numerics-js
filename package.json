@@ -1,12 +1,13 @@
 {
   "name": "numerics-js",
   "version": "0.1.0",
-  "description": "A TypeScript numerical methods library",
+  "description": "Dependency-free numerical methods for JavaScript and TypeScript: linear algebra, ODE solvers, optimization, root finding, integration, interpolation and special functions.",
   "type": "module",
+  "sideEffects": false,
   "browser": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "files": [
     "dist"
@@ -101,16 +102,47 @@
     "docs:apps": "node scripts/build-site-apps.mjs",
     "docs:site": "npm run build && npm run docs && npm run docs:apps",
     "sync-version": "node scripts/sync-version.mjs",
-    "version": "node scripts/sync-version.mjs && git add src/index.ts"
+    "version": "node scripts/sync-version.mjs && git add src/index.ts",
+    "release:notes": "node scripts/changelog-notes.mjs",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build"
   },
   "keywords": [
     "numerical-methods",
+    "numerical-analysis",
+    "scientific-computing",
     "mathematics",
-    "algorithms",
+    "linear-algebra",
+    "matrix",
+    "ode",
+    "differential-equations",
+    "runge-kutta",
+    "optimization",
+    "least-squares",
+    "curve-fitting",
+    "root-finding",
+    "integration",
+    "quadrature",
+    "interpolation",
+    "spline",
+    "special-functions",
+    "bessel",
+    "numpy",
+    "scipy",
+    "typescript",
     "javascript",
-    "library"
+    "esm",
+    "zero-dependency"
   ],
+  "author": "Hugo Vale",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HugoMVale/numerics-js.git"
+  },
+  "homepage": "https://hugomvale.github.io/numerics-js/",
+  "bugs": {
+    "url": "https://github.com/HugoMVale/numerics-js/issues"
+  },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^5.0.3",

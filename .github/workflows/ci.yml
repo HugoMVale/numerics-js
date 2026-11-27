@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [lts/*, node]
+        node-version: ['22', lts/*, node]
 
     steps:
       - name: Checkout repository

@@ -102,9 +102,22 @@ amplitude for +10 % (deg): 69.33
 - `special`: Bessel functions `J_n`, `Y_n`, `I_n` and `K_n` of integer order (with exponentially scaled `I_n` and `K_n`), the positive zeros of `J_n` and `Y_n`, the error function and its complement, and the gamma function and its logarithm.
 - `math`: clipping, signed magnitude, approximate equality, and seeded random numbers.
 
-The package is native ESM and exposes both the package root and focused module
-subpaths such as `numerics-js/linalg`, `numerics-js/ode`, and
-`numerics-js/special/bessel`.
+The package exposes both the package root and focused module subpaths such as
+`numerics-js/linalg`, `numerics-js/ode`, and `numerics-js/special/bessel`.
+
+## Requirements
+
+numerics-js is **ESM only**: it ships native ES modules and no CommonJS build.
+
+- **Node.js 22 or later.** Use `import`; Node 22.12 and later can also load the package
+  with `require()`. Older CommonJS-only toolchains need a dynamic `import('numerics-js')`.
+- **Browsers.** Any browser with native ES module support, directly through
+  `<script type="module">` and an import map, or through a bundler. The package is marked
+  side-effect free, so bundlers can tree-shake unused modules.
+- **TypeScript.** Type declarations are bundled. To import subpaths such as
+  `numerics-js/linalg`, set `moduleResolution` to `node16`, `nodenext` or `bundler` in
+  your `tsconfig.json`. The legacy `node`/`node10` resolution does not read the package
+  `exports` map and can only resolve the package root.
 
 ## Documentation
 

@@ -21,6 +21,13 @@
 - `tests/examples.test.ts` also runs every `@example` that has an `Output:` block against `src/` and compares what it prints with that block (about 5 s). Numbers may differ by `1e-9 * max(1, |documented|)` because V8's `Math.*`/`**` differ in the last bits between Node 22 and 24+; everything else must match character for character. Write `Output:` blocks from a real run on Node >= 24, never by hand. To refresh a block, run the example and paste what it prints.
 - `npm run prepare` sets `core.hooksPath` to `.githooks`, which runs the committed pre-commit hook; package installation runs this automatically.
 
+## Releasing
+
+- Keep user-facing changes under `## [Unreleased]` in `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com/) format) as they land.
+- To release: move the `Unreleased` entries to a new `## [X.Y.Z] - YYYY-MM-DD` section, update the link definitions at the bottom, commit to `main`, then run `npm version <patch|minor|major>` (it syncs `src/index.ts` through the `version` script and creates the `vX.Y.Z` tag) and `git push --follow-tags`.
+- Pushing the tag runs `.github/workflows/release.yml`: it checks that the tag is on `main` and matches `package.json` and `src/index.ts`, publishes to npm through trusted publishing (with provenance; `npm publish` runs the `prepublishOnly` checks), and creates a GitHub release whose notes come from the matching `CHANGELOG.md` section (`npm run release:notes -- X.Y.Z` previews them). A pre-release version such as `0.2.0-rc.1` is published under the `rc` dist-tag and marked as a pre-release.
+- Source maps are not published (`src/` is not in the tarball), so `tsconfig.build.json` keeps `sourceMap` and `declarationMap` off.
+
 ## Independent numerical benchmarks
 
 - Some algorithms have companion tests that check results against independent references (e.g. SciPy or mpmath), supplementing hand-derived values and guarding against plausible-looking but incorrect numerics.
