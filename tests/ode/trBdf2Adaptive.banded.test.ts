@@ -416,6 +416,8 @@ describe('trBdf2Adaptive with a banded Jacobian', () => {
       const result = trBdf2Adaptive(heat, 0, 0.5, mode(10), {
         atol: 1e-8,
         rtol: 1e-5,
+        h0: 0.02,
+        hMax: 0.02,
         jac: lambdaJac,
         kl: 1,
         ku: 1
