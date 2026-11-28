@@ -74,3 +74,9 @@ FILTER='lu|solve' ROUNDS=40 node benchmarks/linalg/perf.mjs dist
 bandwidths (`O(n * kl * (kl + ku))` and `O(n * (kl + ku))`) and compares the banded solve with the
 dense `Matrix.solve` on method-of-lines matrices. `node benchmarks/linalg/banded.perf.mjs dist --check`
 exits with status 1 if a fitted slope is out of range.
+
+`ode/trBdf2Adaptive.banded.perf.mjs` times `ode.trBdf2Adaptive` on Fisher-KPP reaction-diffusion
+problems (1D with `n = 800` and `n = 1600`, 2D on a 50 x 50 grid), in dense mode and in banded mode
+with an analytic and a finite-difference Jacobian, and prints steps and counters, which agree between
+the dense and the banded mode. `node benchmarks/ode/trBdf2Adaptive.banded.perf.mjs dist --skip-dense`
+skips the dense runs, the slowest of which takes tens of seconds.

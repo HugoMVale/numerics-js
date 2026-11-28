@@ -45,6 +45,7 @@ describe('public API', () => {
     expectTypeOf<math.RngMethod>().toEqualTypeOf<'mulberry32'>();
     expect(typeof numdiff.derivativeCentered).toBe('function');
     expect(typeof numdiff.jacobianForward).toBe('function');
+    expect(typeof numdiff.jacobianForwardBanded).toBe('function');
     expect(typeof numdiff.gradientForward).toBe('function');
     expect(typeof numdiff.hessianForward).toBe('function');
     expect(typeof numdiff.scaleVector).toBe('function');
@@ -203,6 +204,29 @@ describe('public API', () => {
     }
     // The class is only a type: it is obtained from a result and never constructed by users.
     expect('OdeDenseOutput' in ode).toBe(false);
+  });
+
+  it('exposes the banded Jacobian of trBdf2Adaptive through the public entry points', () => {
+    const f: ode.DerivativeFunction = (_t, y, out) => {
+      out.data[0] = -2 * y.data[0] + y.data[1];
+      out.data[1] = y.data[0] - 2 * y.data[1];
+      return out;
+    };
+    const jac: ode.BandedJacobianFunction = (_t, _y, J: linalg.BandedMatrix) =>
+      J.set(0, 0, -2).set(0, 1, 1).set(1, 0, 1).set(1, 1, -2);
+    const y0 = new linalg.Vector([1, 0]);
+    const analytic = ode.trBdf2Adaptive(f, 0, 1, y0, { kl: 1, ku: 1, jac });
+    const differenced = ode.trBdf2Adaptive(f, 0, 1, y0, { kl: 1, ku: 1 });
+    expect(analytic.success && differenced.success).toBe(true);
+
+    const J = numdiff.jacobianForwardBanded((x) => f(0, x, new linalg.Vector(2)), y0, {
+      kl: 1,
+      ku: 1
+    });
+    expect(J).toBeInstanceOf(linalg.BandedMatrix);
+    expect(J.get(0, 1)).toBeCloseTo(1, 6);
+    // The callback type is a type only, like the other ode types.
+    expect('BandedJacobianFunction' in ode).toBe(false);
   });
 
   it('publishes a browser + node compatible export map', () => {

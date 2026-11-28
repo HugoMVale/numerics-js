@@ -198,7 +198,7 @@ describe('trBdf2Adaptive', () => {
     const result = trBdf2Adaptive(f, 0, 1, new Vector([1]), {
       h0: 0.25,
       hMax: 0.25,
-      jac: (_t, _y, J) => J
+      jac: ((_t, _y, J) => J) satisfies JacobianFunction
     });
     const steps = result.t.size - 1;
 

@@ -79,6 +79,67 @@ console.log(result);
 `
   },
   {
+    title: '2D heat equation (stiff ODE with a banded Jacobian)',
+    code: `import { ode, linalg } from 'numerics-js';
+
+// 2D heat equation u_t = 0.01 (u_xx + u_yy) on the unit square with u = 0 on the boundary and
+// u(x, y, 0) = sin(πx) sin(πy), by the method of lines on an m × m grid of interior points.
+// With the grid numbered row by row, the five-point stencil gives a banded Jacobian with
+// kl = ku = m: a dense Jacobian would be 2500 × 2500 (50 MB), the band is 101 × 2500.
+const m = 50;
+const n = m * m;
+const h = 1 / (m + 1);
+const k = 0.01 / (h * h);
+
+const f: ode.DerivativeFunction = (_t, y, out) => {
+    for (let r = 0; r < m; r++) {
+        for (let c = 0; c < m; c++) {
+            const i = r * m + c;
+            const left = c > 0 ? y.data[i - 1] : 0;
+            const right = c < m - 1 ? y.data[i + 1] : 0;
+            const down = r > 0 ? y.data[i - m] : 0;
+            const up = r < m - 1 ? y.data[i + m] : 0;
+            out.data[i] = k * (left + right + down + up - 4 * y.data[i]);
+        }
+    }
+    return out;
+};
+
+const jac: ode.BandedJacobianFunction = (_t, _y, J) => {
+    for (let r = 0; r < m; r++) {
+        for (let c = 0; c < m; c++) {
+            const i = r * m + c;
+            J.set(i, i, -4 * k);
+            if (c > 0) J.set(i, i - 1, k);
+            if (c < m - 1) J.set(i, i + 1, k);
+            if (r > 0) J.set(i, i - m, k);
+            if (r < m - 1) J.set(i, i + m, k);
+        }
+    }
+    return J;
+};
+
+const shape = (r: number, c: number) => Math.sin(Math.PI * (r + 1) * h) * Math.sin(Math.PI * (c + 1) * h);
+const u0 = new linalg.Vector(n);
+for (let i = 0; i < n; i++) u0.data[i] = shape(Math.floor(i / m), i % m);
+
+const t0 = performance.now();
+const result = ode.trBdf2Adaptive(f, 0, 1, u0, { atol: 1e-8, rtol: 1e-6, kl: m, ku: m, jac });
+const ms = performance.now() - t0;
+
+// The exact solution keeps its shape and decays like exp(-2 π² 0.01 t).
+const decay = Math.exp(-2 * Math.PI ** 2 * 0.01);
+let maxError = 0;
+for (let i = 0; i < n; i++) {
+    const exact = decay * shape(Math.floor(i / m), i % m);
+    maxError = Math.max(maxError, Math.abs(result.y.get(result.y.rows - 1, i) - exact));
+}
+console.log('unknowns:', n, 'steps:', result.t.size - 1, 'f evaluations:', result.evaluations);
+console.log('max error vs exact:', maxError);
+console.log('time (ms):', Math.round(ms));
+`
+  },
+  {
     title: 'Solve a linear system',
     code: `import { Matrix, Vector } from 'numerics-js/linalg';
 

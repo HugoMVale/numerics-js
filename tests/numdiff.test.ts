@@ -4,6 +4,7 @@ import { Matrix } from '../src/linalg/Matrix.js';
 import {
   scaleVector,
   jacobianForward,
+  jacobianForwardBanded,
   gradientForward,
   hessianForward,
   derivativeCentered
@@ -142,6 +143,183 @@ describe('jacobianForward', () => {
     let n = 0;
     const inconsistent = (v: Vector) => (n++ === 0 ? fnc3(v) : Vector.from([1, 2, 3]));
     expect(() => jacobianForward(inconsistent, x)).toThrow(/returned 3 components/);
+  });
+});
+
+describe('jacobianForwardBanded', () => {
+  // A nonlinear function whose component k depends only on x[k - kl .. k + ku].
+  const bandedFunction =
+    (kl: number, ku: number) =>
+    (x: Vector): Vector => {
+      const n = x.size;
+      const out = new Vector(n);
+      for (let k = 0; k < n; k++) {
+        let s = x.get(k) ** 2;
+        for (let j = Math.max(0, k - kl); j <= Math.min(n - 1, k + ku); j++) {
+          s += (1 + 0.1 * (k - j)) * Math.sin(x.get(j) + 0.3 * k);
+        }
+        out.set(k, s);
+      }
+      return out;
+    };
+  const point = (n: number) => Vector.from(Array.from({ length: n }, (_, i) => 0.5 + 0.37 * i));
+
+  it('gives exactly the Jacobian of jacobianForward for functions that honor the band', () => {
+    for (const [kl, ku] of [
+      [1, 1],
+      [2, 1],
+      [0, 3],
+      [3, 2],
+      [0, 0]
+    ]) {
+      const f = bandedFunction(kl, ku);
+      const x = point(12);
+      const dense = jacobianForward(f, x);
+      const band = jacobianForwardBanded(f, x, { kl, ku });
+
+      expect(band.kl).toBe(kl);
+      expect(band.ku).toBe(ku);
+      expect(Array.from(band.toMatrix().data)).toEqual(Array.from(dense.data));
+    }
+  });
+
+  it('honors fx, sclx and epsf like jacobianForward', () => {
+    const f = bandedFunction(1, 1);
+    const x = point(9);
+    const options = {
+      fx: f(x),
+      sclx: Vector.from(Array.from({ length: 9 }, (_, i) => 1 + i)),
+      epsf: 1e-10
+    };
+    const dense = jacobianForward(f, x, options);
+    const band = jacobianForwardBanded(f, x, { kl: 1, ku: 1, ...options });
+    expect(Array.from(band.toMatrix().data)).toEqual(Array.from(dense.data));
+  });
+
+  it('approximates the analytic tridiagonal Jacobian', () => {
+    // f_k = x_{k-1} - 2 x_k + x_{k+1} + x_k^2, zero outside.
+    const n = 8;
+    const f = (x: Vector): Vector => {
+      const out = new Vector(n);
+      for (let k = 0; k < n; k++) {
+        const left = k > 0 ? x.get(k - 1) : 0;
+        const right = k < n - 1 ? x.get(k + 1) : 0;
+        out.set(k, left - 2 * x.get(k) + right + x.get(k) ** 2);
+      }
+      return out;
+    };
+    const x = point(n);
+    const band = jacobianForwardBanded(f, x, { kl: 1, ku: 1 });
+    for (let k = 0; k < n; k++) {
+      expect(band.get(k, k)).toBeCloseTo(-2 + 2 * x.get(k), 6);
+      if (k > 0) expect(band.get(k, k - 1)).toBeCloseTo(1, 6);
+      if (k < n - 1) expect(band.get(k, k + 1)).toBeCloseTo(1, 6);
+    }
+  });
+
+  it('needs min(kl + ku + 1, n) evaluations, plus one for f(x) unless fx is given', () => {
+    const count = (n: number, kl: number, ku: number, withFx: boolean): number => {
+      const f0 = bandedFunction(kl, ku);
+      let calls = 0;
+      const f = (x: Vector): Vector => {
+        calls++;
+        return f0(x);
+      };
+      const x = point(n);
+      jacobianForwardBanded(f, x, withFx ? { kl, ku, fx: f0(x) } : { kl, ku });
+      return calls;
+    };
+    expect(count(50, 1, 1, true)).toBe(3);
+    expect(count(50, 1, 1, false)).toBe(4);
+    expect(count(50, 3, 2, true)).toBe(6);
+    expect(count(50, 0, 0, true)).toBe(1);
+    // The band covers the whole matrix: every column is its own group, as in jacobianForward.
+    expect(count(5, 4, 4, true)).toBe(5);
+    expect(count(5, 2, 2, true)).toBe(5);
+    expect(count(5, 2, 1, true)).toBe(4);
+  });
+
+  it('clamps a bandwidth of n or more to n - 1', () => {
+    const f = bandedFunction(2, 2);
+    const x = point(4);
+    const band = jacobianForwardBanded(f, x, { kl: 10, ku: 4 });
+    expect(band.kl).toBe(3);
+    expect(band.ku).toBe(3);
+    expect(Array.from(band.toMatrix().data)).toEqual(Array.from(jacobianForward(f, x).data));
+  });
+
+  it('handles a single component', () => {
+    const band = jacobianForwardBanded((x) => Vector.from([x.get(0) ** 3]), Vector.from([2]), {
+      kl: 0,
+      ku: 0
+    });
+    expect(band.n).toBe(1);
+    expect(band.get(0, 0)).toBeCloseTo(12, 5);
+  });
+
+  it('accepts a function that returns the same buffer every time and never modifies x', () => {
+    const f0 = bandedFunction(1, 1);
+    const shared = new Vector(10);
+    const f = (x: Vector): Vector => shared.set(f0(x).data);
+    const x = point(10);
+    const xCopy = x.copy();
+    const band = jacobianForwardBanded(f, x, { kl: 1, ku: 1 });
+    expect(Array.from(x.data)).toEqual(Array.from(xCopy.data));
+    expect(Array.from(band.toMatrix().data)).toEqual(Array.from(jacobianForward(f0, x).data));
+  });
+
+  it('returns silently wrong entries if the function does not honor the declared band', () => {
+    // A full coupling declared as tridiagonal: the grouped perturbations overlap.
+    const f = bandedFunction(5, 5);
+    const x = point(8);
+    const wrong = jacobianForwardBanded(f, x, { kl: 1, ku: 1 }).toMatrix();
+    const right = jacobianForward(f, x);
+    let maxDiff = 0;
+    for (let k = 0; k < 8; k++) {
+      for (let i = Math.max(0, k - 1); i <= Math.min(7, k + 1); i++) {
+        maxDiff = Math.max(maxDiff, Math.abs(wrong.get(k, i) - right.get(k, i)));
+      }
+    }
+    expect(maxDiff).toBeGreaterThan(1e-3);
+  });
+
+  it('rejects invalid bandwidths and options', () => {
+    const f = bandedFunction(1, 1);
+    const x = point(5);
+    // @ts-expect-error missing options
+    expect(() => jacobianForwardBanded(f, x)).toThrow(/options with kl and ku are required/);
+    // @ts-expect-error missing ku
+    expect(() => jacobianForwardBanded(f, x, { kl: 1 })).toThrow(TypeError);
+    // @ts-expect-error string bandwidth
+    expect(() => jacobianForwardBanded(f, x, { kl: '1', ku: 1 })).toThrow(/kl must be a number/);
+    expect(() => jacobianForwardBanded(f, x, { kl: -1, ku: 1 })).toThrow(RangeError);
+    expect(() => jacobianForwardBanded(f, x, { kl: 1, ku: 1.5 })).toThrow(
+      /ku must be a non-negative integer, got 1.5\./
+    );
+    expect(() => jacobianForwardBanded(f, x, { kl: NaN, ku: 1 })).toThrow(RangeError);
+    expect(() => jacobianForwardBanded(f, x, { kl: 1, ku: 1, sclx: Vector.from([1]) })).toThrow(
+      /sclx must have 5/
+    );
+    expect(() =>
+      jacobianForwardBanded(f, x, { kl: 1, ku: 1, sclx: Vector.from([1, 1, 0, 1, 1]) })
+    ).toThrow(RangeError);
+    expect(() => jacobianForwardBanded(f, x, { kl: 1, ku: 1, epsf: NaN })).toThrow(RangeError);
+  });
+
+  it('rejects function values of the wrong size', () => {
+    const x = point(5);
+    expect(() => jacobianForwardBanded(() => Vector.from([1, 2, 3]), x, { kl: 1, ku: 1 })).toThrow(
+      /f must return as many components as x \(5\), got 3\./
+    );
+    expect(() =>
+      jacobianForwardBanded(bandedFunction(1, 1), x, { kl: 1, ku: 1, fx: Vector.from([1, 2]) })
+    ).toThrow(RangeError);
+    const f0 = bandedFunction(1, 1);
+    let calls = 0;
+    const inconsistent = (v: Vector): Vector => (++calls === 1 ? f0(v) : Vector.from([1, 2, 3]));
+    expect(() => jacobianForwardBanded(inconsistent, x, { kl: 1, ku: 1 })).toThrow(
+      /returned 3 components/
+    );
   });
 });
 

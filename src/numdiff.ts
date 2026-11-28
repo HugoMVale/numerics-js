@@ -6,6 +6,8 @@
 
 import { Vector } from './linalg/Vector.js';
 import { Matrix } from './linalg/Matrix.js';
+import { BandedMatrix } from './linalg/BandedMatrix.js';
+import { typeName } from './linalg/checks.js';
 
 const EPS = Number.EPSILON;
 
@@ -35,6 +37,22 @@ export interface JacobianForwardOptions extends ForwardDifferenceOptions {
    * function evaluation. It must be consistent with `f`.
    */
   fx?: Vector;
+}
+
+/** Options for {@link jacobianForwardBanded}. */
+export interface JacobianForwardBandedOptions extends JacobianForwardOptions {
+  /**
+   * Number of subdiagonals of the Jacobian: the function component `k` must not depend on
+   * `x[j]` for `j < k - kl`. A non-negative integer; a value of `x.size` or more is clamped to
+   * `x.size - 1`.
+   */
+  kl: number;
+  /**
+   * Number of superdiagonals of the Jacobian: the function component `k` must not depend on
+   * `x[j]` for `j > k + ku`. A non-negative integer; a value of `x.size` or more is clamped to
+   * `x.size - 1`.
+   */
+  ku: number;
 }
 
 /** Options for {@link gradientForward}. */
@@ -293,6 +311,171 @@ export function jacobianForward(
   }
 
   return jacobian;
+}
+
+/**
+ * Computes the Jacobian matrix of a vector function `f(x)` with a banded sparsity pattern
+ * using the forward finite-difference scheme, as a {@link BandedMatrix}.
+ *
+ * The Jacobian of `f: ℝⁿ → ℝⁿ` is assumed to have `kl` subdiagonals and `ku` superdiagonals,
+ * that is, `∂f_k/∂x_i = 0` unless `-ku <= k - i <= kl`, as in a method-of-lines discretization
+ * of a PDE. Columns that are at least `kl + ku + 1` apart do not touch the same rows, so they
+ * are perturbed together (Curtis, Powell and Reid, 1974): `min(kl + ku + 1, n)` evaluations of
+ * `f` give the whole Jacobian, instead of the `n` of {@link jacobianForward}. The step of
+ * each column is the one of {@link jacobianForward}, `sqrt(epsf) * max(|x_i|, 1/|sclx_i|)`,
+ * and every entry inside the band is computed from the same expression, so that for a function
+ * that honors the band the result equals the band of `jacobianForward`.
+ *
+ * **The band is a promise.** It is not verified: if a component of `f` depends on a variable
+ * outside its band, the perturbations of the columns of a group overlap and the entries of the
+ * result are silently wrong, not merely missing. Periodic boundary conditions, for instance,
+ * add entries in the corners of the Jacobian and are not banded.
+ *
+ * If the function value at `x` is provided, `min(kl + 1 + ku, n)` function evaluations are
+ * required, otherwise one more.
+ *
+ * The vector passed to `f` is either `x` itself or an internal work buffer that is reused
+ * between calls. Therefore, `f` must neither modify it nor keep a reference to it (copy it
+ * if needed). The vector returned by `f` is read before the next call, so `f` may return the
+ * same buffer every time, but not the vector given as `fx`. The argument `x` is never modified.
+ *
+ * **References**
+ *
+ * - A.R. Curtis, M.J.D. Powell, J.K. Reid, "On the estimation of sparse Jacobian matrices",
+ *   J. Inst. Maths Applics 13 (1974), 117-119.
+ * - J.E. Dennis Jr., R.B. Schnabel, "Numerical Methods for Unconstrained
+ *   Optimization and Nonlinear Equations", SIAM, 1996, p. 314.
+ *
+ * @param f Function `f` to be differentiated. It must return as many components as `x` has.
+ * @param x Differentiation point `x`.
+ * @param options Bandwidth `kl` and `ku` and optional settings; see
+ * {@link JacobianForwardBandedOptions}.
+ * @returns The `n x n` Jacobian as a new `BandedMatrix` with the given bandwidths (clamped to
+ * `n - 1`), where `n` is the number of components of `x`.
+ * @throws {TypeError} If `kl` or `ku` is not a number.
+ * @throws {RangeError} If `kl` or `ku` is not a non-negative integer, if `f` or the provided
+ * `fx` does not have as many components as `x`, if `sclx` has fewer components than `x` or
+ * contains a zero or non-finite value, or if `epsf` is not finite.
+ *
+ * @example
+ * ```ts
+ * import { Vector } from 'numerics-js/linalg';
+ * import { jacobianForwardBanded } from 'numerics-js/numdiff';
+ *
+ * // Nonlinear diffusion on 5 points: f_i = x_{i-1} - 2 x_i + x_{i+1} + x_i^2 (zero outside).
+ * // The Jacobian is tridiagonal, so 3 evaluations of f (plus the one at x) are enough.
+ * let calls = 0;
+ * const f = (x: Vector) => {
+ *     calls++;
+ *     const n = x.size;
+ *     const out = new Vector(n);
+ *     for (let i = 0; i < n; i++) {
+ *         const left = i > 0 ? x.get(i - 1) : 0;
+ *         const right = i < n - 1 ? x.get(i + 1) : 0;
+ *         out.set(i, left - 2 * x.get(i) + right + x.get(i) ** 2);
+ *     }
+ *     return out;
+ * };
+ * const jacobian = jacobianForwardBanded(f, Vector.from([1, 2, 3, 4, 5]), { kl: 1, ku: 1 });
+ * for (const row of jacobian.toMatrix().toArray()) {
+ *     console.log(row.map((v) => v.toFixed(3)).join(' '));
+ * }
+ * console.log(`evaluations: ${calls}`);
+ * ```
+ *
+ * Output:
+ * ```text
+ * 0.000 1.000 0.000 0.000 0.000
+ * 1.000 2.000 1.000 0.000 0.000
+ * 0.000 1.000 4.000 1.000 0.000
+ * 0.000 0.000 1.000 6.000 1.000
+ * 0.000 0.000 0.000 1.000 8.000
+ * evaluations: 4
+ * ```
+ */
+export function jacobianForwardBanded(
+  f: (x: Vector) => Vector,
+  x: Vector,
+  options: JacobianForwardBandedOptions
+): BandedMatrix {
+  if (typeof options !== 'object' || options === null) {
+    throw new TypeError(
+      `jacobianForwardBanded: options with kl and ku are required, got ${typeName(options)}.`
+    );
+  }
+  const { kl, ku } = options;
+  checkBandwidth(kl, 'kl');
+  checkBandwidth(ku, 'ku');
+  const n = x.size;
+  // `BandedMatrix` clamps both bandwidths to `n - 1`.
+  const jacobian = new BandedMatrix(n, kl, ku);
+  const sclx = resolveScaling('jacobianForwardBanded', x, options.sclx);
+  const h0 = Math.sqrt(effectiveEpsf('jacobianForwardBanded', options.epsf));
+  // A copy when computed here: `f` may return the same buffer at every call.
+  const fx = options.fx ?? f(x).copy();
+  if (fx.size !== n) {
+    throw new RangeError(
+      `jacobianForwardBanded: f must return as many components as x (${n}), got ${fx.size}.`
+    );
+  }
+
+  const lower = jacobian.kl;
+  const upper = jacobian.ku;
+  const ldab = jacobian.ldab;
+  const band = jacobian.data;
+  const fxd = fx.data;
+  // Columns i, i + groups, i + 2 * groups, ... are perturbed together.
+  const groups = Math.min(lower + upper + 1, n);
+  const xh = x.copy();
+  const xhd = xh.data;
+  const xd = x.data;
+  const steps = new Float64Array(n);
+
+  for (let g = 0; g < groups; g++) {
+    for (let i = g; i < n; i += groups) {
+      const xi = xd[i];
+      let h = h0 * Math.max(Math.abs(xi), 1.0 / sclx.get(i));
+      xhd[i] = xi + h;
+      // Recompute step size to minimize floating-point error
+      h = xhd[i] - xi;
+      steps[i] = h;
+    }
+
+    const fxh = f(xh);
+    if (fxh.size !== n) {
+      throw new RangeError(
+        `jacobianForwardBanded: f returned ${fxh.size} components at a perturbed point, expected ${n}.`
+      );
+    }
+    const fxhd = fxh.data;
+
+    for (let i = g; i < n; i += groups) {
+      const h = steps[i];
+      const k0 = i > upper ? i - upper : 0;
+      const k1 = i + lower < n ? i + lower : n - 1;
+      // Element (k, i) of the band is at `upper + k - i + i * ldab`.
+      const base = upper - i + i * ldab;
+      for (let k = k0; k <= k1; k++) {
+        band[base + k] = (fxhd[k] - fxd[k]) / h;
+      }
+      // Restore the modified component
+      xhd[i] = xd[i];
+    }
+  }
+
+  return jacobian;
+}
+
+/** Checks that a bandwidth option of `jacobianForwardBanded` is a non-negative integer. */
+function checkBandwidth(value: unknown, name: string): void {
+  if (typeof value !== 'number') {
+    throw new TypeError(`jacobianForwardBanded: ${name} must be a number, got ${typeName(value)}.`);
+  }
+  if (!Number.isInteger(value) || value < 0) {
+    throw new RangeError(
+      `jacobianForwardBanded: ${name} must be a non-negative integer, got ${value}.`
+    );
+  }
 }
 
 /**

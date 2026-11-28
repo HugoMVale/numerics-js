@@ -1,8 +1,11 @@
 import { Vector, type VectorLike } from '../linalg/Vector.js';
 import { Matrix } from '../linalg/Matrix.js';
 import type { LUDecomposition } from '../linalg/Matrix.js';
+import { BandedMatrix } from '../linalg/BandedMatrix.js';
+import type { BandedLUDecomposition } from '../linalg/BandedMatrix.js';
+import { typeName } from '../linalg/checks.js';
 import { clip } from '../math.js';
-import { jacobianForward } from '../numdiff.js';
+import { jacobianForward, jacobianForwardBanded } from '../numdiff.js';
 import {
   emptyIntervalResult,
   SolutionRecorder,
@@ -13,6 +16,7 @@ import { OdeDenseOutput, StepPolynomial } from './denseOutput.js';
 import { EventDetector, validateEvents } from './events.js';
 import { estimateInitialStep } from './stepControl.js';
 import type {
+  BandedJacobianFunction,
   DerivativeFunction,
   JacobianFunction,
   OdeAdaptiveOptions,
@@ -142,11 +146,44 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
    */
   maxSteps?: number;
   /**
-   * Optional analytic Jacobian `∂f/∂y`; see {@link JacobianFunction}. When omitted,
-   * the Jacobian is approximated by forward finite differences, which costs `n + 1`
-   * derivative evaluations per refresh, where `n` is the number of state components.
+   * Optional analytic Jacobian `∂f/∂y`. Without `kl` and `ku` it is a {@link JacobianFunction}
+   * that fills a dense `n x n` {@link Matrix}; with them it is a {@link BandedJacobianFunction}
+   * that fills a {@link BandedMatrix}. Because the two types cannot be told apart at run time,
+   * a callback written for one must not be combined with the other layout. When omitted, the
+   * Jacobian is approximated by forward finite differences, which costs `n + 1` derivative
+   * evaluations per refresh, where `n` is the number of state components, or
+   * `min(kl + ku + 1, n) + 1` in banded mode.
    */
-  jac?: JacobianFunction;
+  jac?: JacobianFunction | BandedJacobianFunction;
+  /**
+   * Number of subdiagonals of the Jacobian `∂f/∂y`, which switches the solver to banded mode:
+   * `∂f_i/∂y_j = 0` for `i - j > kl`. Must be given together with `ku`, as a non-negative
+   * integer; a value of `n` or more is clamped to `n - 1`. See {@link TrBdf2AdaptiveOptions.ku}.
+   * @default undefined (dense Jacobian)
+   */
+  kl?: number;
+  /**
+   * Number of superdiagonals of the Jacobian `∂f/∂y`: `∂f_i/∂y_j = 0` for `j - i > ku`. Must be
+   * given together with `kl`, as a non-negative integer; a value of `n` or more is clamped to
+   * `n - 1`.
+   *
+   * In banded mode the Jacobian, the iteration matrix `I - (1 - sqrt(2)/2) h J` and its LU
+   * factors are held in LAPACK band storage ({@link BandedMatrix}), so the memory is
+   * `O(n (kl + ku))` instead of `O(n^2)` and each Newton iteration costs `O(n (kl + ku))`
+   * instead of `O(n^2)`. The results are those of the dense mode up to rounding. A finite-difference
+   * Jacobian is obtained with {@link jacobianForwardBanded}, by perturbing columns that are
+   * `kl + ku + 1` apart together. If `kl + ku >= n - 1` the band covers the whole matrix: the
+   * solver does not fall back to dense storage but runs banded on the full band, which gives the
+   * same results with no saving.
+   *
+   * **The band is a promise.** It is not verified. A function that depends on a state
+   * component outside the declared band makes the finite-difference Jacobian wrong without
+   * any error, and an analytic one cannot represent the entry. Periodic boundary conditions,
+   * such as a ring of cells, add entries in the corners of the Jacobian and are therefore not
+   * banded; declaring the band for them is wrong, and the dense mode must be used.
+   * @default undefined (dense Jacobian)
+   */
+  ku?: number;
 }
 
 /**
@@ -189,6 +226,22 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
  * because of a terminal event or a failure, it covers the part that was
  * solved.
  *
+ * **Banded Jacobians.** Systems from the method of lines on a 1D or 2D grid have a Jacobian that
+ * is zero outside a narrow band around the diagonal. With the options `kl` and `ku` (the numbers
+ * of sub- and superdiagonals) the Jacobian, the iteration matrix and its LU factors are kept in
+ * LAPACK band storage ({@link BandedMatrix}), which cuts memory from `O(n^2)` to
+ * `O(n (kl + ku))` and each Newton iteration from `O(n^2)` to `O(n (kl + ku))`. An analytic
+ * Jacobian is then a {@link BandedJacobianFunction}; otherwise it is estimated with
+ * {@link jacobianForwardBanded}, at `min(kl + ku + 1, n) + 1` evaluations of `f` per refresh
+ * instead of `n + 1`. The same steps are taken as in dense mode, up to rounding. Without `kl` and
+ * `ku` nothing changes. On a 1D grid `kl = ku = 1`; on an `m x m` grid numbered row by row with a
+ * five-point stencil `kl = ku = m`. The band is a promise that is not verified, and the solver
+ * is never faster than the band allows: with `kl + ku >= n - 1` it still runs banded, on the full
+ * band, with no saving. **Periodic boundary conditions** (a ring of cells, as in a periodic
+ * Brusselator) couple the first and the last cell and add entries in the corners of the Jacobian:
+ * such a Jacobian is not banded, and declaring a band for it gives wrong results, so use the dense
+ * mode for it.
+ *
  * Step-size underflow and exceeding `maxSteps` do not throw: they return an unsuccessful result
  * (`success === false`) with the reason in `message`.
  *
@@ -219,10 +272,12 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
  * status information. `events` is present when the `events` option was given,
  * and so is `denseOutput` when the `denseOutput` option was.
  * @throws {RangeError} If the state has no components or a non-finite component, `t0` or `tEnd`
- * is not finite, tolerances are invalid, a step-size or controller limit is invalid, or an event
- * option is invalid.
- * @throws {TypeError} If `y0` is not a `VectorLike`, or if an event function is not a
- * function.
+ * is not finite, tolerances are invalid, a step-size or controller limit is invalid, an event
+ * option is invalid, only one of `kl` and `ku` is given, or one of them is not a non-negative
+ * integer. A banded Jacobian callback that writes outside the band also throws a `RangeError`
+ * (from `BandedMatrix.set`).
+ * @throws {TypeError} If `y0` is not a `VectorLike`, if an event function is not a
+ * function, or if `kl` or `ku` is not a number.
  *
  * @example
  * ```ts
@@ -409,6 +464,69 @@ export interface TrBdf2AdaptiveOptions extends OdeAdaptiveOptions {
  * ```text
  * { steps: 533, points: 101, maxError: 9.004891221575662e-8 }
  * ```
+ *
+ * @example
+ * ```ts
+ * import {
+ *     trBdf2Adaptive,
+ *     type BandedJacobianFunction,
+ *     type DerivativeFunction,
+ * } from 'numerics-js/ode';
+ *
+ * // Heat equation u_t = 0.01 u_xx on (0, 1) with u(0) = u(1) = 0 and u(x, 0) = sin(pi x),
+ * // discretized on n interior points. The Jacobian is tridiagonal, so kl = ku = 1 and the
+ * // solver works in band storage: O(n) memory and work per Newton iteration instead of O(n^2).
+ * const n = 200;
+ * const nu = 0.01 * (n + 1) ** 2;
+ * const f: DerivativeFunction = (_t, y, out) => {
+ *     for (let i = 0; i < n; i++) {
+ *         const left = i > 0 ? y.data[i - 1] : 0;
+ *         const right = i < n - 1 ? y.data[i + 1] : 0;
+ *         out.data[i] = nu * (left - 2 * y.data[i] + right);
+ *     }
+ *     return out;
+ * };
+ * const jac: BandedJacobianFunction = (_t, _y, J) => {
+ *     for (let i = 0; i < n; i++) {
+ *         J.set(i, i, -2 * nu);
+ *         if (i > 0) J.set(i, i - 1, nu);
+ *         if (i < n - 1) J.set(i, i + 1, nu);
+ *     }
+ *     return J;
+ * };
+ * const x = Array.from({ length: n }, (_, i) => (i + 1) / (n + 1));
+ * const result = trBdf2Adaptive(f, 0, 1, x.map((xi) => Math.sin(Math.PI * xi)), {
+ *     atol: 1e-8,
+ *     rtol: 1e-6,
+ *     kl: 1,
+ *     ku: 1,
+ *     jac,
+ * });
+ * const decay = Math.exp(-0.01 * Math.PI ** 2);
+ * let maxError = 0;
+ * x.forEach((xi, i) => {
+ *     const exact = decay * Math.sin(Math.PI * xi);
+ *     maxError = Math.max(maxError, Math.abs(result.y.get(result.y.rows - 1, i) - exact));
+ * });
+ * console.log({
+ *     success: result.success,
+ *     steps: result.t.size - 1,
+ *     evaluations: result.evaluations,
+ *     decompositions: result.decompositions,
+ *     maxError,
+ * });
+ * ```
+ *
+ * Output:
+ * ```text
+ * {
+ *   success: true,
+ *   steps: 6,
+ *   evaluations: 23,
+ *   decompositions: 4,
+ *   maxError: 3.3846555091976427e-7
+ * }
+ * ```
  */
 export function trBdf2Adaptive(
   f: DerivativeFunction,
@@ -420,11 +538,15 @@ export function trBdf2Adaptive(
   const control = resolveAdaptiveControl(options);
   const { atol, rtol, h0, hMax, hMin, maxSteps, safety, minScale, maxScale } = control;
   const { jac, events, denseOutput = false } = options;
+  const { kl: klOption, ku: kuOption } = options;
   // Owned copy: it becomes the working state, so the caller's data is never mutated.
   const y0v = Vector.asVector(y0, true);
   const dim = y0v.size;
   validateAdaptiveOptions('trBdf2Adaptive', t0, tEnd, y0v, control);
   if (events !== undefined) validateEvents(events, 'trBdf2Adaptive');
+  const banded = validateBandwidth(klOption, kuOption);
+  const kl = banded ? Math.min(klOption as number, dim - 1) : 0;
+  const ku = banded ? Math.min(kuOption as number, dim - 1) : 0;
 
   if (tEnd === t0) return emptyIntervalResult('trbdf2', t0, y0v, events, denseOutput);
 
@@ -456,20 +578,31 @@ export function trBdf2Adaptive(
   const resid = new Vector(dim); // Newton right-hand side, later the raw error estimate
   const scale = new Vector(dim); // weights atol + rtol |y_n|
   const delta = new Vector(dim); // Newton correction, later the filtered error estimate
-  // Storage of the factorization of I - D h J, reused by every call to `lu`.
+  // Storage of the factorization of I - D h J, reused by every call to `lu`. Dense mode only: in
+  // banded mode no n x n array is ever allocated.
   const lu: LUDecomposition = {
-    L: new Matrix(dim, dim),
-    U: new Matrix(dim, dim),
-    perm: new Array<number>(dim),
+    L: new Matrix(banded ? 1 : dim, banded ? 1 : dim),
+    U: new Matrix(banded ? 1 : dim, banded ? 1 : dim),
+    perm: new Array<number>(banded ? 1 : dim),
     sign: 1
   };
-  const jacBuf = jac !== undefined ? new Matrix(dim, dim) : null;
+  const jacBuf = jac !== undefined && !banded ? new Matrix(dim, dim) : null;
+  // Banded mode: the iteration matrix I - D h J, its factorization (the first one is of the
+  // identity, only to allocate the storage that every later `lu(out)` reuses), and the buffer of
+  // an analytic Jacobian.
+  const iterBand = banded ? new BandedMatrix(dim, kl, ku) : null;
+  if (iterBand !== null) {
+    for (let j = 0; j < dim; j++) iterBand.data[ku + j * iterBand.ldab] = 1;
+  }
+  const luBand: BandedLUDecomposition | null = iterBand !== null ? iterBand.lu() : null;
+  const jacBand = jac !== undefined && banded ? new BandedMatrix(dim, kl, ku) : null;
 
   let t = t0;
 
   // Jacobian and factorization state. `J` is assigned inside closures, so it is declared through an
   // assertion to keep TypeScript from narrowing it to `null`.
   let J = null as Matrix | null;
+  let JB = null as BandedMatrix | null; // banded mode: the Jacobian, in band storage
   let luValid = false; // whether `lu` holds the factorization for step size `luH`
   let luH = NaN; // step size for which `lu` was built
   let jacCurrent = false; // whether J was evaluated at (t_n, y_n)
@@ -484,9 +617,18 @@ export function trBdf2Adaptive(
   h = dir * Math.min(Math.abs(h), hMax, Math.abs(tEnd - t0));
 
   const refreshJacobian = (): void => {
-    if (jacBuf !== null && jac !== undefined) {
+    if (banded) {
+      if (jacBand !== null && jac !== undefined) {
+        jacBand.data.fill(0);
+        (jac as BandedJacobianFunction)(t, y, jacBand);
+        JB = jacBand;
+      } else {
+        fc(t, y, fJac);
+        JB = jacobianForwardBanded((x) => fc(t, x, fStage), y, { kl, ku, fx: fJac });
+      }
+    } else if (jacBuf !== null && jac !== undefined) {
       jacBuf.fill(0);
-      jac(t, y, jacBuf);
+      (jac as JacobianFunction)(t, y, jacBuf);
       J = jacBuf;
     } else {
       // The carried-over first-stage derivative is not accurate enough to be differenced,
@@ -502,6 +644,7 @@ export function trBdf2Adaptive(
   // Factors I - D*h*J into `lu`, in place. Returns false if the matrix is exactly singular or
   // is not a finite number (`lu` propagates NaN instead of failing, and rejects infinite entries).
   const factorize = (hStep: number): boolean => {
+    if (banded) return factorizeBanded(hStep);
     const n = dim;
     const md = lu.U.data;
     const jd = (J as Matrix).data;
@@ -533,6 +676,50 @@ export function trBdf2Adaptive(
     return true;
   };
 
+  // Banded counterpart of `factorize`: builds I - D*h*J straight in band storage (the J band and
+  // the iteration band have the same shape, so entry k of one is entry k of the other) and factors
+  // it into the preallocated `luBand`. The NaN scan is needed because the banded `lu` propagates
+  // NaN instead of failing; the catch-all covers a zero pivot (`Error`) and an infinite entry
+  // (`RangeError`), exactly as in the dense path.
+  const factorizeBanded = (hStep: number): boolean => {
+    const md = (iterBand as BandedMatrix).data;
+    const jd = (JB as BandedMatrix).data;
+    const ldab = kl + ku + 1;
+    const c = D * hStep;
+    let hasNaN = false;
+    for (let j = 0; j < dim; j++) {
+      const col = j * ldab;
+      // Rows of column j inside the matrix; the unused corners of the storage stay 0.
+      const k0 = Math.max(0, ku - j);
+      const k1 = Math.min(ldab - 1, ku + dim - 1 - j);
+      for (let k = k0; k <= k1; k++) {
+        const v = (k === ku ? 1 : 0) - c * jd[col + k];
+        md[col + k] = v;
+        if (v !== v) hasNaN = true;
+      }
+    }
+    if (hasNaN) {
+      luValid = false;
+      return false;
+    }
+    try {
+      (iterBand as BandedMatrix).lu(luBand as BandedLUDecomposition);
+    } catch {
+      luValid = false;
+      return false;
+    }
+    decompositions++;
+    luH = hStep;
+    luValid = true;
+    return true;
+  };
+
+  // Solves (I - D h J) x = b with the current factorization, dense or banded.
+  const solveIteration = (b: Vector, out: Vector): Vector =>
+    banded
+      ? BandedMatrix.solveLU(luBand as BandedLUDecomposition, b, out)
+      : Matrix.solveLU(lu, b, out);
+
   // Solves z - h f(tStage, base + D z) = 0 for z by simplified Newton iteration, starting from
   // the current content of `zIter`. Each iteration costs one evaluation of f and ends with the
   // updated z, which is used as the stage value without a further evaluation. Returns the number
@@ -550,7 +737,7 @@ export function trBdf2Adaptive(
       fc(tStage, yStage, fStage);
       const fd = fStage.data;
       for (let i = 0; i < dim; i++) rd[i] = hStep * fd[i] - zd[i];
-      Matrix.solveLU(lu, resid, delta);
+      solveIteration(resid, delta);
       const dd = delta.data;
 
       let sumSq = 0;
@@ -624,7 +811,7 @@ export function trBdf2Adaptive(
       isFinalStep = true;
     }
 
-    if (J === null) refreshJacobian();
+    if (J === null && JB === null) refreshJacobian();
     let ok = luValid && h === luH ? true : factorize(h);
 
     if (ok) {
@@ -696,7 +883,7 @@ export function trBdf2Adaptive(
       const z1d = z1.data;
       for (let i = 0; i < dim; i++) ed[i] = E_N * znd[i] + E_G * zgd[i] + E_1 * z1d[i];
     }
-    const filtered = Matrix.solveLU(lu, resid, delta);
+    const filtered = solveIteration(resid, delta);
     let sumSq = 0;
     {
       const yd = y.data;
@@ -754,4 +941,29 @@ export function trBdf2Adaptive(
   }
 
   return makeResult(true, 'Integration successful.');
+}
+
+/**
+ * Validates the `kl` and `ku` options of {@link trBdf2Adaptive}.
+ * @returns Whether banded mode is requested.
+ * @throws {RangeError} If only one of them is given, or one is not a non-negative integer.
+ * @throws {TypeError} If one is not a number.
+ */
+function validateBandwidth(kl: unknown, ku: unknown): boolean {
+  if (kl === undefined && ku === undefined) return false;
+  if (kl === undefined || ku === undefined) {
+    throw new RangeError('trBdf2Adaptive: kl and ku must be given together.');
+  }
+  for (const [name, value] of [
+    ['kl', kl],
+    ['ku', ku]
+  ] as const) {
+    if (typeof value !== 'number') {
+      throw new TypeError(`trBdf2Adaptive: ${name} must be a number, got ${typeName(value)}.`);
+    }
+    if (!Number.isInteger(value) || value < 0) {
+      throw new RangeError(`trBdf2Adaptive: ${name} must be a non-negative integer, got ${value}.`);
+    }
+  }
+  return true;
 }

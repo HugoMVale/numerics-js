@@ -1,5 +1,6 @@
 import type { Vector } from '../linalg/Vector.js';
 import type { Matrix } from '../linalg/Matrix.js';
+import type { BandedMatrix } from '../linalg/BandedMatrix.js';
 import type { OdeDenseOutput } from './denseOutput.js';
 
 /**
@@ -100,6 +101,20 @@ export interface OdeAdaptiveOptions {
  * need to be written. Neither `t` nor `y` may be mutated.
  */
 export type JacobianFunction = (t: number, y: Vector, J: Matrix) => Matrix;
+
+/**
+ * Jacobian function `J = ∂f/∂y` of an ODE right-hand side `dy/dt = f(t, y)` with a banded
+ * Jacobian, for the `kl` and `ku` options of {@link trBdf2Adaptive}.
+ *
+ * It must write the Jacobian evaluated at `(t, y)` into the provided `J` buffer, with
+ * `J.get(i, j) = ∂f_i/∂y_j`. The buffer is an `n x n` {@link BandedMatrix} with the declared
+ * `kl` subdiagonals and `ku` superdiagonals (each clamped to `n - 1`), and is zero-filled before
+ * each call, so only non-zero entries need to be written. `BandedMatrix.set` throws a
+ * `RangeError` for any entry outside the band, even an explicit `0`, so the callback must stay
+ * inside the band, for instance by writing `J.data` directly or by testing `|i - j|` itself.
+ * Neither `t` nor `y` may be mutated.
+ */
+export type BandedJacobianFunction = (t: number, y: Vector, J: BandedMatrix) => BandedMatrix;
 
 /**
  * Direction in which an event function must cross zero to trigger, relative to the

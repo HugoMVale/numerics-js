@@ -44,6 +44,7 @@ export type {
   DerivativeFunction,
   AllocatingDerivativeFunction,
   JacobianFunction,
+  BandedJacobianFunction,
   OdeAdaptiveOptions,
   OdeEvent,
   OdeEventDirection,
