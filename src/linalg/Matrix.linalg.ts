@@ -183,8 +183,9 @@ const MIN_NORMAL = 2 ** -1022;
  * @param data The entries. `NaN` is ignored, and an infinite entry disables the scaling.
  * @param extent The largest absolute entry, if the caller knows it already (`scanExtent`).
  * @returns `σ`, a power of two (`1` for all zeros).
+ * @internal
  */
-function safeScale(data: Float64Array, extent?: number): number {
+export function safeScale(data: Float64Array, extent?: number): number {
   let max = extent ?? 0;
   if (extent === undefined) {
     for (let i = 0; i < data.length; i++) {
@@ -213,8 +214,9 @@ function safeScale(data: Float64Array, extent?: number): number {
  * @param x The number.
  * @param e The integer exponent. Clamped to `±3000`, far beyond the range of doubles.
  * @returns `x * 2^e`.
+ * @internal
  */
-function ldexp(x: number, e: number): number {
+export function ldexp(x: number, e: number): number {
   let r = x;
   let k = clip(e, -3000, 3000);
   while (k > 1000) {

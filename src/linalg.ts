@@ -14,3 +14,7 @@ export type {
   SVDCutoffOptions,
   LstsqResult
 } from './linalg/Matrix.js';
+export { BandedMatrix } from './linalg/BandedMatrix.js';
+export type { BandedLUDecomposition } from './linalg/BandedMatrix.js';
+export { tridiagonalLU, solveTridiagonalLU, solveTridiagonal } from './linalg/tridiagonal.js';
+export type { TridiagonalLU } from './linalg/tridiagonal.js';

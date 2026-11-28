@@ -8,6 +8,16 @@ While the major version is `0`, minor releases may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- `linalg`: `BandedMatrix`, a square matrix with `kl` subdiagonals and `ku` superdiagonals in LAPACK band storage (`fromMatrix`, `fromBands`, `get`, `set`, `mulVec`, `toMatrix`). `lu()` is a partial-pivoted LU (`dgbtrf` semantics, `O(n * kl * (kl + ku))`) returning a `BandedLUDecomposition` that `BandedMatrix.solveLU()` reuses for any number of right-hand sides (`O(n * (kl + ku))`, allocation-free with `out`); `solve()` does both. A zero pivot throws `Error`, a `NaN` entry gives an all-`NaN` result, an infinite entry throws `RangeError`, and entries near the limits of the double range are scaled by a power of two, as in the dense `Matrix.lu()`.
+- `linalg`: `tridiagonalLU`, `solveTridiagonalLU` and `solveTridiagonal`, the pivoted tridiagonal LU (`dgttrf`) that the cubic splines use, now public with input validation and the same non-finite and scaling policy.
+- Benchmarks: SciPy/LAPACK comparison of the banded and tridiagonal LU, and `benchmarks/linalg/banded.perf.mjs`, a timing check of the predicted scaling.
+
+### Changed
+
+- `interpolate`: the tridiagonal solver moved from `src/interpolate/tridiagonal.ts` to `src/linalg/tridiagonal.ts`; the cubic splines are unchanged and use its allocation-free internal kernels.
+
 ## [0.1.0] - 2026-11-27
 
 First public release.

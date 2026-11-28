@@ -33,6 +33,7 @@ sync when changing a benchmark.
 | [`interpolate/`](./interpolate/) | Cubic splines                | [`cubicSpline.scipy.benchmark.md`](./interpolate/cubicSpline.scipy.benchmark.md)                     |
 | [`linalg/`](./linalg/)           | Eigenvalues and eigenvectors | [`Matrix.eig.scipy.benchmark.md`](./linalg/Matrix.eig.scipy.benchmark.md)                            |
 | [`linalg/`](./linalg/)           | LU factorization             | [`Matrix.lu.scipy.benchmark.md`](./linalg/Matrix.lu.scipy.benchmark.md)                              |
+| [`linalg/`](./linalg/)           | Banded and tridiagonal LU    | [`BandedMatrix.scipy.benchmark.md`](./linalg/BandedMatrix.scipy.benchmark.md)                        |
 | [`linalg/`](./linalg/)           | QR factorization             | [`Matrix.qr.scipy.benchmark.md`](./linalg/Matrix.qr.scipy.benchmark.md)                              |
 | [`linalg/`](./linalg/)           | Pivoted QR (compact)         | [`Matrix.qrPivot.scipy.benchmark.md`](./linalg/Matrix.qrPivot.scipy.benchmark.md)                    |
 | [`linalg/`](./linalg/)           | SVD, least squares, pinv     | [`Matrix.svd.scipy.benchmark.md`](./linalg/Matrix.svd.scipy.benchmark.md)                            |
@@ -68,3 +69,8 @@ node benchmarks/linalg/perf.mjs                 # current build
 node benchmarks/linalg/perf.mjs old/dist dist   # ratio of the second to the first
 FILTER='lu|solve' ROUNDS=40 node benchmarks/linalg/perf.mjs dist
 ```
+
+`linalg/banded.perf.mjs` checks the scaling of `BandedMatrix.lu()` and `solveLU()` with `n` and the
+bandwidths (`O(n * kl * (kl + ku))` and `O(n * (kl + ku))`) and compares the banded solve with the
+dense `Matrix.solve` on method-of-lines matrices. `node benchmarks/linalg/banded.perf.mjs dist --check`
+exits with status 1 if a fitted slope is out of range.

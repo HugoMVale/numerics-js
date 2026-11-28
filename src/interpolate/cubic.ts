@@ -15,7 +15,11 @@ import {
   hermiteIntegrate1D,
   hermiteIntegrateND
 } from './hermite.js';
-import { factorTridiagonal, solveTridiagonal, type TridiagonalLU } from './tridiagonal.js';
+import {
+  factorTridiagonalInPlace,
+  solveTridiagonalInPlace,
+  type TridiagonalLU
+} from '../linalg/tridiagonal.js';
 
 /**
  * End conditions of a cubic spline.
@@ -206,7 +210,7 @@ function buildSplineSystem(x: Float64Array, bc: CubicSplineBoundary): SplineSyst
       break;
   }
 
-  return { n, bc, h, lu: factorTridiagonal(dl, d, du) };
+  return { n, bc, h, lu: factorTridiagonalInPlace(dl, d, du) };
 }
 
 /**
@@ -270,7 +274,7 @@ function computeSplineSlopes(
     }
   }
 
-  solveTridiagonal(lu, r);
+  solveTridiagonalInPlace(lu, r);
   return r;
 }
 

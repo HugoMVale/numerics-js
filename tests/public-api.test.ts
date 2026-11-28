@@ -124,10 +124,18 @@ describe('public API', () => {
     expect(curveFitResult.success).toBe(true);
   });
 
-  it('exports exactly Vector, Matrix and Vec3 as values from linalg', () => {
+  it('exports exactly the linalg classes and the tridiagonal solvers as values from linalg', () => {
     // The factorization kernels in Matrix.linalg.ts and the helpers in checks.ts and
     // scalar.ts are internal: they are reachable only through the Matrix methods.
-    expect(Object.keys(linalg).sort()).toEqual(['Matrix', 'Vec3', 'Vector']);
+    expect(Object.keys(linalg).sort()).toEqual([
+      'BandedMatrix',
+      'Matrix',
+      'Vec3',
+      'Vector',
+      'solveTridiagonal',
+      'solveTridiagonalLU',
+      'tridiagonalLU'
+    ]);
   });
 
   it('names the LU solve next to the other solves, and has no luSolve', () => {
@@ -139,6 +147,25 @@ describe('public API', () => {
     expectTypeOf(x).toEqualTypeOf<linalg.Vector>();
     expect(x.toArray()).toEqual([1, 2]);
     expect('luSolve' in linalg.Matrix).toBe(false);
+  });
+
+  it('exposes the banded and tridiagonal solvers with their result types from linalg', () => {
+    const B = linalg.BandedMatrix.fromMatrix(
+      linalg.Matrix.from([
+        [2, 1],
+        [1, 3]
+      ])
+    );
+    const dec: linalg.BandedLUDecomposition = B.lu();
+    expectTypeOf(linalg.BandedMatrix.solveLU(dec, [1, 2])).toEqualTypeOf<linalg.Vector>();
+    expectTypeOf(B.solve([1, 2])).toEqualTypeOf<linalg.Vector>();
+    expectTypeOf(B.toMatrix()).toEqualTypeOf<linalg.Matrix>();
+    const tri: linalg.TridiagonalLU = linalg.tridiagonalLU([1], [2, 3], [1]);
+    expectTypeOf(linalg.solveTridiagonalLU(tri, [1, 2])).toEqualTypeOf<linalg.Vector>();
+    expectTypeOf(linalg.solveTridiagonal([1], [2, 3], [1], [1, 2])).toEqualTypeOf<linalg.Vector>();
+    // the in-place kernels used by the cubic splines are internal
+    expect('factorTridiagonalInPlace' in linalg).toBe(false);
+    expect('solveTridiagonalInPlace' in linalg).toBe(false);
   });
 
   it('exposes the SVD family on Matrix and its result types from linalg', () => {
